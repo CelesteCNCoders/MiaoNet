@@ -1,0 +1,183 @@
+﻿using System.Diagnostics.CodeAnalysis;
+using MiaoNet.Shared;
+
+namespace Celeste.Mod.MiaoNet;
+
+/// <summary>
+/// Main component, handle player sync
+/// </summary>
+public sealed class MiaoNetMainComponent : MiaoNetComponent
+{
+    private readonly Dictionary<int, PlayerGraphicsInfo> graphicsInfos;
+    private readonly Dictionary<int, MiaoNetGhost> ghosts;
+
+    public MiaoNetMainComponent(MiaoNetContext context) : base(context)
+    {
+        graphicsInfos = new();
+        ghosts = new();
+
+        context.ClientInitialized += Context_ClientInitialized;
+        context.PlayerJoined += Context_PlayerJoined;
+        context.PlayerLeft += Context_PlayerLeft;
+        context.PlayerFrameNotify += Context_PlayerFrameNotify;
+        context.PlayerMapChanged += Context_PlayerMapChanged;
+    }
+
+    public override void OnConnected()
+    {
+        Engine.Scene.OnEndOfFrame += () =>
+        {
+            if (Engine.Scene is not Level level) return;
+            var player = level.Tracker.GetEntity<Player>();
+            if (player is null) return;
+            context.SendPacket(
+                new PacketPlayerMapChanged(
+                    level.Session.Area.GetSID(),
+                    level.Session.Level,
+                    new(player.X, player.Y, (byte)player.Dashes)
+                )
+            );
+        };
+    }
+
+    public override void OnDisconnected()
+    {
+        graphicsInfos.Clear();
+        foreach (var pair in ghosts)
+            pair.Value.RemoveSelf();
+        ghosts.Clear();
+    }
+
+    private void Context_ClientInitialized(OnlineContext context)
+    {
+        foreach (var player in context.Players)
+        {
+            if (player.Info.ID != context.Self.Info.ID)
+                HandleNewPlayer(player.Channel.ID, player.Info, player.StateInfo);
+        }
+    }
+
+    private void Context_PlayerJoined(OnlinePlayer player)
+    {
+        HandleNewPlayer(player.Channel.ID, player.Info, player.StateInfo);
+    }
+
+    private void Context_PlayerLeft(OnlinePlayer player)
+    {
+        if (!ghosts.Remove(player.Info.ID, out MiaoNetGhost? ghost))
+        {
+            Logger.Warn(nameof(MiaoNet), $"Try removing a player({player.Info}) which is not exists.");
+            return;
+        }
+        ghost.RemoveSelf();
+    }
+
+    private void Context_PlayerFrameNotify(OnlinePlayer player, PacketPlayerFrame packet)
+    {
+        if (ghosts.TryGetValue(player.Info.ID, out var ghost))
+        {
+            ghost.Position = new(packet.X, packet.Y);
+            string? sid = null;
+            if (packet.AnimationID != ushort.MaxValue)
+                KnownPlayerAnimations.IDToString.TryGetValue(packet.AnimationID, out sid);
+            ghost.UpdateSprite(packet.AnimationFrame, sid, packet.FacingLeft, packet.ScaleX, packet.ScaleY);
+        }
+        else
+        {
+            Logger.Warn(nameof(MiaoNet), $"Notified but ghost not exists: {player.Info}");
+        }
+    }
+
+    private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotify packet)
+    {
+        Logger.Info(nameof(MiaoNet), $"Player map changed: {player} at {packet.Packet.MapRoom} of {packet.Packet.MapSid}.");
+
+        HandleStateInfoChanged(player.Channel.ID, player.Info, player.StateInfo, packet.GraphicsInfo, packet.PlayerInitialStats);
+    }
+
+    private void HandleNewPlayer(int channelID, PlayerInfo info, PlayerStateInfo stateInfo)
+    {
+        Logger.Info(nameof(MiaoNet), $"New player joined: {info}, stateInfo: {stateInfo}.");
+        HandleStateInfoChanged(channelID, info, stateInfo, null, null);
+    }
+
+    private void HandleStateInfoChanged(
+        int channelID, PlayerInfo info, PlayerStateInfo stateInfo,
+        PlayerGraphicsInfo? graphicsInfo, PlayerStats? initialStats
+    )
+    {
+        Logger.Info(nameof(MiaoNet), $"Channel: {channelID}, Player: {info}, StateInfo: {stateInfo}.");
+        bool needGhost = channelID == context.CurrentChannel!.ID && stateInfo.MapSid == context.Self!.StateInfo.MapSid;
+        Logger.Info(nameof(MiaoNet), $"Need create ghost? {needGhost}");
+        if (ghosts.TryGetValue(info.ID, out MiaoNetGhost? ghost))
+        {
+            if (needGhost)
+            {
+                //ghost.GraphicsInfo = graphicsInfo;
+            }
+            else
+            {
+                ghost.RemoveSelf();
+                ghosts.Remove(ghost.PlayerID);
+            }
+        }
+        else
+        {
+            if (needGhost)
+            {
+                ghosts[info.ID] = new(info.ID, info.Name, graphicsInfo, initialStats);
+            }
+        }
+    }
+
+    public override void Update()
+    {
+        base.Update();
+        if (Engine.Scene is not Level level)
+            return;
+        foreach (var pair in ghosts)
+        {
+            if (pair.Value.Scene != level)
+            {
+                pair.Value.RemoveSelf();
+                level.Add(pair.Value);
+            }
+        }
+        Player player = level.Tracker.GetEntity<Player>();
+        if (player is null)
+            return;
+        if (!KnownPlayerAnimations.StringToID.TryGetValue(player.Sprite.CurrentAnimationID, out var animID))
+        {
+            // TODO extendable
+            animID = ushort.MaxValue;
+        }
+        var packetFrame = new PacketPlayerFrame(
+                player.Position.X,
+                player.Position.Y,
+                (ushort)player.Sprite.CurrentAnimationFrame,
+                (ushort)animID,
+                player.Sprite.Scale.X, player.Sprite.Scale.Y,
+                (player.Facing == Facings.Left) ? PacketPlayerFrame.PlayerFrameActionFlags.FacingLeft : 0
+            );
+        context.SendPacket(packetFrame);
+    }
+
+    public override void Render()
+    {
+        if (context.OnlineContext is null)
+            return;
+        var channels = context.OnlineContext.Channels;
+        int i = 0;
+        int m = Draw.DefaultFont.LineSpacing;
+        foreach (var channel in channels)
+        {
+            Draw.Text(Draw.DefaultFont, channel.ToString(), new Vector2(10, m * i), Color.Red);
+            i += 1;
+            foreach (var player in channel.Players)
+            {
+                Draw.Text(Draw.DefaultFont, $"{player.Info} at {player.StateInfo}", new Vector2(20, m * i), Color.Green);
+                i += 1;
+            }
+        }
+    }
+}

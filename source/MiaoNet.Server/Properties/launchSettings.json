@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "MiaoNet.Server": {
+      "commandName": "Project",
+      "remoteDebugEnabled": false,
+      "authenticationMode": "None"
+    },
+    "WSL": {
+      "commandName": "WSL2",
+      "distributionName": ""
+    }
+  }
+}

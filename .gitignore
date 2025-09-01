@@ -1,0 +1,7 @@
+artifacts
+.vs
+.vscode
+.VSCodeCounter
+**/ModFolder/Code
+**/Properties/PublishProfiles
+*.csproj.user

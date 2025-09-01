@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="CelesteMod.props" />
+
+  <PropertyGroup>
+    <CelesteRootPath>C:/Program Files (x86)/Steam/steamapps/common/Celeste</CelesteRootPath>
+    <AssemblyName>MiaoNet</AssemblyName>
+    <RootNamespace>Celeste.Mod.MiaoNet</RootNamespace>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ModAssetsCopyType>link</ModAssetsCopyType>
+    <UseCelesteAnalyzer>false</UseCelesteAnalyzer>
+    <UseCelestePublicizer>false</UseCelestePublicizer>
+    <DefineConstants>$(DefineConstants);MIAO_CLIENT</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../MiaoNet.Shared/**/*.cs" LinkBase="0-Shared" />
+
+    <None Include="CelesteMod.props">
+      <Visible>false</Visible>
+    </None>
+    <None Include="CelesteMod.targets">
+      <Visible>false</Visible>
+    </None>
+  </ItemGroup>
+
+  <Import Project="CelesteMod.targets" />
+</Project>
