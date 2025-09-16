@@ -1,6 +1,6 @@
 namespace MiaoNet.Shared;
 
-public sealed class PacketClientInitial : IPacket, IRefBinarySerializable<PacketClientInitial>
+public sealed class PacketClientInitial : IPacket<PacketClientInitial>
 {
     public int ChannelID { get; }
 
@@ -8,12 +8,12 @@ public sealed class PacketClientInitial : IPacket, IRefBinarySerializable<Packet
 
     public IReadOnlyList<ChannelStateInfo> Channels { get; }
 
-    public IReadOnlyList<ChannelPlayerStateInfo> Players { get; }
+    public IReadOnlyList<PacketPlayerJoined> Players { get; }
 
     public PacketClientInitial(
         PlayerInfo selfPlayerInfo,
         IReadOnlyList<ChannelStateInfo> channels,
-        IReadOnlyList<ChannelPlayerStateInfo> players
+        IReadOnlyList<PacketPlayerJoined> players
     )
     {
         SelfPlayerInfo = selfPlayerInfo;
@@ -22,7 +22,11 @@ public sealed class PacketClientInitial : IPacket, IRefBinarySerializable<Packet
     }
 
     static PacketClientInitial IRefBinarySerializable<PacketClientInitial>.Deserialize(ref RefBinaryReader reader)
-        => new(reader.Read<PlayerInfo>(), reader.ReadList<ChannelStateInfo>(), reader.ReadList<ChannelPlayerStateInfo>());
+        => new(
+            reader.Read<PlayerInfo>(),
+            reader.ReadList<ChannelStateInfo>(),
+            reader.ReadList<PacketPlayerJoined>()
+        );
 
     public void Serialize(ref RefBinaryWriter writer)
     {

@@ -1,5 +1,4 @@
-﻿using System.Collections.Immutable;
-using MiaoNet.Shared;
+﻿using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
 
@@ -8,19 +7,19 @@ public sealed class ServerPlayer
     public ServerChannel Channel { get; }
 
     public PlayerInfo Info { get; set; }
-    public PlayerStateInfo StateInfo { get; set; }
-    public PlayerStats? Stats { get; set; }
+    public PlayerLocationInfo LocationInfo { get; set; }
+    public PlayerState? State { get; set; }
     public PlayerGraphicsInfo? GraphicsInfo { get; set; }
 
     public int ID => Info.ID;
 
-    public ServerPlayer(ServerChannel channel, PlayerInfo info, PlayerStateInfo stateInfo)
+    public ServerPlayer(ServerChannel channel, PlayerInfo info, PlayerLocationInfo locationInfo)
     {
         Channel = channel;
         Info = info;
-        StateInfo = stateInfo;
+        LocationInfo = locationInfo;
     }
 
-    public ChannelPlayerStateInfo GetChannelPlayerStateInfo()
-        => new(Channel.ID, Info, StateInfo);
+    public ChannelPlayerLocationInfo GetChannelPlayerLocationInfo()
+        => new(Channel.ID, Info, LocationInfo);
 }

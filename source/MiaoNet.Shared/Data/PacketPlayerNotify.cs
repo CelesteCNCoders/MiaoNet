@@ -6,6 +6,9 @@ public abstract class PacketPlayerNotify
 
     public PacketPlayerNotify(int playerID)
         => PlayerID = playerID;
+
+    public virtual void Serialize(ref RefBinaryWriter writer)
+        => writer.Write(PlayerID);
 }
 
 public abstract class PacketPlayerNotify<TPacket> where TPacket : IPacket<TPacket>

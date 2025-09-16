@@ -2,13 +2,13 @@
 
 namespace MiaoNet.Shared;
 
-public sealed class PlayerStateInfo : IRefBinarySerializable<PlayerStateInfo>
+public sealed class PlayerLocationInfo : IRefBinarySerializable<PlayerLocationInfo>
 {
     public string MapSid { get; set; } // empty: player is not in level
 
     public string MapRoom { get; set; } // empty: player is not in level or is in debug map
 
-    public PlayerStateInfo(string mapSid, string mapRoom)
+    public PlayerLocationInfo(string mapSid, string mapRoom)
     {
         MapSid = mapSid;
         MapRoom = mapRoom;
@@ -25,6 +25,6 @@ public sealed class PlayerStateInfo : IRefBinarySerializable<PlayerStateInfo>
         writer.Write(MapRoom);
     }
 
-    public static PlayerStateInfo Deserialize(ref RefBinaryReader reader)
+    public static PlayerLocationInfo Deserialize(ref RefBinaryReader reader)
         => new(reader.ReadString(), reader.ReadString());
 }

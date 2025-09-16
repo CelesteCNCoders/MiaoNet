@@ -9,16 +9,16 @@ public sealed class ServerChannel
 {
     private ImmutableDictionary<int, ServerState.Client> players;
 
-    public ChannelStateInfo StateInfo;
+    public ChannelStateInfo LocationInfo { get; private set; }
 
     public ImmutableDictionary<int, ServerState.Client> Players { get => players; set => players = value; }
 
-    public int ID => StateInfo.ID;
+    public int ID => LocationInfo.ID;
 
-    public ServerChannel(ChannelStateInfo stateInfo)
+    public ServerChannel(ChannelStateInfo locationInfo)
     {
         players = ImmutableDictionary<int, ServerState.Client>.Empty;
-        StateInfo = stateInfo;
+        LocationInfo = locationInfo;
     }
 
     public void OnAddPlayer(ServerPlayer player, MiaoClientConnection connection)

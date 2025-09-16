@@ -13,12 +13,12 @@
 	- 频道列表：`频道列表（ChannelSummaryList）`，包含频道 ID 和名称。 
 	- 玩家列表：`玩家列表（OnlinePlayerList）`，包含： 
 		- `玩家信息（PlayerInfo）`：如昵称、头衔、颜色等元信息。 
-		- `状态信息（StateInfo）`：如所在地图、房间名（mapName, roomName）。 
+		- `状态信息（LocationInfo）`：如所在地图、房间名（mapName, roomName）。 
 - Server 广播新玩家登录信息给其他 Client。
 
 2. 状态同步阶段（State Management）
 
-- Client 发送自身的 `状态信息（StateInfo）`。 
+- Client 发送自身的 `状态信息（LocationInfo）`。 
 - Server 根据 `mapName` 和 `roomName` 判断玩家位置变更： 
 	- 若 `mapName` 为空且 `roomName` 为空 → 玩家未进入任何地图。 
 	- 若 `mapName` 不变但 `roomName` 变更 → 玩家在当前地图内移动。 

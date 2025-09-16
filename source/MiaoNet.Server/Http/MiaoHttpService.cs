@@ -45,7 +45,7 @@ public sealed class MiaoHttpService : BackgroundService
                 sb.AppendLine($"Channel {channel}");
                 foreach ((_, (var player, _)) in channel.Players)
                 {
-                    sb.AppendLine($"  Player {player.Info} at {player.StateInfo}");
+                    sb.AppendLine($"  Player {player.Info} at {player.LocationInfo}");
                 }
             }
 

@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -25,11 +25,7 @@ public sealed partial class MiaoNetContext
     [MemberNotNullWhen(true, nameof(connection))]
     public bool HasConnection => connection is not null;
 
-    public OnlineContext? OnlineContext { get; private set; }
-
-    public OnlineChannel? CurrentChannel { get; private set; }
-
-    public OnlinePlayer? Self { get; private set; }
+    public ClientState? ClientState { get; private set; }
 
     public MiaoNetMainComponent MainComponent { get; }
 
@@ -56,49 +52,48 @@ public sealed partial class MiaoNetContext
 
     private void HandlePacket(PacketClientInitial packet)
     {
-        PlayerStateInfo stateInfo;
+        PlayerLocationInfo locationInfo;
         if (Engine.Scene is Level level)
-            stateInfo = new(level.Session.Area.SID, level.Session.Level);
+            locationInfo = new(level.Session.Area.SID, level.Session.Level);
         else
-            stateInfo = new(string.Empty, string.Empty);
-        var selfChannelStateInfo = new ChannelPlayerStateInfo(packet.ChannelID, packet.SelfPlayerInfo, stateInfo);
-        OnlineContext = new(packet.Channels.Single(c => c.ID == packet.ChannelID), selfChannelStateInfo);
-        Self = OnlineContext.Self;
-        foreach (var player in packet.Players)
-            OnlineContext.AddPlayer(player);
-        CurrentChannel = OnlineContext.Channels[0];
-        Debug.Assert(CurrentChannel.ID == 0);
-        ClientInitialized?.Invoke(OnlineContext);
+            locationInfo = new(string.Empty, string.Empty);
+
+        ClientState = new(packet, locationInfo);
+        ClientInitialized?.Invoke(ClientState);
     }
 
     private void HandlePacket(PacketPlayerJoined packet)
     {
         EnsureState();
-        var player = OnlineContext.AddPlayer(packet.Info);
+        var player = ClientState.OnNewPlayerJoined(packet.Info);
         PlayerJoined?.Invoke(player);
     }
 
     private void HandlePacket(PacketPlayerLeft packet)
     {
         EnsureState();
-        PlayerLeft?.Invoke(OnlineContext.GetPlayer(packet.PlayerID));
-        OnlineContext.RemovePlayer(packet.PlayerID);
+        PlayerLeft?.Invoke(ClientState.Players[packet.PlayerID]);
+        ClientState.OnPlayerLeft(packet.PlayerID);
     }
 
     private void HandlePacket(PacketPlayerFrameNotify packet)
     {
         EnsureState();
-        var player = OnlineContext.GetPlayer(packet.PlayerID);
+        var player = ClientState.Players[packet.PlayerID];
         PlayerFrameNotify?.Invoke(player, packet.Packet);
     }
 
     private void HandlePacket(PacketPlayerMapChangedNotify packet)
     {
         EnsureState();
-        var player = OnlineContext.GetPlayer(packet.PlayerID);
-        string pMapSid = player.StateInfo.MapSid;
-        string pMapRoom = player.StateInfo.MapRoom;
-        PlayerMapChanged?.Invoke(player, packet);
+        var player = ClientState.Players[packet.PlayerID];
+        string pMapSid = player.LocationInfo.MapSid;
+        string pMapRoom = player.LocationInfo.MapRoom;
+        if (string.IsNullOrEmpty(packet.MapSid) && !string.IsNullOrEmpty(packet.MapRoom))
+            packet.MapSid = pMapSid;
+        PlayerMapChanging?.Invoke(player, packet);
+        player.LocationInfo.MapSid = packet.MapSid;
+        player.LocationInfo.MapRoom = packet.MapRoom;
     }
 
     public void Connect()
@@ -116,9 +111,7 @@ public sealed partial class MiaoNetContext
         cts = null;
         connctionThread = null;
         packetQueue.Clear();
-        OnlineContext = null;
-        CurrentChannel = null;
-        Self = null;
+        ClientState = null;
         components.ForEach(c => c.OnDisconnected());
         if (connection is null)
             return;
@@ -167,7 +160,7 @@ public sealed partial class MiaoNetContext
 
             while (!token.IsCancellationRequested)
             {
-                Packet packet = connection.ReceivePacket();
+                IPacket packet = connection.ReceivePacket();
                 packetQueue.Enqueue(packet);
             }
             return;
@@ -188,11 +181,9 @@ public sealed partial class MiaoNetContext
     }
 
     [Conditional("DEBUG")]
-    [MemberNotNull(nameof(OnlineContext), nameof(Self), nameof(CurrentChannel))]
+    [MemberNotNull(nameof(ClientState))]
     private void EnsureState()
     {
-        Debug.Assert(OnlineContext != null);
-        Debug.Assert(Self != null);
-        Debug.Assert(CurrentChannel != null);
+        Debug.Assert(ClientState != null);
     }
 }

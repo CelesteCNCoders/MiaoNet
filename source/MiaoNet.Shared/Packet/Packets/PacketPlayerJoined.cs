@@ -6,25 +6,25 @@ public sealed class PacketPlayerJoined : IPacket<PacketPlayerJoined>
     public enum DataFlags : byte
     {
         HasGraphicsInfo = 1 << 0,
-        HasPlayerInitialStats = 1 << 1
+        HasPlayerInitialState = 1 << 1
     }
 
-    public ChannelPlayerStateInfo Info { get; set; }
+    public ChannelPlayerLocationInfo Info { get; set; }
 
     public PlayerGraphicsInfo? GraphicsInfo { get; set; }
 
-    public PlayerStats? InitialStats { get; set; }
+    public PlayerState? InitialState { get; set; }
 
-    public PacketPlayerJoined(ChannelPlayerStateInfo info)
+    public PacketPlayerJoined(ChannelPlayerLocationInfo info)
     {
         Info = info;
     }
 
-    public PacketPlayerJoined(ChannelPlayerStateInfo info, PlayerGraphicsInfo? graphicsInfo, PlayerStats? initialStats)
+    public PacketPlayerJoined(ChannelPlayerLocationInfo info, PlayerGraphicsInfo? graphicsInfo, PlayerState? initialState)
         : this(info)
     {
         GraphicsInfo = graphicsInfo;
-        InitialStats = initialStats;
+        InitialState = initialState;
     }
 
     public void Serialize(ref RefBinaryWriter writer)
@@ -33,23 +33,23 @@ public sealed class PacketPlayerJoined : IPacket<PacketPlayerJoined>
 
         DataFlags flags = 0;
         if (GraphicsInfo is not null) flags |= DataFlags.HasGraphicsInfo;
-        if (InitialStats is not null) flags |= DataFlags.HasPlayerInitialStats;
+        if (InitialState is not null) flags |= DataFlags.HasPlayerInitialState;
         writer.Write((byte)flags);
         if (GraphicsInfo is not null) writer.Write(GraphicsInfo);
-        if (InitialStats is not null) writer.Write(InitialStats);
+        if (InitialState is not null) writer.Write(InitialState);
     }
 
     public static PacketPlayerJoined Deserialize(ref RefBinaryReader reader)
     {
-        var info = reader.Read<ChannelPlayerStateInfo>();
+        var info = reader.Read<ChannelPlayerLocationInfo>();
         PlayerGraphicsInfo? graphicsInfo = null;
-        PlayerStats? initialStats = null;
+        PlayerState? initialState = null;
 
         DataFlags flags = (DataFlags)reader.ReadByte();
         if (flags.HasFlag(DataFlags.HasGraphicsInfo))
             graphicsInfo = reader.Read<PlayerGraphicsInfo>();
-        if (flags.HasFlag(DataFlags.HasPlayerInitialStats))
-            initialStats = reader.Read<PlayerStats>();
-        return new(info, graphicsInfo, initialStats);
+        if (flags.HasFlag(DataFlags.HasPlayerInitialState))
+            initialState = reader.Read<PlayerState>();
+        return new(info, graphicsInfo, initialState);
     }
 }

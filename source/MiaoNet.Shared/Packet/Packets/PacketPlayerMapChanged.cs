@@ -12,13 +12,13 @@ public sealed class PacketPlayerMapChanged : IPacket<PacketPlayerMapChanged>
 
     public string MapRoom { get; }
 
-    public PlayerStats? InitialStats { get; }
+    public PlayerState? InitialState { get; }
 
-    public PacketPlayerMapChanged(string mapSid, string mapRoom, PlayerStats? initialStats)
+    public PacketPlayerMapChanged(string mapSid, string mapRoom, PlayerState? initialState)
     {
         MapSid = mapSid;
         MapRoom = mapRoom;
-        InitialStats = initialStats;
+        InitialState = initialState;
     }
 
     public void Serialize(ref RefBinaryWriter writer)
@@ -26,76 +26,93 @@ public sealed class PacketPlayerMapChanged : IPacket<PacketPlayerMapChanged>
         writer.Write(MapSid);
         writer.Write(MapRoom);
 
-        writer.Write(InitialStats is not null);
-        if (InitialStats is not null)
-            writer.Write(InitialStats);
+        writer.Write(InitialState is not null);
+        if (InitialState is not null)
+            writer.Write(InitialState);
     }
 
     public static PacketPlayerMapChanged Deserialize(ref RefBinaryReader reader)
     {
         var mapSid = reader.ReadString();
         var mapRoom = reader.ReadString();
-        PlayerStats? initialStats = null;
+        PlayerState? initialStats = null;
 
         if (reader.ReadBoolean())
-            initialStats = reader.Read<PlayerStats>();
+            initialStats = reader.Read<PlayerState>();
         return new(mapSid, mapRoom, initialStats);
     }
 }
 
-public sealed class PacketPlayerMapChangedNotify : PacketPlayerNotify<PacketPlayerMapChanged>, IPacket<PacketPlayerMapChangedNotify>
+public sealed class PacketPlayerMapChangedNotify : PacketPlayerNotify,
+    IPacket<PacketPlayerMapChangedNotify>
 {
     [Flags]
     public enum DataFlags : byte
     {
         HasGraphicsInfo = 1 << 0,
-        HasPlayerInitialStats = 1 << 1
+        HasPlayerInitialStats = 1 << 1,
+        HasMapSid = 1 << 2,
+        HasMapRoom = 1 << 3
     }
+
+    public string MapSid { get; set; }
+
+    public string MapRoom { get; set; }
 
     public PlayerGraphicsInfo? GraphicsInfo { get; set; }
 
-    public PlayerStats? PlayerInitialStats { get; set; }
+    public PlayerState? PlayerInitialState { get; set; }
 
-    public PacketPlayerMapChangedNotify(int playerID, PacketPlayerMapChanged packet)
-        : base(playerID, packet)
+    public PacketPlayerMapChangedNotify(int playerID, string mapSid, string mapRoom)
+        : base(playerID)
     {
+        MapSid = mapSid;
+        MapRoom = mapRoom;
     }
 
     public PacketPlayerMapChangedNotify(
-        int playerID, PacketPlayerMapChanged packet,
+        int playerID, string mapSid, string mapRoom,
         PlayerGraphicsInfo? graphicsInfo,
-        PlayerStats? initialStats
-    ) : this(playerID, packet)
+        PlayerState? initialStats
+    ) : this(playerID, mapSid, mapRoom)
     {
         GraphicsInfo = graphicsInfo;
-        PlayerInitialStats = initialStats;
+        PlayerInitialState = initialStats;
     }
 
     public override void Serialize(ref RefBinaryWriter writer)
     {
         base.Serialize(ref writer);
+
         DataFlags flags = 0;
         if (GraphicsInfo is not null) flags |= DataFlags.HasGraphicsInfo;
-        if (PlayerInitialStats is not null) flags |= DataFlags.HasPlayerInitialStats;
+        if (PlayerInitialState is not null) flags |= DataFlags.HasPlayerInitialStats;
+        if (!string.IsNullOrEmpty(MapSid)) flags |= DataFlags.HasMapSid;
+        if (!string.IsNullOrEmpty(MapRoom)) flags |= DataFlags.HasMapRoom;
 
         writer.Write((byte)flags);
         if (GraphicsInfo is not null) writer.Write(GraphicsInfo);
-        if (PlayerInitialStats is not null) writer.Write(PlayerInitialStats);
+        if (PlayerInitialState is not null) writer.Write(PlayerInitialState);
+        if (!string.IsNullOrEmpty(MapSid)) writer.Write(MapSid);
+        if (!string.IsNullOrEmpty(MapRoom)) writer.Write(MapRoom);
     }
 
     public static PacketPlayerMapChangedNotify Deserialize(ref RefBinaryReader reader)
     {
         int playerID = reader.ReadInt32();
-        PacketPlayerMapChanged packet = reader.Read<PacketPlayerMapChanged>();
         PlayerGraphicsInfo? graphicsInfo = null;
-        PlayerStats? initialStats = null;
+        PlayerState? initialStats = null;
 
         DataFlags dataFlags = (DataFlags)reader.ReadByte();
         if (dataFlags.HasFlag(DataFlags.HasGraphicsInfo))
             graphicsInfo = reader.Read<PlayerGraphicsInfo>();
         if (dataFlags.HasFlag(DataFlags.HasPlayerInitialStats))
-            initialStats = reader.Read<PlayerStats>();
+            initialStats = reader.Read<PlayerState>();
+        string mapSid = dataFlags.HasFlag(DataFlags.HasMapSid) ?
+            reader.ReadString() : string.Empty;
+        string mapRoom = dataFlags.HasFlag(DataFlags.HasMapRoom) ?
+            reader.ReadString() : string.Empty;
 
-        return new(playerID, packet, graphicsInfo, initialStats);
+        return new(playerID, mapSid, mapRoom, graphicsInfo, initialStats);
     }
 }

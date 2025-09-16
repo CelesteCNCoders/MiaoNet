@@ -1,4 +1,4 @@
-﻿using MiaoNet.Shared;
+using MiaoNet.Shared;
 using Microsoft.Xna.Framework;
 using Monocle;
 
@@ -43,7 +43,7 @@ public sealed class MiaoNetGhost : Entity
 
     public PlayerGraphicsInfo GraphicsInfo { get; set; }
 
-    public MiaoNetGhost(int id, string name, PlayerGraphicsInfo playerGraphicsInfo, PlayerStats initialStats)
+    public MiaoNetGhost(int id, string name, PlayerGraphicsInfo playerGraphicsInfo, PlayerState initialState)
     {
         Tag = Tags.Persistent | Tags.TransitionUpdate | Tags.FrozenUpdate | Tags.PauseUpdate;
         PlayerID = id;
@@ -57,8 +57,8 @@ public sealed class MiaoNetGhost : Entity
         nameTag = new(this);
         playerHair.Start();
 
-        X = initialStats.X;
-        Y = initialStats.Y;
+        X = initialState.X;
+        Y = initialState.Y;
     }
 
     public override void Update()

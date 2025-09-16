@@ -6,9 +6,4 @@
     <None Include="**/*.cs" />
     <Compile Include="**/*.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="Management\OnlineChannel.csu" />
-    <None Include="Management\OnlineContext.csu" />
-    <None Include="Management\OnlinePlayer.csu" />
-  </ItemGroup>
 </Project>

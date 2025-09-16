@@ -13,7 +13,7 @@ public sealed class PlayerInfo : IRefBinarySerializable<PlayerInfo>
     }
 
     public override string ToString()
-        => $"P{ID}-{Name}";
+        => $"P-{Name}:{ID}";
 
     public void Serialize(ref RefBinaryWriter writer)
     {

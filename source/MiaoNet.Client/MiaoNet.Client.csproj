@@ -2,7 +2,7 @@
   <Import Project="CelesteMod.props" />
 
   <PropertyGroup>
-    <CelesteRootPath>C:/Program Files (x86)/Steam/steamapps/common/Celeste</CelesteRootPath>
+    <CelesteRootPath>D:\SteamLibrary\steamapps\common\Celeste</CelesteRootPath>
     <AssemblyName>MiaoNet</AssemblyName>
     <RootNamespace>Celeste.Mod.MiaoNet</RootNamespace>
     <LangVersion>preview</LangVersion>

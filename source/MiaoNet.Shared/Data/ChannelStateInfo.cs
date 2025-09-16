@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace MiaoNet.Shared;
 
 public sealed class ChannelStateInfo : IRefBinarySerializable<ChannelStateInfo>

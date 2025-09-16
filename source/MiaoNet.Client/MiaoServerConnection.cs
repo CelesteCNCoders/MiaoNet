@@ -11,14 +11,14 @@ public sealed class MiaoServerConnection : IDisposable
     private readonly NetworkStream networkStream;
     private readonly MemoryStream memoryStream;
 
-    public IPEndPoint IPEndPoint { get; }
+    public EndPoint EndPoint { get; }
 
-    public MiaoServerConnection(IPEndPoint ipEndPoint, HandshakeData handshakeData)
+    public MiaoServerConnection(EndPoint endPoint, HandshakeData handshakeData)
     {
-        IPEndPoint = ipEndPoint;
+        EndPoint = endPoint;
         socket = new(SocketType.Stream, ProtocolType.Tcp);
         socket.NoDelay = true;
-        socket.Connect(IPEndPoint);
+        socket.Connect(EndPoint);
         networkStream = new(socket);
         memoryStream = new(512);
         memoryStream.Seek(2, SeekOrigin.Begin);
@@ -36,7 +36,7 @@ public sealed class MiaoServerConnection : IDisposable
         socket = null;
     }
 
-    public Packet ReceivePacket()
+    public IPacket ReceivePacket()
     {
         const int HeadSize = 2 * sizeof(ushort);
         Span<byte> headSpan = stackalloc byte[HeadSize];
@@ -49,11 +49,11 @@ public sealed class MiaoServerConnection : IDisposable
         networkStream.ReadAtLeast(payloadSpan, size);
 
         RefBinaryReader reader = new(payloadSpan);
-        Packet packet = PacketRegistry.ReadPacket(type, ref reader);
+        IPacket packet = PacketRegistry.ReadPacket(type, ref reader);
         return packet;
     }
 
-    public void SendPacket(Packet packet)
+    public void SendPacket(IPacket packet)
     {
         RefBinaryWriter writer = new(memoryStream);
 
@@ -69,11 +69,11 @@ public sealed class MiaoServerConnection : IDisposable
     {
         RefBinaryWriter writer = new(memoryStream);
 
-        handshakeData.WriteTo(ref writer);
+        writer.Write(handshakeData);
         ushort length = (ushort)(memoryStream.Position - sizeof(ushort));
         memoryStream.Seek(0, SeekOrigin.Begin);
         writer.Write(length);
-
+        
         networkStream.Write(memoryStream.GetBuffer(), 0, length + sizeof(ushort));
     }
 }

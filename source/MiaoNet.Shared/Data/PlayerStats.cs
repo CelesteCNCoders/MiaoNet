@@ -1,6 +1,9 @@
 namespace MiaoNet.Shared;
 
-public sealed class PlayerStats : IRefBinarySerializable<PlayerStats>
+/// <summary>
+/// Player's position, dashes and so on.
+/// </summary>
+public sealed class PlayerState : IRefBinarySerializable<PlayerState>
 {
     public float X;
 
@@ -8,7 +11,7 @@ public sealed class PlayerStats : IRefBinarySerializable<PlayerStats>
 
     public byte Dashes;
 
-    public PlayerStats(float x, float y, byte dashes)
+    public PlayerState(float x, float y, byte dashes)
     {
         (X, Y) = (x, y);
         Dashes = dashes;
@@ -21,6 +24,6 @@ public sealed class PlayerStats : IRefBinarySerializable<PlayerStats>
         writer.Write(Dashes);
     }
 
-    public static PlayerStats Deserialize(ref RefBinaryReader reader)
+    public static PlayerState Deserialize(ref RefBinaryReader reader)
         => new(reader.ReadSingle(), reader.ReadSingle(), reader.ReadByte());
 }

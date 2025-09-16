@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
@@ -8,6 +8,7 @@ namespace Celeste.Mod.MiaoNet;
 /// </summary>
 public sealed class MiaoNetMainComponent : MiaoNetComponent
 {
+    private int errCount;
     private readonly Dictionary<int, PlayerGraphicsInfo> graphicsInfos;
     private readonly Dictionary<int, MiaoNetGhost> ghosts;
 
@@ -20,13 +21,14 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         context.PlayerJoined += Context_PlayerJoined;
         context.PlayerLeft += Context_PlayerLeft;
         context.PlayerFrameNotify += Context_PlayerFrameNotify;
-        context.PlayerMapChanged += Context_PlayerMapChanged;
+        context.PlayerMapChanging += Context_PlayerMapChanging;
     }
 
     public override void OnConnected()
     {
         Engine.Scene.OnEndOfFrame += () =>
         {
+            errCount = 0;
             if (Engine.Scene is not Level level) return;
             var player = level.Tracker.GetEntity<Player>();
             if (player is null) return;
@@ -48,18 +50,15 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         ghosts.Clear();
     }
 
-    private void Context_ClientInitialized(OnlineContext context)
+    private void Context_ClientInitialized(ClientState clientState)
     {
-        foreach (var player in context.Players)
-        {
-            if (player.Info.ID != context.Self.Info.ID)
-                HandleNewPlayer(player.Channel.ID, player.Info, player.StateInfo);
-        }
+        foreach ((_, var player) in clientState.Players.Where(p => p.Key != clientState.Self.ID))
+            HandleNewPlayer(player.Channel.ID, player.Info, player.LocationInfo);
     }
 
     private void Context_PlayerJoined(OnlinePlayer player)
     {
-        HandleNewPlayer(player.Channel.ID, player.Info, player.StateInfo);
+        HandleNewPlayer(player.Channel.ID, player.Info, player.LocationInfo);
     }
 
     private void Context_PlayerLeft(OnlinePlayer player)
@@ -85,29 +84,33 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         else
         {
             Logger.Warn(nameof(MiaoNet), $"Notified but ghost not exists: {player.Info}");
+            OnWarn();
         }
     }
 
-    private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotify packet)
+    private void Context_PlayerMapChanging(OnlinePlayer player, PacketPlayerMapChangedNotify packet)
     {
-        Logger.Info(nameof(MiaoNet), $"Player map changed: {player} at {packet.Packet.MapRoom} of {packet.Packet.MapSid}.");
+        Logger.Info(nameof(MiaoNet), $"Player map changed: {player} at {packet.MapRoom} of {packet.MapSid}.");
 
-        HandleStateInfoChanged(player.Channel.ID, player.Info, player.StateInfo, packet.GraphicsInfo, packet.PlayerInitialStats);
+        HandleStateInfoChanged(player.Channel.ID, player.Info, player.LocationInfo, packet.GraphicsInfo, packet.PlayerInitialState);
     }
 
-    private void HandleNewPlayer(int channelID, PlayerInfo info, PlayerStateInfo stateInfo)
+    private void HandleNewPlayer(int channelID, PlayerInfo info, PlayerLocationInfo locationInfo)
     {
-        Logger.Info(nameof(MiaoNet), $"New player joined: {info}, stateInfo: {stateInfo}.");
-        HandleStateInfoChanged(channelID, info, stateInfo, null, null);
+        Logger.Info(nameof(MiaoNet), $"New player joined: {info}, locationInfo: {locationInfo}.");
+        HandleStateInfoChanged(channelID, info, locationInfo, null, null);
     }
 
     private void HandleStateInfoChanged(
-        int channelID, PlayerInfo info, PlayerStateInfo stateInfo,
-        PlayerGraphicsInfo? graphicsInfo, PlayerStats? initialStats
+        int channelID, PlayerInfo info, PlayerLocationInfo locationInfo,
+        PlayerGraphicsInfo? graphicsInfo, PlayerState? initialState
     )
     {
-        Logger.Info(nameof(MiaoNet), $"Channel: {channelID}, Player: {info}, StateInfo: {stateInfo}.");
-        bool needGhost = channelID == context.CurrentChannel!.ID && stateInfo.MapSid == context.Self!.StateInfo.MapSid;
+        var state = context.ClientState!;
+        Logger.Info(nameof(MiaoNet), $"Channel: {channelID}, Player: {info}, LocationInfo: {locationInfo}.");
+        bool needGhost = !string.IsNullOrEmpty(locationInfo.MapSid) &&
+            channelID == state.SelfChannel.ID &&
+            locationInfo.MapSid == state.Self.LocationInfo.MapSid;
         Logger.Info(nameof(MiaoNet), $"Need create ghost? {needGhost}");
         if (ghosts.TryGetValue(info.ID, out MiaoNetGhost? ghost))
         {
@@ -125,7 +128,7 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         {
             if (needGhost)
             {
-                ghosts[info.ID] = new(info.ID, info.Name, graphicsInfo, initialStats);
+                ghosts[info.ID] = new(info.ID, info.Name, graphicsInfo, initialState);
             }
         }
     }
@@ -164,20 +167,30 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
 
     public override void Render()
     {
-        if (context.OnlineContext is null)
+        if (context.ClientState is null)
             return;
-        var channels = context.OnlineContext.Channels;
+        var channels = context.ClientState.Channels;
         int i = 0;
         int m = Draw.DefaultFont.LineSpacing;
-        foreach (var channel in channels)
+        foreach ((_, var channel) in channels)
         {
             Draw.Text(Draw.DefaultFont, channel.ToString(), new Vector2(10, m * i), Color.Red);
             i += 1;
-            foreach (var player in channel.Players)
+            foreach ((_, var player) in channel.Players)
             {
-                Draw.Text(Draw.DefaultFont, $"{player.Info} at {player.StateInfo}", new Vector2(20, m * i), Color.Green);
+                Draw.Text(Draw.DefaultFont, player.ToString(), new Vector2(20, m * i), Color.Green);
                 i += 1;
             }
+        }
+    }
+
+    private void OnWarn()
+    {
+        errCount++;
+        if (errCount > 120)
+        {
+            Logger.Error(nameof(MiaoNet), "Warning too many times, disconnect.");
+            context.Disconnect();
         }
     }
 }
