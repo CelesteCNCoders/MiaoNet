@@ -16,7 +16,7 @@ public sealed class PacketPlayerLeft : PacketPlayerNotify, IPacket<PacketPlayerL
     {
     }
 
-    public void Serialize(ref RefBinaryWriter writer)
+    public override void Serialize(ref RefBinaryWriter writer)
         => writer.Write(PlayerID);
 
     public static PacketPlayerLeft Deserialize(ref RefBinaryReader reader)

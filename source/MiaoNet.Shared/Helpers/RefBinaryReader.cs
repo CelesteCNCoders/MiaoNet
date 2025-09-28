@@ -8,7 +8,7 @@ namespace MiaoNet.Shared;
 
 /// <summary>
 /// A ByRefLike <see cref="BinaryReader"/>.
-/// It's suggested that always pass it as reference (that is <see langword="ref"/> <see cref="RefBinaryReader"/>).
+/// It's suggested that always pass it as a reference (that is <see langword="ref"/> <see cref="RefBinaryReader"/>).
 /// </summary>
 public ref struct RefBinaryReader
 {
@@ -28,6 +28,46 @@ public ref struct RefBinaryReader
     public byte ReadByte() => Move(1)[0];
 
     public ReadOnlySpan<byte> ReadSpan(int length) => Move(length)[..length];
+
+    // from System.IO.BinaryReader
+    public int Read7BitEncodedInt()
+    {
+        uint result = 0;
+        byte byteReadJustNow;
+        const int MaxBytesWithoutOverflow = 4;
+        for (int shift = 0; shift < MaxBytesWithoutOverflow * 7; shift += 7)
+        {
+            byteReadJustNow = ReadByte();
+            result |= (byteReadJustNow & 0x7Fu) << shift;
+            if (byteReadJustNow <= 0x7Fu)
+                return (int)result;
+        }
+        byteReadJustNow = ReadByte();
+        if (byteReadJustNow > 0b_1111u)
+            throw new FormatException();
+        result |= (uint)byteReadJustNow << (MaxBytesWithoutOverflow * 7);
+        return (int)result;
+    }
+
+    // from System.IO.BinaryReader
+    public long Read7BitEncodedInt64()
+    {
+        ulong result = 0;
+        byte byteReadJustNow;
+        const int MaxBytesWithoutOverflow = 9;
+        for (int shift = 0; shift < MaxBytesWithoutOverflow * 7; shift += 7)
+        {
+            byteReadJustNow = ReadByte();
+            result |= (byteReadJustNow & 0x7Ful) << shift;
+            if (byteReadJustNow <= 0x7Fu)
+                return (long)result;
+        }
+        byteReadJustNow = ReadByte();
+        if (byteReadJustNow > 0b_1u)
+            throw new FormatException();
+        result |= (ulong)byteReadJustNow << (MaxBytesWithoutOverflow * 7);
+        return (long)result;
+    }
 
 #pragma warning disable IDE0049
     public Boolean ReadBoolean() => Move(1)[0] != 0;

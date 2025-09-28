@@ -49,4 +49,16 @@ public sealed class SerializedPacket
             arrayPool.Return(arraySegment.Array);
         }
     }
+
+    public void OnConsumed(int count)
+    {
+        int v = Interlocked.Add(ref clientCount, -count);
+        if (v < 0)
+            throw new ArgumentOutOfRangeException(nameof(count)); // TODO message
+        if (v == 0)
+        {
+            Debug.Assert(arraySegment.Array is not null);
+            arrayPool.Return(arraySegment.Array);
+        }
+    }
 }

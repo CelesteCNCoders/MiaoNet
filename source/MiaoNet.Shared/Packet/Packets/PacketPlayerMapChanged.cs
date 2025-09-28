@@ -50,7 +50,7 @@ public sealed class PacketPlayerMapChangedNotify : PacketPlayerNotify,
     public enum DataFlags : byte
     {
         HasGraphicsInfo = 1 << 0,
-        HasPlayerInitialStats = 1 << 1,
+        HasInitialStats = 1 << 1,
         HasMapSid = 1 << 2,
         HasMapRoom = 1 << 3
     }
@@ -61,7 +61,7 @@ public sealed class PacketPlayerMapChangedNotify : PacketPlayerNotify,
 
     public PlayerGraphicsInfo? GraphicsInfo { get; set; }
 
-    public PlayerState? PlayerInitialState { get; set; }
+    public PlayerState? InitialState { get; set; }
 
     public PacketPlayerMapChangedNotify(int playerID, string mapSid, string mapRoom)
         : base(playerID)
@@ -77,7 +77,7 @@ public sealed class PacketPlayerMapChangedNotify : PacketPlayerNotify,
     ) : this(playerID, mapSid, mapRoom)
     {
         GraphicsInfo = graphicsInfo;
-        PlayerInitialState = initialStats;
+        InitialState = initialStats;
     }
 
     public override void Serialize(ref RefBinaryWriter writer)
@@ -86,13 +86,13 @@ public sealed class PacketPlayerMapChangedNotify : PacketPlayerNotify,
 
         DataFlags flags = 0;
         if (GraphicsInfo is not null) flags |= DataFlags.HasGraphicsInfo;
-        if (PlayerInitialState is not null) flags |= DataFlags.HasPlayerInitialStats;
+        if (InitialState is not null) flags |= DataFlags.HasInitialStats;
         if (!string.IsNullOrEmpty(MapSid)) flags |= DataFlags.HasMapSid;
         if (!string.IsNullOrEmpty(MapRoom)) flags |= DataFlags.HasMapRoom;
 
         writer.Write((byte)flags);
         if (GraphicsInfo is not null) writer.Write(GraphicsInfo);
-        if (PlayerInitialState is not null) writer.Write(PlayerInitialState);
+        if (InitialState is not null) writer.Write(InitialState);
         if (!string.IsNullOrEmpty(MapSid)) writer.Write(MapSid);
         if (!string.IsNullOrEmpty(MapRoom)) writer.Write(MapRoom);
     }
@@ -106,7 +106,7 @@ public sealed class PacketPlayerMapChangedNotify : PacketPlayerNotify,
         DataFlags dataFlags = (DataFlags)reader.ReadByte();
         if (dataFlags.HasFlag(DataFlags.HasGraphicsInfo))
             graphicsInfo = reader.Read<PlayerGraphicsInfo>();
-        if (dataFlags.HasFlag(DataFlags.HasPlayerInitialStats))
+        if (dataFlags.HasFlag(DataFlags.HasInitialStats))
             initialStats = reader.Read<PlayerState>();
         string mapSid = dataFlags.HasFlag(DataFlags.HasMapSid) ?
             reader.ReadString() : string.Empty;

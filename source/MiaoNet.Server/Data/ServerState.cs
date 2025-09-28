@@ -10,17 +10,18 @@ public sealed class ServerState
 {
     public readonly record struct Client(ServerPlayer Player, MiaoClientConnection Connection);
 
-    // used when moving player to another channel
-    private readonly object lockObject = new();
+    private readonly ReaderWriterLockSlim stateRWLock = new();
 
     private int nextPlayerID;
     private int nextChannelID;
     private ImmutableDictionary<int, Client> allPlayers;
     private ImmutableDictionary<int, ServerChannel> allChannels;
 
-    public ImmutableDictionary<int, Client> AllPlayers { get => allPlayers; set => allPlayers = value; }
+    public ImmutableDictionary<int, Client> AllPlayers => allPlayers;
 
-    public ImmutableDictionary<int, ServerChannel> AllChannels { get => allChannels; set => allChannels = value; }
+    public ImmutableDictionary<int, ServerChannel> AllChannels => allChannels;
+
+    public ReaderWriterLockSlim StateRWLock => stateRWLock;
 
     public ServerState()
     {

@@ -26,4 +26,7 @@ public sealed class PlayerState : IRefBinarySerializable<PlayerState>
 
     public static PlayerState Deserialize(ref RefBinaryReader reader)
         => new(reader.ReadSingle(), reader.ReadSingle(), reader.ReadByte());
+
+    public override string ToString()
+        => $"({X}, {Y}), Dashes = {Dashes}";
 }

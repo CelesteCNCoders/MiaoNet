@@ -19,8 +19,4 @@
     <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="RefBinarySerialization\" />
-  </ItemGroup>
-
 </Project>

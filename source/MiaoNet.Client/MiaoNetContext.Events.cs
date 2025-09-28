@@ -11,5 +11,5 @@ public sealed partial class MiaoNetContext
     public event Action<OnlinePlayer>? PlayerJoined;
     public event Action<OnlinePlayer>? PlayerLeft;
     public event PacketPlayerNotifyHandler<PacketPlayerFrame>? PlayerFrameNotify;
-    public event Action<OnlinePlayer, PacketPlayerMapChangedNotify>? PlayerMapChanging;
+    public event Action<OnlinePlayer, PacketPlayerMapChangedNotify>? PlayerMapChanged;
 }

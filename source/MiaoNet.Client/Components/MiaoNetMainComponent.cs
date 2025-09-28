@@ -21,7 +21,7 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         context.PlayerJoined += Context_PlayerJoined;
         context.PlayerLeft += Context_PlayerLeft;
         context.PlayerFrameNotify += Context_PlayerFrameNotify;
-        context.PlayerMapChanging += Context_PlayerMapChanging;
+        context.PlayerMapChanged += Context_PlayerMapChanged;
     }
 
     public override void OnConnected()
@@ -53,13 +53,11 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
     private void Context_ClientInitialized(ClientState clientState)
     {
         foreach ((_, var player) in clientState.Players.Where(p => p.Key != clientState.Self.ID))
-            HandleNewPlayer(player.Channel.ID, player.Info, player.LocationInfo);
+            HandleNewPlayer(player);
     }
 
     private void Context_PlayerJoined(OnlinePlayer player)
-    {
-        HandleNewPlayer(player.Channel.ID, player.Info, player.LocationInfo);
-    }
+        => HandleNewPlayer(player);
 
     private void Context_PlayerLeft(OnlinePlayer player)
     {
@@ -88,17 +86,17 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         }
     }
 
-    private void Context_PlayerMapChanging(OnlinePlayer player, PacketPlayerMapChangedNotify packet)
+    private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotify packet)
     {
-        Logger.Info(nameof(MiaoNet), $"Player map changed: {player} at {packet.MapRoom} of {packet.MapSid}.");
+        Logger.Info(nameof(MiaoNet), $"Player map changed: {player}.");
 
-        HandleStateInfoChanged(player.Channel.ID, player.Info, player.LocationInfo, packet.GraphicsInfo, packet.PlayerInitialState);
+        HandleStateInfoChanged(player.Channel.ID, player.Info, player.LocationInfo, packet.GraphicsInfo, packet.InitialState);
     }
 
-    private void HandleNewPlayer(int channelID, PlayerInfo info, PlayerLocationInfo locationInfo)
+    private void HandleNewPlayer(OnlinePlayer player)
     {
-        Logger.Info(nameof(MiaoNet), $"New player joined: {info}, locationInfo: {locationInfo}.");
-        HandleStateInfoChanged(channelID, info, locationInfo, null, null);
+        Logger.Info(nameof(MiaoNet), $"New player joined: {player.Info}, locationInfo: {player.LocationInfo}.");
+        HandleStateInfoChanged(player.Channel.ID, player.Info, player.LocationInfo, player.GraphicsInfo, player.State);
     }
 
     private void HandleStateInfoChanged(

@@ -43,12 +43,12 @@ public sealed class MiaoNetGhost : Entity
 
     public PlayerGraphicsInfo GraphicsInfo { get; set; }
 
-    public MiaoNetGhost(int id, string name, PlayerGraphicsInfo playerGraphicsInfo, PlayerState initialState)
+    public MiaoNetGhost(int id, string name, PlayerGraphicsInfo? playerGraphicsInfo, PlayerState initialState)
     {
         Tag = Tags.Persistent | Tags.TransitionUpdate | Tags.FrozenUpdate | Tags.PauseUpdate;
         PlayerID = id;
         Name = name;
-        GraphicsInfo = playerGraphicsInfo;
+        GraphicsInfo = playerGraphicsInfo ?? null!; // TODO
         facing = Facings.Right;
         playerSprite = new PlayerSprite(PlayerSpriteMode.Madeline);
         playerHair = new PlayerHair(playerSprite);

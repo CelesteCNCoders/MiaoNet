@@ -27,17 +27,22 @@ public sealed class ClientState
         foreach (var player in clientInitial.Players)
         {
             OnlinePlayer onlinePlayer;
-            var channel = channels[player.ChannelID];
-            players.Add(player.Info.ID, onlinePlayer = new OnlinePlayer(channel, player.Info, player.LocationInfo));
-            channel.Players.Add(player.Info.ID, onlinePlayer);
+            var channel = channels[player.Info.ChannelID];
+            onlinePlayer = new OnlinePlayer(channel, player.Info.Info, player.Info.LocationInfo);
+            onlinePlayer.State = player.InitialState;
+            onlinePlayer.GraphicsInfo = player.GraphicsInfo;
+            players.Add(player.Info.Info.ID, onlinePlayer);
+            channel.Players.Add(player.Info.Info.ID, onlinePlayer);
         }
         Self = new(SelfChannel = channels[clientInitial.ChannelID], clientInitial.SelfPlayerInfo, locationInfo);
     }
 
-    public OnlinePlayer OnNewPlayerJoined(ChannelPlayerLocationInfo info)
+    public OnlinePlayer OnNewPlayerJoined(PacketPlayerJoined packet)
     {
-        var channel = channels[info.ChannelID];
-        var player = new OnlinePlayer(channel, info.Info, info.LocationInfo);
+        var channel = channels[packet.Info.ChannelID];
+        var player = new OnlinePlayer(channel, packet.Info.Info, packet.Info.LocationInfo);
+        player.GraphicsInfo = packet.GraphicsInfo;
+        player.State = packet.InitialState;
         players.Add(player.ID, player);
         player.Channel.Players.Add(player.ID, player);
         return player;

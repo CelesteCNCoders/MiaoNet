@@ -65,7 +65,7 @@ public sealed partial class MiaoNetContext
     private void HandlePacket(PacketPlayerJoined packet)
     {
         EnsureState();
-        var player = ClientState.OnNewPlayerJoined(packet.Info);
+        var player = ClientState.OnNewPlayerJoined(packet);
         PlayerJoined?.Invoke(player);
     }
 
@@ -87,13 +87,8 @@ public sealed partial class MiaoNetContext
     {
         EnsureState();
         var player = ClientState.Players[packet.PlayerID];
-        string pMapSid = player.LocationInfo.MapSid;
-        string pMapRoom = player.LocationInfo.MapRoom;
-        if (string.IsNullOrEmpty(packet.MapSid) && !string.IsNullOrEmpty(packet.MapRoom))
-            packet.MapSid = pMapSid;
-        PlayerMapChanging?.Invoke(player, packet);
-        player.LocationInfo.MapSid = packet.MapSid;
-        player.LocationInfo.MapRoom = packet.MapRoom;
+        player.LocationInfo.UpdateWith(packet.MapSid, packet.MapRoom);
+        PlayerMapChanged?.Invoke(player, packet);
     }
 
     public void Connect()
