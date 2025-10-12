@@ -21,7 +21,7 @@ public sealed class ServerState
 
     public ImmutableDictionary<int, ServerChannel> AllChannels => allChannels;
 
-    public ReaderWriterLockSlim StateRWLock => stateRWLock;
+    public ReaderWriterLockSlim StateLock => stateRWLock;
 
     public ServerState()
     {

@@ -41,6 +41,7 @@ public sealed partial class MiaoNetContext
         r.Register<PacketPlayerLeft>(HandlePacket);
         r.Register<PacketPlayerFrameNotify>(HandlePacket);
         r.Register<PacketPlayerMapChangedNotify>(HandlePacket);
+        r.Register<PacketPlayerMapRoomChangedNotify>(HandlePacket);
         packetDispatcher = new(r);
 
 #if DEBUG
@@ -87,8 +88,44 @@ public sealed partial class MiaoNetContext
     {
         EnsureState();
         var player = ClientState.Players[packet.PlayerID];
-        player.LocationInfo.UpdateWith(packet.MapSid, packet.MapRoom);
+        player.LocationInfo.MapSid = packet.MapSid;
+        player.LocationInfo.MapRoom = packet.MapRoom;
         PlayerMapChanged?.Invoke(player, packet);
+    }
+
+    private void HandlePacket(PacketPlayerMapRoomChangedNotify packet)
+    {
+        EnsureState();
+        var player = ClientState.Players[packet.PlayerID];
+        player.LocationInfo.MapRoom = packet.Packet.MapRoom;
+        PlayerMapRoomChanged?.Invoke(player, packet.Packet.MapRoom);
+    }
+
+    public void OnPlayerMapChanged(Level level, string mapSid, string mapRoom)
+    {
+        if (!HasConnection)
+            return;
+        EnsureState();
+        switch (ClientState.OnPlayerMapChanged(mapSid, mapRoom))
+        {
+        case ClientState.MapChangedResult.RoomOnly:
+        {
+            PacketPlayerMapRoomChanged p = new(mapRoom);
+            SendPacket(p);
+            break;
+        }
+        case ClientState.MapChangedResult.All:
+        {
+            level.OnEndOfFrame += () =>
+            {
+                Player player = level.Tracker.GetEntity<Player>();
+                Debug.Assert(player is not null);
+                PacketPlayerMapChanged p = new(mapSid, mapRoom, new PlayerState(player.X, player.Y, (byte)player.Dashes));
+                SendPacket(p);
+            };
+            break;
+        }
+        }
     }
 
     public void Connect()

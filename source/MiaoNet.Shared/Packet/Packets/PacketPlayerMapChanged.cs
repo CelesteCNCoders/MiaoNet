@@ -1,21 +1,19 @@
+using System.Diagnostics;
+
 namespace MiaoNet.Shared;
 
 public sealed class PacketPlayerMapChanged : IPacket<PacketPlayerMapChanged>
 {
-    // if:
-    // MapSid is empty && MapRoom is empty -> Player went to menu
-    // MapSid is empty && MapRoom is NOT empty -> Player went to a new room in the map
-    // MapSid is NOT empty && MapRoom is empty -> Player opened debug map in a map
-    // MapSid is NOT empty && MapRoom is NOT empty -> Player went to a new map
-
     public string MapSid { get; }
 
-    public string MapRoom { get; }
+    public string MapRoom { get; } // can be string.Empty (player is in debug map)
 
     public PlayerState? InitialState { get; }
 
     public PacketPlayerMapChanged(string mapSid, string mapRoom, PlayerState? initialState)
     {
+        Debug.Assert(!string.IsNullOrEmpty(mapSid));
+
         MapSid = mapSid;
         MapRoom = mapRoom;
         InitialState = initialState;
@@ -50,9 +48,7 @@ public sealed class PacketPlayerMapChangedNotify : PacketPlayerNotify,
     public enum DataFlags : byte
     {
         HasGraphicsInfo = 1 << 0,
-        HasInitialStats = 1 << 1,
-        HasMapSid = 1 << 2,
-        HasMapRoom = 1 << 3
+        HasInitialStats = 1 << 1
     }
 
     public string MapSid { get; set; }
@@ -87,16 +83,14 @@ public sealed class PacketPlayerMapChangedNotify : PacketPlayerNotify,
         DataFlags flags = 0;
         if (GraphicsInfo is not null) flags |= DataFlags.HasGraphicsInfo;
         if (InitialState is not null) flags |= DataFlags.HasInitialStats;
-        if (!string.IsNullOrEmpty(MapSid)) flags |= DataFlags.HasMapSid;
-        if (!string.IsNullOrEmpty(MapRoom)) flags |= DataFlags.HasMapRoom;
 
         writer.Write((byte)flags);
+        writer.Write(MapSid);
+        writer.Write(MapRoom);
         if (GraphicsInfo is not null) writer.Write(GraphicsInfo);
         if (InitialState is not null) writer.Write(InitialState);
-        if (!string.IsNullOrEmpty(MapSid)) writer.Write(MapSid);
-        if (!string.IsNullOrEmpty(MapRoom)) writer.Write(MapRoom);
     }
-
+    
     public static PacketPlayerMapChangedNotify Deserialize(ref RefBinaryReader reader)
     {
         int playerID = reader.ReadInt32();
@@ -104,14 +98,14 @@ public sealed class PacketPlayerMapChangedNotify : PacketPlayerNotify,
         PlayerState? initialStats = null;
 
         DataFlags dataFlags = (DataFlags)reader.ReadByte();
+
+        string mapSid = reader.ReadString();
+        string mapRoom = reader.ReadString();
+
         if (dataFlags.HasFlag(DataFlags.HasGraphicsInfo))
             graphicsInfo = reader.Read<PlayerGraphicsInfo>();
         if (dataFlags.HasFlag(DataFlags.HasInitialStats))
             initialStats = reader.Read<PlayerState>();
-        string mapSid = dataFlags.HasFlag(DataFlags.HasMapSid) ?
-            reader.ReadString() : string.Empty;
-        string mapRoom = dataFlags.HasFlag(DataFlags.HasMapRoom) ?
-            reader.ReadString() : string.Empty;
 
         return new(playerID, mapSid, mapRoom, graphicsInfo, initialStats);
     }

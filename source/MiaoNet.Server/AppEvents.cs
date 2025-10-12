@@ -9,4 +9,5 @@ public static class AppEvents
     public static readonly EventId Channel = new(12, "Channel");
     public static readonly EventId Chat = new(13, "Chat");
     public static readonly EventId Command = new(14, "Command");
+    public static readonly EventId GameState = new(15, "GameState");
 }

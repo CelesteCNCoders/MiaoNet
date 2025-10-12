@@ -28,15 +28,6 @@ public sealed class PlayerLocationInfo : IRefBinarySerializable<PlayerLocationIn
     public static PlayerLocationInfo Deserialize(ref RefBinaryReader reader)
         => new(reader.ReadString(), reader.ReadString());
 
-    public void UpdateWith(string mapSid, string mapRoom)
-    {
-        MapRoom = mapRoom;
-        if (!string.IsNullOrEmpty(mapSid) || string.IsNullOrEmpty(mapRoom))
-        {
-            MapSid = mapSid;
-        }
-    }
-
     public override bool Equals(object? obj)
         => Equals(obj as PlayerLocationInfo);
 

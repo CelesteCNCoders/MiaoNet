@@ -23,6 +23,7 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.Level.OnCreatePauseMenuButtons += Level_OnCreatePauseMenuButtons;
         IL.Monocle.Engine.Update += Engine_Update;
         IL.Monocle.Engine.RenderCore += Engine_RenderCore;
+        On.Celeste.Level.LoadLevel += Level_LoadLevel;
     }
 
     public override void Unload()
@@ -38,7 +39,7 @@ public sealed class MiaoNetModule : EverestModule
         MenuMiaoNetOptions.BuildMenu(menu, inGame);
     }
 
-    private void Engine_Update(ILContext il)
+    private static void Engine_Update(ILContext il)
     {
         ILCursor cur = new(il);
         cur.EmitDelegate(static () =>
@@ -48,7 +49,7 @@ public sealed class MiaoNetModule : EverestModule
         });
     }
 
-    private void Engine_RenderCore(ILContext il)
+    private static void Engine_RenderCore(ILContext il)
     {
         ILCursor cur = new(il);
         cur.Index = cur.Instrs.Count - 1;
@@ -59,7 +60,17 @@ public sealed class MiaoNetModule : EverestModule
         });
     }
 
-    private void Level_OnCreatePauseMenuButtons(Level level, TextMenu menu, bool minimal)
+    private static void Level_LoadLevel(
+        On.Celeste.Level.orig_LoadLevel orig,
+        Level self,
+        Player.IntroTypes playerIntro, bool isFromLoader
+    )
+    {
+        orig(self, playerIntro, isFromLoader);
+        Instance.MiaoNetContext.OnPlayerMapChanged(self, self.Session.Area.SID, self.Session.Level);
+    }
+
+    private static void Level_OnCreatePauseMenuButtons(Level level, TextMenu menu, bool minimal)
     {
         TextMenu.Item item = new TextMenu.Button("MiaoNet");
         item.Pressed(() =>
@@ -74,22 +85,24 @@ public sealed class MiaoNetModule : EverestModule
             TextMenu options = new TextMenu();
             MenuMiaoNetOptions.BuildHeader(options);
             MenuMiaoNetOptions.BuildMenu(options, true);
+            const string ButtonBackAudio = "event:/ui/main/button_back";
             options.OnESC = (options.OnCancel = () =>
             {
-                Audio.Play("event:/ui/main/button_back");
+                Audio.Play(ButtonBackAudio);
                 level.AllowHudHide = oldAllowHudHide;
                 level.Pause(returnIndex, minimal);
                 options.Close();
             });
             options.OnPause = () =>
             {
-                Audio.Play("event:/ui/main/button_back");
+                Audio.Play(ButtonBackAudio);
                 level.AllowHudHide = oldAllowHudHide;
                 level.Paused = false;
                 options.Close();
             };
             level.Add(options);
         });
+        // TODO 444444444444444444444
         menu.Insert(4, item);
     }
 }

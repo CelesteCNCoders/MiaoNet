@@ -1,9 +1,13 @@
+using System.Diagnostics;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
 public sealed class ClientState
 {
+    private string curMapSid;
+    private string curMapRoom;
+
     private readonly Dictionary<int, OnlinePlayer> players;
     private readonly Dictionary<int, OnlineChannel> channels;
 
@@ -17,6 +21,7 @@ public sealed class ClientState
 
     public ClientState(PacketClientInitial clientInitial, PlayerLocationInfo locationInfo)
     {
+        curMapSid = curMapRoom = string.Empty;
         players = new();
         channels = new();
 
@@ -50,9 +55,27 @@ public sealed class ClientState
 
     public void OnPlayerLeft(int playerID)
     {
+        Console.WriteLine("WHAT?");
         var player = players[playerID];
         var channel = player.Channel;
         channel.Players.Remove(playerID);
         players.Remove(playerID);
+    }
+
+    public enum MapChangedResult { None, RoomOnly, All }
+
+    public MapChangedResult OnPlayerMapChanged(string mapSid, string mapRoom)
+    {
+        if (curMapSid == mapSid && curMapRoom == mapRoom)
+            return MapChangedResult.None;
+        if (curMapSid == mapSid && curMapRoom != mapRoom)
+        {
+            curMapRoom = mapRoom;
+            return MapChangedResult.RoomOnly;
+        }
+        Debug.Assert(curMapSid != mapSid && curMapRoom != mapRoom);
+        curMapSid = mapSid;
+        curMapRoom = mapRoom;
+        return MapChangedResult.All;
     }
 }

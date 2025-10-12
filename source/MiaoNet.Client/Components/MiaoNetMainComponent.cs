@@ -26,15 +26,15 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
 
     public override void OnConnected()
     {
+        errCount = 0;
         Engine.Scene.OnEndOfFrame += () =>
         {
-            errCount = 0;
             if (Engine.Scene is not Level level) return;
             var player = level.Tracker.GetEntity<Player>();
             if (player is null) return;
             context.SendPacket(
                 new PacketPlayerMapChanged(
-                    level.Session.Area.GetSID(),
+                    level.Session.Area.SID,
                     level.Session.Level,
                     new(player.X, player.Y, (byte)player.Dashes)
                 )
@@ -61,6 +61,8 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
 
     private void Context_PlayerLeft(OnlinePlayer player)
     {
+        if (player.LocationInfo != context.ClientState!.Self.LocationInfo)
+            return;
         if (!ghosts.Remove(player.Info.ID, out MiaoNetGhost? ghost))
         {
             Logger.Warn(nameof(MiaoNet), $"Try removing a player({player.Info}) which is not exists.");
@@ -90,16 +92,16 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
     {
         Logger.Info(nameof(MiaoNet), $"Player map changed: {player}.");
 
-        HandleStateInfoChanged(player.Channel.ID, player.Info, player.LocationInfo, packet.GraphicsInfo, packet.InitialState);
+        HandleLocationChanging(player.Channel.ID, player.Info, player.LocationInfo, packet.GraphicsInfo, packet.InitialState);
     }
 
     private void HandleNewPlayer(OnlinePlayer player)
     {
         Logger.Info(nameof(MiaoNet), $"New player joined: {player.Info}, locationInfo: {player.LocationInfo}.");
-        HandleStateInfoChanged(player.Channel.ID, player.Info, player.LocationInfo, player.GraphicsInfo, player.State);
+        HandleLocationChanging(player.Channel.ID, player.Info, player.LocationInfo, player.GraphicsInfo, player.State);
     }
 
-    private void HandleStateInfoChanged(
+    private void HandleLocationChanging(
         int channelID, PlayerInfo info, PlayerLocationInfo locationInfo,
         PlayerGraphicsInfo? graphicsInfo, PlayerState? initialState
     )

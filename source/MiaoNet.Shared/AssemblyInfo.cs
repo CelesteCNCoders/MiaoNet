@@ -10,5 +10,8 @@ using MiaoNet.Shared;
 [assembly: PacketRegistry(typeof(PacketPlayerMapChanged))]
 [assembly: PacketRegistry(typeof(PacketPlayerMapChangedNotify))]
 
+[assembly: PacketRegistry(typeof(PacketPlayerMapRoomChanged))]
+[assembly: PacketRegistry(typeof(PacketPlayerMapRoomChangedNotify))]
+
 [assembly: PacketRegistry(typeof(PacketPlayerChannelMove))]
 [assembly: PacketRegistry(typeof(PacketPlayerChannelMoveNotify))]
