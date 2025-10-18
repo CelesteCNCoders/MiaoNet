@@ -11,7 +11,6 @@ public abstract class MiaoNetComponent
         this.context = context;
     }
 
-    /// <summary>This method is NOT called on main thread.</summary>
     public virtual void OnConnected() { }
 
     public virtual void OnDisconnected() { }

@@ -41,8 +41,8 @@ public sealed class PacketPlayerMapChanged : IPacket<PacketPlayerMapChanged>
     }
 }
 
-public sealed class PacketPlayerMapChangedNotify : PacketPlayerNotify,
-    IPacket<PacketPlayerMapChangedNotify>
+public sealed class PacketPlayerMapChangedNotification : PacketPlayerNotification,
+    IPacket<PacketPlayerMapChangedNotification>
 {
     [Flags]
     public enum DataFlags : byte
@@ -59,14 +59,14 @@ public sealed class PacketPlayerMapChangedNotify : PacketPlayerNotify,
 
     public PlayerState? InitialState { get; set; }
 
-    public PacketPlayerMapChangedNotify(int playerID, string mapSid, string mapRoom)
+    public PacketPlayerMapChangedNotification(int playerID, string mapSid, string mapRoom)
         : base(playerID)
     {
         MapSid = mapSid;
         MapRoom = mapRoom;
     }
 
-    public PacketPlayerMapChangedNotify(
+    public PacketPlayerMapChangedNotification(
         int playerID, string mapSid, string mapRoom,
         PlayerGraphicsInfo? graphicsInfo,
         PlayerState? initialStats
@@ -90,8 +90,8 @@ public sealed class PacketPlayerMapChangedNotify : PacketPlayerNotify,
         if (GraphicsInfo is not null) writer.Write(GraphicsInfo);
         if (InitialState is not null) writer.Write(InitialState);
     }
-    
-    public static PacketPlayerMapChangedNotify Deserialize(ref RefBinaryReader reader)
+
+    public static PacketPlayerMapChangedNotification Deserialize(ref RefBinaryReader reader)
     {
         int playerID = reader.ReadInt32();
         PlayerGraphicsInfo? graphicsInfo = null;
@@ -109,4 +109,60 @@ public sealed class PacketPlayerMapChangedNotify : PacketPlayerNotify,
 
         return new(playerID, mapSid, mapRoom, graphicsInfo, initialStats);
     }
+}
+
+public sealed class PacketPlayerMapChangedResponse : IPacket<PacketPlayerMapChangedResponse>
+{
+    public readonly struct Player : IRefBinarySerializable<Player>
+    {
+        public int PlayerID { get; }
+
+        public PlayerState State { get; }
+
+        public PlayerGraphicsInfo? GraphicsInfo { get; }
+
+        public Player(int playerID, PlayerState state, PlayerGraphicsInfo? graphicsInfo)
+        {
+            PlayerID = playerID;
+            State = state;
+            GraphicsInfo = graphicsInfo;
+        }
+
+        public void Serialize(ref RefBinaryWriter writer)
+        {
+            writer.Write(PlayerID);
+            writer.Write(State);
+            if (GraphicsInfo is not null)
+            {
+                writer.Write(true);
+                writer.Write(GraphicsInfo);
+            }
+            else
+            {
+                writer.Write(false);
+            }
+        }
+
+        public static Player Deserialize(ref RefBinaryReader reader)
+            => new(
+                reader.ReadInt32(), 
+                reader.Read<PlayerState>(),
+                reader.ReadBoolean() ? reader.Read<PlayerGraphicsInfo>() : null
+            );
+    }
+
+    public List<Player> PlayersInMap { get; }
+
+    public PacketPlayerMapChangedResponse(List<Player> playersInMap)
+    {
+        PlayersInMap = playersInMap;
+    }
+
+    public void Serialize(ref RefBinaryWriter writer)
+    {
+        writer.Write(PlayersInMap);
+    }
+
+    public static PacketPlayerMapChangedResponse Deserialize(ref RefBinaryReader reader)
+        => new(reader.ReadList<Player>());
 }

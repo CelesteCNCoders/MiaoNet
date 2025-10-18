@@ -3,11 +3,10 @@ namespace MiaoNet.Shared;
 public sealed class PacketPlayerFrame : IPacket<PacketPlayerFrame>
 {
     [Flags]
-    public enum PlayerFrameActionFlags : ushort
+    public enum FrameFlags : ushort
     {
         FacingLeft = 1 << 0, // true -> face left, false -> face right
-        StartDashing = 1 << 1,
-        EndDashing = 1 << 2
+        Dashing = 1 << 1 // literally
     }
 
     public float X { get; set; }
@@ -16,15 +15,15 @@ public sealed class PacketPlayerFrame : IPacket<PacketPlayerFrame>
     public ushort AnimationFrame { get; set; }
     public float ScaleX { get; set; }
     public float ScaleY { get; set; }
-    public PlayerFrameActionFlags Flags { get; set; }
+    public FrameFlags Flags { get; set; }
 
-    public bool FacingLeft => (Flags & PlayerFrameActionFlags.FacingLeft) != 0;
+    public bool FacingLeft => (Flags & FrameFlags.FacingLeft) != 0;
 
     public PacketPlayerFrame(
         float x, float y,
         ushort animationFrame, ushort animationID,
         float scaleX, float scaleY,
-        PlayerFrameActionFlags flags
+        FrameFlags flags
     )
     {
         X = x;
@@ -55,17 +54,17 @@ public sealed class PacketPlayerFrame : IPacket<PacketPlayerFrame>
             reader.ReadUInt16(),
             reader.ReadSingle(),
             reader.ReadSingle(),
-            (PlayerFrameActionFlags)reader.ReadUInt16()
+            (FrameFlags)reader.ReadUInt16()
         );
 }
 
-public sealed class PacketPlayerFrameNotify : PacketPlayerNotify<PacketPlayerFrame>, IPacket<PacketPlayerFrameNotify>
+public sealed class PacketPlayerFrameNotification : PacketPlayerNotification<PacketPlayerFrame>, IPacket<PacketPlayerFrameNotification>
 {
-    public PacketPlayerFrameNotify(int playerID, PacketPlayerFrame packet)
+    public PacketPlayerFrameNotification(int playerID, PacketPlayerFrame packet)
         : base(playerID, packet)
     {
     }
 
-    public static PacketPlayerFrameNotify Deserialize(ref RefBinaryReader reader)
+    public static PacketPlayerFrameNotification Deserialize(ref RefBinaryReader reader)
         => new(reader.ReadInt32(), reader.Read<PacketPlayerFrame>());
 }

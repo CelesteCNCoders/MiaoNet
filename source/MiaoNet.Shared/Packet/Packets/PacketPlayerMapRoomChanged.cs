@@ -21,14 +21,14 @@ public sealed class PacketPlayerMapRoomChanged : IPacket<PacketPlayerMapRoomChan
     }
 }
 
-public sealed class PacketPlayerMapRoomChangedNotify : PacketPlayerNotify<PacketPlayerMapRoomChanged>,
-    IPacket<PacketPlayerMapRoomChangedNotify>
+public sealed class PacketPlayerMapRoomChangedNotification : PacketPlayerNotification<PacketPlayerMapRoomChanged>,
+    IPacket<PacketPlayerMapRoomChangedNotification>
 {
-    public PacketPlayerMapRoomChangedNotify(int playerID, PacketPlayerMapRoomChanged packet)
+    public PacketPlayerMapRoomChangedNotification(int playerID, PacketPlayerMapRoomChanged packet)
         : base(playerID, packet)
     {
     }
 
-    public static PacketPlayerMapRoomChangedNotify Deserialize(ref RefBinaryReader reader)
+    public static PacketPlayerMapRoomChangedNotification Deserialize(ref RefBinaryReader reader)
         => new(reader.ReadInt32(), reader.Read<PacketPlayerMapRoomChanged>());
 }

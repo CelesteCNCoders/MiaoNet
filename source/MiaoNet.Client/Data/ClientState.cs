@@ -19,7 +19,7 @@ public sealed class ClientState
 
     public OnlineChannel SelfChannel { get; private set; }
 
-    public ClientState(PacketClientInitial clientInitial, PlayerLocationInfo locationInfo)
+    public ClientState(PacketClientInitial clientInitial, PlayerLocationInfo selfLocationInfo)
     {
         curMapSid = curMapRoom = string.Empty;
         players = new();
@@ -39,7 +39,7 @@ public sealed class ClientState
             players.Add(player.Info.Info.ID, onlinePlayer);
             channel.Players.Add(player.Info.Info.ID, onlinePlayer);
         }
-        Self = new(SelfChannel = channels[clientInitial.ChannelID], clientInitial.SelfPlayerInfo, locationInfo);
+        Self = new(SelfChannel = channels[clientInitial.ChannelID], clientInitial.SelfPlayerInfo, selfLocationInfo);
     }
 
     public OnlinePlayer OnNewPlayerJoined(PacketPlayerJoined packet)

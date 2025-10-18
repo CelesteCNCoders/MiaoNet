@@ -16,13 +16,13 @@ public sealed class PacketPlayerChannelMove : IPacket<PacketPlayerChannelMove>
         => new(reader.ReadInt32());
 }
 
-public sealed class PacketPlayerChannelMoveNotify : PacketPlayerNotify<PacketPlayerChannelMove>, IPacket<PacketPlayerChannelMoveNotify>
+public sealed class PacketPlayerChannelMoveNotification : PacketPlayerNotification<PacketPlayerChannelMove>, IPacket<PacketPlayerChannelMoveNotification>
 {
-    public PacketPlayerChannelMoveNotify(int playerID, PacketPlayerChannelMove packet)
+    public PacketPlayerChannelMoveNotification(int playerID, PacketPlayerChannelMove packet)
         : base(playerID, packet)
     {
     }
 
-    public static PacketPlayerChannelMoveNotify Deserialize(ref RefBinaryReader reader)
+    public static PacketPlayerChannelMoveNotification Deserialize(ref RefBinaryReader reader)
         => new(reader.ReadInt32(), reader.Read<PacketPlayerChannelMove>());
 }

@@ -1,6 +1,6 @@
 namespace MiaoNet.Shared;
 
-public sealed class PacketPlayerLeft : PacketPlayerNotify, IPacket<PacketPlayerLeft>
+public sealed class PacketPlayerLeft : PacketPlayerNotification, IPacket<PacketPlayerLeft>
 {
     public enum LeftReason
     {

@@ -5,13 +5,14 @@ using MiaoNet.Shared;
 [assembly: PacketRegistry(typeof(PacketPlayerLeft))]
 
 [assembly: PacketRegistry(typeof(PacketPlayerFrame))]
-[assembly: PacketRegistry(typeof(PacketPlayerFrameNotify))]
+[assembly: PacketRegistry(typeof(PacketPlayerFrameNotification))]
 
 [assembly: PacketRegistry(typeof(PacketPlayerMapChanged))]
-[assembly: PacketRegistry(typeof(PacketPlayerMapChangedNotify))]
+[assembly: PacketRegistry(typeof(PacketPlayerMapChangedNotification))]
+[assembly: PacketRegistry(typeof(PacketPlayerMapChangedResponse))]
 
 [assembly: PacketRegistry(typeof(PacketPlayerMapRoomChanged))]
-[assembly: PacketRegistry(typeof(PacketPlayerMapRoomChangedNotify))]
+[assembly: PacketRegistry(typeof(PacketPlayerMapRoomChangedNotification))]
 
 [assembly: PacketRegistry(typeof(PacketPlayerChannelMove))]
-[assembly: PacketRegistry(typeof(PacketPlayerChannelMoveNotify))]
+[assembly: PacketRegistry(typeof(PacketPlayerChannelMoveNotification))]

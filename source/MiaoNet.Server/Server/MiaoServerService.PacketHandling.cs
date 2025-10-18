@@ -16,7 +16,8 @@ public sealed partial class MiaoServerService
     {
         if (connection.Player.State is null)
         {
-            connection.Player.State = new(packet.X, packet.Y, 2); // HERE
+            logger.LogWarning(AppEvents.Game, "Packet frame received but no initial state for {p}.", connection.Player);
+            connection.Player.State = new(packet.X, packet.Y, 2);
         }
         else
         {
@@ -26,7 +27,7 @@ public sealed partial class MiaoServerService
             state.Dashes = 1;
         }
         await BroadcastToOthersAsync(
-            new PacketPlayerFrameNotify(connection.ID, packet),
+            new PacketPlayerFrameNotification(connection.ID, packet),
             con => con.Player.LocationInfo.MapSid == connection.Player.LocationInfo.MapSid,
             connection
         );
@@ -36,8 +37,9 @@ public sealed partial class MiaoServerService
     {
         var player = connection.Player;
         var playerLoc = player.LocationInfo;
+        player.State = packet.InitialState;
         logger.LogDebug(
-            "{p} map changed: from {p} to {n.s}.{n.r}.", 
+            "{p} map changed: from {p} to {n.s}.{n.r}.",
             player.Info, playerLoc,
             packet.MapSid, packet.MapRoom
         );
@@ -49,31 +51,44 @@ public sealed partial class MiaoServerService
 
         serverState.StateLock.EnterReadLock();
         Task normalTask, sameMapTask;
+        ValueTask changerTask;
+        // TODO channels
+
         try
         {
-            IPacket normal = new PacketPlayerMapChangedNotify(
+            IPacket normal = new PacketPlayerMapChangedNotification(
                 player.Info.ID,
                 playerLoc.MapSid, playerLoc.MapRoom
             );
-            IPacket sameMap = new PacketPlayerMapChangedNotify(
+            IPacket sameMap = new PacketPlayerMapChangedNotification(
                 player.Info.ID,
                 playerLoc.MapSid, playerLoc.MapRoom,
                 null, packet.InitialState
             );
-            // TODO toSameMap & inSameMap
+            IPacket changer = new PacketPlayerMapChangedResponse(
+                serverState.AllPlayers.Where(p => SameMapPredicate(p.Value.Player))
+                    .Where(p => p.Value.Connection != connection)
+                    .Select(p => new PacketPlayerMapChangedResponse.Player(
+                        p.Key,
+                        p.Value.Player.State!, // TODO
+                        p.Value.Player.GraphicsInfo
+                    )
+                ).ToList()
+            );
 
-            normalTask = BroadcastToOthersAsync(normal, NormalPredicate, player.ID);
-            sameMapTask = BroadcastToOthersAsync(sameMap, SameMapPredicate, player.ID);
+            normalTask = BroadcastToOthersAsync(normal, c => NormalPredicate(c.Player), player.ID);
+            sameMapTask = BroadcastToOthersAsync(sameMap, c => SameMapPredicate(c.Player), player.ID);
+            changerTask = connection.SendPacketAsync(changer);
 
-            bool NormalPredicate(MiaoClientConnection con)
+            bool NormalPredicate(ServerPlayer player)
             {
-                string sid = con.Player.LocationInfo.MapSid;
+                string sid = player.LocationInfo.MapSid;
                 return sid == string.Empty || sid != playerLoc.MapSid;
             }
 
-            bool SameMapPredicate(MiaoClientConnection con)
+            bool SameMapPredicate(ServerPlayer player)
             {
-                string sid = con.Player.LocationInfo.MapSid;
+                string sid = player.LocationInfo.MapSid;
                 return sid != string.Empty && sid == playerLoc.MapSid;
             }
         }
@@ -82,6 +97,7 @@ public sealed partial class MiaoServerService
             serverState.StateLock.ExitReadLock();
         }
 
+        await changerTask;
         await normalTask;
         await sameMapTask;
     }
@@ -92,13 +108,13 @@ public sealed partial class MiaoServerService
         var playerLoc = player.LocationInfo;
         logger.LogDebug(
             AppEvents.GameState,
-            "{p} map room changed: from room {p} to {a}.", 
-            player.Info, playerLoc.MapRoom, 
+            "{p} map room changed: from room {p} to {a}.",
+            player.Info, playerLoc.MapRoom,
             packet.MapRoom
         );
         serverState.StateLock.EnterWriteLock();
         playerLoc.MapRoom = packet.MapRoom;
         serverState.StateLock.ExitWriteLock();
-        await BroadcastOthersAsync(new PacketPlayerMapRoomChangedNotify(player.ID, packet), connection);
+        await BroadcastOthersAsync(new PacketPlayerMapRoomChangedNotification(player.ID, packet), connection);
     }
 }

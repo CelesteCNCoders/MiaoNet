@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
+using FFlags = MiaoNet.Shared.PacketPlayerFrame.FrameFlags;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -20,26 +21,25 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         context.ClientInitialized += Context_ClientInitialized;
         context.PlayerJoined += Context_PlayerJoined;
         context.PlayerLeft += Context_PlayerLeft;
-        context.PlayerFrameNotify += Context_PlayerFrameNotify;
+        context.PlayerFrameNotification += Context_PlayerFrameNotification;
         context.PlayerMapChanged += Context_PlayerMapChanged;
+        context.PlayerMapChangeResponse += Context_PlayerMapChangeResponse;
     }
 
     public override void OnConnected()
     {
         errCount = 0;
-        Engine.Scene.OnEndOfFrame += () =>
-        {
-            if (Engine.Scene is not Level level) return;
-            var player = level.Tracker.GetEntity<Player>();
-            if (player is null) return;
-            context.SendPacket(
-                new PacketPlayerMapChanged(
-                    level.Session.Area.SID,
-                    level.Session.Level,
-                    new(player.X, player.Y, (byte)player.Dashes)
-                )
-            );
-        };
+
+        if (Engine.Scene is not Level level) return;
+        var player = level.Tracker.GetEntity<Player>();
+        if (player is null) return;
+        context.SendPacket(
+            new PacketPlayerMapChanged(
+                level.Session.Area.SID,
+                level.Session.Level,
+                new(player.X, player.Y, (byte)player.Dashes)
+            )
+        );
     }
 
     public override void OnDisconnected()
@@ -61,7 +61,7 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
 
     private void Context_PlayerLeft(OnlinePlayer player)
     {
-        if (player.LocationInfo != context.ClientState!.Self.LocationInfo)
+        if (player.LocationInfo.MapSid != context.ClientState!.Self.LocationInfo.MapSid)
             return;
         if (!ghosts.Remove(player.Info.ID, out MiaoNetGhost? ghost))
         {
@@ -71,7 +71,7 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         ghost.RemoveSelf();
     }
 
-    private void Context_PlayerFrameNotify(OnlinePlayer player, PacketPlayerFrame packet)
+    private void Context_PlayerFrameNotification(OnlinePlayer player, PacketPlayerFrame packet)
     {
         if (ghosts.TryGetValue(player.Info.ID, out var ghost))
         {
@@ -88,7 +88,7 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         }
     }
 
-    private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotify packet)
+    private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotification packet)
     {
         Logger.Info(nameof(MiaoNet), $"Player map changed: {player}.");
 
@@ -101,13 +101,27 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         HandleLocationChanging(player.Channel.ID, player.Info, player.LocationInfo, player.GraphicsInfo, player.State);
     }
 
+    private void Context_PlayerMapChangeResponse(PacketPlayerMapChangedResponse packet)
+    {
+        foreach (var item in packet.PlayersInMap)
+        {
+            OnlinePlayer player = context.ClientState!.Players[item.PlayerID];
+            player.State = item.State;
+            player.GraphicsInfo = item.GraphicsInfo;
+            ghosts[player.ID] = new(player.ID, player.Info.Name, player.GraphicsInfo, player.State);
+        }
+    }
+
     private void HandleLocationChanging(
         int channelID, PlayerInfo info, PlayerLocationInfo locationInfo,
         PlayerGraphicsInfo? graphicsInfo, PlayerState? initialState
     )
     {
         var state = context.ClientState!;
-        Logger.Info(nameof(MiaoNet), $"Channel: {channelID}, Player: {info}, LocationInfo: {locationInfo}.");
+        Logger.Info(
+            nameof(MiaoNet), $"Location changing... " +
+            $"Channel: {channelID}, Player: {info}, LocationInfo: {locationInfo}."
+        );
         bool needGhost = !string.IsNullOrEmpty(locationInfo.MapSid) &&
             channelID == state.SelfChannel.ID &&
             locationInfo.MapSid == state.Self.LocationInfo.MapSid;
@@ -128,7 +142,7 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         {
             if (needGhost)
             {
-                ghosts[info.ID] = new(info.ID, info.Name, graphicsInfo, initialState);
+                ghosts[info.ID] = new(info.ID, info.Name, graphicsInfo, initialState!);
             }
         }
     }
@@ -154,13 +168,20 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
             // TODO extendable
             animID = ushort.MaxValue;
         }
+
+        FFlags flags = 0;
+        if (player.Facing is Facings.Left)
+            flags |= FFlags.FacingLeft;
+        if (player.StateMachine.State is Player.StDash)
+            flags |= FFlags.Dashing;
+
         var packetFrame = new PacketPlayerFrame(
                 player.Position.X,
                 player.Position.Y,
                 (ushort)player.Sprite.CurrentAnimationFrame,
                 (ushort)animID,
                 player.Sprite.Scale.X, player.Sprite.Scale.Y,
-                (player.Facing == Facings.Left) ? PacketPlayerFrame.PlayerFrameActionFlags.FacingLeft : 0
+                flags
             );
         context.SendPacket(packetFrame);
     }

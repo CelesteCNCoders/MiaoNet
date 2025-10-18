@@ -14,8 +14,10 @@ namespace Celeste.Mod.MiaoNet;
 public sealed partial class MiaoNetContext
 {
     private CancellationTokenSource? cts;
-    private Thread? connctionThread;
-    private readonly ConcurrentQueue<IPacket> packetQueue;
+    private Thread? connectionThread;
+    private volatile bool justConnected;
+    private readonly ConcurrentQueue<IPacket> sendQueue;
+    private readonly ConcurrentQueue<IPacket> receiveQueue;
 
     private readonly List<MiaoNetComponent> components;
     private MiaoServerConnection? connection;
@@ -31,7 +33,8 @@ public sealed partial class MiaoNetContext
 
     public MiaoNetContext()
     {
-        packetQueue = new();
+        receiveQueue = new();
+        sendQueue = new();
         components = [
             MainComponent = new MiaoNetMainComponent(this)
         ];
@@ -39,9 +42,10 @@ public sealed partial class MiaoNetContext
         r.Register<PacketClientInitial>(HandlePacket);
         r.Register<PacketPlayerJoined>(HandlePacket);
         r.Register<PacketPlayerLeft>(HandlePacket);
-        r.Register<PacketPlayerFrameNotify>(HandlePacket);
-        r.Register<PacketPlayerMapChangedNotify>(HandlePacket);
-        r.Register<PacketPlayerMapRoomChangedNotify>(HandlePacket);
+        r.Register<PacketPlayerFrameNotification>(HandlePacket);
+        r.Register<PacketPlayerMapChangedNotification>(HandlePacket);
+        r.Register<PacketPlayerMapRoomChangedNotification>(HandlePacket);
+        r.Register<PacketPlayerMapChangedResponse>(HandlePacket);
         packetDispatcher = new(r);
 
 #if DEBUG
@@ -49,56 +53,6 @@ public sealed partial class MiaoNetContext
         if (GFX.Loaded)
             Task.Delay(500).ContinueWith(_ => Connect());
 #endif
-    }
-
-    private void HandlePacket(PacketClientInitial packet)
-    {
-        PlayerLocationInfo locationInfo;
-        if (Engine.Scene is Level level)
-            locationInfo = new(level.Session.Area.SID, level.Session.Level);
-        else
-            locationInfo = new(string.Empty, string.Empty);
-
-        ClientState = new(packet, locationInfo);
-        ClientInitialized?.Invoke(ClientState);
-    }
-
-    private void HandlePacket(PacketPlayerJoined packet)
-    {
-        EnsureState();
-        var player = ClientState.OnNewPlayerJoined(packet);
-        PlayerJoined?.Invoke(player);
-    }
-
-    private void HandlePacket(PacketPlayerLeft packet)
-    {
-        EnsureState();
-        PlayerLeft?.Invoke(ClientState.Players[packet.PlayerID]);
-        ClientState.OnPlayerLeft(packet.PlayerID);
-    }
-
-    private void HandlePacket(PacketPlayerFrameNotify packet)
-    {
-        EnsureState();
-        var player = ClientState.Players[packet.PlayerID];
-        PlayerFrameNotify?.Invoke(player, packet.Packet);
-    }
-
-    private void HandlePacket(PacketPlayerMapChangedNotify packet)
-    {
-        EnsureState();
-        var player = ClientState.Players[packet.PlayerID];
-        player.LocationInfo.MapSid = packet.MapSid;
-        player.LocationInfo.MapRoom = packet.MapRoom;
-        PlayerMapChanged?.Invoke(player, packet);
-    }
-
-    private void HandlePacket(PacketPlayerMapRoomChangedNotify packet)
-    {
-        EnsureState();
-        var player = ClientState.Players[packet.PlayerID];
-        player.LocationInfo.MapRoom = packet.Packet.MapRoom;
-        PlayerMapRoomChanged?.Invoke(player, packet.Packet.MapRoom);
     }
 
     public void OnPlayerMapChanged(Level level, string mapSid, string mapRoom)
@@ -130,19 +84,19 @@ public sealed partial class MiaoNetContext
 
     public void Connect()
     {
-        if (connctionThread is not null)
+        if (connectionThread is not null)
             return;
         cts = new();
-        connctionThread = new(ConnectionThread);
-        connctionThread.Start(cts.Token);
+        connectionThread = new(ConnectionThread);
+        connectionThread.Start(cts.Token);
     }
 
     public void Disconnect()
     {
         cts?.Cancel();
         cts = null;
-        connctionThread = null;
-        packetQueue.Clear();
+        connectionThread = null;
+        receiveQueue.Clear();
         ClientState = null;
         components.ForEach(c => c.OnDisconnected());
         if (connection is null)
@@ -155,6 +109,11 @@ public sealed partial class MiaoNetContext
     {
         if (connection is null)
             return;
+        if (justConnected)
+        {
+            justConnected = false;
+            components.ForEach(c => c.OnConnected());
+        }
         while (TryTakePacket(out var packet))
         {
             if (!packetDispatcher.DispatchPacket(packet))
@@ -171,14 +130,15 @@ public sealed partial class MiaoNetContext
     }
 
     public bool TryTakePacket([NotNullWhen(true)] out IPacket? packet)
-        => packetQueue.TryDequeue(out packet);
+        => receiveQueue.TryDequeue(out packet);
 
     public void SendPacket(IPacket packet)
         => connection!.SendPacket(packet);
 
-    private void ConnectionThread(object? tokenObject)
+    private void ConnectionThread(object? param)
     {
-        CancellationToken token = (CancellationToken)tokenObject!;
+        var token = (CancellationToken)param!;
+
         if (token.IsCancellationRequested)
             return;
 
@@ -188,12 +148,12 @@ public sealed partial class MiaoNetContext
             HandshakeData handshakeData = new(MiaoNetModule.Instance.Metadata.Version, 0, MiaoNetModule.Settings.Name, []);
             connection = new(ipe, handshakeData);
             Logger.Info(nameof(MiaoNet), $"Connected to {ipe}.");
-            components.ForEach(c => c.OnConnected());
+            justConnected = true;
 
             while (!token.IsCancellationRequested)
             {
                 IPacket packet = connection.ReceivePacket();
-                packetQueue.Enqueue(packet);
+                receiveQueue.Enqueue(packet);
             }
             return;
         }

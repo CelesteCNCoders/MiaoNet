@@ -79,7 +79,6 @@ public sealed class MiaoNetGhost : Entity
                 playerSprite.Play(animationID, true);
             playerSprite.SetAnimationFrame(animationFrame);
         }
-
         playerHair.Facing = facing = faceLeft ? Facings.Left : Facings.Right;
         playerSprite.Scale = new((float)scaleX, (float)scaleY);
     }
