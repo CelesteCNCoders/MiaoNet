@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -21,10 +22,10 @@ public sealed class SingleThreadedSynchronizationContext : SynchronizationContex
         d(state);
     }
 
-    public void ProcessLoop()
+    public void ProcessLoop(CancellationToken token)
     {
         SetSynchronizationContext(this);
-        foreach (var item in callbacks.GetConsumingEnumerable())
+        foreach (var item in callbacks.GetConsumingEnumerable(token))
         {
             item.Item1(item.Item2);
         }

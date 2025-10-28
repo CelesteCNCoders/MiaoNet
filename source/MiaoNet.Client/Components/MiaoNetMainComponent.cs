@@ -33,7 +33,7 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         if (Engine.Scene is not Level level) return;
         var player = level.Tracker.GetEntity<Player>();
         if (player is null) return;
-        context.SendPacket(
+        context.QueuePacket(
             new PacketPlayerMapChanged(
                 level.Session.Area.SID,
                 level.Session.Level,
@@ -183,7 +183,7 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
                 player.Sprite.Scale.X, player.Sprite.Scale.Y,
                 flags
             );
-        context.SendPacket(packetFrame);
+        context.QueuePacket(packetFrame);
     }
 
     public override void Render()

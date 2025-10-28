@@ -65,7 +65,7 @@ public sealed partial class MiaoNetContext
         case ClientState.MapChangedResult.RoomOnly:
         {
             PacketPlayerMapRoomChanged p = new(mapRoom);
-            SendPacket(p);
+            QueuePacket(p);
             break;
         }
         case ClientState.MapChangedResult.All:
@@ -75,7 +75,7 @@ public sealed partial class MiaoNetContext
                 Player player = level.Tracker.GetEntity<Player>();
                 Debug.Assert(player is not null);
                 PacketPlayerMapChanged p = new(mapSid, mapRoom, new PlayerState(player.X, player.Y, (byte)player.Dashes));
-                SendPacket(p);
+                QueuePacket(p);
             };
             break;
         }
@@ -132,8 +132,8 @@ public sealed partial class MiaoNetContext
     public bool TryTakePacket([NotNullWhen(true)] out IPacket? packet)
         => receiveQueue.TryDequeue(out packet);
 
-    public void SendPacket(IPacket packet)
-        => connection!.SendPacket(packet);
+    public void QueuePacket(IPacket packet)
+        => connection!.QueuePacket(packet);
 
     private void ConnectionThread(object? param)
     {
@@ -141,6 +141,9 @@ public sealed partial class MiaoNetContext
 
         if (token.IsCancellationRequested)
             return;
+
+        SingleThreadedSynchronizationContext syncCtx = new();
+        SynchronizationContext.SetSynchronizationContext(syncCtx);
 
         try
         {
@@ -150,15 +153,27 @@ public sealed partial class MiaoNetContext
             Logger.Info(nameof(MiaoNet), $"Connected to {ipe}.");
             justConnected = true;
 
-            while (!token.IsCancellationRequested)
-            {
-                IPacket packet = connection.ReceivePacket();
-                receiveQueue.Enqueue(packet);
-            }
+            _ = ReceivePacketsLoopAsync(token);
+            _ = connection.SendPacketsLoopAsync(token);
+            syncCtx.ProcessLoop(token);
             return;
+
+            async Task ReceivePacketsLoopAsync(CancellationToken token)
+            {
+                await Task.Yield();
+                while (!token.IsCancellationRequested)
+                {
+                    IPacket packet = await connection.ReceivePacketAsync();
+                    receiveQueue.Enqueue(packet);
+                }
+            }
         }
         catch (IOException e)
         when (e.InnerException is SocketException { SocketErrorCode: SocketError.ConnectionAborted })
+        {
+            Logger.Info(nameof(MiaoNet), "Connection aborted.");
+        }
+        catch (OperationCanceledException)
         {
             Logger.Info(nameof(MiaoNet), "Disconnected.");
         }
@@ -176,6 +191,7 @@ public sealed partial class MiaoNetContext
     [MemberNotNull(nameof(ClientState))]
     private void EnsureState()
     {
+        // TODO not completely sure
         Debug.Assert(ClientState != null);
     }
 }

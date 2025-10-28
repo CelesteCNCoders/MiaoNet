@@ -1,71 +1,105 @@
-﻿using System.Buffers.Binary;
+﻿using System.Buffers;
+using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.Channels;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
 public sealed class MiaoServerConnection : IDisposable
 {
-    private Socket? socket;
+    private Socket? tcpSocket;
     private readonly NetworkStream networkStream;
     private readonly MemoryStream memoryStream;
+
+    private volatile TaskCompletionSource tcs;
+    private readonly ConcurrentQueue<IPacket> packetSendQueue;
 
     public EndPoint EndPoint { get; }
 
     public MiaoServerConnection(EndPoint endPoint, HandshakeData handshakeData)
     {
         EndPoint = endPoint;
-        socket = new(SocketType.Stream, ProtocolType.Tcp);
-        socket.NoDelay = true;
-        socket.Connect(EndPoint);
-        networkStream = new(socket);
+        tcpSocket = new(SocketType.Stream, ProtocolType.Tcp);
+        tcpSocket.NoDelay = true;
+        tcpSocket.Connect(EndPoint);
+
+        packetSendQueue = new();
+
+        networkStream = new(tcpSocket);
         memoryStream = new(512);
         memoryStream.Seek(2, SeekOrigin.Begin);
 
         networkStream.Write(Connection.HandshakeHead);
-        SendHandshake(handshakeData);
+        WriteHandshake(handshakeData);
+        tcs = new();
     }
 
     public void Dispose()
     {
-        if (socket is null)
+        if (tcpSocket is null)
             return;
-        socket.Shutdown(SocketShutdown.Both);
-        socket.Close();
-        socket = null;
+        tcpSocket.Shutdown(SocketShutdown.Both);
+        tcpSocket.Close();
+        tcpSocket = null;
     }
 
-    public IPacket ReceivePacket()
+    public async ValueTask<IPacket> ReceivePacketAsync()
     {
         const int HeadSize = 2 * sizeof(ushort);
-        Span<byte> headSpan = stackalloc byte[HeadSize];
-        networkStream.ReadAtLeast(headSpan, HeadSize);
-        ushort size = BinaryPrimitives.ReadUInt16LittleEndian(headSpan);
-        ushort type = BinaryPrimitives.ReadUInt16LittleEndian(headSpan.Slice(sizeof(ushort)));
+        ushort size, type;
+        using (IMemoryOwner<byte> owner = MemoryPool<byte>.Shared.Rent(HeadSize))
+        {
+            Memory<byte> headMemory = owner.Memory.Slice(0, HeadSize);
+            await networkStream.ReadAtLeastAsync(headMemory, HeadSize);
 
-        // TODO stackalloc
-        Span<byte> payloadSpan = stackalloc byte[size];
-        networkStream.ReadAtLeast(payloadSpan, size);
+            size = BinaryPrimitives.ReadUInt16LittleEndian(headMemory.Span);
+            type = BinaryPrimitives.ReadUInt16LittleEndian(headMemory.Slice(sizeof(ushort)).Span);
+        }
 
-        RefBinaryReader reader = new(payloadSpan);
-        IPacket packet = PacketRegistry.ReadPacket(type, ref reader);
-        return packet;
+        using (IMemoryOwner<byte> owner = MemoryPool<byte>.Shared.Rent(size))
+        {
+            Memory<byte> payloadMemory = owner.Memory.Slice(0, size);
+            await networkStream.ReadAtLeastAsync(payloadMemory, size);
+
+            RefBinaryReader reader = new(payloadMemory.Span);
+            IPacket packet = PacketRegistry.ReadPacket(type, ref reader);
+            return packet;
+        }
     }
 
-    public void SendPacket(IPacket packet)
+    public async Task SendPacketsLoopAsync(CancellationToken token)
     {
-        RefBinaryWriter writer = new(memoryStream);
+        while (!token.IsCancellationRequested)
+        {
+            await Task.Yield();
 
-        PacketRegistry.WritePacket(packet, ref writer);
-        ushort length = (ushort)(memoryStream.Position - 2 * sizeof(ushort));
-        memoryStream.Seek(0, SeekOrigin.Begin);
-        writer.Write(length);
+            while (packetSendQueue.TryDequeue(out IPacket? packet))
+            {
+                RefBinaryWriter writer = new(memoryStream);
+                PacketRegistry.WritePacket(packet, ref writer);
+                ushort length = (ushort)(memoryStream.Position - 2 * sizeof(ushort));
+                memoryStream.Seek(0, SeekOrigin.Begin);
+                writer.Write(length);
 
-        networkStream.Write(memoryStream.GetBuffer(), 0, length + 2 * sizeof(ushort));
+                await networkStream.WriteAsync(memoryStream.GetBuffer().AsMemory(0, length + 2 * sizeof(ushort)), token);
+            }
+
+            await tcs.Task;
+            tcs = new();
+        }
     }
 
-    private void SendHandshake(HandshakeData handshakeData)
+    public int QueuePacket(IPacket packet)
+    {
+        packetSendQueue.Enqueue(packet);
+        tcs.TrySetResult();
+        return packetSendQueue.Count;
+    }
+
+    private void WriteHandshake(HandshakeData handshakeData)
     {
         RefBinaryWriter writer = new(memoryStream);
 
@@ -73,7 +107,7 @@ public sealed class MiaoServerConnection : IDisposable
         ushort length = (ushort)(memoryStream.Position - sizeof(ushort));
         memoryStream.Seek(0, SeekOrigin.Begin);
         writer.Write(length);
-        
+
         networkStream.Write(memoryStream.GetBuffer(), 0, length + sizeof(ushort));
     }
 }
