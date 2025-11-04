@@ -12,8 +12,8 @@ public partial class MiaoNetContext
         else
             locationInfo = new(string.Empty, string.Empty);
 
-        ClientState = new(packet, locationInfo);
-        ClientInitialized?.Invoke(ClientState);
+        clientState = new(packet, locationInfo);
+        ClientInitialized?.Invoke(clientState);
     }
 
     private void HandlePacket(PacketPlayerJoined packet)

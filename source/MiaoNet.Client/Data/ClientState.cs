@@ -33,9 +33,13 @@ public sealed class ClientState
         {
             OnlinePlayer onlinePlayer;
             var channel = channels[player.Info.ChannelID];
-            onlinePlayer = new OnlinePlayer(channel, player.Info.Info, player.Info.LocationInfo);
-            onlinePlayer.State = player.InitialState;
-            onlinePlayer.GraphicsInfo = player.GraphicsInfo;
+            onlinePlayer = new OnlinePlayer(
+                channel,
+                player.Info.Info, 
+                player.Info.LocationInfo,
+                player.InitialState, 
+                player.GraphicsInfo
+            );
             players.Add(player.Info.Info.ID, onlinePlayer);
             channel.Players.Add(player.Info.Info.ID, onlinePlayer);
         }
@@ -55,7 +59,6 @@ public sealed class ClientState
 
     public void OnPlayerLeft(int playerID)
     {
-        Console.WriteLine("WHAT?");
         var player = players[playerID];
         var channel = player.Channel;
         channel.Players.Remove(playerID);

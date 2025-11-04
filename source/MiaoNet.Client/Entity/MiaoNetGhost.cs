@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework;
 using Monocle;
@@ -36,19 +37,25 @@ public sealed class MiaoNetGhost : Entity
     private readonly NameTag nameTag;
 
     private Facings facing;
+    private int dashes;
 
     public int PlayerID { get; set; }
 
     public string Name { get; set; }
 
-    public PlayerGraphicsInfo GraphicsInfo { get; set; }
+    [AllowNull]
+    public PlayerGraphicsInfo GraphicsInfo
+    {
+        get => field;
+        set => field = value ?? PlayerGraphicsInfo.Default;
+    }
 
-    public MiaoNetGhost(int id, string name, PlayerGraphicsInfo? playerGraphicsInfo, PlayerState initialState)
+    public MiaoNetGhost(int id, string name, [AllowNull] PlayerGraphicsInfo playerGraphicsInfo, PlayerState initialState)
     {
         Tag = Tags.Persistent | Tags.TransitionUpdate | Tags.FrozenUpdate | Tags.PauseUpdate;
         PlayerID = id;
         Name = name;
-        GraphicsInfo = playerGraphicsInfo ?? null!; // TODO
+        GraphicsInfo = playerGraphicsInfo;
         facing = Facings.Right;
         playerSprite = new PlayerSprite(PlayerSpriteMode.Madeline);
         playerHair = new PlayerHair(playerSprite);
@@ -59,6 +66,8 @@ public sealed class MiaoNetGhost : Entity
 
         X = initialState.X;
         Y = initialState.Y;
+        dashes = initialState.Dashes;
+        UpdateHair();
     }
 
     public override void Update()
@@ -66,9 +75,20 @@ public sealed class MiaoNetGhost : Entity
         base.Update();
     }
 
-    public void ApplyGraphicsInfo()
+    public void OnStartDash()
     {
+        
+    }
 
+    public void OnEndDash()
+    {
+        
+    }
+
+    public void OnDashesChange(int dashes)
+    {
+        this.dashes = dashes;
+        UpdateHair();
     }
 
     public void UpdateSprite(ushort animationFrame, string? animationID, bool faceLeft, float scaleX, float scaleY)
@@ -82,6 +102,28 @@ public sealed class MiaoNetGhost : Entity
         playerHair.Facing = facing = faceLeft ? Facings.Left : Facings.Right;
         playerSprite.Scale = new((float)scaleX, (float)scaleY);
     }
+
+    private void UpdateHair()
+    {
+        playerHair.Color = GetHairColor(GraphicsInfo, dashes);
+        playerSprite.HairCount = GetHairLength(GraphicsInfo, dashes);
+    }
+
+    private static Color GetHairColor(PlayerGraphicsInfo graphicsInfo, int dashes) => dashes switch
+    {
+        0 => graphicsInfo.Dash0Color,
+        1 => graphicsInfo.Dash1Color,
+        2 => graphicsInfo.Dash2Color,
+        _ => graphicsInfo.Dash2Color
+    };
+
+    private static int GetHairLength(PlayerGraphicsInfo graphicsInfo, int dashes) => dashes switch
+    {
+        0 => graphicsInfo.Dash0HairLength,
+        1 => graphicsInfo.Dash1HairLength,
+        2 => graphicsInfo.Dash2HairLength,
+        _ => graphicsInfo.Dash2HairLength
+    };
 
     public override void Added(Scene scene)
     {

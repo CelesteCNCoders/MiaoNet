@@ -17,14 +17,15 @@ public sealed partial class MiaoServerService
         if (connection.Player.State is null)
         {
             logger.LogWarning(AppEvents.Game, "Packet frame received but no initial state for {p}.", connection.Player);
-            connection.Player.State = new(packet.X, packet.Y, 2);
+            connection.Player.State = new(packet.X, packet.Y, 1);
         }
         else
         {
             var state = connection.Player.State;
             state.X = packet.X;
             state.Y = packet.Y;
-            state.Dashes = 1;
+            if (packet.DashesChange)
+                state.Dashes = packet.Dashes;
         }
         await BroadcastToOthersAsync(
             new PacketPlayerFrameNotification(connection.ID, packet),

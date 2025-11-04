@@ -85,7 +85,7 @@ public sealed class MiaoNetModule : EverestModule
             TextMenu options = new TextMenu();
             MenuMiaoNetOptions.BuildHeader(options);
             MenuMiaoNetOptions.BuildMenu(options, true);
-            const string ButtonBackAudio = "event:/ui/main/button_back";
+            const string ButtonBackAudio = SFX.ui_main_button_back;
             options.OnESC = (options.OnCancel = () =>
             {
                 Audio.Play(ButtonBackAudio);

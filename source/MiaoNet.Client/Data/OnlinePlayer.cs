@@ -16,12 +16,26 @@ public sealed class OnlinePlayer
 
     public PlayerGraphicsInfo? GraphicsInfo { get; set; }
 
-    public OnlinePlayer(OnlineChannel channel, PlayerInfo info, PlayerLocationInfo locationInfo)
+    public OnlinePlayer(
+        OnlineChannel channel,
+        PlayerInfo info,
+        PlayerLocationInfo locationInfo,
+        PlayerState? state, PlayerGraphicsInfo? graphicsInfo
+    )
     {
         Channel = channel;
         Info = info;
         LocationInfo = locationInfo;
-        Channel = channel;
+        State = state;
+        GraphicsInfo = graphicsInfo;
+    }
+
+    public OnlinePlayer(
+        OnlineChannel channel,
+        PlayerInfo info,
+        PlayerLocationInfo locationInfo
+    ) : this(channel, info, locationInfo, null, null)
+    {
     }
 
     public override string ToString()

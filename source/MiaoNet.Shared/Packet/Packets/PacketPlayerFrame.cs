@@ -6,7 +6,9 @@ public sealed class PacketPlayerFrame : IPacket<PacketPlayerFrame>
     public enum FrameFlags : ushort
     {
         FacingLeft = 1 << 0, // true -> face left, false -> face right
-        Dashing = 1 << 1 // literally
+        StartDash = 1 << 1,
+        EndDash = 1 << 2,
+        DashesChange = 1 << 3
     }
 
     public float X { get; set; }
@@ -16,8 +18,11 @@ public sealed class PacketPlayerFrame : IPacket<PacketPlayerFrame>
     public float ScaleX { get; set; }
     public float ScaleY { get; set; }
     public FrameFlags Flags { get; set; }
+    public byte Dashes { get; set; }
 
-    public bool FacingLeft => (Flags & FrameFlags.FacingLeft) != 0;
+    public bool FacingLeft => Flags.HasFlag(FrameFlags.FacingLeft);
+
+    public bool DashesChange => Flags.HasFlag(FrameFlags.DashesChange);
 
     public PacketPlayerFrame(
         float x, float y,
@@ -44,10 +49,13 @@ public sealed class PacketPlayerFrame : IPacket<PacketPlayerFrame>
         writer.Write(ScaleX);
         writer.Write(ScaleY);
         writer.Write((ushort)Flags);
+        if (DashesChange)
+            writer.Write(Dashes);
     }
 
-    public static PacketPlayerFrame Deserialize(ref RefBinaryReader reader) 
-        => new PacketPlayerFrame(
+    public static PacketPlayerFrame Deserialize(ref RefBinaryReader reader)
+    {
+        var packet = new PacketPlayerFrame(
             reader.ReadSingle(),
             reader.ReadSingle(),
             reader.ReadUInt16(),
@@ -56,9 +64,14 @@ public sealed class PacketPlayerFrame : IPacket<PacketPlayerFrame>
             reader.ReadSingle(),
             (FrameFlags)reader.ReadUInt16()
         );
+        if (packet.DashesChange)
+            packet.Dashes = reader.ReadByte();
+        return packet;
+    }
 }
 
-public sealed class PacketPlayerFrameNotification : PacketPlayerNotification<PacketPlayerFrame>, IPacket<PacketPlayerFrameNotification>
+public sealed class PacketPlayerFrameNotification : PacketPlayerNotification<PacketPlayerFrame>, 
+    IPacket<PacketPlayerFrameNotification>
 {
     public PacketPlayerFrameNotification(int playerID, PacketPlayerFrame packet)
         : base(playerID, packet)

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
 using FFlags = MiaoNet.Shared.PacketPlayerFrame.FrameFlags;
@@ -12,6 +13,9 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
     private int errCount;
     private readonly Dictionary<int, PlayerGraphicsInfo> graphicsInfos;
     private readonly Dictionary<int, MiaoNetGhost> ghosts;
+
+    private bool previousDashing;
+    private int previousDashes;
 
     public MiaoNetMainComponent(MiaoNetContext context) : base(context)
     {
@@ -79,7 +83,14 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
             string? sid = null;
             if (packet.AnimationID != ushort.MaxValue)
                 KnownPlayerAnimations.IDToString.TryGetValue(packet.AnimationID, out sid);
+
             ghost.UpdateSprite(packet.AnimationFrame, sid, packet.FacingLeft, packet.ScaleX, packet.ScaleY);
+            if (packet.Flags.HasFlag(FFlags.StartDash))
+                ghost.OnStartDash();
+            if (packet.Flags.HasFlag(FFlags.EndDash))
+                ghost.OnEndDash();
+            if (packet.Flags.HasFlag(FFlags.DashesChange))
+                ghost.OnDashesChange(packet.Dashes);
         }
         else
         {
@@ -91,7 +102,6 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
     private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotification packet)
     {
         Logger.Info(nameof(MiaoNet), $"Player map changed: {player}.");
-
         HandleLocationChanging(player.Channel.ID, player.Info, player.LocationInfo, packet.GraphicsInfo, packet.InitialState);
     }
 
@@ -126,11 +136,12 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
             channelID == state.SelfChannel.ID &&
             locationInfo.MapSid == state.Self.LocationInfo.MapSid;
         Logger.Info(nameof(MiaoNet), $"Need create ghost? {needGhost}");
+
         if (ghosts.TryGetValue(info.ID, out MiaoNetGhost? ghost))
         {
             if (needGhost)
             {
-                //ghost.GraphicsInfo = graphicsInfo;
+                ghost.GraphicsInfo = graphicsInfo;
             }
             else
             {
@@ -169,20 +180,32 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
             animID = ushort.MaxValue;
         }
 
+        bool currentDashing = player.StateMachine.State is Player.StDash;
+        int currentDashes = player.Dashes;
+
         FFlags flags = 0;
         if (player.Facing is Facings.Left)
             flags |= FFlags.FacingLeft;
-        if (player.StateMachine.State is Player.StDash)
-            flags |= FFlags.Dashing;
+        if (currentDashing && !previousDashing)
+            flags |= FFlags.StartDash;
+        if (!currentDashing && previousDashing)
+            flags |= FFlags.EndDash;
+        if (currentDashes != previousDashes)
+            flags |= FFlags.DashesChange;
+
+        previousDashing = currentDashing;
+        previousDashes = currentDashes;
 
         var packetFrame = new PacketPlayerFrame(
-                player.Position.X,
-                player.Position.Y,
-                (ushort)player.Sprite.CurrentAnimationFrame,
-                (ushort)animID,
-                player.Sprite.Scale.X, player.Sprite.Scale.Y,
-                flags
-            );
+            player.Position.X,
+            player.Position.Y,
+            (ushort)player.Sprite.CurrentAnimationFrame,
+            (ushort)animID,
+            player.Sprite.Scale.X, player.Sprite.Scale.Y,
+            flags
+        );
+        if (packetFrame.DashesChange)
+            packetFrame.Dashes = (byte)currentDashes;
         context.QueuePacket(packetFrame);
     }
 

@@ -21,13 +21,17 @@ public sealed partial class MiaoNetContext
 
     private readonly List<MiaoNetComponent> components;
     private MiaoServerConnection? connection;
-
     private readonly PacketDispatcher packetDispatcher;
+
+    private ClientState? clientState;
 
     [MemberNotNullWhen(true, nameof(connection))]
     public bool HasConnection => connection is not null;
 
-    public ClientState? ClientState { get; private set; }
+    [MemberNotNullWhen(true, nameof(ClientState))]
+    public bool HasState => clientState is not null;
+
+    public ClientState? ClientState => clientState;
 
     public MiaoNetMainComponent MainComponent { get; }
 
@@ -57,9 +61,8 @@ public sealed partial class MiaoNetContext
 
     public void OnPlayerMapChanged(Level level, string mapSid, string mapRoom)
     {
-        if (!HasConnection)
+        if (!HasState)
             return;
-        EnsureState();
         switch (ClientState.OnPlayerMapChanged(mapSid, mapRoom))
         {
         case ClientState.MapChangedResult.RoomOnly:
@@ -97,7 +100,7 @@ public sealed partial class MiaoNetContext
         cts = null;
         connectionThread = null;
         receiveQueue.Clear();
-        ClientState = null;
+        clientState = null;
         components.ForEach(c => c.OnDisconnected());
         if (connection is null)
             return;
@@ -133,7 +136,10 @@ public sealed partial class MiaoNetContext
         => receiveQueue.TryDequeue(out packet);
 
     public void QueuePacket(IPacket packet)
-        => connection!.QueuePacket(packet);
+    {
+        Debug.Assert(HasConnection);
+        connection.QueuePacket(packet);
+    }
 
     private void ConnectionThread(object? param)
     {
@@ -187,11 +193,10 @@ public sealed partial class MiaoNetContext
         }
     }
 
-    [Conditional("DEBUG")]
-    [MemberNotNull(nameof(ClientState))]
+    [MemberNotNull(nameof(ClientState), nameof(connection))]
     private void EnsureState()
     {
-        // TODO not completely sure
-        Debug.Assert(ClientState != null);
+        Debug.Assert(HasConnection);
+        Debug.Assert(HasState);
     }
 }
