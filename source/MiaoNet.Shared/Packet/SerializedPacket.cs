@@ -3,7 +3,7 @@ using System.Diagnostics;
 
 namespace MiaoNet.Shared;
 
-// TODO any better way to do this?
+// TODO remove this, ref count is bad
 public sealed class SerializedPacket
 {
     private int clientCount;

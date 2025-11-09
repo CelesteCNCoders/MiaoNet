@@ -38,6 +38,7 @@ public sealed class MiaoNetGhost : Entity
 
     private Facings facing;
     private int dashes;
+    private float flashTimer;
 
     public int PlayerID { get; set; }
 
@@ -57,7 +58,7 @@ public sealed class MiaoNetGhost : Entity
         Name = name;
         GraphicsInfo = playerGraphicsInfo;
         facing = Facings.Right;
-        playerSprite = new PlayerSprite(PlayerSpriteMode.Madeline);
+        playerSprite = new PlayerSprite(GraphicsInfo.PlayerSpriteMode);
         playerHair = new PlayerHair(playerSprite);
         Add(playerHair);
         Add(playerSprite);
@@ -73,20 +74,34 @@ public sealed class MiaoNetGhost : Entity
     public override void Update()
     {
         base.Update();
+        if (dashes == 0)
+        {
+            Color target = GetHairInfo(GraphicsInfo, dashes).Color;
+            playerHair.Color = Color.Lerp(playerHair.Color, target, 6f * Engine.DeltaTime);
+        }
+        else if (flashTimer > 0f)
+        {
+            flashTimer -= Engine.DeltaTime;
+            playerHair.Color = Color.White;
+        }
+        else
+        {
+            playerHair.Color = GetHairInfo(GraphicsInfo, dashes).Color;
+        }
     }
 
     public void OnStartDash()
     {
-        
     }
 
     public void OnEndDash()
     {
-        
+
     }
 
     public void OnDashesChange(int dashes)
     {
+        flashTimer = 0.12f;
         this.dashes = dashes;
         UpdateHair();
     }
@@ -105,25 +120,17 @@ public sealed class MiaoNetGhost : Entity
 
     private void UpdateHair()
     {
-        playerHair.Color = GetHairColor(GraphicsInfo, dashes);
-        playerSprite.HairCount = GetHairLength(GraphicsInfo, dashes);
+        playerSprite.HairCount = GetHairInfo(GraphicsInfo, dashes).Length;
     }
 
-    private static Color GetHairColor(PlayerGraphicsInfo graphicsInfo, int dashes) => dashes switch
-    {
-        0 => graphicsInfo.Dash0Color,
-        1 => graphicsInfo.Dash1Color,
-        2 => graphicsInfo.Dash2Color,
-        _ => graphicsInfo.Dash2Color
-    };
-
-    private static int GetHairLength(PlayerGraphicsInfo graphicsInfo, int dashes) => dashes switch
-    {
-        0 => graphicsInfo.Dash0HairLength,
-        1 => graphicsInfo.Dash1HairLength,
-        2 => graphicsInfo.Dash2HairLength,
-        _ => graphicsInfo.Dash2HairLength
-    };
+    private static PlayerGraphicsInfo.HairInfo GetHairInfo(PlayerGraphicsInfo graphicsInfo, int dashes)
+        => dashes switch
+        {
+            <= 0 => graphicsInfo.Dash0HairInfo,
+            1 => graphicsInfo.Dash1HairInfo,
+            2 => graphicsInfo.Dash2HairInfo,
+            > 2 => graphicsInfo.Dash2HairInfo
+        };
 
     public override void Added(Scene scene)
     {

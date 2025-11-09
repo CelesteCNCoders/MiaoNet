@@ -17,7 +17,7 @@ public sealed partial class MiaoServerService
         if (connection.Player.State is null)
         {
             logger.LogWarning(AppEvents.Game, "Packet frame received but no initial state for {p}.", connection.Player);
-            connection.Player.State = new(packet.X, packet.Y, 1);
+            connection.Player.State = new(packet.X, packet.Y, 1, 1.0f);
         }
         else
         {

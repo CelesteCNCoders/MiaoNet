@@ -77,7 +77,8 @@ public sealed partial class MiaoNetContext
             {
                 Player player = level.Tracker.GetEntity<Player>();
                 Debug.Assert(player is not null);
-                PacketPlayerMapChanged p = new(mapSid, mapRoom, new PlayerState(player.X, player.Y, (byte)player.Dashes));
+                PlayerState initialState = new PlayerState(player.X, player.Y, (byte)player.Dashes, Engine.DeltaTime);
+                PacketPlayerMapChanged p = new(mapSid, mapRoom, initialState);
                 QueuePacket(p);
             };
             break;

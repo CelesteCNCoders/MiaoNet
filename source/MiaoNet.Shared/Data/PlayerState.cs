@@ -1,8 +1,11 @@
+using System.Diagnostics;
+
 namespace MiaoNet.Shared;
 
 /// <summary>
 /// Player's position, dashes and so on.
 /// </summary>
+[DebuggerDisplay("{X}, {Y}), {Dashes}d, {TimeRate:f1}x")]
 public sealed class PlayerState : IRefBinarySerializable<PlayerState>
 {
     public float X;
@@ -11,10 +14,13 @@ public sealed class PlayerState : IRefBinarySerializable<PlayerState>
 
     public byte Dashes;
 
-    public PlayerState(float x, float y, byte dashes)
+    public float TimeRate = 1.0f;
+
+    public PlayerState(float x, float y, byte dashes, float timeRate)
     {
         (X, Y) = (x, y);
         Dashes = dashes;
+        TimeRate = timeRate;
     }
 
     public void Serialize(ref RefBinaryWriter writer)
@@ -22,11 +28,12 @@ public sealed class PlayerState : IRefBinarySerializable<PlayerState>
         writer.Write(X);
         writer.Write(Y);
         writer.Write(Dashes);
+        writer.Write(TimeRate);
     }
 
     public static PlayerState Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadSingle(), reader.ReadSingle(), reader.ReadByte());
+        => new(reader.ReadSingle(), reader.ReadSingle(), reader.ReadByte(), reader.ReadSingle());
 
     public override string ToString()
-        => $"({X}, {Y}), Dashes = {Dashes}";
+        => $"({X}, {Y}), Dashes = {Dashes}, TimeRate = {TimeRate}";
 }

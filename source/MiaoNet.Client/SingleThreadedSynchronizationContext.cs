@@ -8,19 +8,13 @@ public sealed class SingleThreadedSynchronizationContext : SynchronizationContex
     private readonly BlockingCollection<(SendOrPostCallback, object?)> callbacks;
 
     public SingleThreadedSynchronizationContext()
-    {
-        callbacks = new();
-    }
+        => callbacks = new();
 
     public override void Post(SendOrPostCallback d, object? state)
-    {
-        callbacks.Add((d, state));
-    }
+        => callbacks.Add((d, state));
 
     public override void Send(SendOrPostCallback d, object? state)
-    {
-        d(state);
-    }
+        => d(state);
 
     public void ProcessLoop(CancellationToken token)
     {

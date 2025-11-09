@@ -2,56 +2,66 @@ namespace MiaoNet.Shared;
 
 public sealed class PlayerGraphicsInfo : IRefBinarySerializable<PlayerGraphicsInfo>
 {
-    // hm?
-    public byte Dash0HairLength { get; set; }
-    public byte Dash1HairLength { get; set; }
-    public byte Dash2HairLength { get; set; }
-    public Color Dash0Color { get; set; }
-    public Color Dash1Color { get; set; }
-    public Color Dash2Color { get; set; }
-    public Color FeatherColor { get; set; }
+    public struct HairInfo(byte length, Color color) : IRefBinarySerializable<HairInfo>
+    {
+        public byte Length { get; set; } = length;
+
+        public Color Color { get; set; } = color;
+
+        public static HairInfo Deserialize(ref RefBinaryReader reader)
+            => new(reader.ReadByte(), reader.ReadColor());
+
+        public readonly void Serialize(ref RefBinaryWriter writer)
+        {
+            writer.Write(Length);
+            writer.Write(Color);
+        }
+    }
+
+    // TODO other modes?
+    // eg. real time update mode(like CelesteNet)
+    //     extended dashes
+    //     hair color per segment
+    public HairInfo Dash0HairInfo;
+    public HairInfo Dash1HairInfo;
+    public HairInfo Dash2HairInfo;
+    public HairInfo FeatherHairInfo;
+
+    public PlayerSpriteMode PlayerSpriteMode;
 
     public readonly static PlayerGraphicsInfo Default;
 
     static PlayerGraphicsInfo()
     {
-        Color usedHairColor = new Color(0x44, 0xB7, 0xFF);
-        Color normalHairColor = new Color(0xAC, 0x32, 0x32);
-        Color featherColor = new Color(0xF2, 0xEB, 0x6D);
-        Color twoDashesHairColor = new Color(0xFF, 0x6D, 0xEF);
-        Default = new(4, 4, 5, usedHairColor, normalHairColor, twoDashesHairColor, featherColor);
+        Color dash0HairColor = new Color(0x44, 0xB7, 0xFF);
+        Color dash1HairColor = new Color(0xAC, 0x32, 0x32);
+        Color dash2HairColor = new Color(0xFF, 0x6D, 0xEF);
+        Color featherHairColor = new Color(0xF2, 0xEB, 0x6D);
+        Default = new(new(4, dash0HairColor), new(4, dash1HairColor), new(5, dash2HairColor), new(7, featherHairColor));
     }
 
     public PlayerGraphicsInfo(
-        byte dash0HairLength, byte dash1HairLength, byte dash2HairLength,
-        Color dash0Color, Color dash1Color, Color dash2Color, Color featherColor
+        HairInfo dash0HairInfo,
+        HairInfo dash1HairInfo,
+        HairInfo dash2HairInfo,
+        HairInfo featherHairInfo
     )
-    {
-        Dash0HairLength = dash0HairLength;
-        Dash1HairLength = dash1HairLength;
-        Dash2HairLength = dash2HairLength;
-        Dash0Color = dash0Color;
-        Dash1Color = dash1Color;
-        Dash2Color = dash2Color;
-        FeatherColor = featherColor;
-    }
+        => (Dash0HairInfo, Dash1HairInfo, Dash2HairInfo, FeatherHairInfo) =
+           (dash0HairInfo, dash1HairInfo, dash2HairInfo, featherHairInfo);
 
     public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(Dash0HairLength);
-        writer.Write(Dash0Color);
-        writer.Write(Dash1Color);
-        writer.Write(Dash2Color);
+        writer.Write(Dash0HairInfo);
+        writer.Write(Dash1HairInfo);
+        writer.Write(Dash2HairInfo);
+        writer.Write(FeatherHairInfo);
     }
 
     public static PlayerGraphicsInfo Deserialize(ref RefBinaryReader reader)
         => new(
-                dash0HairLength: reader.ReadByte(),
-                dash1HairLength: reader.ReadByte(),
-                dash2HairLength: reader.ReadByte(),
-                dash0Color: reader.ReadColor(),
-                dash1Color: reader.ReadColor(),
-                dash2Color: reader.ReadColor(),
-                featherColor: reader.ReadColor()
-            );
+            dash0HairInfo: reader.Read<HairInfo>(),
+            dash1HairInfo: reader.Read<HairInfo>(),
+            dash2HairInfo: reader.Read<HairInfo>(),
+            featherHairInfo: reader.Read<HairInfo>()
+        );
 }

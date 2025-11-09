@@ -41,7 +41,7 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
             new PacketPlayerMapChanged(
                 level.Session.Area.SID,
                 level.Session.Level,
-                new(player.X, player.Y, (byte)player.Dashes)
+                new(player.X, player.Y, (byte)player.Dashes, Engine.DeltaTime)
             )
         );
     }
@@ -224,6 +224,16 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
             {
                 Draw.Text(Draw.DefaultFont, player.ToString(), new Vector2(20, m * i), Color.Green);
                 i += 1;
+            }
+        }
+
+        {
+            var level = Engine.Scene as Level;
+            if (level is not null)
+            {
+                var player = level.Tracker.GetEntity<Player>();
+                if (player is not null)
+                    Draw.Text(Draw.DefaultFont, player.Dashes.ToString(), new Vector2(30, 100), Color.Red);
             }
         }
     }
