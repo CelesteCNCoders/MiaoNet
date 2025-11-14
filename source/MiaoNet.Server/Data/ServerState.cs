@@ -6,8 +6,10 @@ using MiaoNet.Shared;
 namespace MiaoNet.Server;
 
 // TODO make the entire class immutable?
+[DebuggerDisplay("{DebuggerDisplay,nq}")]
 public sealed class ServerState
 {
+    [DebuggerDisplay("{Player}")]
     public readonly record struct Client(ServerPlayer Player, MiaoClientConnection Connection);
 
     private readonly ReaderWriterLockSlim stateRWLock = new();
@@ -70,4 +72,9 @@ public sealed class ServerState
         // TODO
         throw new NotImplementedException();
     }
+
+    [DebuggerHidden]
+    private string DebuggerDisplay => 
+        $"{nameof(AllPlayers)}.{nameof(AllPlayers.Count)} = {allPlayers.Count}, " +
+        $"{nameof(AllChannels)}.{nameof(AllChannels.Count)} = {allChannels.Count}";
 }

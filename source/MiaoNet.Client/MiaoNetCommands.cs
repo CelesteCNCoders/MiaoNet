@@ -1,4 +1,4 @@
-﻿namespace Celeste.Mod.MiaoNet;
+namespace Celeste.Mod.MiaoNet;
 
 public static class MiaoNetCommands
 {
@@ -8,7 +8,7 @@ public static class MiaoNetCommands
         MiaoNetModule.Instance.MiaoNetContext.Connect();
     }
 
-    [Command("dc", "Disconnect MiaoNet.")]
+    [Command("dc", "Disconnect from MiaoNet.")]
     public static void Disconnect()
     {
         MiaoNetModule.Instance.MiaoNetContext.Disconnect();

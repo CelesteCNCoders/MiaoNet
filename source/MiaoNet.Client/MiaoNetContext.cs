@@ -16,7 +16,6 @@ public sealed partial class MiaoNetContext
     private CancellationTokenSource? cts;
     private Thread? connectionThread;
     private volatile bool justConnected;
-    private readonly ConcurrentQueue<IPacket> sendQueue;
     private readonly ConcurrentQueue<IPacket> receiveQueue;
 
     private readonly List<MiaoNetComponent> components;
@@ -38,7 +37,6 @@ public sealed partial class MiaoNetContext
     public MiaoNetContext()
     {
         receiveQueue = new();
-        sendQueue = new();
         components = [
             MainComponent = new MiaoNetMainComponent(this)
         ];
@@ -73,14 +71,25 @@ public sealed partial class MiaoNetContext
         }
         case ClientState.MapChangedResult.All:
         {
-            level.OnEndOfFrame += () =>
+            if (!TryGetAndSendSync(level, mapSid, mapRoom))
+                level.OnEndOfFrame += () =>
+                {
+                    bool result = TryGetAndSendSync(level, mapSid, mapRoom);
+                    Debug.Assert(result);
+                };
+            
+            bool TryGetAndSendSync(Level level, string mapSid, string mapRoom)
             {
                 Player player = level.Tracker.GetEntity<Player>();
-                Debug.Assert(player is not null);
+                if (player is null)
+                    return false;
+                // TODO move to main component
                 PlayerState initialState = new PlayerState(player.X, player.Y, (byte)player.Dashes, Engine.DeltaTime);
+                ClientState.Self.State = initialState;
                 PacketPlayerMapChanged p = new(mapSid, mapRoom, initialState);
                 QueuePacket(p);
-            };
+                return true;
+            }
             break;
         }
         }
@@ -92,6 +101,7 @@ public sealed partial class MiaoNetContext
             return;
         cts = new();
         connectionThread = new(ConnectionThread);
+        connectionThread.Name = "MiaoNet Connection";
         connectionThread.Start(cts.Token);
     }
 
@@ -111,7 +121,7 @@ public sealed partial class MiaoNetContext
 
     public void Update()
     {
-        if (connection is null)
+        if (!HasConnection)
             return;
         if (justConnected)
         {
@@ -123,7 +133,8 @@ public sealed partial class MiaoNetContext
             if (!packetDispatcher.DispatchPacket(packet))
                 Logger.Warn(nameof(MiaoNet), $"Unhandled packet type: {packet.GetType()}.");
         }
-        components.ForEach(c => c.Update());
+        if (HasState)
+            components.ForEach(c => c.Update());
     }
 
     public void Render()

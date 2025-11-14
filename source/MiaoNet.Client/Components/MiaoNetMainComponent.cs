@@ -11,15 +11,10 @@ namespace Celeste.Mod.MiaoNet;
 public sealed class MiaoNetMainComponent : MiaoNetComponent
 {
     private int errCount;
-    private readonly Dictionary<int, PlayerGraphicsInfo> graphicsInfos;
     private readonly Dictionary<int, MiaoNetGhost> ghosts;
-
-    private bool previousDashing;
-    private int previousDashes;
 
     public MiaoNetMainComponent(MiaoNetContext context) : base(context)
     {
-        graphicsInfos = new();
         ghosts = new();
 
         context.ClientInitialized += Context_ClientInitialized;
@@ -33,22 +28,10 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
     public override void OnConnected()
     {
         errCount = 0;
-
-        if (Engine.Scene is not Level level) return;
-        var player = level.Tracker.GetEntity<Player>();
-        if (player is null) return;
-        context.QueuePacket(
-            new PacketPlayerMapChanged(
-                level.Session.Area.SID,
-                level.Session.Level,
-                new(player.X, player.Y, (byte)player.Dashes, Engine.DeltaTime)
-            )
-        );
     }
 
     public override void OnDisconnected()
     {
-        graphicsInfos.Clear();
         foreach (var pair in ghosts)
             pair.Value.RemoveSelf();
         ghosts.Clear();
@@ -58,6 +41,8 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
     {
         foreach ((_, var player) in clientState.Players.Where(p => p.Key != clientState.Self.ID))
             HandleNewPlayer(player);
+        if (Engine.Scene is Level level)
+            context.OnPlayerMapChanged(level, level.Session.Area.SID, level.Session.Level);
     }
 
     private void Context_PlayerJoined(OnlinePlayer player)
@@ -161,8 +146,11 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
     public override void Update()
     {
         base.Update();
+        Debug.Assert(context.HasState);
         if (Engine.Scene is not Level level)
             return;
+        if (level.OnRawInterval(1f))
+            errCount = Math.Max(0, errCount - 1);
         foreach (var pair in ghosts)
         {
             if (pair.Value.Scene != level)
@@ -183,18 +171,19 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         bool currentDashing = player.StateMachine.State is Player.StDash;
         int currentDashes = player.Dashes;
 
+        PlayerState selfState = context.ClientState.Self.State!;
         FFlags flags = 0;
         if (player.Facing is Facings.Left)
             flags |= FFlags.FacingLeft;
-        if (currentDashing && !previousDashing)
+        if (currentDashing && !selfState.Dashing)
             flags |= FFlags.StartDash;
-        if (!currentDashing && previousDashing)
+        if (!currentDashing && selfState.Dashing)
             flags |= FFlags.EndDash;
-        if (currentDashes != previousDashes)
+        if (currentDashes != selfState.Dashes)
             flags |= FFlags.DashesChange;
 
-        previousDashing = currentDashing;
-        previousDashes = currentDashes;
+        selfState.Dashing = currentDashing;
+        selfState.Dashes = (byte)currentDashes;
 
         var packetFrame = new PacketPlayerFrame(
             player.Position.X,
@@ -224,16 +213,6 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
             {
                 Draw.Text(Draw.DefaultFont, player.ToString(), new Vector2(20, m * i), Color.Green);
                 i += 1;
-            }
-        }
-
-        {
-            var level = Engine.Scene as Level;
-            if (level is not null)
-            {
-                var player = level.Tracker.GetEntity<Player>();
-                if (player is not null)
-                    Draw.Text(Draw.DefaultFont, player.Dashes.ToString(), new Vector2(30, 100), Color.Red);
             }
         }
     }

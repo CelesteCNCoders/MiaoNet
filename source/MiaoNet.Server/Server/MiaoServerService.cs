@@ -101,19 +101,28 @@ public sealed partial class MiaoServerService : BackgroundService
             MiaoClientConnection connection = new(player.ID, socket, player, conLogger, this);
 
             PlayerInfo clientPlayerInfo = connection.Player.Info;
-            List<ChannelStateInfo> channels = serverState.AllChannels.Select(c => c.Value.LocationInfo).ToList();
+            List<ChannelStateInfo> channels = serverState.AllChannels.Select(c => c.Value.StateInfo).ToList();
+            // TODO send state only when necessary
             var playerInfos =
                 from pair in serverState.AllPlayers
                 let p = pair.Value.Player
-                let cInfo = new ChannelPlayerLocationInfo(p.Channel.ID, p.Info, p.LocationInfo)
-                select new PacketPlayerJoined(cInfo, null, p.State);
+                select new PacketPlayerJoined(p.GetChannelPlayerLocationInfo(), null, p.State);
 
             PacketClientInitial packetClientInitial = new PacketClientInitial(clientPlayerInfo, channels, playerInfos.ToList());
             await connection.SendPacketAsync(new SerializedPacket(ArrayPool<byte>.Shared, packetClientInitial, 1));
 
             serverState.AddPlayer(player, connection);
 
-            await BroadcastOthersAsync(new PacketPlayerJoined(connection.Player.GetChannelPlayerLocationInfo()), connection);
+            // TODO this too
+            var thisPlayer = connection.Player;
+            await BroadcastOthersAsync(
+                new PacketPlayerJoined(
+                    thisPlayer.GetChannelPlayerLocationInfo(),
+                    null,
+                    thisPlayer.State
+                ),
+                connection
+            );
             await connection.HandleClientConnectAsync();
 
             logger.LogInformation(AppEvents.Connection, "Client id {id} handle finished.", player.ID);

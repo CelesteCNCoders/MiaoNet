@@ -5,7 +5,7 @@ namespace MiaoNet.Shared;
 /// <summary>
 /// Player's position, dashes and so on.
 /// </summary>
-[DebuggerDisplay("{X}, {Y}), {Dashes}d, {TimeRate:f1}x")]
+[DebuggerDisplay("{DebuggerDisplay,nq}")]
 public sealed class PlayerState : IRefBinarySerializable<PlayerState>
 {
     public float X;
@@ -13,6 +13,8 @@ public sealed class PlayerState : IRefBinarySerializable<PlayerState>
     public float Y;
 
     public byte Dashes;
+
+    public bool Dashing;
 
     public float TimeRate = 1.0f;
 
@@ -35,5 +37,8 @@ public sealed class PlayerState : IRefBinarySerializable<PlayerState>
         => new(reader.ReadSingle(), reader.ReadSingle(), reader.ReadByte(), reader.ReadSingle());
 
     public override string ToString()
-        => $"({X}, {Y}), Dashes = {Dashes}, TimeRate = {TimeRate}";
+        => $"({X}, {Y}), Dashes = {Dashes}, TimeRate = {TimeRate:F2}";
+
+    [DebuggerHidden]
+    private string DebuggerDisplay => ToString();
 }

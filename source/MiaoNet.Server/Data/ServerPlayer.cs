@@ -1,7 +1,9 @@
-﻿using MiaoNet.Shared;
+﻿using System.Diagnostics;
+using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
 
+[DebuggerDisplay("{Info} at {LocationInfo}")]
 public sealed class ServerPlayer
 {
     public ServerChannel Channel { get; }

@@ -1,4 +1,5 @@
-﻿using MiaoNet.Shared;
+﻿using System.Diagnostics.CodeAnalysis;
+using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 

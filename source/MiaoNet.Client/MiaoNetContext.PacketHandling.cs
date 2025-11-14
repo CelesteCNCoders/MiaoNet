@@ -1,4 +1,4 @@
-﻿using MiaoNet.Shared;
+using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -6,13 +6,7 @@ public partial class MiaoNetContext
 {
     private void HandlePacket(PacketClientInitial packet)
     {
-        PlayerLocationInfo locationInfo;
-        if (Engine.Scene is Level level)
-            locationInfo = new(level.Session.Area.SID, level.Session.Level);
-        else
-            locationInfo = new(string.Empty, string.Empty);
-
-        clientState = new(packet, locationInfo);
+        clientState = new(packet, new PlayerLocationInfo(string.Empty, string.Empty));
         ClientInitialized?.Invoke(clientState);
     }
 
@@ -34,6 +28,25 @@ public partial class MiaoNetContext
     {
         EnsureState();
         var player = ClientState.Players[packet.PlayerID];
+        var state = player.State;
+        if (state is not null)
+        {
+            var p = packet.Packet;
+            state.X = p.X;
+            state.Y = p.Y;
+            if (p.DashesChange)
+                state.Dashes = p.Dashes;
+            if (p.Flags.HasFlag(PacketPlayerFrame.FrameFlags.StartDash))
+                state.Dashing = true;
+            if (p.Flags.HasFlag(PacketPlayerFrame.FrameFlags.EndDash))
+                state.Dashing = false;
+        }
+        else
+        {
+            Logger.Error(nameof(MiaoNetContext), $"No initial state but received frame notification for {player.Info}!");
+            Disconnect();
+            return;
+        }
         PlayerFrameNotification?.Invoke(player, packet.Packet);
     }
 
@@ -43,6 +56,8 @@ public partial class MiaoNetContext
         var player = ClientState.Players[packet.PlayerID];
         player.LocationInfo.MapSid = packet.MapSid;
         player.LocationInfo.MapRoom = packet.MapRoom;
+        player.State = packet.InitialState;
+        player.GraphicsInfo = packet.GraphicsInfo;
         PlayerMapChanged?.Invoke(player, packet);
     }
 

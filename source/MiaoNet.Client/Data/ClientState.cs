@@ -5,9 +5,6 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class ClientState
 {
-    private string curMapSid;
-    private string curMapRoom;
-
     private readonly Dictionary<int, OnlinePlayer> players;
     private readonly Dictionary<int, OnlineChannel> channels;
 
@@ -17,41 +14,30 @@ public sealed class ClientState
 
     public OnlinePlayer Self { get; private set; }
 
-    public OnlineChannel SelfChannel { get; private set; }
+    public OnlineChannel SelfChannel => Self.Channel;
 
     public ClientState(PacketClientInitial clientInitial, PlayerLocationInfo selfLocationInfo)
     {
-        curMapSid = curMapRoom = string.Empty;
         players = new();
         channels = new();
 
         foreach (var channel in clientInitial.Channels)
-        {
             channels.Add(channel.ID, new OnlineChannel(channel.ID, channel.Name));
-        }
         foreach (var player in clientInitial.Players)
-        {
-            OnlinePlayer onlinePlayer;
-            var channel = channels[player.Info.ChannelID];
-            onlinePlayer = new OnlinePlayer(
-                channel,
-                player.Info.Info, 
-                player.Info.LocationInfo,
-                player.InitialState, 
-                player.GraphicsInfo
-            );
-            players.Add(player.Info.Info.ID, onlinePlayer);
-            channel.Players.Add(player.Info.Info.ID, onlinePlayer);
-        }
-        Self = new(SelfChannel = channels[clientInitial.ChannelID], clientInitial.SelfPlayerInfo, selfLocationInfo);
+            OnNewPlayerJoined(player);
+        Self = new(channels[clientInitial.ChannelID], clientInitial.SelfPlayerInfo, selfLocationInfo);
     }
 
     public OnlinePlayer OnNewPlayerJoined(PacketPlayerJoined packet)
     {
         var channel = channels[packet.Info.ChannelID];
-        var player = new OnlinePlayer(channel, packet.Info.Info, packet.Info.LocationInfo);
-        player.GraphicsInfo = packet.GraphicsInfo;
-        player.State = packet.InitialState;
+        var player = new OnlinePlayer(
+            channel,
+            packet.Info.Info,
+            packet.Info.LocationInfo,
+            packet.InitialState,
+            packet.GraphicsInfo
+        );
         players.Add(player.ID, player);
         player.Channel.Players.Add(player.ID, player);
         return player;
@@ -69,16 +55,17 @@ public sealed class ClientState
 
     public MapChangedResult OnPlayerMapChanged(string mapSid, string mapRoom)
     {
-        if (curMapSid == mapSid && curMapRoom == mapRoom)
+        PlayerLocationInfo loc = Self.LocationInfo;
+        if (loc.MapSid == mapSid && loc.MapRoom == mapRoom)
             return MapChangedResult.None;
-        if (curMapSid == mapSid && curMapRoom != mapRoom)
+        if (loc.MapSid == mapSid && loc.MapRoom != mapRoom)
         {
-            curMapRoom = mapRoom;
+            loc.MapRoom = mapRoom;
             return MapChangedResult.RoomOnly;
         }
-        Debug.Assert(curMapSid != mapSid && curMapRoom != mapRoom);
-        curMapSid = mapSid;
-        curMapRoom = mapRoom;
+        Debug.Assert(loc.MapSid != mapSid && loc.MapRoom != mapRoom);
+        loc.MapSid = mapSid;
+        loc.MapRoom = mapRoom;
         return MapChangedResult.All;
     }
 }

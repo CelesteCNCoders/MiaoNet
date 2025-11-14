@@ -1,5 +1,6 @@
 ﻿using System.Buffers;
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipelines;
 using System.Net.Sockets;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace MiaoNet.Server;
 
+[DebuggerDisplay("ID = {ID}, Player = {Player}")]
 public sealed class MiaoClientConnection
 {
     public const int TcpBufferSize = 2048;
@@ -65,6 +67,12 @@ public sealed class MiaoClientConnection
             socket.Close();
             logger.LogInformation(AppEvents.Connection, "Connection id {id} closed.", ID);
         }
+    }
+
+    public void Disconnect()
+    {
+        // TODO tell the client that they were kicked :(
+        cts.Cancel();
     }
 
     public ValueTask SendPacketAsync(IPacket packet)

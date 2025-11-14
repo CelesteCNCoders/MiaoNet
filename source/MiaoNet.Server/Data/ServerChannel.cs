@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using MiaoNet.Shared;
@@ -9,16 +9,16 @@ public sealed class ServerChannel
 {
     private ImmutableDictionary<int, ServerState.Client> players;
 
-    public ChannelStateInfo LocationInfo { get; private set; }
+    public ChannelStateInfo StateInfo { get; private set; }
 
     public ImmutableDictionary<int, ServerState.Client> Players { get => players; set => players = value; }
 
-    public int ID => LocationInfo.ID;
+    public int ID => StateInfo.ID;
 
-    public ServerChannel(ChannelStateInfo locationInfo)
+    public ServerChannel(ChannelStateInfo stateInfo)
     {
         players = ImmutableDictionary<int, ServerState.Client>.Empty;
-        LocationInfo = locationInfo;
+        StateInfo = stateInfo;
     }
 
     public void OnAddPlayer(ServerPlayer player, MiaoClientConnection connection)

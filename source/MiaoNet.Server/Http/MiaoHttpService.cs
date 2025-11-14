@@ -1,11 +1,13 @@
-﻿using System.Net;
+﻿using System.Collections.Specialized;
+using System.Net;
 using System.Text;
+using System.Web;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace MiaoNet.Server;
 
-public sealed class MiaoHttpService : BackgroundService
+public sealed partial class MiaoHttpService : BackgroundService
 {
     private readonly ILogger<MiaoHttpService> logger;
     private readonly MiaoServerService miaoServerService;
@@ -33,23 +35,25 @@ public sealed class MiaoHttpService : BackgroundService
         while (!stoppingToken.IsCancellationRequested)
         {
             var context = await httpListener.GetContextAsync();
-            StringBuilder sb = new(128);
-
-            var state = miaoServerService.ServerState;
-
-            sb.AppendLine($"Channels Count: {state.AllChannels.Count}");
-            sb.AppendLine($"Players Count: {state.AllPlayers.Count}");
-            sb.AppendLine();
-            foreach ((_, var channel) in state.AllChannels)
+            try
             {
-                sb.AppendLine($"Channel {channel}");
-                foreach ((_, (var player, _)) in channel.Players)
+                Uri? uri = context.Request.Url;
+                if (uri is null)
                 {
-                    sb.AppendLine($"  Player {player.Info} at {player.LocationInfo}, {player.State}");
+                    context.Response.Close();
+                    continue;
                 }
-            }
 
-            context.Response.OutputStream.Write(Encoding.UTF8.GetBytes(sb.ToString()));
+                string path = uri.AbsolutePath;
+                NameValueCollection query = HttpUtility.ParseQueryString(uri.Query);
+
+                DispatchQuest(path, query, context);
+            }
+            catch (Exception e)
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                logger.LogError(e, "Error when handling request \"{url}\"", context.Request.RawUrl);
+            }
             context.Response.Close();
         }
     }
