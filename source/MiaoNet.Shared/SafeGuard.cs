@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 namespace MiaoNet.Shared;
 
 // Debug.Assert boom the game
-// let's use this to don't boom the game at least
+// let's use this to avoid booming the game but entering ooops screen at least
 
 #if SAFE_GUARD && MIAO_CLIENT
 internal class SafeGuardAssertException : Exception

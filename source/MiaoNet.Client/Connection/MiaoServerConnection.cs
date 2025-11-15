@@ -1,4 +1,4 @@
-﻿using System.Buffers;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Net;
@@ -41,8 +41,11 @@ public sealed class MiaoServerConnection : IDisposable
     {
         if (tcpSocket is null)
             return;
-        tcpSocket.Shutdown(SocketShutdown.Both);
-        tcpSocket.Close();
+        if (tcpSocket.Connected)
+        {
+            tcpSocket.Shutdown(SocketShutdown.Both);
+            tcpSocket.Close();
+        }
         tcpSocket = null;
     }
 

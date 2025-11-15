@@ -2,7 +2,7 @@ using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
-public sealed class OnlinePlayer
+public sealed class OnlinePlayer : IPlayerListEntry
 {
     private PlayerLocation location;
 
@@ -42,4 +42,9 @@ public sealed class OnlinePlayer
 
     public override string ToString()
         => $"{Info} at {Location}";
+
+
+    PlayerLocation IPlayerListEntry.Location => Location;
+
+    PlayerInfo IPlayerListEntry.PlayerInfo => Info;
 }

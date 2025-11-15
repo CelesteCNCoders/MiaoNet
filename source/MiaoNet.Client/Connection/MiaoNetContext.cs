@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using MiaoNet.Shared;
+using Microsoft.Xna.Framework.Graphics;
 using Monocle;
 
 namespace Celeste.Mod.MiaoNet;
@@ -38,7 +39,8 @@ public sealed partial class MiaoNetContext
     {
         receiveQueue = new();
         components = [
-            MainComponent = new MiaoNetMainComponent(this)
+            MainComponent = new MiaoNetMainComponent(this),
+            new PlayerListComponent(this)
         ];
         PacketHandlerRegister r = new();
         r.Register<PacketClientInitial>(HandlePacket);
@@ -77,7 +79,7 @@ public sealed partial class MiaoNetContext
                     bool result = TryGetAndSendSync(level, location);
                     SafeGuard.Assert(result);
                 };
-            
+
             bool TryGetAndSendSync(Level level, PlayerLocation location)
             {
                 Player player = level.Tracker.GetEntity<Player>();
@@ -139,7 +141,9 @@ public sealed partial class MiaoNetContext
 
     public void Render()
     {
-        Draw.SpriteBatch.Begin();
+        if (!HasState)
+            return;
+        Draw.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied);
         components.ForEach(c => c.Render());
         Draw.SpriteBatch.End();
     }

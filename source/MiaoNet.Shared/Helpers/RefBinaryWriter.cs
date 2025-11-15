@@ -168,17 +168,4 @@ public static class RefBinaryWriterExtensions
         foreach (var item in value)
             item.Serialize(ref writer);
     }
-
-    public static void Write<T>(this ref RefBinaryWriter writer, T? value) where T : struct, IRefBinarySerializable<T>
-    {
-        if (value.HasValue)
-        {
-            writer.Write(true);
-            writer.Write((T)value.Value);
-        }
-        else
-        {
-            writer.Write(false);
-        }
-    }
 }

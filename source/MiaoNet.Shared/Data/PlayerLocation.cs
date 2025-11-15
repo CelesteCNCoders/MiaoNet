@@ -8,6 +8,8 @@ public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatabl
 
     public string MapRoom { get; set; } // empty: player is not in level or is in debug map
 
+    public readonly string MapSet => MapSid == string.Empty ? string.Empty : MapSid[..MapSid.IndexOf('/')];
+
     public readonly bool IsEmpty => MapSid == string.Empty && MapRoom == string.Empty;
 
     public readonly bool IsInDebugMap => MapSid != string.Empty && MapRoom != string.Empty;

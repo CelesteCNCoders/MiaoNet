@@ -205,25 +205,6 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         context.QueuePacket(packetFrame);
     }
 
-    public override void Render()
-    {
-        if (context.ClientState is null)
-            return;
-        var channels = context.ClientState.Channels;
-        int i = 0;
-        int m = Draw.DefaultFont.LineSpacing;
-        foreach ((_, var channel) in channels)
-        {
-            Draw.Text(Draw.DefaultFont, channel.ToString(), new Vector2(10, m * i), Color.Red);
-            i += 1;
-            foreach ((_, var player) in channel.Players)
-            {
-                Draw.Text(Draw.DefaultFont, player.ToString(), new Vector2(20, m * i), Color.Green);
-                i += 1;
-            }
-        }
-    }
-
     private void OnWarn()
     {
         errCount++;
