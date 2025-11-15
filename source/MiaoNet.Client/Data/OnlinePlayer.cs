@@ -4,13 +4,15 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class OnlinePlayer
 {
+    private PlayerLocation location;
+
     public int ID => Info.ID;
 
     public OnlineChannel Channel { get; set; }
 
     public PlayerInfo Info { get; set; }
 
-    public PlayerLocationInfo LocationInfo { get; set; }
+    public ref PlayerLocation Location => ref location;
 
     public PlayerState? State { get; set; }
 
@@ -19,13 +21,13 @@ public sealed class OnlinePlayer
     public OnlinePlayer(
         OnlineChannel channel,
         PlayerInfo info,
-        PlayerLocationInfo locationInfo,
+        PlayerLocation locationInfo,
         PlayerState? state, PlayerGraphicsInfo? graphicsInfo
     )
     {
         Channel = channel;
         Info = info;
-        LocationInfo = locationInfo;
+        Location = locationInfo;
         State = state;
         GraphicsInfo = graphicsInfo;
     }
@@ -33,11 +35,11 @@ public sealed class OnlinePlayer
     public OnlinePlayer(
         OnlineChannel channel,
         PlayerInfo info,
-        PlayerLocationInfo locationInfo
+        PlayerLocation locationInfo
     ) : this(channel, info, locationInfo, null, null)
     {
     }
 
     public override string ToString()
-        => $"{Info} at {LocationInfo}";
+        => $"{Info} at {Location}";
 }

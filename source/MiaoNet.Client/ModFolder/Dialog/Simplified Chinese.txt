@@ -1,0 +1,5 @@
+miaonet_ui_title= 蔚蓝 MiaoNet+
+miaonet_connection_status_connected= 已连接
+miaonet_connection_status_disconnected= 已断开连接
+miaonet_connection_status_kicked= 你被踢出了服务器
+miaonet_connection_status_server_closed= 服务器已关闭

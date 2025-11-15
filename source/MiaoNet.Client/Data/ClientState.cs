@@ -16,7 +16,7 @@ public sealed class ClientState
 
     public OnlineChannel SelfChannel => Self.Channel;
 
-    public ClientState(PacketClientInitial clientInitial, PlayerLocationInfo selfLocationInfo)
+    public ClientState(PacketClientInitial clientInitial, PlayerLocation selfLocationInfo)
     {
         players = new();
         channels = new();
@@ -51,21 +51,10 @@ public sealed class ClientState
         players.Remove(playerID);
     }
 
-    public enum MapChangedResult { None, RoomOnly, All }
-
-    public MapChangedResult OnPlayerMapChanged(string mapSid, string mapRoom)
+    public PlayerLocation.ChangedResult OnPlayerLocationChanged(PlayerLocation location)
     {
-        PlayerLocationInfo loc = Self.LocationInfo;
-        if (loc.MapSid == mapSid && loc.MapRoom == mapRoom)
-            return MapChangedResult.None;
-        if (loc.MapSid == mapSid && loc.MapRoom != mapRoom)
-        {
-            loc.MapRoom = mapRoom;
-            return MapChangedResult.RoomOnly;
-        }
-        Debug.Assert(loc.MapSid != mapSid && loc.MapRoom != mapRoom);
-        loc.MapSid = mapSid;
-        loc.MapRoom = mapRoom;
-        return MapChangedResult.All;
+        PlayerLocation.ChangedResult result = location.CompareTo(Self.Location);
+        Self.Location = location;
+        return result;
     }
 }

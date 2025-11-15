@@ -9,9 +9,9 @@ public sealed class ChannelPlayerLocationInfo : IRefBinarySerializable<ChannelPl
 
     public PlayerInfo Info { get; }
 
-    public PlayerLocationInfo LocationInfo { get; }
+    public PlayerLocation LocationInfo { get; }
 
-    public ChannelPlayerLocationInfo(int channelID, PlayerInfo info, PlayerLocationInfo locationInfo)
+    public ChannelPlayerLocationInfo(int channelID, PlayerInfo info, PlayerLocation locationInfo)
     {
         ChannelID = channelID;
         Info = info;
@@ -26,5 +26,5 @@ public sealed class ChannelPlayerLocationInfo : IRefBinarySerializable<ChannelPl
     }
 
     public static ChannelPlayerLocationInfo Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadInt32(), reader.Read<PlayerInfo>(), reader.Read<PlayerLocationInfo>());
+        => new(reader.ReadInt32(), reader.Read<PlayerInfo>(), reader.Read<PlayerLocation>());
 }

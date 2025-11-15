@@ -57,28 +57,28 @@ public sealed partial class MiaoNetContext
 #endif
     }
 
-    public void OnPlayerMapChanged(Level level, string mapSid, string mapRoom)
+    public void OnPlayerLocationChanged(Level level, PlayerLocation location)
     {
         if (!HasState)
             return;
-        switch (ClientState.OnPlayerMapChanged(mapSid, mapRoom))
+        switch (ClientState.OnPlayerLocationChanged(location))
         {
-        case ClientState.MapChangedResult.RoomOnly:
+        case PlayerLocation.ChangedResult.RoomOnly:
         {
-            PacketPlayerMapRoomChanged p = new(mapRoom);
+            PacketPlayerMapRoomChanged p = new(location.MapRoom);
             QueuePacket(p);
             break;
         }
-        case ClientState.MapChangedResult.All:
+        case PlayerLocation.ChangedResult.All:
         {
-            if (!TryGetAndSendSync(level, mapSid, mapRoom))
+            if (!TryGetAndSendSync(level, location))
                 level.OnEndOfFrame += () =>
                 {
-                    bool result = TryGetAndSendSync(level, mapSid, mapRoom);
+                    bool result = TryGetAndSendSync(level, location);
                     Debug.Assert(result);
                 };
             
-            bool TryGetAndSendSync(Level level, string mapSid, string mapRoom)
+            bool TryGetAndSendSync(Level level, PlayerLocation location)
             {
                 Player player = level.Tracker.GetEntity<Player>();
                 if (player is null)
@@ -86,7 +86,7 @@ public sealed partial class MiaoNetContext
                 // TODO move to main component
                 PlayerState initialState = new PlayerState(player.X, player.Y, (byte)player.Dashes, Engine.DeltaTime);
                 ClientState.Self.State = initialState;
-                PacketPlayerMapChanged p = new(mapSid, mapRoom, initialState);
+                PacketPlayerMapChanged p = new(location, initialState);
                 QueuePacket(p);
                 return true;
             }

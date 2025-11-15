@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Celeste.Mod.MiaoNet;
 
-public sealed class SingleThreadedSynchronizationContext : SynchronizationContext
+internal sealed class SingleThreadedSynchronizationContext : SynchronizationContext
 {
     private readonly BlockingCollection<(SendOrPostCallback, object?)> callbacks;
 

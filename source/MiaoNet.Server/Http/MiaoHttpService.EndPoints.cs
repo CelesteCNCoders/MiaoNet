@@ -36,7 +36,7 @@ public partial class MiaoHttpService
             context.Response.StatusCode = (int)HttpStatusCode.NotFound;
             return;
         }
-        client.Connection.Disconnect();
+        client.Connection.Disconnect(Shared.KickedReason.Manually);
         context.Response.StatusCode = (int)HttpStatusCode.NoContent;
     }
 
@@ -54,7 +54,7 @@ public partial class MiaoHttpService
             sb.AppendLine($"Channel {channel.StateInfo}");
             foreach ((_, (var player, _)) in channel.Players)
             {
-                sb.AppendLine($"  Player {player.Info} at {player.LocationInfo}, {player.State}");
+                sb.AppendLine($"  Player {player.Info} at {player.Location}, {player.State}");
             }
         }
 

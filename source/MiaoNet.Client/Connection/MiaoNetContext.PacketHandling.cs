@@ -6,7 +6,7 @@ public partial class MiaoNetContext
 {
     private void HandlePacket(PacketClientInitial packet)
     {
-        clientState = new(packet, new PlayerLocationInfo(string.Empty, string.Empty));
+        clientState = new(packet, PlayerLocation.Empty);
         ClientInitialized?.Invoke(clientState);
     }
 
@@ -54,8 +54,7 @@ public partial class MiaoNetContext
     {
         EnsureState();
         var player = ClientState.Players[packet.PlayerID];
-        player.LocationInfo.MapSid = packet.MapSid;
-        player.LocationInfo.MapRoom = packet.MapRoom;
+        player.Location = packet.Location;
         player.State = packet.InitialState;
         player.GraphicsInfo = packet.GraphicsInfo;
         PlayerMapChanged?.Invoke(player, packet);
@@ -65,7 +64,7 @@ public partial class MiaoNetContext
     {
         EnsureState();
         var player = ClientState.Players[packet.PlayerID];
-        player.LocationInfo.MapRoom = packet.Packet.MapRoom;
+        player.Location.MapRoom = packet.Packet.MapRoom;
         PlayerMapRoomChanged?.Invoke(player, packet.Packet.MapRoom);
     }
 

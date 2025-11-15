@@ -69,7 +69,7 @@ public sealed class MiaoClientConnection
         }
     }
 
-    public void Disconnect()
+    public void Disconnect(KickedReason reason)
     {
         // TODO tell the client that they were kicked :(
         cts.Cancel();

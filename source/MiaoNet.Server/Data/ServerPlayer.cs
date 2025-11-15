@@ -6,22 +6,24 @@ namespace MiaoNet.Server;
 [DebuggerDisplay("{Info} at {LocationInfo}")]
 public sealed class ServerPlayer
 {
+    private PlayerLocation location;
+
     public ServerChannel Channel { get; }
 
     public PlayerInfo Info { get; set; }
-    public PlayerLocationInfo LocationInfo { get; set; }
+    public ref PlayerLocation Location => ref location;
     public PlayerState? State { get; set; }
     public PlayerGraphicsInfo? GraphicsInfo { get; set; }
 
     public int ID => Info.ID;
 
-    public ServerPlayer(ServerChannel channel, PlayerInfo info, PlayerLocationInfo locationInfo)
+    public ServerPlayer(ServerChannel channel, PlayerInfo info, PlayerLocation location)
     {
         Channel = channel;
         Info = info;
-        LocationInfo = locationInfo;
+        Location = location;
     }
 
     public ChannelPlayerLocationInfo GetChannelPlayerLocationInfo()
-        => new(Channel.ID, Info, LocationInfo);
+        => new(Channel.ID, Info, Location);
 }

@@ -42,7 +42,7 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         foreach ((_, var player) in clientState.Players.Where(p => p.Key != clientState.Self.ID))
             HandleNewPlayer(player);
         if (Engine.Scene is Level level)
-            context.OnPlayerMapChanged(level, level.Session.Area.SID, level.Session.Level);
+            context.OnPlayerLocationChanged(level, PlayerLocation.FetchFrom(level.Session));
     }
 
     private void Context_PlayerJoined(OnlinePlayer player)
@@ -50,7 +50,7 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
 
     private void Context_PlayerLeft(OnlinePlayer player)
     {
-        if (player.LocationInfo.MapSid != context.ClientState!.Self.LocationInfo.MapSid)
+        if (player.Location.MapSid != context.ClientState!.Self.Location.MapSid)
             return;
         if (!ghosts.Remove(player.Info.ID, out MiaoNetGhost? ghost))
         {
@@ -87,13 +87,13 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
     private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotification packet)
     {
         Logger.Info(nameof(MiaoNet), $"Player map changed: {player}.");
-        HandleLocationChanging(player.Channel.ID, player.Info, player.LocationInfo, packet.GraphicsInfo, packet.InitialState);
+        HandleLocationChanging(player.Channel.ID, player.Info, player.Location, packet.GraphicsInfo, packet.InitialState);
     }
 
     private void HandleNewPlayer(OnlinePlayer player)
     {
-        Logger.Info(nameof(MiaoNet), $"New player joined: {player.Info}, locationInfo: {player.LocationInfo}.");
-        HandleLocationChanging(player.Channel.ID, player.Info, player.LocationInfo, player.GraphicsInfo, player.State);
+        Logger.Info(nameof(MiaoNet), $"New player joined: {player.Info}, locationInfo: {player.Location}.");
+        HandleLocationChanging(player.Channel.ID, player.Info, player.Location, player.GraphicsInfo, player.State);
     }
 
     private void Context_PlayerMapChangeResponse(PacketPlayerMapChangedResponse packet)
@@ -108,18 +108,18 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
     }
 
     private void HandleLocationChanging(
-        int channelID, PlayerInfo info, PlayerLocationInfo locationInfo,
+        int channelID, PlayerInfo info, PlayerLocation location,
         PlayerGraphicsInfo? graphicsInfo, PlayerState? initialState
     )
     {
         var state = context.ClientState!;
         Logger.Info(
             nameof(MiaoNet), $"Location changing... " +
-            $"Channel: {channelID}, Player: {info}, LocationInfo: {locationInfo}."
+            $"Channel: {channelID}, Player: {info}, LocationInfo: {location}."
         );
-        bool needGhost = !string.IsNullOrEmpty(locationInfo.MapSid) &&
+        bool needGhost = !string.IsNullOrEmpty(location.MapSid) &&
             channelID == state.SelfChannel.ID &&
-            locationInfo.MapSid == state.Self.LocationInfo.MapSid;
+            location.MapSid == state.Self.Location.MapSid;
         Logger.Info(nameof(MiaoNet), $"Need create ghost? {needGhost}");
 
         if (ghosts.TryGetValue(info.ID, out MiaoNetGhost? ghost))

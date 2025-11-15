@@ -16,7 +16,7 @@
 
   <ItemGroup>
     <Compile Include="../MiaoNet.Shared/**/*.cs" LinkBase="0-Shared" />
-
+    
     <None Include="CelesteMod.props">
       <Visible>false</Visible>
     </None>

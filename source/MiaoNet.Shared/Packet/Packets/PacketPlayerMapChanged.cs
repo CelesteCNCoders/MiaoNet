@@ -4,25 +4,21 @@ namespace MiaoNet.Shared;
 
 public sealed class PacketPlayerMapChanged : IPacket<PacketPlayerMapChanged>
 {
-    public string MapSid { get; }
-
-    public string MapRoom { get; } // can be string.Empty (player is in debug map)
+    public PlayerLocation Location { get; set; }
 
     public PlayerState? InitialState { get; }
 
-    public PacketPlayerMapChanged(string mapSid, string mapRoom, PlayerState? initialState)
+    public PacketPlayerMapChanged(PlayerLocation location, PlayerState? initialState)
     {
-        Debug.Assert(!string.IsNullOrEmpty(mapSid));
+        Debug.Assert(!location.IsEmpty);
 
-        MapSid = mapSid;
-        MapRoom = mapRoom;
+        Location = location;
         InitialState = initialState;
     }
 
     public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(MapSid);
-        writer.Write(MapRoom);
+        writer.Write(Location);
 
         writer.Write(InitialState is not null);
         if (InitialState is not null)
@@ -31,13 +27,12 @@ public sealed class PacketPlayerMapChanged : IPacket<PacketPlayerMapChanged>
 
     public static PacketPlayerMapChanged Deserialize(ref RefBinaryReader reader)
     {
-        var mapSid = reader.ReadString();
-        var mapRoom = reader.ReadString();
+        var loc = reader.Read<PlayerLocation>();
         PlayerState? initialStats = null;
 
         if (reader.ReadBoolean())
             initialStats = reader.Read<PlayerState>();
-        return new(mapSid, mapRoom, initialStats);
+        return new(loc, initialStats);
     }
 }
 
@@ -51,26 +46,23 @@ public sealed class PacketPlayerMapChangedNotification : PacketPlayerNotificatio
         HasInitialStats = 1 << 1
     }
 
-    public string MapSid { get; set; }
-
-    public string MapRoom { get; set; }
+    public PlayerLocation Location { get; set; }
 
     public PlayerGraphicsInfo? GraphicsInfo { get; set; }
 
     public PlayerState? InitialState { get; set; }
 
-    public PacketPlayerMapChangedNotification(int playerID, string mapSid, string mapRoom)
+    public PacketPlayerMapChangedNotification(int playerID, PlayerLocation location)
         : base(playerID)
     {
-        MapSid = mapSid;
-        MapRoom = mapRoom;
+        Location = location;
     }
 
     public PacketPlayerMapChangedNotification(
-        int playerID, string mapSid, string mapRoom,
+        int playerID, PlayerLocation location,
         PlayerGraphicsInfo? graphicsInfo,
         PlayerState? initialStats
-    ) : this(playerID, mapSid, mapRoom)
+    ) : this(playerID, location)
     {
         GraphicsInfo = graphicsInfo;
         InitialState = initialStats;
@@ -85,8 +77,7 @@ public sealed class PacketPlayerMapChangedNotification : PacketPlayerNotificatio
         if (InitialState is not null) flags |= DataFlags.HasInitialStats;
 
         writer.Write((byte)flags);
-        writer.Write(MapSid);
-        writer.Write(MapRoom);
+        writer.Write(Location);
         if (GraphicsInfo is not null) writer.Write(GraphicsInfo);
         if (InitialState is not null) writer.Write(InitialState);
     }
@@ -99,15 +90,14 @@ public sealed class PacketPlayerMapChangedNotification : PacketPlayerNotificatio
 
         DataFlags dataFlags = (DataFlags)reader.ReadByte();
 
-        string mapSid = reader.ReadString();
-        string mapRoom = reader.ReadString();
+        PlayerLocation location = reader.Read<PlayerLocation>();
 
         if (dataFlags.HasFlag(DataFlags.HasGraphicsInfo))
             graphicsInfo = reader.Read<PlayerGraphicsInfo>();
         if (dataFlags.HasFlag(DataFlags.HasInitialStats))
             initialStats = reader.Read<PlayerState>();
 
-        return new(playerID, mapSid, mapRoom, graphicsInfo, initialStats);
+        return new(playerID, location, graphicsInfo, initialStats);
     }
 }
 
@@ -145,7 +135,7 @@ public sealed class PacketPlayerMapChangedResponse : IPacket<PacketPlayerMapChan
 
         public static Player Deserialize(ref RefBinaryReader reader)
             => new(
-                reader.ReadInt32(), 
+                reader.ReadInt32(),
                 reader.Read<PlayerState>(),
                 reader.ReadBoolean() ? reader.Read<PlayerGraphicsInfo>() : null
             );

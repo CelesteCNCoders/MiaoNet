@@ -1,4 +1,5 @@
 using FMOD.Studio;
+using MiaoNet.Shared;
 using MonoMod.Cil;
 
 namespace Celeste.Mod.MiaoNet;
@@ -24,6 +25,7 @@ public sealed class MiaoNetModule : EverestModule
         IL.Monocle.Engine.Update += Engine_Update;
         IL.Monocle.Engine.RenderCore += Engine_RenderCore;
         On.Celeste.Level.LoadLevel += Level_LoadLevel;
+        Everest.Events.Level.OnExit += Level_OnExit;
     }
 
     public override void Unload()
@@ -32,6 +34,8 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.Level.OnCreatePauseMenuButtons -= Level_OnCreatePauseMenuButtons;
         IL.Monocle.Engine.Update -= Engine_Update;
         IL.Monocle.Engine.RenderCore -= Engine_RenderCore;
+        On.Celeste.Level.LoadLevel -= Level_LoadLevel;
+        Everest.Events.Level.OnExit -= Level_OnExit;
     }
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot)
@@ -67,7 +71,12 @@ public sealed class MiaoNetModule : EverestModule
     )
     {
         orig(self, playerIntro, isFromLoader);
-        Instance.MiaoNetContext.OnPlayerMapChanged(self, self.Session.Area.SID, self.Session.Level);
+        Instance.MiaoNetContext.OnPlayerLocationChanged(self, PlayerLocation.FetchFrom(self.Session));
+    }
+
+    private static void Level_OnExit(Level level, LevelExit exit, LevelExit.Mode mode, Session session, HiresSnow snow)
+    {
+        Instance.MiaoNetContext.OnPlayerLocationChanged(level, PlayerLocation.Empty);
     }
 
     private static void Level_OnCreatePauseMenuButtons(Level level, TextMenu menu, bool minimal)
