@@ -138,6 +138,13 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         {
             if (needGhost)
             {
+                if (initialState is null)
+                {
+                    // the server maybe late to know that we're already in a same map
+                    // but...
+                    // TODO need we make local state changes to wait for server to confirm?
+                    return;
+                }
                 ghosts[info.ID] = new(info.ID, info.Name, graphicsInfo, initialState!);
             }
         }
@@ -146,7 +153,7 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
     public override void Update()
     {
         base.Update();
-        Debug.Assert(context.HasState);
+        SafeGuard.Assert(context.HasState);
         if (Engine.Scene is not Level level)
             return;
         if (level.OnRawInterval(1f))

@@ -24,7 +24,7 @@ public static class PacketRegistry
                     map.InterfaceMethods,
                     m => m.Name is nameof(IRefBinarySerializable<IPacket>.Deserialize)
                 );
-                Debug.Assert(readerIndex is 0 or 1);
+                SafeGuard.Assert(readerIndex is 0 or 1);
 
                 var reader = (RefBinaryReadHandler<IPacket>)map.TargetMethods[readerIndex]
                     .CreateDelegate(typeof(RefBinaryReadHandler<>).MakeGenericType(type));

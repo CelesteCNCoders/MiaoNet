@@ -10,8 +10,6 @@ public sealed class PacketPlayerMapChanged : IPacket<PacketPlayerMapChanged>
 
     public PacketPlayerMapChanged(PlayerLocation location, PlayerState? initialState)
     {
-        Debug.Assert(!location.IsEmpty);
-
         Location = location;
         InitialState = initialState;
     }

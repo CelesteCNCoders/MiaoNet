@@ -75,7 +75,7 @@ public sealed partial class MiaoNetContext
                 level.OnEndOfFrame += () =>
                 {
                     bool result = TryGetAndSendSync(level, location);
-                    Debug.Assert(result);
+                    SafeGuard.Assert(result);
                 };
             
             bool TryGetAndSendSync(Level level, PlayerLocation location)
@@ -149,7 +149,7 @@ public sealed partial class MiaoNetContext
 
     public void QueuePacket(IPacket packet)
     {
-        Debug.Assert(HasConnection);
+        SafeGuard.Assert(HasConnection);
         connection.QueuePacket(packet);
     }
 
@@ -208,7 +208,7 @@ public sealed partial class MiaoNetContext
     [MemberNotNull(nameof(ClientState), nameof(connection))]
     private void EnsureState()
     {
-        Debug.Assert(HasConnection);
-        Debug.Assert(HasState);
+        SafeGuard.Assert(HasConnection);
+        SafeGuard.Assert(HasState);
     }
 }

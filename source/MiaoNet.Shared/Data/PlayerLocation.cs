@@ -24,7 +24,7 @@ public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatabl
         MapSid = mapSid;
         MapRoom = mapRoom;
         if (mapSid == string.Empty)
-            Debug.Assert(MapRoom == string.Empty);
+            SafeGuard.Assert(MapRoom == string.Empty);
     }
 
     public readonly override string ToString()

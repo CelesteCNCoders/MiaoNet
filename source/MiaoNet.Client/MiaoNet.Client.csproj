@@ -11,7 +11,7 @@
     <ModAssetsCopyType>link</ModAssetsCopyType>
     <UseCelesteAnalyzer>false</UseCelesteAnalyzer>
     <UseCelestePublicizer>false</UseCelestePublicizer>
-    <DefineConstants>$(DefineConstants);MIAO_CLIENT</DefineConstants>
+    <DefineConstants>$(DefineConstants);MIAO_CLIENT;SAFE_GUARD</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
