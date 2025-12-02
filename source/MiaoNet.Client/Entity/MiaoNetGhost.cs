@@ -93,6 +93,8 @@ public sealed class MiaoNetGhost : Entity
         {
             playerHair.Color = GetHairInfo(GraphicsInfo, dashes).Color;
         }
+        if (Scene.Paused)
+            playerHair.AfterUpdate();
     }
 
     public void OnStartDash()
