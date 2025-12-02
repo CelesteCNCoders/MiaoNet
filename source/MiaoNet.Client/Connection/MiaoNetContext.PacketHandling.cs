@@ -4,6 +4,30 @@ namespace Celeste.Mod.MiaoNet;
 
 public partial class MiaoNetContext
 {
+    public delegate void PacketPlayerNotificationHandler(OnlinePlayer player);
+    public delegate void PacketPlayerNotificationHandler<TPacket>(OnlinePlayer player, TPacket packet);
+
+    public event Action<ClientState>? ClientInitialized;
+    public event Action<OnlinePlayer>? PlayerJoined;
+    public event Action<OnlinePlayer>? PlayerLeft;
+    public event PacketPlayerNotificationHandler<PacketPlayerFrame>? PlayerFrameNotification;
+    public event PacketPlayerNotificationHandler<PacketPlayerMapChangedNotification>? PlayerMapChanged;
+    public event Action<OnlinePlayer, string>? PlayerMapRoomChanged;
+    public event Action<PacketPlayerMapChangedResponse>? PlayerMapChangeResponse;
+    public event Action<OnlinePlayer?, PacketChatMessage>? ChatMessageReceived;
+
+    private void RegisterPacketHandlers(PacketHandlerRegister r)
+    {
+        r.Register<PacketClientInitial>(HandlePacket);
+        r.Register<PacketPlayerJoined>(HandlePacket);
+        r.Register<PacketPlayerLeft>(HandlePacket);
+        r.Register<PacketPlayerFrameNotification>(HandlePacket);
+        r.Register<PacketPlayerMapChangedNotification>(HandlePacket);
+        r.Register<PacketPlayerMapRoomChangedNotification>(HandlePacket);
+        r.Register<PacketPlayerMapChangedResponse>(HandlePacket);
+        r.Register<PacketChatMessage>(HandlePacket);
+    }
+
     private void HandlePacket(PacketClientInitial packet)
     {
         clientState = new(packet, PlayerLocation.Empty);
@@ -72,5 +96,17 @@ public partial class MiaoNetContext
     {
         EnsureState();
         PlayerMapChangeResponse?.Invoke(packet);
+    }
+
+    private void HandlePacket(PacketChatMessage packet)
+    {
+        EnsureState();
+        OnlinePlayer? player = null;
+        if (packet.SourcePlayer.HasValue)
+        {
+            int id = (int)packet.SourcePlayer;
+            player = id == ClientState.Self.ID ? ClientState.Self : ClientState.Players[id];
+        }
+        ChatMessageReceived?.Invoke(player, packet);
     }
 }

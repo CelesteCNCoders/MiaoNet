@@ -162,9 +162,7 @@ public static class RefBinaryWriterExtensions
 
     public static void Write<T>(this ref RefBinaryWriter writer, IReadOnlyCollection<T> value) where T : IRefBinarySerializable<T>
     {
-        if (value.Count > ushort.MaxValue)
-            throw new ArgumentOutOfRangeException(nameof(value));
-        writer.Write((ushort)value.Count);
+        writer.Write7BitEncodedInt(value.Count);
         foreach (var item in value)
             item.Serialize(ref writer);
     }

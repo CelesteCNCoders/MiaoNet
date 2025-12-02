@@ -28,7 +28,7 @@ public sealed class PacketHandlerRegister : IPacketHandlerRegister
     public void Register<TPacket>(PacketHandler<TPacket> handler) where TPacket : IPacket
     {
         // QUESTION can this be more optimized?
-        ValueTask HandlePacketAsync(Server.MiaoClientConnection c, IPacket p) 
+        Task HandlePacketAsync(Server.MiaoClientConnection c, IPacket p) 
             => handler(c, (TPacket)p);
 
         Dictionary.Add(typeof(TPacket), HandlePacketAsync);

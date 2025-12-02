@@ -1,4 +1,4 @@
-﻿namespace MiaoNet.Shared;
+namespace MiaoNet.Shared;
 
 public sealed class HandshakeData : IRefBinarySerializable<HandshakeData>
 {
@@ -49,5 +49,5 @@ public sealed class HandshakeData : IRefBinarySerializable<HandshakeData>
     }
 
     public static HandshakeData Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadVersion(), reader.ReadByte(), reader.ReadString(), reader.ReadList<NetMod>());
+        => new(reader.ReadVersion(), reader.ReadByte(), reader.ReadString(), reader.ReadArray<NetMod>());
 }

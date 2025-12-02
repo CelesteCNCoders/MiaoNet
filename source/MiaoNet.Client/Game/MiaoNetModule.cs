@@ -41,6 +41,7 @@ public sealed class MiaoNetModule : EverestModule
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot)
     {
         MenuMiaoNetOptions.BuildMenu(menu, inGame);
+        CreateModMenuSectionKeyBindings(menu, inGame, snapshot);
     }
 
     private static void Engine_Update(ILContext il)

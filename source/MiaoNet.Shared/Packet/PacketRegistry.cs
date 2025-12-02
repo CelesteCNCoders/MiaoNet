@@ -22,7 +22,7 @@ public static class PacketRegistry
                 var map = type.GetInterfaceMap(typeof(IRefBinarySerializable<>).MakeGenericType(type));
                 var readerIndex = Array.FindIndex(
                     map.InterfaceMethods,
-                    m => m.Name is nameof(IRefBinarySerializable<IPacket>.Deserialize)
+                    m => m.Name is nameof(IRefBinarySerializable<>.Deserialize)
                 );
                 SafeGuard.Assert(readerIndex is 0 or 1);
 

@@ -1,11 +1,13 @@
 namespace MiaoNet.Shared;
 
-public abstract class PacketResponse
+public abstract class PacketResponse : IPacket
 {
-    public int ID { get; set; }
+    public int RequestID { get; set; }
 
-    public PacketResponse(int id)
+    public PacketResponse(int requestID)
     {
-        ID = id;
+        RequestID = requestID;
     }
+
+    public abstract void Serialize(ref RefBinaryWriter writer);
 }

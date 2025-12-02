@@ -1,5 +1,6 @@
-﻿using System.Buffers;
+using System.Buffers;
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipelines;
@@ -17,6 +18,9 @@ public sealed class MiaoClientConnection
     public const int UdpBufferSize = 1344;
     public const int MaxPacketPartSize = 4096;
     public const int PacketChannelSize = 64;
+
+    private int nextRequestID;
+    private readonly ConcurrentDictionary<int, TaskCompletionSource<PacketResponse>> pendingRequests;
 
     private readonly ILogger<MiaoClientConnection> logger;
     private readonly MiaoServerService server;
@@ -45,6 +49,7 @@ public sealed class MiaoClientConnection
 
         cts = new CancellationTokenSource();
         pipe = new();
+        pendingRequests = new();
 
         sendChannel = Channel.CreateUnbounded<SerializedPacket>(new UnboundedChannelOptions() { SingleReader = true });
     }
@@ -53,8 +58,8 @@ public sealed class MiaoClientConnection
     {
         var token = cts.Token;
         Task receiveTask = HandleClientReceiveAsync(token);
-        Task processTask = HandleClientProcessAsync(token);
         Task sendingTask = HandleClientSendingAsync(token);
+        Task processTask = HandleClientProcessAsync(token);
 
         try
         {

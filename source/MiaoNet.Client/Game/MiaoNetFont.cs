@@ -17,7 +17,7 @@ public static class MiaoNetFont
             position,
             new(0.5f, 1.0f), new(0.5f, 0.5f),
             color, 2f,
-            color
+            Color.Black with { A = color.A }
         );
 
     public static void DrawPlayerListEntry(string text, Vector2 position, Color color, float scale)
@@ -26,7 +26,7 @@ public static class MiaoNetFont
             text,
             position,
             new(0f, 0f), new(scale, scale),
-            color
+            Color.Black with { A = color.A }
         );
 
     public static Vector2 MeasurePlayerListEntry(string text)

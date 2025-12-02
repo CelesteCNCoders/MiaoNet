@@ -24,8 +24,8 @@ public sealed class PacketClientInitial : IPacket<PacketClientInitial>
     static PacketClientInitial IRefBinarySerializable<PacketClientInitial>.Deserialize(ref RefBinaryReader reader)
         => new(
             reader.Read<PlayerInfo>(),
-            reader.ReadList<ChannelStateInfo>(),
-            reader.ReadList<PacketPlayerJoined>()
+            reader.ReadArray<ChannelStateInfo>(),
+            reader.ReadArray<PacketPlayerJoined>()
         );
 
     public void Serialize(ref RefBinaryWriter writer)

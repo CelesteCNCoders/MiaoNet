@@ -1,4 +1,4 @@
-﻿using System.Buffers.Binary;
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -116,12 +116,12 @@ public static class RefBinaryReaderExtensions
     public static T Read<T>(this ref RefBinaryReader reader) where T : IRefBinarySerializable<T>
         => T.Deserialize(ref reader);
 
-    public static List<T> ReadList<T>(this ref RefBinaryReader reader) where T : IRefBinarySerializable<T>
+    public static T[] ReadArray<T>(this ref RefBinaryReader reader) where T : IRefBinarySerializable<T>
     {
-        ushort count = reader.ReadUInt16();
-        List<T> list = new(count);
-        for (ushort i = 0; i < count; i++)
-            list.Add(Read<T>(ref reader));
+        int count = reader.Read7BitEncodedInt();
+        T[] list = new T[count];
+        for (int i = 0; i < count; i++)
+            list[i] = Read<T>(ref reader);
         return list;
     }
 }

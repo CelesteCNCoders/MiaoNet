@@ -139,9 +139,9 @@ public sealed class PacketPlayerMapChangedResponse : IPacket<PacketPlayerMapChan
             );
     }
 
-    public List<Player> PlayersInMap { get; }
+    public Player[] PlayersInMap { get; }
 
-    public PacketPlayerMapChangedResponse(List<Player> playersInMap)
+    public PacketPlayerMapChangedResponse(Player[] playersInMap)
     {
         PlayersInMap = playersInMap;
     }
@@ -152,5 +152,5 @@ public sealed class PacketPlayerMapChangedResponse : IPacket<PacketPlayerMapChan
     }
 
     public static PacketPlayerMapChangedResponse Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadList<Player>());
+        => new(reader.ReadArray<Player>());
 }

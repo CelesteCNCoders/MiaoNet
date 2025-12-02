@@ -1,4 +1,4 @@
-﻿// write by qwen, they're good at doing these
+// write by qwen, they're good at doing these
 #pragma warning disable IDE0251
 using MiaoNet.Shared;
 using System.Diagnostics.CodeAnalysis;
@@ -226,7 +226,7 @@ public class RefBinaryReaderWriterTests
         ms.Position = 0;
         var reader = new RefBinaryReader(ms.ToArray());
 
-        var readPeople = reader.ReadList<Person>();
+        var readPeople = reader.ReadArray<Person>();
         Assert.AreEqual(people.Count, readPeople.Count);
         for (int i = 0; i < people.Count; i++)
         {

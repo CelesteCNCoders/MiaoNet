@@ -39,8 +39,22 @@ public sealed class PlayerListComponent : MiaoNetComponent
         ];
         foreach (var player in otherChannelPlayerList)
             cOther.Players.Add(player.ID, player);
-        channelPlayerList = [(cMain, mainChannelPlayerList), (cOther, otherChannelPlayerList)];
-        mainChannelPlayerList.Sort(new PlayerListEntryComparer());
+        OnlineChannel cOther2 = new(2, "xinzhan2");
+        List<OnlinePlayer> otherChannel2PlayerList = [
+            new OnlinePlayer(cOther, new PlayerInfo(9, "O5DZ222"), new PlayerLocation("StrawberryJam2021/Advanced/Lobby","a-00")),
+            new OnlinePlayer(cOther, new PlayerInfo(10, "idk_others222"), new PlayerLocation("StrawberryJam2021/Advanced/Lobby","a-01")),
+            new OnlinePlayer(cOther, new PlayerInfo(11, "idk_others_too222"), new PlayerLocation("Celeste/Core","f-0j")),
+        ];
+        foreach (var player in otherChannel2PlayerList)
+            cOther2.Players.Add(player.ID, player);
+        channelPlayerList = [
+            (cMain, mainChannelPlayerList),
+            (cOther, otherChannelPlayerList),
+            (cOther2, otherChannel2PlayerList)
+        ];
+        var comparer = new PlayerListEntryComparer();
+        foreach (var pair in channelPlayerList)
+            pair.Item2.Sort(comparer);
         return;
 #else
         if (context.ClientState is null)
@@ -55,6 +69,7 @@ public sealed class PlayerListComponent : MiaoNetComponent
 
     public override void Render()
     {
+        return;
         /*
          * 
          * #<ChannelName> <PlayerCount>/<Max?> Players                                         

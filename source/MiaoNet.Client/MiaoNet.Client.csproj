@@ -10,12 +10,13 @@
     <Nullable>enable</Nullable>
     <ModAssetsCopyType>link</ModAssetsCopyType>
     <UseCelesteAnalyzer>false</UseCelesteAnalyzer>
-    <UseCelestePublicizer>false</UseCelestePublicizer>
+    <UseCelestePublicizer>true</UseCelestePublicizer>
     <DefineConstants>$(DefineConstants);MIAO_CLIENT;SAFE_GUARD</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="../MiaoNet.Shared/**/*.cs" LinkBase="0-Shared" />
+    <Compile Include="../ChatInputBox/ChatInputBox/**/*.cs" LinkBase="1-ChatInputBox" />
     
     <None Include="CelesteMod.props">
       <Visible>false</Visible>

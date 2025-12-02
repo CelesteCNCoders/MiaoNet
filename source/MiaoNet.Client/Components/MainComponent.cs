@@ -8,12 +8,11 @@ namespace Celeste.Mod.MiaoNet;
 /// <summary>
 /// Main component, handle player sync
 /// </summary>
-public sealed class MiaoNetMainComponent : MiaoNetComponent
+public sealed class MainComponent : MiaoNetComponent
 {
-    private int errCount;
     private readonly Dictionary<int, MiaoNetGhost> ghosts;
 
-    public MiaoNetMainComponent(MiaoNetContext context) : base(context)
+    public MainComponent(MiaoNetContext context) : base(context)
     {
         ghosts = new();
 
@@ -27,7 +26,6 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
 
     public override void OnConnected()
     {
-        errCount = 0;
     }
 
     public override void OnDisconnected()
@@ -156,8 +154,8 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
         SafeGuard.Assert(context.HasState);
         if (Engine.Scene is not Level level)
             return;
-        if (level.OnRawInterval(1f))
-            errCount = Math.Max(0, errCount - 1);
+        //if (level.OnRawInterval(1f))
+        //    errCount = Math.Max(0, errCount - 1);
         foreach (var pair in ghosts)
         {
             if (pair.Value.Scene != level)
@@ -207,11 +205,11 @@ public sealed class MiaoNetMainComponent : MiaoNetComponent
 
     private void OnWarn()
     {
-        errCount++;
-        if (errCount > 120)
-        {
-            Logger.Error(nameof(MiaoNet), "Warning too many times, disconnect.");
-            context.Disconnect();
-        }
+        //errCount++;
+        //if (errCount > 120)
+        //{
+        //    Logger.Error(nameof(MiaoNet), "Warning too many times, disconnect.");
+        //    context.Disconnect();
+        //}
     }
 }

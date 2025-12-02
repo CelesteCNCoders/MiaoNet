@@ -75,10 +75,9 @@ public sealed class MiaoServerConnection : IDisposable
 
     public async Task SendPacketsLoopAsync(CancellationToken token)
     {
+        await Task.Yield();
         while (!token.IsCancellationRequested)
         {
-            await Task.Yield();
-
             while (packetSendQueue.TryDequeue(out IPacket? packet))
             {
                 RefBinaryWriter writer = new(memoryStream);

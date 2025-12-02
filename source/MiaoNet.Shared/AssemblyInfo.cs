@@ -16,3 +16,9 @@ using MiaoNet.Shared;
 
 [assembly: PacketRegistry(typeof(PacketPlayerChannelMove))]
 [assembly: PacketRegistry(typeof(PacketPlayerChannelMoveNotification))]
+
+[assembly: PacketRegistry(typeof(PacketChatMessage))]
+[assembly: PacketRegistry(typeof(PacketSendChatMessage))]
+
+[assembly: PacketRegistry(typeof(PacketChatCommand))]
+[assembly: PacketRegistry(typeof(PacketChatCommandResponse))]

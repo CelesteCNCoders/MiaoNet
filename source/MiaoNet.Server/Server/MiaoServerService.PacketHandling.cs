@@ -10,9 +10,10 @@ public sealed partial class MiaoServerService
         register.Register<PacketPlayerFrame>(HandlePacket);
         register.Register<PacketPlayerMapChanged>(HandlePacket);
         register.Register<PacketPlayerMapRoomChanged>(HandlePacket);
+        register.Register<PacketSendChatMessage>(HandlePacket);
     }
 
-    private async ValueTask HandlePacket(MiaoClientConnection connection, PacketPlayerFrame packet)
+    private async Task HandlePacket(MiaoClientConnection connection, PacketPlayerFrame packet)
     {
         if (connection.Player.State is null)
         {
@@ -41,7 +42,7 @@ public sealed partial class MiaoServerService
         );
     }
 
-    private async ValueTask HandlePacket(MiaoClientConnection connection, PacketPlayerMapChanged packet)
+    private async Task HandlePacket(MiaoClientConnection connection, PacketPlayerMapChanged packet)
     {
         var player = connection.Player;
         player.State = packet.InitialState;
@@ -76,7 +77,7 @@ public sealed partial class MiaoServerService
                         p.Value.Player.State!, // TODO
                         p.Value.Player.GraphicsInfo
                     )
-                ).ToList()
+                ).ToArray()
             );
 
             normalTask = BroadcastToOthersAsync(normal, c => NormalPredicate(c.Player), player.ID);
@@ -99,7 +100,7 @@ public sealed partial class MiaoServerService
         await sameMapTask;
     }
 
-    private async ValueTask HandlePacket(MiaoClientConnection connection, PacketPlayerMapRoomChanged packet)
+    private async Task HandlePacket(MiaoClientConnection connection, PacketPlayerMapRoomChanged packet)
     {
         var player = connection.Player;
         logger.LogDebug(
@@ -112,5 +113,11 @@ public sealed partial class MiaoServerService
         player.Location.MapRoom = packet.MapRoom;
         serverState.StateLock.ExitWriteLock();
         await BroadcastOthersAsync(new PacketPlayerMapRoomChangedNotification(player.ID, packet), connection);
+    }
+
+    private async Task HandlePacket(MiaoClientConnection connection, PacketSendChatMessage packet)
+    {
+        logger.LogInformation(AppEvents.GameChat, "{player}: {msg}", connection.Player.Info, packet.Content);
+        await BroadcastAsync(new PacketChatMessage(ChatMessageType.Chat, connection.Player.ID, packet.Content));
     }
 }
