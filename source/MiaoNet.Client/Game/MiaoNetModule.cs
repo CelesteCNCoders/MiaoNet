@@ -1,5 +1,6 @@
 using FMOD.Studio;
 using MiaoNet.Shared;
+using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 
 namespace Celeste.Mod.MiaoNet;
@@ -12,6 +13,9 @@ public sealed class MiaoNetModule : EverestModule
     public static MiaoNetModuleSettings Settings => (MiaoNetModuleSettings)Instance._Settings;
 
     public MiaoNetContext MiaoNetContext { get; private set; }
+
+    public static readonly RasterizerState ScissorEnabledRasterizerState
+        = new RasterizerState() { ScissorTestEnable = true };
 
     public MiaoNetModule()
     {

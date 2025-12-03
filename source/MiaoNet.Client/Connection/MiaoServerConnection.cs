@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Channels;
+using System.Threading.Tasks.Sources;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
@@ -14,7 +15,7 @@ public sealed class MiaoServerConnection : IDisposable
     private readonly NetworkStream networkStream;
     private readonly MemoryStream memoryStream;
 
-    private volatile TaskCompletionSource tcs;
+    private SemaphoreSlim sendQueueSemaphore;
     private readonly ConcurrentQueue<IPacket> packetSendQueue;
 
     public EndPoint EndPoint { get; }
@@ -34,7 +35,7 @@ public sealed class MiaoServerConnection : IDisposable
 
         networkStream.Write(Connection.HandshakeHead);
         WriteHandshake(handshakeData);
-        tcs = new();
+        sendQueueSemaphore = new(0);
     }
 
     public void Dispose()
@@ -89,15 +90,14 @@ public sealed class MiaoServerConnection : IDisposable
                 await networkStream.WriteAsync(memoryStream.GetBuffer().AsMemory(0, length + 2 * sizeof(ushort)), token);
             }
 
-            await tcs.Task;
-            tcs = new();
+            await sendQueueSemaphore.WaitAsync(token);
         }
     }
 
     public int QueuePacket(IPacket packet)
     {
         packetSendQueue.Enqueue(packet);
-        tcs.TrySetResult();
+        sendQueueSemaphore.Release();
         return packetSendQueue.Count;
     }
 

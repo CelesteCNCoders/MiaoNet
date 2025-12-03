@@ -169,16 +169,26 @@ public sealed partial class MiaoNetContext
     {
         if (!HasState)
             return;
+        BeginRender();
+        components.ForEach(c => c.Render());
+        EndRender();
+    }
+
+    public static void BeginRender(bool scissorEnabled = false)
+    {
         Draw.SpriteBatch.Begin(
             SpriteSortMode.Deferred,
             BlendState.NonPremultiplied,
             SamplerState.LinearClamp,
             DepthStencilState.Default,
-            RasterizerState.CullNone,
+            scissorEnabled ? MiaoNetModule.ScissorEnabledRasterizerState : RasterizerState.CullNone,
             null,
             Engine.ScreenMatrix
         );
-        components.ForEach(c => c.Render());
+    }
+
+    public static void EndRender()
+    {
         Draw.SpriteBatch.End();
     }
 
@@ -226,6 +236,7 @@ public sealed partial class MiaoNetContext
         catch (Exception e)
         {
             Logger.Error(nameof(MiaoNet), $"Error when connecting: {e}");
+            Disconnect();
             return;
         }
         Logger.Info(nameof(MiaoNet), $"Connected to {ipe}.");

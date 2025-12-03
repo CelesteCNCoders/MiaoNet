@@ -2,13 +2,15 @@ namespace Celeste.Mod.MiaoNet;
 
 public static class MiaoNetFont
 {
-    public static PixelFont Font => Fonts.Get(Dialog.Languages["english"].FontFace);
+    public static Language ENLanguage => Dialog.Languages["english"];
 
-    public static float BaseSize => Dialog.Languages["english"].FontFaceSize;
+    public static PixelFont Font => Fonts.Get(ENLanguage.FontFace);
+
+    public static float BaseSize => ENLanguage.FontFaceSize;
 
     public static PixelFontSize FontSize => Font.Get(BaseSize);
 
-    public static int LineHeight => Dialog.Languages["english"].FontSize.LineHeight;
+    public static int LineHeight => ENLanguage.FontSize.LineHeight;
 
     public static void DrawGhostName(string name, Vector2 position, Color color)
         => Font.DrawOutline(
@@ -26,7 +28,7 @@ public static class MiaoNetFont
             text,
             position,
             new(0f, 0f), new(scale, scale),
-            Color.Black with { A = color.A }
+            color
         );
 
     public static Vector2 MeasurePlayerListEntry(string text)

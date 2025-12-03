@@ -5,18 +5,25 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class PlayerListComponent : MiaoNetComponent
 {
-    private List<(OnlineChannel, List<OnlinePlayer>)> channelPlayerList;
+    private readonly PlayerListEntryComparer pComparer;
+    private readonly List<(OnlineChannel, List<OnlinePlayer>)> channelPlayerList;
 
     public PlayerListComponent(MiaoNetContext context)
         : base(context)
     {
-        BuildPlayerList();
+        pComparer = new();
+        channelPlayerList = new();
+        context.ClientInitialized += _ => BuildPlayerList();
+        context.PlayerJoined += _ => BuildPlayerList();
+        context.PlayerLeft += _ => BuildPlayerList();
+        context.PlayerMapChanged += (_, _) => SortPlayerList();
+        context.PlayerMapRoomChanged += (_, _) => SortPlayerList();
     }
 
-    [MemberNotNull(nameof(channelPlayerList))]
     private void BuildPlayerList()
     {
-#if true
+        #region sth i used to test the rendering
+#if false
         OnlineChannel cMain = new(0, "main");
         List<OnlinePlayer> mainChannelPlayerList = [
             new OnlinePlayer(cMain, new PlayerInfo(0, "sapcc"), new PlayerLocation("Celeste/1a", "a-01")),
@@ -56,20 +63,33 @@ public sealed class PlayerListComponent : MiaoNetComponent
         foreach (var pair in channelPlayerList)
             pair.Item2.Sort(comparer);
         return;
-#else
-        if (context.ClientState is null)
-        {
-            playerList = [];
-            return;
-        }
-        playerList = new(context.ClientState.Players.Select(p => p.Value));
-        playerList.Sort(new PlayerListComparer());
 #endif
+        #endregion
+
+        channelPlayerList.Clear();
+        var state = context.ClientState;
+        if (state is null)
+            return;
+
+        foreach (var (_, channel) in state.Channels)
+        {
+            var playerList = new List<OnlinePlayer>();
+            if (channel.ID == state.SelfChannel.ID)
+                playerList.Add(state.Self);
+            foreach (var (_, player) in channel.Players)
+                playerList.Add(player);
+            channelPlayerList.Add((channel, playerList));
+        }
+    }
+
+    private void SortPlayerList()
+    {
+        foreach (var (_, list) in channelPlayerList)
+            list.Sort(pComparer);
     }
 
     public override void Render()
     {
-        return;
         /*
          * 
          * #<ChannelName> <PlayerCount>/<Max?> Players                                         
@@ -95,7 +115,7 @@ public sealed class PlayerListComponent : MiaoNetComponent
          * <------------------------------- maxLineWidth ------------------------------------> 
          */
 
-        const float Scale = 1 / 3f;
+        const float Scale = 2f / 3f;
 
         const float RectXOffset = 16f;
         const float RectYOffset = 16f;
@@ -151,17 +171,17 @@ public sealed class PlayerListComponent : MiaoNetComponent
 
         for (int i = 0; i < channelPlayerList.Count; i++)
         {
-            var tuple = channelPlayerList[i];
+            (OnlineChannel channel, List<OnlinePlayer> playerList) = channelPlayerList[i];
             float curX = RectXOffset + RectXPadding;
             float curY = channelYOffsets[i] + RectYPadding;
             MiaoNetFont.DrawPlayerListEntry(
-                $"#{tuple.Item1.Name} {tuple.Item1.Players.Count} Players",
+                $"#{channel.Name} {playerList.Count} Players",
                 new(curX, curY),
                 Color.Yellow,
                 Scale
             );
             curY += lineHeight;
-            foreach (var player in tuple.Item2)
+            foreach (var player in playerList)
             {
                 MiaoNetFont.DrawPlayerListEntry(
                     $"{player.Info.Name} @ {player.Location}",

@@ -8,8 +8,7 @@ public sealed class ChatComponent : MiaoNetComponent
 {
     private bool active;
     private readonly InputBox inputBox;
-    private readonly ChatMessageListView chatView;
-    private readonly List<MiaoNetChatMessage> chatLog;
+    private readonly ChatMessageListView<MiaoNetChatMessage> chatView;
 
     public ChatComponent(MiaoNetContext context)
         : base(context)
@@ -17,19 +16,19 @@ public sealed class ChatComponent : MiaoNetComponent
         ITextRenderer r = new MiaoNetTextRenderer();
         inputBox = new InputBox(r);
         chatView = new(r);
-        chatLog = new();
         context.ChatMessageReceived += Context_ChatMessageReceived;
     }
 
     private void Context_ChatMessageReceived(OnlinePlayer? player, PacketChatMessage packet)
     {
+        bool isAnnouncement = packet.Type == ChatMessageType.Server;
         if (player is not null)
         {
-            chatLog.Add(new(player.Info.Name, packet.Content));
+            chatView.AddChatMessage(new(player.Info.Name, packet.Content, isAnnouncement));
         }
         else
         {
-            chatLog.Add(new(null, packet.Content));
+            chatView.AddChatMessage(new(null, packet.Content, isAnnouncement));
         }
     }
 
@@ -58,7 +57,8 @@ public sealed class ChatComponent : MiaoNetComponent
             if (MInput.Keyboard.Pressed(Keys.Enter))
             {
                 MInputHack.ConsumeAllInput();
-                context.QueuePacket(new PacketSendChatMessage(inputBox.Text));
+                if (inputBox.Text != string.Empty && !inputBox.Text.All(char.IsWhiteSpace))
+                    context.QueuePacket(new PacketSendChatMessage(inputBox.Text));
                 Deactive();
                 return;
             }
@@ -71,13 +71,14 @@ public sealed class ChatComponent : MiaoNetComponent
     public override void OnDisconnected()
     {
         Deactive();
-        chatLog.Clear();
+        chatView.CleanUp();
     }
 
     private void Active()
     {
         active = true;
         inputBox.Active();
+        chatView.AlwaysShow = true;
         Engine.Scene.Paused = true;
     }
 
@@ -85,6 +86,7 @@ public sealed class ChatComponent : MiaoNetComponent
     {
         active = false;
         inputBox.Deactive();
+        chatView.AlwaysShow = false;
         Engine.Scene.Paused = false;
     }
 
@@ -92,6 +94,6 @@ public sealed class ChatComponent : MiaoNetComponent
     {
         if (active)
             inputBox.Render();
-        chatView.Render(chatLog);
+        chatView.Render();
     }
 }

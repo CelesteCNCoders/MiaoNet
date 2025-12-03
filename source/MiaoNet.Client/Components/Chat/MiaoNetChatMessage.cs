@@ -12,11 +12,11 @@ public struct MiaoNetChatMessage : IChatMessage
 
     public Color Color { get; set; }
 
-    public MiaoNetChatMessage(string? sender, string content)
+    public MiaoNetChatMessage(string? sender, string content, bool isAnnouncement)
     {
         Sender = sender;
         SenderColor = Color.Yellow;
         Content = content;
-        Color = Color.White;
+        Color = isAnnouncement ? Color.Cyan : Color.White;
     }
 }
