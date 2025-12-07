@@ -20,7 +20,8 @@ public sealed class MainComponent : MiaoNetComponent
         context.PlayerLeft += Context_PlayerLeft;
         context.PlayerFrameNotification += Context_PlayerFrameNotification;
         context.PlayerMapChanged += Context_PlayerMapChanged;
-        context.PlayerMapChangeResponded += Context_PlayerMapChangeResponse;
+        context.PlayerMapRoomChanged += Context_PlayerMapRoomChanged;
+        context.PlayerMapChangeResponded += Context_PlayerMapChangeResponded;
 
         MiaoNetModule.PlayerLocationChanged += OnPlayerLocationChanged;
     }
@@ -105,7 +106,7 @@ public sealed class MainComponent : MiaoNetComponent
 
     private void Context_PlayerLeft(OnlinePlayer player)
     {
-        if (player.Location.IsSameMapWith(ClientState.Self.Location))
+        if (ClientState.Self.ShouldSyncFrom(player))
             return;
         if (!ghosts.Remove(player.Info.ID, out MiaoNetGhost? ghost))
         {
@@ -117,6 +118,9 @@ public sealed class MainComponent : MiaoNetComponent
 
     private void Context_PlayerFrameNotification(OnlinePlayer player, PacketPlayerFrame packet)
     {
+        if (Engine.Scene is Editor.MapEditor)
+            return;
+        
         if (ghosts.TryGetValue(player.Info.ID, out var ghost))
         {
             ghost.Position = packet.Position;
@@ -148,27 +152,34 @@ public sealed class MainComponent : MiaoNetComponent
         HandleLocationChanging(player, packet.GraphicsInfo, packet.InitialState);
     }
 
+    private void Context_PlayerMapRoomChanged(OnlinePlayer player, string room)
+    {
+        Logger.Debug(nameof(MiaoNet), $"Player map room changed: {player}.");
+        HandleLocationChanging(player, null, null);
+    }
+
     private void HandleNewPlayer(OnlinePlayer player)
     {
         Logger.Info(nameof(MiaoNet), $"New player joined: {player.Info}, locationInfo: {player.Location}.");
         HandleLocationChanging(player, player.GraphicsInfo, player.State);
     }
 
-    private void Context_PlayerMapChangeResponse(PacketPlayerMapChangedResponse packet)
+    private void Context_PlayerMapChangeResponded(PacketPlayerMapChangedResponse packet)
     {
         foreach (var item in packet.PlayersInMap)
         {
             OnlinePlayer player = ClientState.Players[item.PlayerID];
-            player.State = item.State;
-            player.GraphicsInfo = item.GraphicsInfo;
-            ghosts[player.ID] = new(player.ID, player.Info.Name, player.GraphicsInfo, player.State);
+            HandleLocationChanging(player, player.GraphicsInfo, player.State);
         }
     }
 
     private void HandleLocationChanging(OnlinePlayer other, PlayerGraphicsInfo? graphicsInfo, PlayerState? initialState)
     {
-        bool needGhost = ClientState.Self.SyncLevelWith(other) == SyncLevel.L2;
-        Logger.Warn(nameof(MiaoNet), $"needGhost of {other.Info}: {needGhost}");
+        if (Engine.Scene is Editor.MapEditor)
+            return;
+
+        bool needGhost = ClientState.Self.ShouldSyncFrom(other);
+        Logger.Debug(nameof(MiaoNet), $"needGhost of {other.Info} = {needGhost}");
 
         Level? level = Engine.Scene as Level;
 
@@ -180,10 +191,7 @@ public sealed class MainComponent : MiaoNetComponent
             if (needGhost)
             {
                 ghost.GraphicsInfo = graphicsInfo;
-                if (!other.Location.IsInDebugMap)
-                    level!.Add(ghost);
-                else
-                    level!.Remove(ghost);
+                level!.Add(ghost);
             }
             else
             {
@@ -204,6 +212,7 @@ public sealed class MainComponent : MiaoNetComponent
                 }
                 ghosts[other.ID] = ghost = new(other.ID, other.Info.Name, graphicsInfo, initialState!);
                 level!.Add(ghost);
+                Logger.Debug(nameof(MiaoNet), $"added ghost for {other.Info}!");
             }
         }
     }

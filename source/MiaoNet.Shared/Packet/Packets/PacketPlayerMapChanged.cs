@@ -100,29 +100,3 @@ public sealed class PacketPlayerMapChangedNotification : PacketPlayerNotificatio
         return new(playerID, location, graphicsInfo, initialStats);
     }
 }
-
-// used to tell players who are in the debug map
-public sealed class PacketPlayerMapChangedNotificationLite :
-    PacketPlayerNotification, IPacket<PacketPlayerMapChangedNotificationLite>
-{
-    public PlayerLocation Location { get; }
-
-    public Vector2 Position { get; }
-
-    public PacketPlayerMapChangedNotificationLite(int playerID, PlayerLocation location, Vector2 position)
-        : base(playerID)
-    {
-        Location = location;
-        Position = position;
-    }
-
-    public override void Serialize(ref RefBinaryWriter writer)
-    {
-        base.Serialize(ref writer);
-        writer.Write(Location);
-        writer.Write(Position);
-    }
-
-    public static PacketPlayerMapChangedNotificationLite Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadInt32(), reader.Read<PlayerLocation>(), reader.ReadVector2());
-}

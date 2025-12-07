@@ -35,22 +35,12 @@ public sealed partial class MiaoServerService
         if (packet.DashesChange)
             state.Dashes = packet.Dashes;
 
-        Task fullTask = BroadcastToOthersAsync(
+        await BroadcastToOthersAsync(
             new PacketPlayerFrameNotification(connection.ID, packet),
             player.Channel,
-            con => con.Player.SyncLevelWith(player) is SyncLevel.L2,
+            con => con.Player.ShouldSyncFrom(player),
             connection.ID
         );
-
-        Task liteTask = BroadcastToOthersAsync(
-            new PacketPlayerFrameNotificationLite(connection.ID, packet.Position),
-            player.Channel,
-            con => con.Player.SyncLevelWith(player) is SyncLevel.L1,
-            connection.ID
-        );
-
-        await liteTask;
-        await fullTask;
     }
 
     private async Task HandlePacket(MiaoClientConnection connection, PacketPlayerMapChanged packet)
@@ -99,7 +89,7 @@ public sealed partial class MiaoServerService
         }
 
         serverState.StateLock.EnterReadLock();
-        Task generalTask, withLiteStateTask, withStateTask;
+        Task generalTask, withStateTask;
         ValueTask responseTask = default;
 
         try
@@ -107,17 +97,13 @@ public sealed partial class MiaoServerService
             IPacket generalPacket = new PacketPlayerMapChangedNotification(
                 player.ID, packet.Location
             );
-            IPacket withLiteStatePacket = new PacketPlayerMapChangedNotificationLite(
-                player.ID, packet.Location,
-                player.State!.Position
-            );
             IPacket withStatePacket = new PacketPlayerMapChangedNotification(
                 player.ID, packet.Location,
                 null, packet.InitialState
             );
             var mapPlayers =
                 from pair in connection.Player.Channel.Players
-                where player.SyncLevelWith(pair.Value.Player) is SyncLevel.L2
+                where player.Location.IsSameMapWith(pair.Value.Player.Location)
                 where pair.Value.Connection != connection
                 select new PacketPlayerMapChangedResponse.Player(
                     pair.Key,
@@ -128,21 +114,15 @@ public sealed partial class MiaoServerService
 
             generalTask = BroadcastToOthersAsync(
                 generalPacket,
-                c => c.Player.SyncLevelWith(player) is SyncLevel.L0,
-                player.ID
-            );
-            withLiteStateTask = BroadcastToOthersAsync(
-                withLiteStatePacket,
-                c => c.Player.SyncLevelWith(player) is SyncLevel.L1,
+                c => !c.Player.ShouldSyncFrom(player),
                 player.ID
             );
             withStateTask = BroadcastToOthersAsync(
                 withStatePacket,
-                c => c.Player.SyncLevelWith(player) is SyncLevel.L2,
+                c => c.Player.ShouldSyncFrom(player),
                 player.ID
             );
-            if (responsePacket is not null)
-                responseTask = connection.SendPacketAsync(responsePacket);
+            responseTask = connection.SendPacketAsync(responsePacket);
         }
         finally
         {
@@ -150,7 +130,6 @@ public sealed partial class MiaoServerService
         }
 
         await generalTask;
-        await withLiteStateTask;
         await withStateTask;
         await responseTask;
     }

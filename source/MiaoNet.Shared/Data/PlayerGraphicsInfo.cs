@@ -68,4 +68,12 @@ public sealed class PlayerGraphicsInfo : IRefBinarySerializable<PlayerGraphicsIn
             dash2HairInfo: reader.Read<HairInfo>(),
             featherHairInfo: reader.Read<HairInfo>()
         );
+
+    public HairInfo GetHairInfo(int dashes) => dashes switch
+    {
+        <= 0 => Dash0HairInfo,
+        1 => Dash1HairInfo,
+        2 => Dash2HairInfo,
+        > 2 => Dash2HairInfo
+    };
 }

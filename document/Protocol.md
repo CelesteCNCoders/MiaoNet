@@ -13,7 +13,7 @@
 
 ## List\<T\>
 
-- `uint16`: count
+- `int32`: 7-bit encoded count
 - items
 
 ## String

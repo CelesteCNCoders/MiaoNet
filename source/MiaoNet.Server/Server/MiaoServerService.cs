@@ -76,8 +76,8 @@ public sealed partial class MiaoServerService : BackgroundService
         {
             CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(token);
 
+            // make handshake first
             Task<HandshakeData?> handshakeTask = HandleHandshakeAsync(socket, cts.Token);
-
             Task completedTask = await Task.WhenAny(handshakeTask, Task.Delay(options.HandshakeTimeout, cts.Token));
             if (completedTask != handshakeTask)
             {
@@ -94,47 +94,77 @@ public sealed partial class MiaoServerService : BackgroundService
 
             logger.LogDebug(AppEvents.Connection, "{ep} Handshake succeeded.", ep);
 
-            var player = serverState.CreateNewPlayer(handshakeTask.Result);
-            logger.LogInformation(AppEvents.Connection, "Assign {ep}({player}) to id {id}.", ep, player.Info.Name, player.ID);
+            // then create the connection and the player
+            var newPlayer = serverState.CreateNewPlayer(handshakeTask.Result);
+            logger.LogInformation(
+                AppEvents.Connection,
+                "Assign {ep}({player}) to id {id}.",
+                ep,
+                newPlayer.Info.Name,
+                newPlayer.ID
+            );
 
             var conLogger = connectionLoggerFactory.CreateLogger<MiaoClientConnection>();
-            MiaoClientConnection connection = new(player.ID, socket, player, conLogger, this);
+            MiaoClientConnection connection = new(newPlayer.ID, socket, newPlayer, conLogger, this);
 
+            // send the new player initial data
             PlayerInfo clientPlayerInfo = connection.Player.Info;
             List<ChannelStateInfo> channels = serverState.AllChannels.Select(c => c.Value.StateInfo).ToList();
             var playerInfos =
                 from pair in serverState.AllPlayers
                 let p = pair.Value.Player
                 select new PacketPlayerJoined(
-                    p.GetChannelPlayerLocationInfo(), 
+                    p.GetChannelPlayerLocationInfo(),
                     null,
-                    player.SyncLevelWith(p) is SyncLevel.L2
-                        ? p.State
-                        : null
+                    newPlayer.ShouldSyncFrom(p) ? p.State : null
                 );
 
             PacketClientInitial packetClientInitial = new PacketClientInitial(clientPlayerInfo, channels, playerInfos.ToList());
             await connection.SendPacketAsync(packetClientInitial);
 
-            serverState.AddPlayer(player, connection);
+            // other connections can see this player now
+            serverState.AddPlayer(newPlayer, connection);
 
-            // TODO this too
-            var thisPlayer = connection.Player;
-            await BroadcastOthersAsync(
-                new PacketPlayerJoined(
-                    thisPlayer.GetChannelPlayerLocationInfo(),
-                    null,
-                    thisPlayer.State
-                ),
-                connection.ID
-            );
+            // and then tell other clients a new player came
+            serverState.StateLock.EnterReadLock();
+            Task withStateTask, generalTask;
+            try
+            {
+                // this part seems similiar...
+                // can we make it... hm... a method?
+                IPacket withStatePacket = new PacketPlayerJoined(
+                    newPlayer.GetChannelPlayerLocationInfo(),
+                    newPlayer.GraphicsInfo,
+                    newPlayer.State
+                );
+                IPacket generalPacket = new PacketPlayerJoined(newPlayer.GetChannelPlayerLocationInfo());
+                withStateTask = BroadcastToOthersAsync(
+                    withStatePacket,
+                    con => con.Player.ShouldSyncFrom(newPlayer),
+                    connection.ID
+                );
+                generalTask = BroadcastToOthersAsync(
+                    generalPacket,
+                    con => !con.Player.ShouldSyncFrom(newPlayer),
+                    connection.ID
+                );
+            }
+            finally
+            {
+                serverState.StateLock.ExitReadLock();
+            }
+            await withStateTask;
+            await generalTask;
+
+            // exchange data with this player
             await connection.HandleClientConnectAsync();
 
-            logger.LogInformation(AppEvents.Connection, "Client id {id} handle finished.", player.ID);
+            // exchange finished, tell other clients this player left
+            logger.LogInformation(AppEvents.Connection, "Client id {id} handle finished.", newPlayer.ID);
+            await BroadcastAsync(new PacketPlayerLeft(newPlayer.ID));
 
-            serverState.RemovePlayer(player);
-
-            await BroadcastAsync(new PacketPlayerLeft(player.ID));
+            // then remove this player
+            serverState.RemovePlayer(newPlayer);
 
             async Task<HandshakeData?> HandleHandshakeAsync(Socket socket, CancellationToken token)
             {
@@ -210,9 +240,9 @@ public sealed partial class MiaoServerService : BackgroundService
     {
         var players = serverState.AllPlayers;
         return BroadcastToAsync(
-            packet, 
-            players.Select(p => p.Value.Connection), 
-            c => c.ID != selfID && predicate(c), 
+            packet,
+            players.Select(p => p.Value.Connection),
+            c => c.ID != selfID && predicate(c),
             players.Count
         );
     }
@@ -230,9 +260,9 @@ public sealed partial class MiaoServerService : BackgroundService
     /// <inheritdoc cref="BroadcastToAsync(IPacket, IEnumerable{MiaoClientConnection}, Predicate{MiaoClientConnection}, int)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Task BroadcastToOthersAsync(
-        IPacket packet, 
+        IPacket packet,
         ServerChannel channel,
-        Predicate<MiaoClientConnection> predicate, 
+        Predicate<MiaoClientConnection> predicate,
         int selfID
     )
     {

@@ -53,7 +53,7 @@ public sealed class ClientState
 
     public PlayerLocation.ChangeResult OnPlayerLocationChanged(PlayerLocation location)
     {
-        PlayerLocation.ChangeResult result = location.CompareTo(Self.Location);
+        PlayerLocation.ChangeResult result = Self.Location.CompareTo(location);
         Self.Location = location;
         return result;
     }

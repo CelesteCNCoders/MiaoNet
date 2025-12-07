@@ -76,34 +76,3 @@ public sealed class PacketPlayerFrameNotification : PacketPlayerNotification<Pac
     public static PacketPlayerFrameNotification Deserialize(ref RefBinaryReader reader)
         => new(reader.ReadInt32(), reader.Read<PacketPlayerFrame>());
 }
-
-
-// TODO a better naming?
-
-// there's no non-notification version cuz the client won't send that
-// it's snet by server only
-
-/// <summary>
-/// An extremely lite version of <see cref="PacketPlayerFrameNotification"/>.
-/// Used to send position only, to players who are in the DebugMap.
-/// </summary>
-public sealed class PacketPlayerFrameNotificationLite : PacketPlayerNotification,
-    IPacket<PacketPlayerFrameNotificationLite>
-{
-    public Vector2 Position { get; }
-
-    public PacketPlayerFrameNotificationLite(int playerID, Vector2 position)
-        : base(playerID)
-    {
-        Position = position;
-    }
-
-    public override void Serialize(ref RefBinaryWriter writer)
-    {
-        base.Serialize(ref writer);
-        writer.Write(Position);
-    }
-
-    public static PacketPlayerFrameNotificationLite Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadInt32(), reader.ReadVector2());
-}

@@ -11,7 +11,6 @@ public partial class MiaoNetContext
     public event Action<OnlinePlayer>? PlayerJoined;
     public event Action<OnlinePlayer>? PlayerLeft;
     public event PacketPlayerNotificationHandler<PacketPlayerFrame>? PlayerFrameNotification;
-    public event Action<OnlinePlayer, PacketPlayerFrameNotificationLite>? PlayerFrameNotificationLite;
     public event PacketPlayerNotificationHandler<PacketPlayerMapChangedNotification>? PlayerMapChanged;
     public event Action<OnlinePlayer, string>? PlayerMapRoomChanged;
     public event Action<PacketPlayerMapChangedResponse>? PlayerMapChangeResponded;
@@ -23,7 +22,6 @@ public partial class MiaoNetContext
         r.Register<PacketPlayerJoined>(HandlePacket);
         r.Register<PacketPlayerLeft>(HandlePacket);
         r.Register<PacketPlayerFrameNotification>(HandlePacket);
-        r.Register<PacketPlayerFrameNotificationLite>(HandlePacket);
         r.Register<PacketPlayerMapChangedNotification>(HandlePacket);
         r.Register<PacketPlayerMapRoomChangedNotification>(HandlePacket);
         r.Register<PacketPlayerMapChangedResponse>(HandlePacket);
@@ -76,12 +74,6 @@ public partial class MiaoNetContext
         PlayerFrameNotification?.Invoke(player, packet.Packet);
     }
 
-    private void HandlePacket(PacketPlayerFrameNotificationLite packet)
-    {
-        EnsureState();
-
-    }
-
     private void HandlePacket(PacketPlayerMapChangedNotification packet)
     {
         EnsureState();
@@ -103,6 +95,12 @@ public partial class MiaoNetContext
     private void HandlePacket(PacketPlayerMapChangedResponse packet)
     {
         EnsureState();
+        foreach(var playerInMap in packet.PlayersInMap)
+        {
+            var player = ClientState.Players[playerInMap.PlayerID];
+            player.State = playerInMap.State;
+            player.GraphicsInfo = playerInMap.GraphicsInfo;
+        }
         PlayerMapChangeResponded?.Invoke(packet);
     }
 

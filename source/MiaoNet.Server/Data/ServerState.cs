@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using MiaoNet.Shared;
@@ -12,7 +12,7 @@ public sealed class ServerState
     [DebuggerDisplay("{Player}")]
     public readonly record struct Client(ServerPlayer Player, MiaoClientConnection Connection);
 
-    private readonly ReaderWriterLockSlim stateRWLock = new();
+    private readonly ReaderWriterLockSlim stateLock = new();
 
     private int nextPlayerID;
     private int nextChannelID;
@@ -23,7 +23,7 @@ public sealed class ServerState
 
     public ImmutableDictionary<int, ServerChannel> AllChannels => allChannels;
 
-    public ReaderWriterLockSlim StateLock => stateRWLock;
+    public ReaderWriterLockSlim StateLock => stateLock;
 
     public ServerState()
     {

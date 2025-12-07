@@ -1,4 +1,5 @@
 using Celeste.Editor;
+using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -9,16 +10,25 @@ public sealed class DebugMapComponent : MiaoNetComponent
     {
     }
 
-    public override void Update()
-    {
-        if (Engine.Scene is not MapEditor debugRoom)
-            return;
-    }
-
     public override void Render()
     {
-        if (Engine.Scene is not MapEditor debugRoom)
+        if (Engine.Scene is not MapEditor debugMap)
             return;
-        Draw.Rect(0f, 0f, 100f, 100f, Color.Red);
+        foreach (var (_, player) in ClientState.SelfChannel.Players)
+        {
+            if (ClientState.Self.ShouldSyncFrom(player))
+            {
+                Vector2 rPos = player.State!.Position;
+                Vector2 pos = new Vector2(rPos.X / 8f + 0.5f, rPos.Y / 8f + 0.5f);
+                pos -= MapEditor.Camera.Position;
+                pos = pos.Round();
+                pos *= MapEditor.Camera.Zoom;
+                pos += new Vector2(Celeste.TargetWidth, Celeste.TargetHeight) / 2f;
+
+                MiaoNetFont.DrawGhostName(player.Info.Name, pos - Vector2.UnitY, Color.White);
+                var gfx = player.GraphicsInfo ?? PlayerGraphicsInfo.Default;
+                Draw.Rect(pos - Vector2.One * 4f, 8f, 8f, gfx.GetHairInfo(player.State.Dashes).Color);
+            }
+        }
     }
 }

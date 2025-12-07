@@ -80,7 +80,7 @@ public sealed class MiaoNetGhost : Entity
         base.Update();
         if (dashes == 0)
         {
-            Color target = GetHairInfo(GraphicsInfo, dashes).Color;
+            Color target = GraphicsInfo.GetHairInfo(dashes).Color;
             playerHair.Color = Color.Lerp(playerHair.Color, target, 6f * Engine.DeltaTime);
         }
         else if (flashTimer > 0f)
@@ -90,7 +90,7 @@ public sealed class MiaoNetGhost : Entity
         }
         else
         {
-            playerHair.Color = GetHairInfo(GraphicsInfo, dashes).Color;
+            playerHair.Color = GraphicsInfo.GetHairInfo(dashes).Color;
         }
         if (Scene.Paused)
             playerHair.AfterUpdate();
@@ -126,17 +126,8 @@ public sealed class MiaoNetGhost : Entity
 
     private void UpdateHair()
     {
-        playerSprite.HairCount = GetHairInfo(GraphicsInfo, dashes).Length;
+        playerSprite.HairCount = GraphicsInfo.GetHairInfo(dashes).Length;
     }
-
-    private static PlayerGraphicsInfo.HairInfo GetHairInfo(PlayerGraphicsInfo graphicsInfo, int dashes)
-        => dashes switch
-        {
-            <= 0 => graphicsInfo.Dash0HairInfo,
-            1 => graphicsInfo.Dash1HairInfo,
-            2 => graphicsInfo.Dash2HairInfo,
-            > 2 => graphicsInfo.Dash2HairInfo
-        };
 
     public override void Added(Scene scene)
     {
