@@ -21,6 +21,17 @@ Server 端的并发控制相关问题尽可能会使用乐观并发控制. 在�
 - 1 -> 在同一个图但是不在同一个房间
 - 2 -> 在同一个图且在同一个房间
 
+目前的话应该算是大概实现了, 不过只是受于 DebugMap 的影响,
+玩家图不同或者频道不同就会只进行 SyncLevel 0 的同步,
+图一样但是在 DebugMap 里会进行 SyncLevel 1 的同步,
+在图里那就是 SyncLevel 2 的同步了(目前面不一样还是 SyncLevel 2)
+
+// 由于实现上的困难以及实现后的收效甚微
+// 上述 synclevel 设计将不会被实现
+// (发现每个发 state 的地方都要非常繁琐的判断应该发哪种 state)
+// 而目前发 lite state 的只有 debug map
+// 但是能在 debug map 里的人能有多少啊(x
+
 ## Dialog Report
 
 // 预计会推后到年后

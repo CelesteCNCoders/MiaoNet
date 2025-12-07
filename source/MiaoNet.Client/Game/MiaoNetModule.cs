@@ -17,6 +17,8 @@ public sealed class MiaoNetModule : EverestModule
     public static readonly RasterizerState ScissorEnabledRasterizerState
         = new RasterizerState() { ScissorTestEnable = true };
 
+    public static event Action<PlayerLocation>? PlayerLocationChanged;
+
     public MiaoNetModule()
     {
         MiaoNetContext = new();
@@ -28,8 +30,9 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.Level.OnCreatePauseMenuButtons += Level_OnCreatePauseMenuButtons;
         IL.Monocle.Engine.Update += Engine_Update;
         IL.Monocle.Engine.RenderCore += Engine_RenderCore;
-        On.Celeste.Level.LoadLevel += Level_LoadLevel;
         Everest.Events.Level.OnExit += Level_OnExit;
+        Everest.Events.Level.OnLoadLevel += Level_OnLoadLevel;
+        IL.Celeste.Level.Update += Level_Update;
     }
 
     public override void Unload()
@@ -38,8 +41,9 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.Level.OnCreatePauseMenuButtons -= Level_OnCreatePauseMenuButtons;
         IL.Monocle.Engine.Update -= Engine_Update;
         IL.Monocle.Engine.RenderCore -= Engine_RenderCore;
-        On.Celeste.Level.LoadLevel -= Level_LoadLevel;
         Everest.Events.Level.OnExit -= Level_OnExit;
+        Everest.Events.Level.OnLoadLevel -= Level_OnLoadLevel;
+        IL.Celeste.Level.Update -= Level_Update;
     }
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot)
@@ -51,38 +55,42 @@ public sealed class MiaoNetModule : EverestModule
     private static void Engine_Update(ILContext il)
     {
         ILCursor cur = new(il);
-        cur.EmitDelegate(static () =>
-        {
-            var ctx = Instance.MiaoNetContext;
-            ctx.Update();
-        });
+        cur.EmitDelegate(static () => Instance.MiaoNetContext.Update());
     }
 
     private static void Engine_RenderCore(ILContext il)
     {
         ILCursor cur = new(il);
+        // evil render position
         cur.Index = cur.Instrs.Count - 1;
-        cur.EmitDelegate(static () =>
-        {
-            var ctx = Instance.MiaoNetContext;
-            ctx.Render();
-        });
+        cur.EmitDelegate(static () => Instance.MiaoNetContext.Render());
     }
 
-    private static void Level_LoadLevel(
-        On.Celeste.Level.orig_LoadLevel orig,
-        Level self,
-        Player.IntroTypes playerIntro, bool isFromLoader
-    )
+    private static void Level_Update(ILContext il)
     {
-        orig(self, playerIntro, isFromLoader);
-        Instance.MiaoNetContext.OnPlayerLocationChanged(self, PlayerLocation.FetchFrom(self.Session));
+        // TODO will there be a mod that opens debug map?
+        ILCursor cur = new(il);
+        cur.GotoNext(MoveType.After,
+            ins => ins.MatchLdarg0(),
+            ins => ins.MatchLdfld<Level>(nameof(Level.Session)),
+            ins => ins.MatchLdfld<Session>(nameof(Session.Area)),
+            ins => ins.MatchLdcI4(1),
+            ins => ins.MatchNewobj<Editor.MapEditor>(),
+            ins => ins.MatchCall<Engine>($"set_{nameof(Engine.Scene)}")
+        );
+        cur.EmitLdarg0();
+        cur.EmitDelegate(
+            static (Level level) => PlayerLocationChanged?.Invoke(
+                new PlayerLocation(level.Session.Area.SID, string.Empty)
+            )
+        );
     }
+
+    private void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader)
+        => PlayerLocationChanged?.Invoke(PlayerLocation.FetchFrom(level.Session));
 
     private static void Level_OnExit(Level level, LevelExit exit, LevelExit.Mode mode, Session session, HiresSnow snow)
-    {
-        Instance.MiaoNetContext.OnPlayerLocationChanged(level, PlayerLocation.Empty);
-    }
+        => PlayerLocationChanged?.Invoke(PlayerLocation.Empty);
 
     private static void Level_OnCreatePauseMenuButtons(Level level, TextMenu menu, bool minimal)
     {

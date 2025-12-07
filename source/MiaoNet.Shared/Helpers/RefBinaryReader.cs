@@ -3,6 +3,9 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+#if MIAO_SERVER
+using MiaoNet.Server.Primitives;
+#endif
 
 namespace MiaoNet.Shared;
 
@@ -112,6 +115,9 @@ public static class RefBinaryReaderExtensions
         a = reader.ReadByte();
         return new(r, g, b, a);
     }
+
+    public static Vector2 ReadVector2(this ref RefBinaryReader reader)
+        => new Vector2(reader.ReadSingle(), reader.ReadSingle());
 
     public static T Read<T>(this ref RefBinaryReader reader) where T : IRefBinarySerializable<T>
         => T.Deserialize(ref reader);

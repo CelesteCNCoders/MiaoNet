@@ -51,9 +51,9 @@ public sealed class ClientState
         players.Remove(playerID);
     }
 
-    public PlayerLocation.ChangedResult OnPlayerLocationChanged(PlayerLocation location)
+    public PlayerLocation.ChangeResult OnPlayerLocationChanged(PlayerLocation location)
     {
-        PlayerLocation.ChangedResult result = location.CompareTo(Self.Location);
+        PlayerLocation.ChangeResult result = location.CompareTo(Self.Location);
         Self.Location = location;
         return result;
     }

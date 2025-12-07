@@ -1,6 +1,7 @@
 namespace MiaoNet.Shared;
 
-// TODO level 2 update & graphics?
+// used when room changed
+// NOT used when changing between in debug map and not in debug map
 public sealed class PacketPlayerMapRoomChanged : IPacket<PacketPlayerMapRoomChanged>
 {
     public string MapRoom { get; }

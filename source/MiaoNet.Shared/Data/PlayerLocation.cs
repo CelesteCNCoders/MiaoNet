@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 
 namespace MiaoNet.Shared;
 
@@ -10,16 +10,16 @@ public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatabl
 
     public readonly string MapSet => MapSid == string.Empty ? string.Empty : MapSid[..MapSid.IndexOf('/')];
 
+    /// <summary><see cref="MapSid"/> is Empty and <see cref="MapRoom"/> is Empty</summary>
     public readonly bool IsEmpty => MapSid == string.Empty && MapRoom == string.Empty;
 
-    public readonly bool IsInDebugMap => MapSid != string.Empty && MapRoom != string.Empty;
+    /// <summary><see cref="MapSid"/> is <b>NOT</b> Empty and <see cref="MapRoom"/> is Empty</summary>
+    public readonly bool IsInDebugMap => MapSid != string.Empty && MapRoom == string.Empty;
 
+    /// <summary><see cref="MapSid"/> is <b>NOT</b> Empty and <see cref="MapRoom"/> is <b>NOT</b> Empty</summary>
     public readonly bool IsInMap => MapSid != string.Empty && MapRoom != string.Empty;
 
     public static PlayerLocation Empty => new(string.Empty, string.Empty);
-
-    [Obsolete("Use PlayerLocation.Empty instead.")]
-    public PlayerLocation() { MapSid = MapRoom = string.Empty; }
 
     public PlayerLocation(string mapSid, string mapRoom)
     {
@@ -57,15 +57,26 @@ public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatabl
     public static bool operator !=(PlayerLocation left, PlayerLocation right)
         => !(left == right);
 
-    public enum ChangedResult { None, RoomOnly, All }
+    public enum ChangeResult { None, RoomOnly, FromDebugMap, All }
 
-    public readonly ChangedResult CompareTo(PlayerLocation other)
-        => this == other ? ChangedResult.None :
-           MapSid == other.MapSid && MapRoom != other.MapRoom ?
-           ChangedResult.RoomOnly :
-           ChangedResult.All;
+    public readonly ChangeResult CompareTo(PlayerLocation other)
+    {
+        if (this == other)
+            return ChangeResult.None;
 
-    public readonly bool SameMapWith(PlayerLocation other)
+        if (IsSameMapWith(other) && MapRoom != other.MapRoom)
+        {
+            return MapRoom == string.Empty
+                    ? ChangeResult.FromDebugMap
+                    : ChangeResult.RoomOnly;
+        }
+        else
+        {
+            return ChangeResult.All;
+        }
+    }
+
+    public readonly bool IsSameMapWith(PlayerLocation other)
         => MapSid == other.MapSid;
 
 #if MIAO_CLIENT

@@ -4,7 +4,7 @@ using System.Diagnostics;
 namespace MiaoNet.Shared;
 
 /// <summary>
-/// TODO Remove this design, it's very bad
+/// TODO Need we use this kinda ugly impl?
 /// </summary>
 public sealed class SerializedPacket
 {

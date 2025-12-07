@@ -1,4 +1,4 @@
-﻿#pragma warning disable IDE0060
+#pragma warning disable IDE0060 // unused parameters
 
 using System.Collections.Specialized;
 using System.Net;
@@ -40,6 +40,7 @@ public partial class MiaoHttpService
         context.Response.StatusCode = (int)HttpStatusCode.NoContent;
     }
 
+    // TODO jsonify
     private void Summary(NameValueCollection query, HttpListenerContext context)
     {
         StringBuilder sb = new(128);

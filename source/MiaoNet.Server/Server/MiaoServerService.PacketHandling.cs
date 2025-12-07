@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using MiaoNet.Shared;
+using System.Diagnostics;
 
 namespace MiaoNet.Server;
 
@@ -15,31 +16,41 @@ public sealed partial class MiaoServerService
 
     private async Task HandlePacket(MiaoClientConnection connection, PacketPlayerFrame packet)
     {
-        if (connection.Player.State is null)
+        var player = connection.Player;
+        if (player.State is null)
         {
-            logger.LogError(AppEvents.Game, "Packet frame received but no initial state for {p}.", connection.Player.Info);
+            logger.LogError(AppEvents.Game, "Packet frame received but no initial state for {p}.", player.Info);
             connection.Disconnect(KickedReason.InvalidPacketWithState);
             return;
         }
-        else if (connection.Player.Location.IsEmpty)
+        else if (!player.Location.IsInMap)
         {
-            logger.LogError(AppEvents.Game, "Player {p} is in Empty location but sent PacketPlayerFrame!", connection.Player.Info);
+            logger.LogError(AppEvents.Game, "Player {p} is not in map but sent PacketPlayerFrame!", player.Info);
             connection.Disconnect(KickedReason.InvalidPacketWithState);
             return;
         }
-        else
-        {
-            var state = connection.Player.State;
-            state.X = packet.X;
-            state.Y = packet.Y;
-            if (packet.DashesChange)
-                state.Dashes = packet.Dashes;
-        }
-        await BroadcastToOthersAsync(
+
+        var state = player.State;
+        state.Position = packet.Position;
+        if (packet.DashesChange)
+            state.Dashes = packet.Dashes;
+
+        Task fullTask = BroadcastToOthersAsync(
             new PacketPlayerFrameNotification(connection.ID, packet),
-            con => con.Player.Location.SameMapWith(connection.Player.Location),
-            connection
+            player.Channel,
+            con => con.Player.SyncLevelWith(player) is SyncLevel.L2,
+            connection.ID
         );
+
+        Task liteTask = BroadcastToOthersAsync(
+            new PacketPlayerFrameNotificationLite(connection.ID, packet.Position),
+            player.Channel,
+            con => con.Player.SyncLevelWith(player) is SyncLevel.L1,
+            connection.ID
+        );
+
+        await liteTask;
+        await fullTask;
     }
 
     private async Task HandlePacket(MiaoClientConnection connection, PacketPlayerMapChanged packet)
@@ -55,49 +66,93 @@ public sealed partial class MiaoServerService
         player.Location = packet.Location;
         serverState.StateLock.ExitWriteLock();
 
+        if (packet.Location.IsEmpty)
+        {
+            // player went to menu or other non-Level places
+            // just tell everyone about this thing
+            await BroadcastOthersAsync(new PacketPlayerMapChangedNotification(player.ID, PlayerLocation.Empty), connection.ID);
+            return;
+        }
+        else if (packet.Location.IsInDebugMap)
+        {
+            // player went to the debug map
+            // tell everyone about this thing
+            await BroadcastOthersAsync(new PacketPlayerMapChangedNotification(player.ID, packet.Location), connection.ID);
+            // and seems there're no other things to do...
+            // since if the player went to the debug map
+            // then they must be in the corresponding map previously
+            // that the client has states of them
+            return;
+        }
+
+        // else, the player(A) went into a map
+        // we need:
+        // - tell players that in that map and in the same channel that someone comes
+        // - tell other players that someone changed their location
+        // - send detailed player states to A
+        Debug.Assert(packet.Location.IsInMap);
+        if (packet.InitialState is null)
+        {
+            logger.LogWarning("Player {p} didn't send state when went to {loc}.", player.Info, packet.Location);
+            connection.Disconnect(KickedReason.InvalidPacketWithState);
+            return;
+        }
+
         serverState.StateLock.EnterReadLock();
-        Task normalTask, sameMapTask;
-        ValueTask changerTask;
-        // TODO channels
+        Task generalTask, withLiteStateTask, withStateTask;
+        ValueTask responseTask = default;
 
         try
         {
-            IPacket normal = new PacketPlayerMapChangedNotification(
-                player.Info.ID, packet.Location
+            IPacket generalPacket = new PacketPlayerMapChangedNotification(
+                player.ID, packet.Location
             );
-            IPacket sameMap = new PacketPlayerMapChangedNotification(
-                player.Info.ID, packet.Location,
+            IPacket withLiteStatePacket = new PacketPlayerMapChangedNotificationLite(
+                player.ID, packet.Location,
+                player.State!.Position
+            );
+            IPacket withStatePacket = new PacketPlayerMapChangedNotification(
+                player.ID, packet.Location,
                 null, packet.InitialState
             );
-            IPacket changer = new PacketPlayerMapChangedResponse(
-                serverState.AllPlayers.Where(p => SameMapPredicate(p.Value.Player))
-                    .Where(p => p.Value.Connection != connection)
-                    .Select(p => new PacketPlayerMapChangedResponse.Player(
-                        p.Key,
-                        p.Value.Player.State!, // TODO
-                        p.Value.Player.GraphicsInfo
-                    )
-                ).ToArray()
+            var mapPlayers =
+                from pair in connection.Player.Channel.Players
+                where player.SyncLevelWith(pair.Value.Player) is SyncLevel.L2
+                where pair.Value.Connection != connection
+                select new PacketPlayerMapChangedResponse.Player(
+                    pair.Key,
+                    pair.Value.Player.State!, // TODO check if it's null (then kick them :L)
+                    pair.Value.Player.GraphicsInfo
+                );
+            IPacket responsePacket = new PacketPlayerMapChangedResponse(mapPlayers.ToArray());
+
+            generalTask = BroadcastToOthersAsync(
+                generalPacket,
+                c => c.Player.SyncLevelWith(player) is SyncLevel.L0,
+                player.ID
             );
-
-            normalTask = BroadcastToOthersAsync(normal, c => NormalPredicate(c.Player), player.ID);
-            sameMapTask = BroadcastToOthersAsync(sameMap, c => SameMapPredicate(c.Player), player.ID);
-            changerTask = connection.SendPacketAsync(changer);
-
-            bool NormalPredicate(ServerPlayer other)
-                => other.Location.IsEmpty || !other.Location.SameMapWith(player.Location);
-
-            bool SameMapPredicate(ServerPlayer other)
-                => !NormalPredicate(other);
+            withLiteStateTask = BroadcastToOthersAsync(
+                withLiteStatePacket,
+                c => c.Player.SyncLevelWith(player) is SyncLevel.L1,
+                player.ID
+            );
+            withStateTask = BroadcastToOthersAsync(
+                withStatePacket,
+                c => c.Player.SyncLevelWith(player) is SyncLevel.L2,
+                player.ID
+            );
+            if (responsePacket is not null)
+                responseTask = connection.SendPacketAsync(responsePacket);
         }
         finally
         {
             serverState.StateLock.ExitReadLock();
         }
 
-        await changerTask;
-        await normalTask;
-        await sameMapTask;
+        await generalTask;
+        await withLiteStateTask;
+        await withStateTask;
+        await responseTask;
     }
 
     private async Task HandlePacket(MiaoClientConnection connection, PacketPlayerMapRoomChanged packet)
@@ -112,7 +167,7 @@ public sealed partial class MiaoServerService
         serverState.StateLock.EnterWriteLock();
         player.Location.MapRoom = packet.MapRoom;
         serverState.StateLock.ExitWriteLock();
-        await BroadcastOthersAsync(new PacketPlayerMapRoomChangedNotification(player.ID, packet), connection);
+        await BroadcastOthersAsync(new PacketPlayerMapRoomChangedNotification(player.ID, packet), connection.ID);
     }
 
     private async Task HandlePacket(MiaoClientConnection connection, PacketSendChatMessage packet)

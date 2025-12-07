@@ -1,4 +1,7 @@
 using System.Diagnostics;
+#if MIAO_SERVER
+using MiaoNet.Server.Primitives;
+#endif
 
 namespace MiaoNet.Shared;
 
@@ -18,20 +21,19 @@ public sealed class PacketPlayerMapChanged : IPacket<PacketPlayerMapChanged>
     {
         writer.Write(Location);
 
-        writer.Write(InitialState is not null);
         if (InitialState is not null)
+        {
+            writer.Write(true);
             writer.Write(InitialState);
+        }
+        else
+        {
+            writer.Write(false);
+        }
     }
 
     public static PacketPlayerMapChanged Deserialize(ref RefBinaryReader reader)
-    {
-        var loc = reader.Read<PlayerLocation>();
-        PlayerState? initialStats = null;
-
-        if (reader.ReadBoolean())
-            initialStats = reader.Read<PlayerState>();
-        return new(loc, initialStats);
-    }
+        => new(reader.Read<PlayerLocation>(), reader.ReadBoolean() ? reader.Read<PlayerState>() : null);
 }
 
 public sealed class PacketPlayerMapChangedNotification : PacketPlayerNotification,
@@ -99,58 +101,28 @@ public sealed class PacketPlayerMapChangedNotification : PacketPlayerNotificatio
     }
 }
 
-public sealed class PacketPlayerMapChangedResponse : IPacket<PacketPlayerMapChangedResponse>
+// used to tell players who are in the debug map
+public sealed class PacketPlayerMapChangedNotificationLite :
+    PacketPlayerNotification, IPacket<PacketPlayerMapChangedNotificationLite>
 {
-    public readonly struct Player : IRefBinarySerializable<Player>
+    public PlayerLocation Location { get; }
+
+    public Vector2 Position { get; }
+
+    public PacketPlayerMapChangedNotificationLite(int playerID, PlayerLocation location, Vector2 position)
+        : base(playerID)
     {
-        public int PlayerID { get; }
-
-        public PlayerState State { get; }
-
-        public PlayerGraphicsInfo? GraphicsInfo { get; }
-
-        public Player(int playerID, PlayerState state, PlayerGraphicsInfo? graphicsInfo)
-        {
-            PlayerID = playerID;
-            State = state;
-            GraphicsInfo = graphicsInfo;
-        }
-
-        public void Serialize(ref RefBinaryWriter writer)
-        {
-            writer.Write(PlayerID);
-            writer.Write(State);
-            if (GraphicsInfo is not null)
-            {
-                writer.Write(true);
-                writer.Write(GraphicsInfo);
-            }
-            else
-            {
-                writer.Write(false);
-            }
-        }
-
-        public static Player Deserialize(ref RefBinaryReader reader)
-            => new(
-                reader.ReadInt32(),
-                reader.Read<PlayerState>(),
-                reader.ReadBoolean() ? reader.Read<PlayerGraphicsInfo>() : null
-            );
+        Location = location;
+        Position = position;
     }
 
-    public Player[] PlayersInMap { get; }
-
-    public PacketPlayerMapChangedResponse(Player[] playersInMap)
+    public override void Serialize(ref RefBinaryWriter writer)
     {
-        PlayersInMap = playersInMap;
+        base.Serialize(ref writer);
+        writer.Write(Location);
+        writer.Write(Position);
     }
 
-    public void Serialize(ref RefBinaryWriter writer)
-    {
-        writer.Write(PlayersInMap);
-    }
-
-    public static PacketPlayerMapChangedResponse Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadArray<Player>());
+    public static PacketPlayerMapChangedNotificationLite Deserialize(ref RefBinaryReader reader)
+        => new(reader.ReadInt32(), reader.Read<PlayerLocation>(), reader.ReadVector2());
 }

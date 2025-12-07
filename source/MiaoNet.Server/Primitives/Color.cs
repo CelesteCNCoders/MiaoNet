@@ -1,6 +1,4 @@
-#if MIAO_SERVER
-
-namespace MiaoNet.Shared;
+namespace MiaoNet.Server.Primitives;
 
 public struct Color
 {
@@ -54,5 +52,3 @@ public struct Color
         A = (byte)Math.Clamp(alpha, 0, 255);
     }
 }
-
-#endif

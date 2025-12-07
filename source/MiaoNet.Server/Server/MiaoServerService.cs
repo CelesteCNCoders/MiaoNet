@@ -102,14 +102,19 @@ public sealed partial class MiaoServerService : BackgroundService
 
             PlayerInfo clientPlayerInfo = connection.Player.Info;
             List<ChannelStateInfo> channels = serverState.AllChannels.Select(c => c.Value.StateInfo).ToList();
-            // TODO send state only when necessary
             var playerInfos =
                 from pair in serverState.AllPlayers
                 let p = pair.Value.Player
-                select new PacketPlayerJoined(p.GetChannelPlayerLocationInfo(), null, p.State);
+                select new PacketPlayerJoined(
+                    p.GetChannelPlayerLocationInfo(), 
+                    null,
+                    player.SyncLevelWith(p) is SyncLevel.L2
+                        ? p.State
+                        : null
+                );
 
             PacketClientInitial packetClientInitial = new PacketClientInitial(clientPlayerInfo, channels, playerInfos.ToList());
-            await connection.SendPacketAsync(new SerializedPacket(ArrayPool<byte>.Shared, packetClientInitial, 1));
+            await connection.SendPacketAsync(packetClientInitial);
 
             serverState.AddPlayer(player, connection);
 
@@ -121,7 +126,7 @@ public sealed partial class MiaoServerService : BackgroundService
                     null,
                     thisPlayer.State
                 ),
-                connection
+                connection.ID
             );
             await connection.HandleClientConnectAsync();
 
@@ -188,10 +193,6 @@ public sealed partial class MiaoServerService : BackgroundService
         => BroadcastToAsync(packet, _ => true);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Task BroadcastOthersAsync(IPacket packet, MiaoClientConnection self)
-        => BroadcastToAsync(packet, c => c != self);
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Task BroadcastOthersAsync(IPacket packet, int selfID)
         => BroadcastToAsync(packet, c => c.ID != selfID);
 
@@ -205,18 +206,15 @@ public sealed partial class MiaoServerService : BackgroundService
 
     /// <inheritdoc cref="BroadcastToAsync(IPacket, IEnumerable{MiaoClientConnection}, Predicate{MiaoClientConnection}, int)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Task BroadcastToOthersAsync(IPacket packet, Predicate<MiaoClientConnection> predicate, MiaoClientConnection self)
-    {
-        var players = serverState.AllPlayers;
-        return BroadcastToAsync(packet, players.Select(p => p.Value.Connection), c => c != self && predicate(c), players.Count);
-    }
-
-    /// <inheritdoc cref="BroadcastToAsync(IPacket, IEnumerable{MiaoClientConnection}, Predicate{MiaoClientConnection}, int)"/>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Task BroadcastToOthersAsync(IPacket packet, Predicate<MiaoClientConnection> predicate, int selfID)
     {
         var players = serverState.AllPlayers;
-        return BroadcastToAsync(packet, players.Select(p => p.Value.Connection), c => c.ID != selfID && predicate(c), players.Count);
+        return BroadcastToAsync(
+            packet, 
+            players.Select(p => p.Value.Connection), 
+            c => c.ID != selfID && predicate(c), 
+            players.Count
+        );
     }
 
     /// <inheritdoc cref="BroadcastToAsync(IPacket, IEnumerable{MiaoClientConnection}, Predicate{MiaoClientConnection}, int)"/>
@@ -227,6 +225,21 @@ public sealed partial class MiaoServerService : BackgroundService
 
         var players = channel.Players;
         return BroadcastToAsync(packet, players.Select(p => p.Value.Connection), predicate, players.Count);
+    }
+
+    /// <inheritdoc cref="BroadcastToAsync(IPacket, IEnumerable{MiaoClientConnection}, Predicate{MiaoClientConnection}, int)"/>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Task BroadcastToOthersAsync(
+        IPacket packet, 
+        ServerChannel channel,
+        Predicate<MiaoClientConnection> predicate, 
+        int selfID
+    )
+    {
+        Debug.Assert(serverState.AllChannels.ContainsValue(channel));
+
+        var players = channel.Players;
+        return BroadcastToAsync(packet, players.Select(p => p.Value.Connection), c => c.ID != selfID && predicate(c), players.Count);
     }
 
     /// <summary>
@@ -242,6 +255,7 @@ public sealed partial class MiaoServerService : BackgroundService
     {
         SerializedPacket serializedPacket = new(ArrayPool<byte>.Shared, packet, connectionsCount);
         List<Task>? bounded = null;
+        int notMeetCount = 0;
         foreach (var connection in connections)
         {
             if (predicate(connection))
@@ -251,9 +265,10 @@ public sealed partial class MiaoServerService : BackgroundService
             }
             else
             {
-                serializedPacket.OnConsumed();
+                notMeetCount++;
             }
         }
+        serializedPacket.OnConsumed(notMeetCount);
         if (bounded is not null)
             return Task.WhenAll(bounded);
         return Task.CompletedTask;

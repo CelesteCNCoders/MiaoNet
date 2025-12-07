@@ -1,6 +1,4 @@
-#if MIAO_SERVER
-
-namespace MiaoNet.Shared;
+namespace MiaoNet.Server.Primitives;
 
 public enum PlayerSpriteMode
 {
@@ -10,5 +8,3 @@ public enum PlayerSpriteMode
     MadelineAsBadeline,
     Playback
 }
-
-#endif

@@ -58,7 +58,7 @@ public sealed class MiaoNetGhost : Entity
 
     public MiaoNetGhost(int id, string name, [AllowNull] PlayerGraphicsInfo playerGraphicsInfo, PlayerState initialState)
     {
-        Tag = Tags.Persistent | Tags.TransitionUpdate | Tags.FrozenUpdate | Tags.PauseUpdate;
+        Tag = Tags.Persistent | Tags.TransitionUpdate | Tags.FrozenUpdate | Tags.PauseUpdate | Tags.Global;
         PlayerID = id;
         Name = name;
         GraphicsInfo = playerGraphicsInfo;
@@ -70,8 +70,7 @@ public sealed class MiaoNetGhost : Entity
         nameTag = new(this);
         playerHair.Start();
 
-        X = initialState.X;
-        Y = initialState.Y;
+        Position = initialState.Position;
         dashes = initialState.Dashes;
         UpdateHair();
     }
@@ -113,7 +112,7 @@ public sealed class MiaoNetGhost : Entity
         UpdateHair();
     }
 
-    public void UpdateSprite(ushort animationFrame, string? animationID, bool faceLeft, float scaleX, float scaleY)
+    public void UpdateSprite(ushort animationFrame, string? animationID, bool faceLeft, Vector2 scale)
     {
         if (animationID is not null)
         {
@@ -122,7 +121,7 @@ public sealed class MiaoNetGhost : Entity
             playerSprite.SetAnimationFrame(animationFrame);
         }
         playerHair.Facing = facing = faceLeft ? Facings.Left : Facings.Right;
-        playerSprite.Scale = new((float)scaleX, (float)scaleY);
+        playerSprite.Scale = scale;
     }
 
     private void UpdateHair()

@@ -40,14 +40,8 @@ public static class PacketRegistry
 
     public static void WritePacket(IPacket packet, ref RefBinaryWriter writer)
     {
-        var id = typeToId[packet.GetType()];
-        writer.Write(id);
-        packet.Serialize(ref writer);
-    }
-
-    public static void WritePacket<T>(T packet, ref RefBinaryWriter writer) where T : IPacket<T>
-    {
-        var id = typeToId[packet.GetType()];
+        if (!typeToId.TryGetValue(packet.GetType(), out ushort id))
+            throw new KeyNotFoundException(packet.GetType().ToString());
         writer.Write(id);
         packet.Serialize(ref writer);
     }

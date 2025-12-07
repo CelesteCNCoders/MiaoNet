@@ -11,9 +11,10 @@ public partial class MiaoNetContext
     public event Action<OnlinePlayer>? PlayerJoined;
     public event Action<OnlinePlayer>? PlayerLeft;
     public event PacketPlayerNotificationHandler<PacketPlayerFrame>? PlayerFrameNotification;
+    public event Action<OnlinePlayer, PacketPlayerFrameNotificationLite>? PlayerFrameNotificationLite;
     public event PacketPlayerNotificationHandler<PacketPlayerMapChangedNotification>? PlayerMapChanged;
     public event Action<OnlinePlayer, string>? PlayerMapRoomChanged;
-    public event Action<PacketPlayerMapChangedResponse>? PlayerMapChangeResponse;
+    public event Action<PacketPlayerMapChangedResponse>? PlayerMapChangeResponded;
     public event Action<OnlinePlayer?, PacketChatMessage>? ChatMessageReceived;
 
     private void RegisterPacketHandlers(PacketHandlerRegister r)
@@ -22,6 +23,7 @@ public partial class MiaoNetContext
         r.Register<PacketPlayerJoined>(HandlePacket);
         r.Register<PacketPlayerLeft>(HandlePacket);
         r.Register<PacketPlayerFrameNotification>(HandlePacket);
+        r.Register<PacketPlayerFrameNotificationLite>(HandlePacket);
         r.Register<PacketPlayerMapChangedNotification>(HandlePacket);
         r.Register<PacketPlayerMapRoomChangedNotification>(HandlePacket);
         r.Register<PacketPlayerMapChangedResponse>(HandlePacket);
@@ -57,8 +59,7 @@ public partial class MiaoNetContext
         if (state is not null)
         {
             var p = packet.Packet;
-            state.X = p.X;
-            state.Y = p.Y;
+            state.Position = p.Position;
             if (p.DashesChange)
                 state.Dashes = p.Dashes;
             if (p.Flags.HasFlag(PacketPlayerFrame.FrameFlags.StartDash))
@@ -73,6 +74,12 @@ public partial class MiaoNetContext
             return;
         }
         PlayerFrameNotification?.Invoke(player, packet.Packet);
+    }
+
+    private void HandlePacket(PacketPlayerFrameNotificationLite packet)
+    {
+        EnsureState();
+
     }
 
     private void HandlePacket(PacketPlayerMapChangedNotification packet)
@@ -96,7 +103,7 @@ public partial class MiaoNetContext
     private void HandlePacket(PacketPlayerMapChangedResponse packet)
     {
         EnsureState();
-        PlayerMapChangeResponse?.Invoke(packet);
+        PlayerMapChangeResponded?.Invoke(packet);
     }
 
     private void HandlePacket(PacketChatMessage packet)

@@ -6,9 +6,11 @@ using MiaoNet.Shared;
 
 [assembly: PacketRegistry(typeof(PacketPlayerFrame))]
 [assembly: PacketRegistry(typeof(PacketPlayerFrameNotification))]
+[assembly: PacketRegistry(typeof(PacketPlayerFrameNotificationLite))]
 
 [assembly: PacketRegistry(typeof(PacketPlayerMapChanged))]
 [assembly: PacketRegistry(typeof(PacketPlayerMapChangedNotification))]
+[assembly: PacketRegistry(typeof(PacketPlayerMapChangedNotificationLite))]
 [assembly: PacketRegistry(typeof(PacketPlayerMapChangedResponse))]
 
 [assembly: PacketRegistry(typeof(PacketPlayerMapRoomChanged))]

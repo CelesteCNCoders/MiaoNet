@@ -50,7 +50,8 @@ public sealed partial class MiaoNetContext
         components = [
             MainComponent = new MainComponent(this),
             new PlayerListComponent(this),
-            new ChatComponent(this)
+            new ChatComponent(this),
+            new DebugMapComponent(this)
         ];
         ConnectionStatus = MiaoNetConnectionStatus.Disconnected;
         PacketHandlerRegister r = new();
@@ -62,44 +63,6 @@ public sealed partial class MiaoNetContext
         if (GFX.Loaded)
             Task.Delay(500).ContinueWith(_ => Connect());
 #endif
-    }
-
-    public void OnPlayerLocationChanged(Level level, PlayerLocation location)
-    {
-        if (!HasState)
-            return;
-        switch (ClientState.OnPlayerLocationChanged(location))
-        {
-        case PlayerLocation.ChangedResult.RoomOnly:
-        {
-            PacketPlayerMapRoomChanged p = new(location.MapRoom);
-            QueuePacket(p);
-            break;
-        }
-        case PlayerLocation.ChangedResult.All:
-        {
-            if (!TryGetAndSendSync(level, location))
-                level.OnEndOfFrame += () =>
-                {
-                    bool result = TryGetAndSendSync(level, location);
-                    SafeGuard.Assert(result);
-                };
-
-            bool TryGetAndSendSync(Level level, PlayerLocation location)
-            {
-                Player player = level.Tracker.GetEntity<Player>();
-                if (player is null)
-                    return false;
-                // TODO move to main component
-                PlayerState initialState = new PlayerState(player.X, player.Y, (byte)player.Dashes, Engine.DeltaTime);
-                ClientState.Self.State = initialState;
-                PacketPlayerMapChanged p = new(location, initialState);
-                QueuePacket(p);
-                return true;
-            }
-            break;
-        }
-        }
     }
 
     public void Connect()
@@ -259,6 +222,16 @@ public sealed partial class MiaoNetContext
             while (!token.IsCancellationRequested)
             {
                 IPacket packet = await connection.ReceivePacketAsync();
+#if true
+                if (!packet.GetType().Name.Contains("Frame"))
+                {
+                    var pColor = Console.ForegroundColor;
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"Type: {packet.GetType()}");
+                    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize((object)packet));
+                    Console.ForegroundColor = pColor;
+                }
+#endif
                 receiveQueue.Enqueue(packet);
             }
         }

@@ -1,37 +1,31 @@
 # Connection
 
-> AI 整理的, 将就看看吧), 原文就写的挺乱的
+## Protocol
 
-## 🧩 协议整理
+1. Handshake & Initialization
 
-1. 连接与初始化阶段（Handshake & Initialization）
-
-- Client 连接后发送 `握手数据（HandshakeData）`，包含登录信息。 
-- Server 根据握手信息将玩家分配到对应频道。 
-- Server 随后发送 `PacketClientInitial` 
-	- 玩家自身信息：`玩家信息（PlayerInfo）`
-	- 频道列表：`频道列表（ChannelSummaryList）`，包含频道 ID 和名称。 
-	- 玩家列表：`玩家列表（OnlinePlayerList）`，包含： 
-		- `玩家信息（PlayerInfo）`：如昵称、头衔、颜色等元信息。 
-		- `状态信息（LocationInfo）`：如所在地图、房间名（mapName, roomName）。 
+- Client 连接后发送 `HandshakeData`, 包含登录信息
+- Server 根据握手信息将玩家分配到对应频道(待完成)
+- Server 随后发送 `PacketClientInitial`, 用来同意客户端的连接, 包含:
+	- 玩家自身信息：self `PlayerInfo`
+	- 频道列表: `ChannelStateInfo` (重命名为 ChannelInfo?), 包含频道 ID 和名称。 
+	- 玩家列表: 包含
+		- `PlayerInfo`: 昵称、头衔、颜色等元信息。 
+		- `LocationInfo`: 所在地图、房间名 (MapSid, MapRoom) 
 - Server 广播新玩家登录信息给其他 Client。
 
-2. 状态同步阶段（State Management）
+2. 地图变更导致的同步
 
-- Client 发送自身的 `状态信息（LocationInfo）`。 
-- Server 根据 `mapName` 和 `roomName` 判断玩家位置变更： 
-	- 若 `mapName` 为空且 `roomName` 为空 → 玩家未进入任何地图。 
-	- 若 `mapName` 不变但 `roomName` 变更 → 玩家在当前地图内移动。 
-	- 若 `mapName` 变更 → 玩家进入新地图。 
+- Client 在地图变更时发送位置更新包, 可能的位置有:
+	- InMap (`MapSid` != `string.Empty`, `MapRoom` != `string.Empty`)
+	- InDebugMap (`MapSid` != `string.Empty`, `MapRoom` == `string.Empty`)
+	- None (`MapSid` == `MapRoom` == `string.Empty`)
+	- > 可能有 mod 会暂时离开 `Level` 但仍然算作在这个图里?
 - Server 在地图变更时，向同频道同地图的其他玩家广播该玩家的： 
-	- `图形信息（GraphicsInfo）`：如皮肤、外观等。 
-	- `初始状态信息（PlayerInitialStats）`：如冲刺次数（dashes）。 
+	- `GraphicsInfo` (如果有的话): 图形同步信息(一些数据本地模拟, cnet 类似的逐帧同步等)
+	- `PlayerInitialState`: 位置信息, 冲刺状态等.
 
-3. 实体创建与更新（Entity Creation & Updates）
-
-- Client 接收其他玩家的图形信息后，创建对应的“远程玩家实体（RemotePlayerEntity）”。 
-- Client 保存 `GraphicsInfo`，Server 不再重复发送，除非 Client 主动发起更新请求。
-
-4. 帧同步阶段（Frame Synchronization）
+- Client 接收其他玩家的进入所在图的信息后, 创建对应的 `MiaoNetGhost` 用来显示其他玩家.
+- Client 一旦接收过相应玩家的 `GraphicsInfo`, Server 将不在下次有需要时继续发送, 除非对方发起了更新 `GraphicsInfo` 的请求.
 
 - Client 与 Server 开始互相发送帧同步包，进行实时交互。

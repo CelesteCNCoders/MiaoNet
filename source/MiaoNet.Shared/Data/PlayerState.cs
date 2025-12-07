@@ -1,5 +1,7 @@
 using System.Diagnostics;
-
+#if MIAO_SERVER
+using MiaoNet.Server.Primitives;
+#endif
 namespace MiaoNet.Shared;
 
 /// <summary>
@@ -8,36 +10,41 @@ namespace MiaoNet.Shared;
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public sealed class PlayerState : IRefBinarySerializable<PlayerState>
 {
-    public float X;
-
-    public float Y;
+    public Vector2 Position;
 
     public byte Dashes;
 
-    public bool Dashing;
+    public bool Dashing; // not serialized
 
     public float TimeRate = 1.0f;
 
-    public PlayerState(float x, float y, byte dashes, float timeRate)
+#if MIAO_CLIENT
+    // only used to initialize players who are suddenly in debug map
+    public PlayerState(Vector2 position)
     {
-        (X, Y) = (x, y);
+        Position = position;
+    }
+#endif
+
+    public PlayerState(Vector2 position, byte dashes, float timeRate)
+    {
+        Position = position;
         Dashes = dashes;
         TimeRate = timeRate;
     }
 
     public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(X);
-        writer.Write(Y);
+        writer.Write(Position);
         writer.Write(Dashes);
         writer.Write(TimeRate);
     }
 
     public static PlayerState Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadSingle(), reader.ReadSingle(), reader.ReadByte(), reader.ReadSingle());
+        => new(reader.ReadVector2(), reader.ReadByte(), reader.ReadSingle());
 
     public override string ToString()
-        => $"({X}, {Y}), Dashes = {Dashes}, TimeRate = {TimeRate:F2}";
+        => $"({Position.X}, {Position.Y}), Dashes = {Dashes}, TimeRate = {TimeRate:F2}";
 
     [DebuggerHidden]
     private string DebuggerDisplay => ToString();

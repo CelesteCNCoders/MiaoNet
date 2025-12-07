@@ -57,13 +57,13 @@ public sealed class MiaoClientConnection
     public async Task HandleClientConnectAsync()
     {
         var token = cts.Token;
-        Task receiveTask = HandleClientReceiveAsync(token);
+        Task receivingTask = HandleClientReceivingAsync(token);
         Task sendingTask = HandleClientSendingAsync(token);
-        Task processTask = HandleClientProcessAsync(token);
+        Task processingTask = HandleClientProcessingAsync(token);
 
         try
         {
-            await Task.WhenAll(receiveTask, processTask, sendingTask);
+            await Task.WhenAll(receivingTask, processingTask, sendingTask);
         }
         finally
         {
@@ -89,7 +89,7 @@ public sealed class MiaoClientConnection
     public bool TrySendPacket(SerializedPacket packet)
         => sendChannel.Writer.TryWrite(packet);
 
-    private async Task HandleClientReceiveAsync(CancellationToken token)
+    private async Task HandleClientReceivingAsync(CancellationToken token)
     {
         var pipeWriter = pipe.Writer;
         try
@@ -130,7 +130,7 @@ public sealed class MiaoClientConnection
         }
     }
 
-    private async Task HandleClientProcessAsync(CancellationToken token)
+    private async Task HandleClientProcessingAsync(CancellationToken token)
     {
         var pipeReader = pipe.Reader;
         try

@@ -1,10 +1,11 @@
-using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
+using Microsoft.Xna.Framework.Input;
 
 namespace Celeste.Mod.MiaoNet;
 
 public sealed class PlayerListComponent : MiaoNetComponent
 {
+    public bool Active { get; set; }
     private readonly PlayerListEntryComparer pComparer;
     private readonly List<(OnlineChannel, List<OnlinePlayer>)> channelPlayerList;
 
@@ -67,14 +68,12 @@ public sealed class PlayerListComponent : MiaoNetComponent
         #endregion
 
         channelPlayerList.Clear();
-        var state = context.ClientState;
-        if (state is null)
-            return;
+        var state = ClientState;
 
         foreach (var (_, channel) in state.Channels)
         {
             var playerList = new List<OnlinePlayer>();
-            if (channel.ID == state.SelfChannel.ID)
+            if (channel == state.SelfChannel)
                 playerList.Add(state.Self);
             foreach (var (_, player) in channel.Players)
                 playerList.Add(player);
@@ -88,8 +87,16 @@ public sealed class PlayerListComponent : MiaoNetComponent
             list.Sort(pComparer);
     }
 
+    public override void Update()
+    {
+        if (MInput.Keyboard.Pressed(Keys.Tab))
+            Active = !Active;
+    }
+
     public override void Render()
     {
+        if (!Active)
+            return;
         /*
          * 
          * #<ChannelName> <PlayerCount>/<Max?> Players                                         

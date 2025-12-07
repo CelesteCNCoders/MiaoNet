@@ -3,6 +3,9 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using BP = System.Buffers.Binary.BinaryPrimitives;
+#if MIAO_SERVER
+using MiaoNet.Server.Primitives;
+#endif
 
 namespace MiaoNet.Shared;
 
@@ -154,6 +157,12 @@ public static class RefBinaryWriterExtensions
         writer.Write(value.G);
         writer.Write(value.B);
         writer.Write(value.A);
+    }
+
+    public static void Write(this ref RefBinaryWriter writer, Vector2 value)
+    {
+        writer.Write(value.X);
+        writer.Write(value.Y);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
