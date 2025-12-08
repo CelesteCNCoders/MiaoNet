@@ -1,4 +1,5 @@
 using System.Collections;
+using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -8,14 +9,27 @@ public sealed class MiaoNetGhostEmote : Entity
     private float alpha = 1f;
     private float scale = 1f;
     private readonly Entity target;
-    private readonly BakedEmoteData emote;
 
-    public MiaoNetGhostEmote(Entity target, BakedEmoteData emote)
+    private readonly BakedEmoteData? emote;
+    private readonly string? text;
+
+    private MiaoNetGhostEmote(Entity target)
     {
         Tag |= Tags.FrozenUpdate | Tags.HUD | Tags.PauseUpdate | Tags.Persistent | Tags.TransitionUpdate;
         this.target = target;
-        this.emote = emote;
         Add(new Coroutine(Routine()));
+    }
+
+    public MiaoNetGhostEmote(Entity target, BakedEmoteData emote)
+        : this(target)
+    {
+        this.emote = emote;
+    }
+
+    public MiaoNetGhostEmote(Entity target, string text)
+        : this(target)
+    {
+        this.text = text;
     }
 
     public override void Update()
@@ -64,7 +78,15 @@ public sealed class MiaoNetGhostEmote : Entity
         // - name offset - popup offset
         position.Y -= 16f + 6f;
         position = SceneAs<Level>().WorldToScreen(position);
-        var texture = emote.Sample(timer);
-        texture.DrawJustified(position, new Vector2(0.5f, 1f), Color.White * alpha, scale);
+        if (emote is not null)
+        {
+            var texture = emote.Sample(timer);
+            texture.DrawJustified(position, new Vector2(0.5f, 1f), Color.White * alpha, scale);
+        }
+        else
+        {
+            SafeGuard.Assert(text is not null);
+            MiaoNetFont.DrawGhostEmoteText(text, position, Color.White * alpha, scale);
+        }
     }
 }

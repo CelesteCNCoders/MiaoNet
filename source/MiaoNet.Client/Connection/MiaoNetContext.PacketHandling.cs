@@ -16,6 +16,7 @@ public partial class MiaoNetContext
     public event Action<PacketPlayerMapChangedResponse>? PlayerMapChangeResponded;
     public event Action<OnlinePlayer?, PacketChatMessage>? ChatMessageReceived;
     public event Action<OnlinePlayer, EmoteData>? EmoteReceived;
+    public event Action<OnlinePlayer, string>? EmoteTextReceived;
 
     private void RegisterPacketHandlers(PacketHandlerRegister r)
     {
@@ -28,6 +29,7 @@ public partial class MiaoNetContext
         r.Register<PacketPlayerMapChangedResponse>(HandlePacket);
         r.Register<PacketChatMessage>(HandlePacket);
         r.Register<PacketEmote>(HandlePacket);
+        r.Register<PacketEmoteText>(HandlePacket);
     }
 
     private void HandlePacket(PacketClientInitial packet)
@@ -123,5 +125,12 @@ public partial class MiaoNetContext
         EnsureState();
         var player = ClientState.Players[packet.PlayerID];
         EmoteReceived?.Invoke(player, packet.Emote);
+    }
+
+    private void HandlePacket(PacketEmoteText packet)
+    {
+        EnsureState();
+        var player = ClientState.Players[packet.PlayerID];
+        EmoteTextReceived?.Invoke(player, packet.Text);
     }
 }

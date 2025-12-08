@@ -30,9 +30,9 @@ public sealed class MiaoNetGhost : Entity
             Vector2 worldPos = entity.Position;
             worldPos.Y -= 16f;
             MiaoNetFont.DrawGhostName(
-                text, 
+                text,
                 SceneAs<Level>().WorldToScreen(worldPos),
-                Color.White with { A = (byte)(255f * (MiaoNetModule.Settings.NameOpacity / 10.0f)) }
+                Color.White * (MiaoNetModule.Settings.NameOpacity / 10.0f)
             );
         }
     }
