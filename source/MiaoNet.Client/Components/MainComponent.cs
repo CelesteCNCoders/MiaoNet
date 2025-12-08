@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
 using FFlags = MiaoNet.Shared.PacketPlayerFrame.FrameFlags;
 
@@ -23,7 +24,7 @@ public sealed class MainComponent : MiaoNetComponent
         context.PlayerMapRoomChanged += Context_PlayerMapRoomChanged;
         context.PlayerMapChangeResponded += Context_PlayerMapChangeResponded;
 
-        MiaoNetModule.PlayerLocationChanged += OnPlayerLocationChanged;
+        MiaoNetModule.PlayerLocationChanged += MiaoNetModule_OnPlayerLocationChanged;
     }
 
     public override void OnConnected()
@@ -37,7 +38,75 @@ public sealed class MainComponent : MiaoNetComponent
         ghosts.Clear();
     }
 
-    private void OnPlayerLocationChanged(PlayerLocation location)
+    public override void Update()
+    {
+        base.Update();
+
+        if (Engine.Scene is not Level level)
+            return;
+
+        if (pendingMapChanged.HasValue)
+        {
+            SafeGuard.Assert(PlayerLocation.FetchFrom(level.Session) == pendingMapChanged.Value);
+            SafeGuard.Assert(TryGetAndSendState(level, pendingMapChanged.Value));
+            pendingMapChanged = null;
+        }
+
+        //if (level.OnRawInterval(1f))
+        //    errCount = Math.Max(0, errCount - 1);
+
+        Player player = level.Tracker.GetEntity<Player>();
+        if (player is null)
+            return;
+        if (!KnownPlayerAnimations.StringToID.TryGetValue(player.Sprite.CurrentAnimationID, out var animID))
+        {
+            // TODO extendable
+            animID = ushort.MaxValue;
+        }
+
+        bool currentDashing = player.StateMachine.State is Player.StDash;
+        int currentDashes = player.Dashes;
+
+        PlayerState selfState = ClientState.Self.State!;
+        FFlags flags = 0;
+        if (player.Facing is Facings.Left)
+            flags |= FFlags.FacingLeft;
+        if (currentDashing && !selfState.Dashing)
+            flags |= FFlags.StartDash;
+        if (!currentDashing && selfState.Dashing)
+            flags |= FFlags.EndDash;
+        if (currentDashes != selfState.Dashes)
+            flags |= FFlags.DashesChange;
+
+        selfState.Dashing = currentDashing;
+        selfState.Dashes = (byte)currentDashes;
+
+        var packetFrame = new PacketPlayerFrame(
+            player.Position,
+            (ushort)player.Sprite.CurrentAnimationFrame,
+            (ushort)animID,
+            player.Sprite.Scale,
+            flags
+        );
+        if (packetFrame.DashesChange)
+            packetFrame.Dashes = (byte)currentDashes;
+        context.QueuePacket(packetFrame);
+    }
+
+    private bool TryGetAndSendState(Level level, PlayerLocation location)
+    {
+        Player player = level.Tracker.GetEntity<Player>();
+        if (player is null)
+            return false;
+        PlayerState initialState = new PlayerState(player.Position, (byte)player.Dashes, Engine.DeltaTime);
+        ClientState.Self.State = initialState;
+        PacketPlayerMapChanged p = new(location, initialState);
+        context.QueuePacket(p);
+        return true;
+    }
+
+    #region event handlers
+    private void MiaoNetModule_OnPlayerLocationChanged(PlayerLocation location)
     {
         if (!HasState)
             return;
@@ -81,24 +150,12 @@ public sealed class MainComponent : MiaoNetComponent
         }
     }
 
-    private bool TryGetAndSendState(Level level, PlayerLocation location)
-    {
-        Player player = level.Tracker.GetEntity<Player>();
-        if (player is null)
-            return false;
-        PlayerState initialState = new PlayerState(player.Position, (byte)player.Dashes, Engine.DeltaTime);
-        ClientState.Self.State = initialState;
-        PacketPlayerMapChanged p = new(location, initialState);
-        context.QueuePacket(p);
-        return true;
-    }
-
     private void Context_ClientInitialized(ClientState clientState)
     {
         foreach ((_, var player) in clientState.Players.Where(p => p.Key != clientState.Self.ID))
             HandleNewPlayer(player);
         if (Engine.Scene is Level level)
-            OnPlayerLocationChanged(PlayerLocation.FetchFrom(level.Session));
+            MiaoNetModule_OnPlayerLocationChanged(PlayerLocation.FetchFrom(level.Session));
     }
 
     private void Context_PlayerJoined(OnlinePlayer player)
@@ -120,7 +177,7 @@ public sealed class MainComponent : MiaoNetComponent
     {
         if (Engine.Scene is Editor.MapEditor)
             return;
-        
+
         if (ghosts.TryGetValue(player.Info.ID, out var ghost))
         {
             ghost.Position = packet.Position;
@@ -216,59 +273,9 @@ public sealed class MainComponent : MiaoNetComponent
             }
         }
     }
+    #endregion
 
-    public override void Update()
-    {
-        base.Update();
-
-        if (Engine.Scene is not Level level)
-            return;
-
-        if (pendingMapChanged.HasValue)
-        {
-            SafeGuard.Assert(PlayerLocation.FetchFrom(level.Session) == pendingMapChanged.Value);
-            SafeGuard.Assert(TryGetAndSendState(level, pendingMapChanged.Value));
-            pendingMapChanged = null;
-        }
-
-        //if (level.OnRawInterval(1f))
-        //    errCount = Math.Max(0, errCount - 1);
-
-        Player player = level.Tracker.GetEntity<Player>();
-        if (player is null)
-            return;
-        if (!KnownPlayerAnimations.StringToID.TryGetValue(player.Sprite.CurrentAnimationID, out var animID))
-        {
-            // TODO extendable
-            animID = ushort.MaxValue;
-        }
-
-        bool currentDashing = player.StateMachine.State is Player.StDash;
-        int currentDashes = player.Dashes;
-
-        PlayerState selfState = ClientState.Self.State!;
-        FFlags flags = 0;
-        if (player.Facing is Facings.Left)
-            flags |= FFlags.FacingLeft;
-        if (currentDashing && !selfState.Dashing)
-            flags |= FFlags.StartDash;
-        if (!currentDashing && selfState.Dashing)
-            flags |= FFlags.EndDash;
-        if (currentDashes != selfState.Dashes)
-            flags |= FFlags.DashesChange;
-
-        selfState.Dashing = currentDashing;
-        selfState.Dashes = (byte)currentDashes;
-
-        var packetFrame = new PacketPlayerFrame(
-            player.Position,
-            (ushort)player.Sprite.CurrentAnimationFrame,
-            (ushort)animID,
-            player.Sprite.Scale,
-            flags
-        );
-        if (packetFrame.DashesChange)
-            packetFrame.Dashes = (byte)currentDashes;
-        context.QueuePacket(packetFrame);
-    }
+    // should we expose the ghost entity...?
+    public bool TryGetGhost(int playerID, [NotNullWhen(true)] out MiaoNetGhost? ghost)
+        => ghosts.TryGetValue(playerID, out ghost);
 }

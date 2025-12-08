@@ -61,66 +61,66 @@ public readonly ref struct RefBinaryWriter
         => stream.WriteByte(value ? (byte)1 : (byte)0);
 
     public void Write(Int16 value)
-    { 
-        Span<byte> span = stackalloc byte[sizeof(Int16)]; 
-        BP.WriteInt16LittleEndian(span, value); 
-        WriteSpanInlined(span); 
+    {
+        Span<byte> span = stackalloc byte[sizeof(Int16)];
+        BP.WriteInt16LittleEndian(span, value);
+        WriteSpanInlined(span);
     }
 
     public void Write(Int32 value)
-    { 
-        Span<byte> span = stackalloc byte[sizeof(Int32)]; 
-        BP.WriteInt32LittleEndian(span, value); 
-        WriteSpanInlined(span); 
+    {
+        Span<byte> span = stackalloc byte[sizeof(Int32)];
+        BP.WriteInt32LittleEndian(span, value);
+        WriteSpanInlined(span);
     }
 
     public void Write(Int64 value)
-    { 
-        Span<byte> span = stackalloc byte[sizeof(Int64)]; 
-        BP.WriteInt64LittleEndian(span, value); 
-        WriteSpanInlined(span); 
+    {
+        Span<byte> span = stackalloc byte[sizeof(Int64)];
+        BP.WriteInt64LittleEndian(span, value);
+        WriteSpanInlined(span);
     }
 
     public void Write(Single value)
-    { 
-        Span<byte> span = stackalloc byte[sizeof(Single)]; 
-        BP.WriteSingleLittleEndian(span, value); 
-        WriteSpanInlined(span); 
+    {
+        Span<byte> span = stackalloc byte[sizeof(Single)];
+        BP.WriteSingleLittleEndian(span, value);
+        WriteSpanInlined(span);
     }
 
     public void Write(Double value)
     {
         Span<byte> span = stackalloc byte[sizeof(Double)];
-        BP.WriteDoubleLittleEndian(span, value); 
-        WriteSpanInlined(span); 
+        BP.WriteDoubleLittleEndian(span, value);
+        WriteSpanInlined(span);
     }
 
     public void Write(Half value)
-    { 
-        Span<byte> span = stackalloc byte[Marshal.SizeOf<Half>()]; 
+    {
+        Span<byte> span = stackalloc byte[Marshal.SizeOf<Half>()];
         BP.WriteHalfLittleEndian(span, value);
-        WriteSpanInlined(span); 
+        WriteSpanInlined(span);
     }
 
     public void Write(UInt16 value)
-    { 
-        Span<byte> span = stackalloc byte[sizeof(UInt16)]; 
-        BP.WriteUInt16LittleEndian(span, value); 
-        WriteSpanInlined(span); 
+    {
+        Span<byte> span = stackalloc byte[sizeof(UInt16)];
+        BP.WriteUInt16LittleEndian(span, value);
+        WriteSpanInlined(span);
     }
 
     public void Write(UInt32 value)
-    { 
+    {
         Span<byte> span = stackalloc byte[sizeof(UInt32)];
-        BP.WriteUInt32LittleEndian(span, value); 
+        BP.WriteUInt32LittleEndian(span, value);
         WriteSpanInlined(span);
     }
 
     public void Write(UInt64 value)
-    { 
+    {
         Span<byte> span = stackalloc byte[sizeof(UInt64)];
         BP.WriteUInt64LittleEndian(span, value);
-        WriteSpanInlined(span); 
+        WriteSpanInlined(span);
     }
 #pragma warning restore
 }
@@ -171,7 +171,9 @@ public static class RefBinaryWriterExtensions
 
     public static void Write<T>(this ref RefBinaryWriter writer, IReadOnlyCollection<T> value) where T : IRefBinarySerializable<T>
     {
-        writer.Write7BitEncodedInt(value.Count);
+        if (value.Count > ushort.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(value));
+        writer.Write((ushort)value.Count);
         foreach (var item in value)
             item.Serialize(ref writer);
     }

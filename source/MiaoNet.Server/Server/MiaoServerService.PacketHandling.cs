@@ -12,6 +12,7 @@ public sealed partial class MiaoServerService
         register.Register<PacketPlayerMapChanged>(HandlePacket);
         register.Register<PacketPlayerMapRoomChanged>(HandlePacket);
         register.Register<PacketSendChatMessage>(HandlePacket);
+        register.Register<PacketSendEmote>(HandlePacket);
     }
 
     private async Task HandlePacket(MiaoClientConnection connection, PacketPlayerFrame packet)
@@ -153,5 +154,14 @@ public sealed partial class MiaoServerService
     {
         logger.LogInformation(AppEvents.GameChat, "{player}: {msg}", connection.Player.Info, packet.Content);
         await BroadcastAsync(new PacketChatMessage(ChatMessageType.Chat, connection.Player.ID, packet.Content));
+    }
+
+    private async Task HandlePacket(MiaoClientConnection connection, PacketSendEmote packet)
+    {
+        await BroadcastToOthersAsync(
+            new PacketEmote(connection.ID, packet.Emote),
+            con => con.PlayerShouldSyncFrom(connection),
+            connection.ID
+        );
     }
 }

@@ -51,7 +51,8 @@ public sealed partial class MiaoNetContext
             MainComponent = new MainComponent(this),
             new PlayerListComponent(this),
             new ChatComponent(this),
-            new DebugMapComponent(this)
+            new DebugMapComponent(this),
+            new EmoteComponent(this)
         ];
         ConnectionStatus = MiaoNetConnectionStatus.Disconnected;
         PacketHandlerRegister r = new();

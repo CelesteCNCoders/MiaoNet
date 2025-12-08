@@ -124,7 +124,7 @@ public static class RefBinaryReaderExtensions
 
     public static T[] ReadArray<T>(this ref RefBinaryReader reader) where T : IRefBinarySerializable<T>
     {
-        int count = reader.Read7BitEncodedInt();
+        int count = reader.ReadUInt16();
         T[] list = new T[count];
         for (int i = 0; i < count; i++)
             list[i] = Read<T>(ref reader);

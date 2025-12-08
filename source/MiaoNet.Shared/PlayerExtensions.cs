@@ -29,4 +29,9 @@ public static class PlayerExtensions
 
         return true;
     }
+
+#if MIAO_SERVER
+    public static bool PlayerShouldSyncFrom(this MiaoClientConnection connection, MiaoClientConnection other)
+        => connection.Player.ShouldSyncFrom(other.Player);
+#endif
 }

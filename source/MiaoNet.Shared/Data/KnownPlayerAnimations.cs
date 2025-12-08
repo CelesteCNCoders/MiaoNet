@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 
 namespace MiaoNet.Shared;
 
+// TODO known string registering
 public static class KnownPlayerAnimations
 {
     public static FrozenDictionary<string, int> StringToID { get; }
