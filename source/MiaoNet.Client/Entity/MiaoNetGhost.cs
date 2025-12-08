@@ -63,7 +63,7 @@ public sealed class MiaoNetGhost : Entity
         Name = name;
         GraphicsInfo = playerGraphicsInfo;
         facing = Facings.Right;
-        playerSprite = new PlayerSprite(GraphicsInfo.PlayerSpriteMode);
+        playerSprite = new PlayerSprite(initialState.PlayerSpriteMode);
         playerHair = new PlayerHair(playerSprite);
         Add(playerHair);
         Add(playerSprite);
@@ -102,7 +102,6 @@ public sealed class MiaoNetGhost : Entity
 
     public void OnEndDash()
     {
-
     }
 
     public void OnDashesChange(int dashes)

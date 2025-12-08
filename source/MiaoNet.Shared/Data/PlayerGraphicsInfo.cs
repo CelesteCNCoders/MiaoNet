@@ -31,8 +31,6 @@ public sealed class PlayerGraphicsInfo : IRefBinarySerializable<PlayerGraphicsIn
     public HairInfo Dash2HairInfo;
     public HairInfo FeatherHairInfo;
 
-    public PlayerSpriteMode PlayerSpriteMode;
-
     public readonly static PlayerGraphicsInfo Default;
 
     static PlayerGraphicsInfo()

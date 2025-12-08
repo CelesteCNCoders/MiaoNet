@@ -99,6 +99,7 @@ public sealed class MainComponent : MiaoNetComponent
         if (player is null)
             return false;
         PlayerState initialState = new PlayerState(player.Position, (byte)player.Dashes, Engine.DeltaTime);
+        initialState.PlayerSpriteMode = player.Sprite.Mode;
         ClientState.Self.State = initialState;
         PacketPlayerMapChanged p = new(location, initialState);
         context.QueuePacket(p);
