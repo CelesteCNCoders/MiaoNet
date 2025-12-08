@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json.Serialization;
 #if MIAO_SERVER
 using MiaoNet.Server.Primitives;
 #endif
@@ -10,15 +11,20 @@ namespace MiaoNet.Shared;
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public sealed class PlayerState : IRefBinarySerializable<PlayerState>
 {
+    [JsonInclude]
     public Vector2 Position;
 
+    [JsonInclude]
     public byte Dashes;
 
+    [JsonInclude]
     public bool Dashing; // not serialized
 
+    [JsonInclude]
     public float TimeRate = 1.0f;
 
     // TODO some packets update this field
+    [JsonInclude]
     public PlayerSpriteMode PlayerSpriteMode;
 
     public PlayerState(Vector2 position, byte dashes, float timeRate)

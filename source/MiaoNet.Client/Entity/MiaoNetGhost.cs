@@ -37,7 +37,7 @@ public sealed class MiaoNetGhost : Entity
         }
     }
 
-    private readonly PlayerSprite playerSprite;
+    private PlayerSprite playerSprite;
     private readonly PlayerHair playerHair;
     private readonly NameTag nameTag;
 
@@ -70,8 +70,7 @@ public sealed class MiaoNetGhost : Entity
         nameTag = new(this);
         playerHair.Start();
 
-        Position = initialState.Position;
-        dashes = initialState.Dashes;
+        ApplyState(initialState);
         UpdateHair();
     }
 
@@ -94,6 +93,25 @@ public sealed class MiaoNetGhost : Entity
         }
         if (Scene.Paused)
             playerHair.AfterUpdate();
+    }
+
+    public void ApplyState(PlayerState state)
+    {
+        if (playerSprite.Mode != state.PlayerSpriteMode)
+        {
+            var pAnim = playerSprite.CurrentAnimationID;
+            var pFrame = playerSprite.CurrentAnimationFrame;
+            playerSprite.RemoveSelf();
+            playerSprite = new(state.PlayerSpriteMode);
+            if (playerSprite.Has(pAnim))
+            {
+                playerSprite.Play(pAnim);
+                playerSprite.SetAnimationFrame(pFrame);
+            }
+            playerHair.Sprite = playerSprite;
+        }
+        dashes = state.Dashes;
+        Position = state.Position;
     }
 
     public void OnStartDash()

@@ -249,6 +249,8 @@ public sealed class MainComponent : MiaoNetComponent
             if (needGhost)
             {
                 ghost.GraphicsInfo = graphicsInfo;
+                if (initialState is not null)
+                    ghost.ApplyState(initialState);
                 level!.Add(ghost);
             }
             else
