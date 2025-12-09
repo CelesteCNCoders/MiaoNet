@@ -36,8 +36,22 @@ public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatabl
             SafeGuard.Assert(MapRoom == string.Empty);
     }
 
+#if MIAO_CLIENT
+    public PlayerLocation(AreaKey areaKey, string mapRoom)
+        : this(areaKey.SID, areaKey.Mode, mapRoom)
+    {
+    }
+#endif
+
     public readonly override string ToString()
-        => $"{MapSid}.{MapRoom} {(char)('A' + (char)MapSide)}";
+    {
+        if (MapSid == string.Empty)
+            return "None";
+        char sideChar = (char)('A' + (char)MapSide);
+        if (MapRoom == string.Empty)
+            return $"{MapSid}.DebugMap {sideChar}";
+        return $"{MapSid}.{MapRoom} {sideChar}";
+    }
 
     public readonly void Serialize(ref RefBinaryWriter writer)
     {
@@ -90,6 +104,6 @@ public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatabl
 
 #if MIAO_CLIENT
     public static PlayerLocation FetchFrom(Session session)
-        => new(session.Area.SID, session.Area.Mode, session.Level);
+        => new(session.Area, session.Level);
 #endif
 }

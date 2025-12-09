@@ -191,11 +191,16 @@ public sealed partial class MiaoNetContext
         SingleThreadedSynchronizationContext syncCtx = new();
         SynchronizationContext.SetSynchronizationContext(syncCtx);
 
-        IPEndPoint ipe = IPEndPoint.Parse("127.0.0.1:21473");
+        string host = "local.saplonily.top";
+        EndPoint ep;
+        if (IPAddress.TryParse(host, out var ipa))
+            ep = new IPEndPoint(ipa, 21473);
+        else
+            ep = new DnsEndPoint(host, 21473);
         HandshakeData handshakeData = new(MiaoNetModule.Instance.Metadata.Version, 0, MiaoNetModule.Settings.Name, []);
         try
         {
-            connection = new(ipe, handshakeData);
+            connection = new(ep, handshakeData);
         }
         catch (Exception e)
         {
@@ -203,7 +208,7 @@ public sealed partial class MiaoNetContext
             Disconnect();
             return;
         }
-        Logger.Info(nameof(MiaoNet), $"Connected to {ipe}.");
+        Logger.Info(nameof(MiaoNet), $"Connected to {ep}.");
         ConnectionStatus = MiaoNetConnectionStatus.Connected;
         justConnected = true;
 
@@ -219,17 +224,25 @@ public sealed partial class MiaoNetContext
 
         async Task ReceivePacketsLoopAsync(CancellationToken token)
         {
+#if PACKET_TRACING
+            System.Text.Json.JsonSerializerOptions options = new()
+            {
+                IncludeFields = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All)
+            };
+#endif
+
             await Task.Yield();
             while (!token.IsCancellationRequested)
             {
                 IPacket packet = await connection.ReceivePacketAsync();
-#if true
-                if (!packet.GetType().Name.Contains("Frame"))
+#if PACKET_TRACING
+                if (!packet.GetType().ToString().Contains("Frame"))
                 {
                     var pColor = Console.ForegroundColor;
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine($"Type: {packet.GetType()}");
-                    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize((object)packet));
+                    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize((object)packet, options));
                     Console.ForegroundColor = pColor;
                 }
 #endif

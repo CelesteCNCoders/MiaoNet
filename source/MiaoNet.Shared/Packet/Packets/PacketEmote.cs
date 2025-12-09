@@ -1,5 +1,6 @@
 namespace MiaoNet.Shared;
 
+// we could make this just a generic notification...
 public sealed class PacketEmote : PacketPlayerNotification, IPacket<PacketEmote>
 {
     public EmoteData Emote { get; }

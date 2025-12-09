@@ -70,6 +70,8 @@ public sealed class ChatComponent : MiaoNetComponent
     // TODO TODO TODO we need a clean up method
     public override void OnDisconnected()
     {
+        if (!active)
+            return;
         Deactive();
         chatView.CleanUp();
     }

@@ -23,8 +23,11 @@ public sealed class MainComponent : MiaoNetComponent
         context.PlayerMapChanged += Context_PlayerMapChanged;
         context.PlayerMapRoomChanged += Context_PlayerMapRoomChanged;
         context.PlayerMapChangeResponded += Context_PlayerMapChangeResponded;
+        context.PlayerStateFlagsNotification += Context_PlayerStateFlagsNotification;
 
         MiaoNetModule.PlayerLocationChanged += MiaoNetModule_OnPlayerLocationChanged;
+        Everest.Events.Player.OnDie += Player_OnDie;
+        Everest.Events.Player.OnSpawn += Player_OnSpawn;
     }
 
     public override void OnConnected()
@@ -36,6 +39,32 @@ public sealed class MainComponent : MiaoNetComponent
         foreach (var pair in ghosts)
             pair.Value.RemoveSelf();
         ghosts.Clear();
+    }
+
+    private void Player_OnDie(Player player)
+    {
+        if (!HasState)
+            return;
+        var state = ClientState.Self.State!;
+        if(!state.Dead)
+        {
+            state.Dead = true;
+            PacketPlayerStateFlags packet = new(PacketPlayerStateFlags.StateFlags.PlayerDied);
+            context.QueuePacket(packet);
+        }
+    }
+
+    private void Player_OnSpawn(Player player)
+    {
+        if (!HasState)
+            return;
+        var state = ClientState.Self.State!;
+        if (state.Dead)
+        {
+            state.Dead = false;
+            PacketPlayerStateFlags packet = new(PacketPlayerStateFlags.StateFlags.PlayerRespawning);
+            context.QueuePacket(packet);
+        }
     }
 
     public override void Update()
@@ -58,6 +87,7 @@ public sealed class MainComponent : MiaoNetComponent
         Player player = level.Tracker.GetEntity<Player>();
         if (player is null)
             return;
+
         if (!KnownPlayerAnimations.StringToID.TryGetValue(player.Sprite.CurrentAnimationID, out var animID))
         {
             // TODO extendable
@@ -67,7 +97,7 @@ public sealed class MainComponent : MiaoNetComponent
         bool currentDashing = player.StateMachine.State is Player.StDash;
         int currentDashes = player.Dashes;
 
-        PlayerState selfState = ClientState.Self.State!;
+        PlayerState selfState = ClientState.SelfState!;
         FFlags flags = 0;
         if (player.Facing is Facings.Left)
             flags |= FFlags.FacingLeft;
@@ -100,7 +130,7 @@ public sealed class MainComponent : MiaoNetComponent
             return false;
         PlayerState initialState = new PlayerState(player.Position, (byte)player.Dashes, Engine.DeltaTime);
         initialState.PlayerSpriteMode = player.Sprite.Mode;
-        ClientState.Self.State = initialState;
+        ClientState.SelfState = initialState;
         PacketPlayerMapChanged p = new(location, initialState);
         context.QueuePacket(p);
         return true;
@@ -157,6 +187,8 @@ public sealed class MainComponent : MiaoNetComponent
             HandleNewPlayer(player);
         if (Engine.Scene is Level level)
             MiaoNetModule_OnPlayerLocationChanged(PlayerLocation.FetchFrom(level.Session));
+        if (Engine.Scene is Editor.MapEditor editor)
+            MiaoNetModule_OnPlayerLocationChanged(new PlayerLocation(editor.mapData.Area, string.Empty));
     }
 
     private void Context_PlayerJoined(OnlinePlayer player)
@@ -164,7 +196,7 @@ public sealed class MainComponent : MiaoNetComponent
 
     private void Context_PlayerLeft(OnlinePlayer player)
     {
-        if (ClientState.Self.ShouldSyncFrom(player))
+        if (!ClientState.Self.ShouldSyncFrom(player))
             return;
         if (!ghosts.Remove(player.Info.ID, out MiaoNetGhost? ghost))
         {
@@ -196,11 +228,26 @@ public sealed class MainComponent : MiaoNetComponent
         }
         else
         {
-            Logger.Warn(nameof(MiaoNet), $"Notified but ghost not exists: {player.Info}");
+            Logger.Warn(nameof(MiaoNet), $"Notified but ghost does not exists for {player.Info}");
             // TODO something that records the warning times
             // if there are so many warnings then we may have to
             // disconnect from the server (a server or client bug?)
             //OnWarn();
+        }
+    }
+
+    private void Context_PlayerStateFlagsNotification(OnlinePlayer player, PacketPlayerStateFlags.StateFlags flags)
+    {
+        if (ghosts.TryGetValue(player.Info.ID, out var ghost))
+        {
+            if (flags.HasFlag(PacketPlayerStateFlags.StateFlags.PlayerDied))
+                ghost.OnDied();
+            if (flags.HasFlag(PacketPlayerStateFlags.StateFlags.PlayerRespawning))
+                ghost.OnRespawning();
+        }
+        else
+        {
+            Logger.Warn(nameof(MiaoNet), $"Flgas notified but ghost does not exists for {player.Info}");
         }
     }
 
@@ -233,6 +280,7 @@ public sealed class MainComponent : MiaoNetComponent
 
     private void HandleLocationChanging(OnlinePlayer other, PlayerGraphicsInfo? graphicsInfo, PlayerState? initialState)
     {
+        // TODO check if there're unused ghosts?
         if (Engine.Scene is Editor.MapEditor)
             return;
 
@@ -256,7 +304,7 @@ public sealed class MainComponent : MiaoNetComponent
             else
             {
                 ghost.RemoveSelf();
-                ghosts.Remove(ghost.PlayerID);
+                ghosts.Remove(other.ID);
             }
         }
         else
@@ -270,7 +318,7 @@ public sealed class MainComponent : MiaoNetComponent
                     // TODO make local state changes wait for server to confirm
                     return;
                 }
-                ghosts[other.ID] = ghost = new(other.ID, other.Info.Name, graphicsInfo, initialState!);
+                ghosts[other.ID] = ghost = new(other, other.Info.Name, graphicsInfo, initialState!);
                 level!.Add(ghost);
                 Logger.Debug(nameof(MiaoNet), $"added ghost for {other.Info}!");
             }

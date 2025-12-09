@@ -44,8 +44,10 @@ public sealed class MiaoNetGhost : Entity
     private Facings facing;
     private int dashes;
     private float flashTimer;
+    private bool respawning;
+    private float deadEase;
 
-    public int PlayerID { get; set; }
+    public OnlinePlayer Player { get; set; }
 
     public string Name { get; set; }
 
@@ -56,14 +58,16 @@ public sealed class MiaoNetGhost : Entity
         set => field = value ?? PlayerGraphicsInfo.Default;
     }
 
-    public MiaoNetGhost(int id, string name, [AllowNull] PlayerGraphicsInfo playerGraphicsInfo, PlayerState initialState)
+    public MiaoNetGhost(OnlinePlayer player, string name, [AllowNull] PlayerGraphicsInfo playerGraphicsInfo, PlayerState initialState)
     {
         Tag = Tags.Persistent | Tags.TransitionUpdate | Tags.FrozenUpdate | Tags.PauseUpdate | Tags.Global;
-        PlayerID = id;
+        Player = player;
         Name = name;
         GraphicsInfo = playerGraphicsInfo;
         facing = Facings.Right;
         playerSprite = new PlayerSprite(initialState.PlayerSpriteMode);
+        playerSprite.Active = false;
+
         playerHair = new PlayerHair(playerSprite);
         Add(playerHair);
         Add(playerSprite);
@@ -116,10 +120,39 @@ public sealed class MiaoNetGhost : Entity
 
     public void OnStartDash()
     {
+        SceneAs<Level>().Displacement.AddBurst(Center, 0.4f, 8f, 64f, 0.5f, Ease.QuadOut, Ease.QuadOut);
     }
 
     public void OnEndDash()
     {
+    }
+
+    public void OnDied()
+    {
+        playerSprite.Visible = playerHair.Visible = false;
+        SceneAs<Level>().Displacement.AddBurst(Position, 0.3f, 0f, 80f);
+        Add(new DeathEffect(playerHair.Color));
+        Depth = Depths.Top;
+    }
+
+    // TODO the respawned timing is not that accurate
+    public void OnRespawning()
+    {
+        respawning = true;
+        deadEase = 1f;
+        var tween = Tween.Set(this, Tween.TweenMode.Oneshot, 0.6f * (Engine.RawDeltaTime / Player.State!.DeltaTime), null,
+            t =>
+            {
+                deadEase = 1f - t.Eased;
+            },
+            t =>
+            {
+                respawning = false;
+                playerSprite.Visible = playerHair.Visible = true;
+                Depth = Depths.Player;
+            }
+        );
+        tween.UseRawDeltaTime = true;
     }
 
     public void OnDashesChange(int dashes)
@@ -163,5 +196,9 @@ public sealed class MiaoNetGhost : Entity
         playerSprite.Scale.X *= (float)facing;
         base.Render();
         playerSprite.Scale.X *= (float)facing;
+        if (respawning)
+        {
+            DeathEffect.Draw(Position, playerHair.Color, deadEase);
+        }
     }
 }

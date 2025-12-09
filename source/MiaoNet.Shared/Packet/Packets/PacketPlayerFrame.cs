@@ -14,12 +14,17 @@ public sealed class PacketPlayerFrame : IPacket<PacketPlayerFrame>
         DashesChange = 1 << 3
     }
 
-    public Vector2 Position { get; set; }
-    public ushort AnimationID { get; set; }
-    public ushort AnimationFrame { get; set; }
-    public Vector2 Scale { get; set; }
-    public FrameFlags Flags { get; set; }
-    public byte Dashes { get; set; }
+    public Vector2 Position { get; }
+
+    public ushort AnimationID { get; }
+
+    public ushort AnimationFrame { get; }
+
+    public Vector2 Scale { get; }
+
+    public FrameFlags Flags { get; }
+
+    public byte Dashes { get; set; } // TODO readonly?
 
     public bool FacingLeft => Flags.HasFlag(FrameFlags.FacingLeft);
 
@@ -63,16 +68,4 @@ public sealed class PacketPlayerFrame : IPacket<PacketPlayerFrame>
             packet.Dashes = reader.ReadByte();
         return packet;
     }
-}
-
-public sealed class PacketPlayerFrameNotification : PacketPlayerNotification<PacketPlayerFrame>,
-    IPacket<PacketPlayerFrameNotification>
-{
-    public PacketPlayerFrameNotification(int playerID, PacketPlayerFrame packet)
-        : base(playerID, packet)
-    {
-    }
-
-    public static PacketPlayerFrameNotification Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadInt32(), reader.Read<PacketPlayerFrame>());
 }

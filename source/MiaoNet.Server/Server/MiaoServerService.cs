@@ -94,8 +94,22 @@ public sealed partial class MiaoServerService : BackgroundService
 
             logger.LogDebug(AppEvents.Connection, "{ep} Handshake succeeded.", ep);
 
+            var handshakeData = handshakeTask.Result;
+
+            if (handshakeData.Version != new Version(0, 1, 0))
+            {
+                // TODO tell the client what's wrong with them
+                cts.Cancel();
+                logger.LogInformation(
+                    AppEvents.Connection,
+                    "{ep} version {v} not match current version.",
+                    ep, handshakeData.Version
+                );
+                return;
+            }
+
             // then create the connection and the player
-            var newPlayer = serverState.CreateNewPlayer(handshakeTask.Result);
+            var newPlayer = serverState.CreateNewPlayer(handshakeData);
             logger.LogInformation(
                 AppEvents.Connection,
                 "Assign {ep}({player}) to id {id}.",

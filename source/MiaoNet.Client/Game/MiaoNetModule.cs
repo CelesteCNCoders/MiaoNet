@@ -68,7 +68,7 @@ public sealed class MiaoNetModule : EverestModule
 
     private static void Level_Update(ILContext il)
     {
-        // TODO will there be a mod that opens debug map?
+        // TODO will there be a mod that opens debug map else where?
         ILCursor cur = new(il);
         cur.GotoNext(MoveType.After,
             ins => ins.MatchLdarg0(),

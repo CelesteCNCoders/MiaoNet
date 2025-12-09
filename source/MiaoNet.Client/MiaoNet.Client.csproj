@@ -12,6 +12,7 @@
     <UseCelesteAnalyzer>false</UseCelesteAnalyzer>
     <UseCelestePublicizer>true</UseCelestePublicizer>
     <DefineConstants>$(DefineConstants);MIAO_CLIENT;SAFE_GUARD</DefineConstants>
+    <DefineConstants Condition="$(Configuration) == 'Debug'">$(DefineConstants);PACKET_TRACING</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

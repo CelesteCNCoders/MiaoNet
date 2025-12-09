@@ -17,19 +17,21 @@ public partial class MiaoNetContext
     public event Action<OnlinePlayer?, PacketChatMessage>? ChatMessageReceived;
     public event Action<OnlinePlayer, EmoteData>? EmoteReceived;
     public event Action<OnlinePlayer, string>? EmoteTextReceived;
+    public event Action<OnlinePlayer, PacketPlayerStateFlags.StateFlags>? PlayerStateFlagsNotification;
 
     private void RegisterPacketHandlers(PacketHandlerRegister r)
     {
         r.Register<PacketClientInitial>(HandlePacket);
         r.Register<PacketPlayerJoined>(HandlePacket);
         r.Register<PacketPlayerLeft>(HandlePacket);
-        r.Register<PacketPlayerFrameNotification>(HandlePacket);
+        r.Register<PacketPlayerNotification<PacketPlayerFrame>>(HandlePacket);
         r.Register<PacketPlayerMapChangedNotification>(HandlePacket);
-        r.Register<PacketPlayerMapRoomChangedNotification>(HandlePacket);
+        r.Register<PacketPlayerNotification<PacketPlayerMapRoomChanged>>(HandlePacket);
         r.Register<PacketPlayerMapChangedResponse>(HandlePacket);
         r.Register<PacketChatMessage>(HandlePacket);
         r.Register<PacketEmote>(HandlePacket);
         r.Register<PacketEmoteText>(HandlePacket);
+        r.Register<PacketPlayerNotification<PacketPlayerStateFlags>>(HandlePacket);
     }
 
     private void HandlePacket(PacketClientInitial packet)
@@ -53,7 +55,7 @@ public partial class MiaoNetContext
         PlayerLeft?.Invoke(player);
     }
 
-    private void HandlePacket(PacketPlayerFrameNotification packet)
+    private void HandlePacket(PacketPlayerNotification<PacketPlayerFrame> packet)
     {
         EnsureState();
         var player = ClientState.Players[packet.PlayerID];
@@ -88,7 +90,7 @@ public partial class MiaoNetContext
         PlayerMapChanged?.Invoke(player, packet);
     }
 
-    private void HandlePacket(PacketPlayerMapRoomChangedNotification packet)
+    private void HandlePacket(PacketPlayerNotification<PacketPlayerMapRoomChanged> packet)
     {
         EnsureState();
         var player = ClientState.Players[packet.PlayerID];
@@ -132,5 +134,12 @@ public partial class MiaoNetContext
         EnsureState();
         var player = ClientState.Players[packet.PlayerID];
         EmoteTextReceived?.Invoke(player, packet.Text);
+    }
+
+    private void HandlePacket(PacketPlayerNotification<PacketPlayerStateFlags> packet)
+    {
+        EnsureState();
+        var player = ClientState.Players[packet.PlayerID];
+        PlayerStateFlagsNotification?.Invoke(player, packet.Packet.Flags);
     }
 }

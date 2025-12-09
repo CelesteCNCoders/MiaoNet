@@ -16,6 +16,8 @@ public sealed class ClientState
 
     public OnlineChannel SelfChannel => Self.Channel;
 
+    public PlayerState? SelfState { get => Self.State; set => Self.State = value; }
+
     public ClientState(PacketClientInitial clientInitial, PlayerLocation selfLocationInfo)
     {
         players = new();

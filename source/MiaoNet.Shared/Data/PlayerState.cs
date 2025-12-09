@@ -18,23 +18,25 @@ public sealed class PlayerState : IRefBinarySerializable<PlayerState>
     // not serialized
     public bool Dashing { get; set; }
 
-    public float TimeRate { get; set; } = 1.0f;
+    public float DeltaTime { get; set; }
 
     // TODO some packets that update this property
     public PlayerSpriteMode PlayerSpriteMode { get; set; }
 
-    public PlayerState(Vector2 position, byte dashes, float timeRate)
+    public bool Dead { get; set; }
+
+    public PlayerState(Vector2 position, byte dashes, float deltaTime)
     {
         Position = position;
         Dashes = dashes;
-        TimeRate = timeRate;
+        DeltaTime = deltaTime;
     }
 
     public void Serialize(ref RefBinaryWriter writer)
     {
         writer.Write(Position);
         writer.Write(Dashes);
-        writer.Write(TimeRate);
+        writer.Write(DeltaTime);
         writer.Write((byte)PlayerSpriteMode);
     }
 

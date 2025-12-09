@@ -1,5 +1,25 @@
-miaonet_ui_title= 蔚蓝 MiaoNet+
+miaonet_options_title= MiaoNet 选项
+miaonet_options_connected= 连接
+miaonet_options_login_state= 登录状态
+miaonet_options_logged_in= 登录为： 
+miaonet_options_logged_in_tips= 前往主菜单的 Mod 选项登录或切换账号。
+miaonet_options_logged_in_tips_2= 按下进行登录或者更换账号。
+miaonet_options_connection= 连接
+miaonet_options_auto_reconnect= 自动重连
+miaonet_options_connect_on_game_start= 游戏启动时连接
+miaonet_options_visuals= 视觉
+miaonet_options_show_own_name= 显示自己的昵称
+miaonet_options_player_opacity= 玩家透明度
+miaonet_options_player_name_opacity= 名称透明度
+miaonet_options_chat= 聊天
+miaonet_options_new_messages_display= 新消息显示
+miaonet_options_new_messages_display_chat_only= 仅聊天消息
+miaonet_options_new_messages_display_system_only= 仅系统消息
+miaonet_options_new_messages_display_all= 全部
+
 miaonet_connection_status_connected= 已连接
-miaonet_connection_status_disconnected= 已断开连接
-miaonet_connection_status_kicked= 你被踢出了服务器
+miaonet_connection_status_disconnected= 连接已断开
+miaonet_connection_status_kicked= 被服务器踢出
 miaonet_connection_status_server_closed= 服务器已关闭
+
+miaonet_dev_tip= 别往下翻了下面都还没写好(x
