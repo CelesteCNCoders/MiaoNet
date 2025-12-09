@@ -28,6 +28,10 @@ public sealed class PlayerListEntryComparer : IComparer<IPlayerListEntry>
         if (locationComparison != 0)
             return locationComparison;
 
+        int sideComparison = x.Location.MapSide.CompareTo(y.Location.MapSide);
+        if (sideComparison != 0)
+            return sideComparison;
+
         int roomComparison = string.Compare(x.Location.MapRoom, y.Location.MapRoom);
         if (roomComparison != 0)
             return roomComparison;

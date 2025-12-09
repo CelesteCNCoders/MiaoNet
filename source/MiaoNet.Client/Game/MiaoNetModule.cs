@@ -81,7 +81,7 @@ public sealed class MiaoNetModule : EverestModule
         cur.EmitLdarg0();
         cur.EmitDelegate(
             static (Level level) => PlayerLocationChanged?.Invoke(
-                new PlayerLocation(level.Session.Area.SID, string.Empty)
+                new PlayerLocation(level.Session.Area.SID, level.Session.Area.Mode, string.Empty)
             )
         );
     }

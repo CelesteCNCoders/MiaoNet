@@ -36,7 +36,7 @@ public sealed class ServerState
     {
         int id = Interlocked.Increment(ref nextPlayerID);
         ServerChannel channel = AllChannels[0];
-        ServerPlayer player = new(channel, new(id, handshakeData.Name), new(string.Empty, string.Empty));
+        ServerPlayer player = new(channel, new(id, handshakeData.Name), PlayerLocation.Empty);
         return player;
     }
 

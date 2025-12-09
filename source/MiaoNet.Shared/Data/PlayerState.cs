@@ -11,21 +11,17 @@ namespace MiaoNet.Shared;
 [DebuggerDisplay("{DebuggerDisplay,nq}")]
 public sealed class PlayerState : IRefBinarySerializable<PlayerState>
 {
-    [JsonInclude]
-    public Vector2 Position;
+    public Vector2 Position { get; set; }
 
-    [JsonInclude]
-    public byte Dashes;
+    public byte Dashes { get; set; }
 
-    [JsonInclude]
-    public bool Dashing; // not serialized
+    // not serialized
+    public bool Dashing { get; set; }
 
-    [JsonInclude]
-    public float TimeRate = 1.0f;
+    public float TimeRate { get; set; } = 1.0f;
 
-    // TODO some packets update this field
-    [JsonInclude]
-    public PlayerSpriteMode PlayerSpriteMode;
+    // TODO some packets that update this property
+    public PlayerSpriteMode PlayerSpriteMode { get; set; }
 
     public PlayerState(Vector2 position, byte dashes, float timeRate)
     {
