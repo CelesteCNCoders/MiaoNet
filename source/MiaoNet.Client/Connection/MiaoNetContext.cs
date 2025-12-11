@@ -229,7 +229,7 @@ public sealed partial class MiaoNetContext
 
         async Task StartConnectionAsync(CancellationToken token)
         {
-            string host = "local.saplonily.top";
+            string host = "s.saplonily.top";
 
             EndPoint ep = IPAddress.TryParse(host, out var ipa)
                 ? new IPEndPoint(ipa, 21473)

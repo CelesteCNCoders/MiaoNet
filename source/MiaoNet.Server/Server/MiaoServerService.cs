@@ -62,6 +62,7 @@ public sealed partial class MiaoServerService : BackgroundService
         while (true)
         {
             Socket socket = await acceptSocket.AcceptAsync(stoppingToken);
+            socket.NoDelay = true;
             var ep = socket.RemoteEndPoint;
             logger.LogInformation(AppEvents.Connection, "New client try connecting: {ep}", ep);
             _ = HandleConnectionAsync(socket, stoppingToken);

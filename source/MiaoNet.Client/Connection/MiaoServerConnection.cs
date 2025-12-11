@@ -26,6 +26,7 @@ public sealed class MiaoServerConnection : IDisposable
     {
         EndPoint = endPoint;
         tcpSocket = new(SocketType.Stream, ProtocolType.Tcp);
+        tcpSocket.NoDelay = true;
 
         sendMemoryStream = new(512);
         sendMemoryStream.Seek(2, SeekOrigin.Begin);
@@ -86,6 +87,7 @@ public sealed class MiaoServerConnection : IDisposable
         return count;
     }
 
+    // TODO these are awful, we need a refactor
     public async Task SendPacketAsync(IPacket packet, CancellationToken token)
     {
         RefBinaryWriter writer = new(sendMemoryStream);
