@@ -120,8 +120,13 @@ public sealed partial class MiaoNetContext
                 statusMessage = null;
             }
         }
+
         if (!HasConnection)
             return;
+
+        while (mainThreadQueue.TryDequeue(out var item))
+            item();
+
         while (receiveQueue.TryDequeue(out var packet))
         {
             if (packet is PacketResponse response)

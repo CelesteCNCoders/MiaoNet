@@ -9,7 +9,7 @@ namespace Celeste.Mod.MiaoNet;
 /// </summary>
 public sealed class MainComponent : MiaoNetComponent
 {
-    private PlayerLocation? pendingMapChanged;
+    private bool pendingMapChanged;
     private readonly Dictionary<int, MiaoNetGhost> ghosts;
 
     public MainComponent(MiaoNetContext context) : base(context)
@@ -47,7 +47,7 @@ public sealed class MainComponent : MiaoNetComponent
     {
         if (!HasState)
             return;
-        var state = ClientState.Self.State!;
+        var state = ClientState.SelfState!;
         if (!state.Dead)
         {
             state.Dead = true;
@@ -60,7 +60,14 @@ public sealed class MainComponent : MiaoNetComponent
     {
         if (!HasState)
             return;
-        var state = ClientState.Self.State!;
+        var state = ClientState.SelfState;
+        if (state is null)
+        {
+            Level level = player.SceneAs<Level>();
+            SafeGuard.Assert(TryGetAndSendState(level, PlayerLocation.FetchFrom(level.Session)));
+            state = ClientState.SelfState;
+            SafeGuard.Assert(state is not null);
+        }
         if (state.Dead)
         {
             state.Dead = false;
@@ -76,11 +83,10 @@ public sealed class MainComponent : MiaoNetComponent
         if (Engine.Scene is not Level level)
             return;
 
-        if (pendingMapChanged.HasValue)
+        if (pendingMapChanged)
         {
-            SafeGuard.Assert(PlayerLocation.FetchFrom(level.Session) == pendingMapChanged.Value);
-            SafeGuard.Assert(TryGetAndSendState(level, pendingMapChanged.Value));
-            pendingMapChanged = null;
+            SafeGuard.Assert(TryGetAndSendState(level, PlayerLocation.FetchFrom(level.Session)));
+            pendingMapChanged = false;
         }
 
         //if (level.OnRawInterval(1f))
@@ -99,7 +105,8 @@ public sealed class MainComponent : MiaoNetComponent
         bool currentDashing = player.StateMachine.State is Player.StDash;
         int currentDashes = player.Dashes;
 
-        PlayerState selfState = ClientState.SelfState!;
+        PlayerState? selfState = ClientState.SelfState!;
+
         FFlags flags = 0;
         if (player.Facing is Facings.Left)
             flags |= FFlags.FacingLeft;
@@ -174,9 +181,13 @@ public sealed class MainComponent : MiaoNetComponent
             }
             else if (scene is LevelLoader levelLoader)
             {
-                if (pendingMapChanged.HasValue)
-                    Logger.Warn(nameof(MiaoNet), "pendingMapChanged still has value, is this a bug?");
-                pendingMapChanged = location;
+                if (pendingMapChanged)
+                    Logger.Warn(nameof(MiaoNet), "pendingMapChanged is still true, is this a bug?");
+                pendingMapChanged = true;
+            }
+            else
+            {
+                ClientState.SelfState = null;
             }
             break;
         }
