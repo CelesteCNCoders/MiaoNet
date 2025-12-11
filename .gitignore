@@ -4,4 +4,5 @@ artifacts
 .VSCodeCounter
 **/ModFolder/Code
 **/Properties/PublishProfiles
+**/Properties/launchSettings.json
 *.csproj.user
