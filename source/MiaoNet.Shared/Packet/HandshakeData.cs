@@ -24,13 +24,13 @@ public sealed class HandshakeData : IRefBinarySerializable<HandshakeData>
             => new(reader.ReadVersion(), reader.ReadString());
     }
 
-    public Version Version { get; set; }
+    public Version Version { get; }
 
-    public byte LangCode { get; set; }
+    public byte LangCode { get; }
 
-    public string Name { get; set; }
+    public string Name { get; }
 
-    public IReadOnlyList<NetMod> NetMods { get; set; }
+    public IReadOnlyList<NetMod> NetMods { get; }
 
     public HandshakeData(Version version, byte langCode, string name, IReadOnlyList<NetMod> netMods)
     {

@@ -22,24 +22,23 @@ public sealed partial class MiaoNetContext
 
     private CancellationTokenSource? cts;
     private Thread? connectionThread;
-    private volatile bool justConnected;
     private readonly ConcurrentQueue<IPacket> receiveQueue;
+    private readonly ConcurrentQueue<Action> mainThreadQueue;
 
     private readonly List<MiaoNetComponent> components;
     private MiaoServerConnection? connection;
     private readonly PacketDispatcher packetDispatcher;
 
+    private float statusMessageTimer;
+    private string? statusMessage;
+
     private ClientState? clientState;
 
     [MemberNotNullWhen(true, nameof(connection))]
+    [MemberNotNullWhen(true, nameof(ClientState))]
     public bool HasConnection => connection is not null;
 
-    [MemberNotNullWhen(true, nameof(ClientState))]
-    public bool HasState => clientState is not null;
-
     public ClientState? ClientState => clientState;
-
-    public MiaoNetConnectionStatus ConnectionStatus { get; private set; }
 
     public MainComponent MainComponent { get; }
 
@@ -47,6 +46,7 @@ public sealed partial class MiaoNetContext
     {
         receiveQueue = new();
         pendingRequests = new();
+        mainThreadQueue = new();
         components = [
             MainComponent = new MainComponent(this),
             new PlayerListComponent(this),
@@ -54,7 +54,6 @@ public sealed partial class MiaoNetContext
             new DebugMapComponent(this),
             new EmoteComponent(this)
         ];
-        ConnectionStatus = MiaoNetConnectionStatus.Disconnected;
         PacketHandlerRegister r = new();
         RegisterPacketHandlers(r);
         packetDispatcher = new(r);
@@ -74,7 +73,7 @@ public sealed partial class MiaoNetContext
         connectionThread = new(ConnectionThread);
         connectionThread.Name = "MiaoNet Connection";
         connectionThread.Start(cts.Token);
-        ConnectionStatus = MiaoNetConnectionStatus.Connecting;
+        ShowStatusMessage(MiaoNetConnectionStatus.Connecting);
     }
 
     public void Disconnect()
@@ -89,6 +88,18 @@ public sealed partial class MiaoNetContext
             return;
         connection.Dispose();
         connection = null;
+        ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
+    }
+
+    public void ShowStatusMessage(string message)
+    {
+        statusMessageTimer = 2f;
+        statusMessage = message;
+    }
+
+    public void ShowStatusMessage(MiaoNetConnectionStatus status)
+    {
+        ShowStatusMessage(status.ToString());
     }
 
     public void CleanUp()
@@ -98,13 +109,19 @@ public sealed partial class MiaoNetContext
 
     public void Update()
     {
+        while (mainThreadQueue.TryDequeue(out var item))
+            item();
+
+        if (statusMessageTimer > 0f)
+        {
+            statusMessageTimer -= Engine.RawDeltaTime;
+            if (statusMessageTimer <= 0f)
+            {
+                statusMessage = null;
+            }
+        }
         if (!HasConnection)
             return;
-        if (justConnected)
-        {
-            justConnected = false;
-            components.ForEach(c => c.OnConnected());
-        }
         while (receiveQueue.TryDequeue(out var packet))
         {
             if (packet is PacketResponse response)
@@ -125,16 +142,23 @@ public sealed partial class MiaoNetContext
                     Logger.Warn(nameof(MiaoNet), $"Unhandled packet type: {packet.GetType()}.");
             }
         }
-        if (HasState)
-            components.ForEach(c => c.Update());
+        components.ForEach(c => c.Update());
     }
 
     public void Render()
     {
-        if (!HasState)
-            return;
         BeginRender();
-        components.ForEach(c => c.Render());
+        if (HasConnection)
+            components.ForEach(c => c.Render());
+        if (statusMessageTimer > 0f)
+        {
+            var tex = GFX.Gui["reloader/cogwheel"];
+            Vector2 pos = new Vector2(64f, Engine.Height - 64f);
+            const float Scale = 1f / 3.5f;
+            tex.DrawOutlineJustified(pos, new Vector2(0f, 1f), Color.White, Scale);
+            pos.X += tex.Width * Scale + 32f;
+            MiaoNetFont.DrawStatusMessage(statusMessage!, pos);
+        }
         EndRender();
     }
 
@@ -191,36 +215,105 @@ public sealed partial class MiaoNetContext
         SingleThreadedSynchronizationContext syncCtx = new();
         SynchronizationContext.SetSynchronizationContext(syncCtx);
 
-        string host = "local.saplonily.top";
-        EndPoint ep;
-        if (IPAddress.TryParse(host, out var ipa))
-            ep = new IPEndPoint(ipa, 21473);
-        else
-            ep = new DnsEndPoint(host, 21473);
-        HandshakeData handshakeData = new(MiaoNetModule.Instance.Metadata.Version, 0, MiaoNetModule.Settings.Name, []);
-        try
-        {
-            connection = new(ep, handshakeData);
-        }
-        catch (Exception e)
-        {
-            Logger.Error(nameof(MiaoNet), $"Error when connecting: {e}");
-            Disconnect();
-            return;
-        }
-        Logger.Info(nameof(MiaoNet), $"Connected to {ep}.");
-        ConnectionStatus = MiaoNetConnectionStatus.Connected;
-        justConnected = true;
+        StartConnectionAsync(token).ContinueWith(HandleTaskCompleted);
 
-        ReceivePacketsLoopAsync(token).ContinueWith(HandleTaskCompleted);
-        connection.SendPacketsLoopAsync(token).ContinueWith(HandleTaskCompleted);
         try
         {
             syncCtx.ProcessLoop(token);
         }
         catch (OperationCanceledException)
-        { }
+        {
+        }
+
         return;
+
+        async Task StartConnectionAsync(CancellationToken token)
+        {
+            string host = "local.saplonily.top";
+
+            EndPoint ep = IPAddress.TryParse(host, out var ipa)
+                ? new IPEndPoint(ipa, 21473)
+                : new DnsEndPoint(host, 21473);
+
+            HandshakeData handshakeData = new(
+                MiaoNetModule.Instance.Metadata.Version,
+                0,
+                MiaoNetModule.Settings.Name,
+                []
+            );
+            MiaoServerConnection? connection;
+            try
+            {
+                // this will send the full handshake, then we need to receive ack ourselves
+                (connection, var ackData) = await MiaoServerConnection.CreateAsync(ep, handshakeData, token);
+
+                if (ackData is null)
+                {
+                    Logger.Warn(nameof(MiaoNet), $"Remote sent empty or invalid reply.");
+                    mainThreadQueue.Enqueue(() =>
+                    {
+                        ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
+                        Disconnect();
+                    });
+                    return;
+                }
+
+                string? reason = ackData.DeniedReason;
+                if (reason is not null)
+                {
+                    mainThreadQueue.Enqueue(() =>
+                    {
+                        ShowStatusMessage(reason);
+                        Disconnect();
+                    });
+                    return;
+                }
+                else
+                {
+                    IPacket? packetInitial = await connection!.ReceivePacketAsync(token);
+                    if (packetInitial is not PacketClientInitial clientInitial)
+                    {
+                        if (packetInitial is null)
+                            Logger.Warn(nameof(MiaoNet), $"Remote sent empty or invalid initial reply.");
+                        else
+                            Logger.Warn(nameof(MiaoNet), $"Remote sent a werid {packetInitial.GetType()}.");
+                        mainThreadQueue.Enqueue(() =>
+                        {
+                            ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
+                            Disconnect();
+                        });
+                        return;
+                    }
+                    else
+                    {
+                        Logger.Info(nameof(MiaoNet), $"Connected to {ep}.");
+
+                        this.connection = connection;
+                        clientState = new(clientInitial);
+                        mainThreadQueue.Enqueue(() =>
+                        {
+                            ClientInitialized?.Invoke(clientState);
+                            ShowStatusMessage(MiaoNetConnectionStatus.Connected);
+                            components.ForEach(c => c.OnConnected());
+                        });
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.Error(nameof(MiaoNet), $"Error when connecting: {e}");
+                mainThreadQueue.Enqueue(() =>
+                {
+                    ShowStatusMessage($"Error when connecting.");
+                    Disconnect();
+                });
+                return;
+            }
+
+
+            _ = ReceivePacketsLoopAsync(token).ContinueWith(HandleTaskCompleted, token);
+            _ = connection.SendPacketsLoopAsync(token).ContinueWith(HandleTaskCompleted, token);
+        }
 
         async Task ReceivePacketsLoopAsync(CancellationToken token)
         {
@@ -235,7 +328,9 @@ public sealed partial class MiaoNetContext
             await Task.Yield();
             while (!token.IsCancellationRequested)
             {
-                IPacket packet = await connection.ReceivePacketAsync();
+                IPacket? packet = await connection!.ReceivePacketAsync(token);
+                if (packet is null)
+                    return;
 #if PACKET_TRACING
                 if (!packet.GetType().ToString().Contains("Frame"))
                 {
@@ -255,7 +350,11 @@ public sealed partial class MiaoNetContext
             if (!t.IsFaulted)
                 return;
             t.Exception.Handle(HandleTaskException);
-            Disconnect();
+            mainThreadQueue.Enqueue(() =>
+            {
+                ShowStatusMessage("Disconnected due to exception.");
+                Disconnect();
+            });
 
             static bool HandleTaskException(Exception e)
             {
@@ -279,10 +378,9 @@ public sealed partial class MiaoNetContext
         }
     }
 
-    [MemberNotNull(nameof(ClientState), nameof(connection))]
+    [MemberNotNull(nameof(connection), nameof(ClientState))]
     private void EnsureState()
     {
         SafeGuard.Assert(HasConnection);
-        SafeGuard.Assert(HasState);
     }
 }

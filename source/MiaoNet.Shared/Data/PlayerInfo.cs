@@ -2,9 +2,9 @@ namespace MiaoNet.Shared;
 
 public sealed class PlayerInfo : IRefBinarySerializable<PlayerInfo>
 {
-    public int ID { get; set; }
+    public int ID { get; }
 
-    public string Name { get; set; }
+    public string Name { get; }
 
     public PlayerInfo(int id, string name)
     {

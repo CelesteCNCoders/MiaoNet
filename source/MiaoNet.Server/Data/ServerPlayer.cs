@@ -3,7 +3,7 @@ using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
 
-[DebuggerDisplay("{Info} at {LocationInfo}")]
+[DebuggerDisplay("{Info} at {location}")]
 public sealed class ServerPlayer
 {
     private PlayerLocation location;
@@ -11,8 +11,11 @@ public sealed class ServerPlayer
     public ServerChannel Channel { get; }
 
     public PlayerInfo Info { get; set; }
+
     public ref PlayerLocation Location => ref location;
+
     public PlayerState? State { get; set; }
+
     public PlayerGraphicsInfo? GraphicsInfo { get; set; }
 
     public int ID => Info.ID;
@@ -23,7 +26,4 @@ public sealed class ServerPlayer
         Info = info;
         Location = location;
     }
-
-    public ChannelPlayerLocationInfo GetChannelPlayerLocationInfo()
-        => new(Channel.ID, Info, Location);
 }

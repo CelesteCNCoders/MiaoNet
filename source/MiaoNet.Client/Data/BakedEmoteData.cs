@@ -41,10 +41,9 @@ public sealed class BakedEmoteData
             if (atlas.HasAtlasSubtextures(fullFrameName))
             {
                 int i = 0;
-                MTexture? texture;
-                while ((texture = atlas.GetAtlasSubtexturesAt(fullFrameName, i)) != null)
+                while (atlas.HasAtlasSubtexturesAt(fullFrameName, i))
                 {
-                    builder.Add(texture);
+                    builder.Add(atlas.GetAtlasSubtexturesAt(fullFrameName, i));
                     i++;
                 }
             }

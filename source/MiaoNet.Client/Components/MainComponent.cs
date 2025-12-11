@@ -16,8 +16,6 @@ public sealed class MainComponent : MiaoNetComponent
     {
         ghosts = new();
 
-        context.ClientInitialized += Context_ClientInitialized;
-        context.PlayerJoined += Context_PlayerJoined;
         context.PlayerLeft += Context_PlayerLeft;
         context.PlayerFrameNotification += Context_PlayerFrameNotification;
         context.PlayerMapChanged += Context_PlayerMapChanged;
@@ -32,6 +30,10 @@ public sealed class MainComponent : MiaoNetComponent
 
     public override void OnConnected()
     {
+        if (Engine.Scene is Level level)
+            MiaoNetModule_OnPlayerLocationChanged(PlayerLocation.FetchFrom(level.Session));
+        if (Engine.Scene is Editor.MapEditor editor)
+            MiaoNetModule_OnPlayerLocationChanged(new PlayerLocation(editor.mapData.Area, string.Empty));
     }
 
     public override void OnDisconnected()
@@ -46,7 +48,7 @@ public sealed class MainComponent : MiaoNetComponent
         if (!HasState)
             return;
         var state = ClientState.Self.State!;
-        if(!state.Dead)
+        if (!state.Dead)
         {
             state.Dead = true;
             PacketPlayerStateFlags packet = new(PacketPlayerStateFlags.StateFlags.PlayerDied);
@@ -181,19 +183,6 @@ public sealed class MainComponent : MiaoNetComponent
         }
     }
 
-    private void Context_ClientInitialized(ClientState clientState)
-    {
-        foreach ((_, var player) in clientState.Players.Where(p => p.Key != clientState.Self.ID))
-            HandleNewPlayer(player);
-        if (Engine.Scene is Level level)
-            MiaoNetModule_OnPlayerLocationChanged(PlayerLocation.FetchFrom(level.Session));
-        if (Engine.Scene is Editor.MapEditor editor)
-            MiaoNetModule_OnPlayerLocationChanged(new PlayerLocation(editor.mapData.Area, string.Empty));
-    }
-
-    private void Context_PlayerJoined(OnlinePlayer player)
-        => HandleNewPlayer(player);
-
     private void Context_PlayerLeft(OnlinePlayer player)
     {
         if (!ClientState.Self.ShouldSyncFrom(player))
@@ -253,7 +242,7 @@ public sealed class MainComponent : MiaoNetComponent
 
     private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotification packet)
     {
-        Logger.Info(nameof(MiaoNet), $"Player map changed: {player}.");
+        Logger.Info(nameof(MiaoNet), $"Player map changed: {player}, state: {packet.InitialState}.");
         HandleLocationChanging(player, packet.GraphicsInfo, packet.InitialState);
     }
 
@@ -263,14 +252,9 @@ public sealed class MainComponent : MiaoNetComponent
         HandleLocationChanging(player, null, null);
     }
 
-    private void HandleNewPlayer(OnlinePlayer player)
-    {
-        Logger.Info(nameof(MiaoNet), $"New player joined: {player.Info}, locationInfo: {player.Location}.");
-        HandleLocationChanging(player, player.GraphicsInfo, player.State);
-    }
-
     private void Context_PlayerMapChangeResponded(PacketPlayerMapChangedResponse packet)
     {
+        Logger.Info(nameof(MiaoNet), $"Map changed responed, players count: {packet.PlayersInMap.Length}");
         foreach (var item in packet.PlayersInMap)
         {
             OnlinePlayer player = ClientState.Players[item.PlayerID];

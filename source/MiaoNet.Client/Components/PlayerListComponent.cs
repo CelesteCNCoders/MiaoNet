@@ -87,6 +87,11 @@ public sealed class PlayerListComponent : MiaoNetComponent
             list.Sort(pComparer);
     }
 
+    public override void OnDisconnected()
+    {
+        Active = false;
+    }
+
     public override void Update()
     {
         if (MInput.Keyboard.Pressed(Keys.Tab))

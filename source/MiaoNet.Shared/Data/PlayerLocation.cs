@@ -16,19 +16,32 @@ public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatabl
 
     public readonly string MapSet => MapSid == string.Empty ? string.Empty : MapSid[..MapSid.IndexOf('/')];
 
-    /// <summary><see cref="MapSid"/> is Empty and <see cref="MapRoom"/> is Empty</summary>
+    /// <summary>
+    /// <see cref="MapSid"/> is <see cref="string.Empty"/> and <see cref="MapRoom"/> is <see cref="string.Empty"/>
+    /// </summary>
     public readonly bool IsEmpty => MapSid == string.Empty && MapRoom == string.Empty;
 
-    /// <summary><see cref="MapSid"/> is <b>NOT</b> Empty and <see cref="MapRoom"/> is Empty</summary>
+    /// <summary>
+    /// <see cref="MapSid"/> is <b>NOT</b> <see cref="string.Empty"/> and <see cref="MapRoom"/> is <see cref="string.Empty"/>
+    /// </summary>
     public readonly bool IsInDebugMap => MapSid != string.Empty && MapRoom == string.Empty;
 
-    /// <summary><see cref="MapSid"/> is <b>NOT</b> Empty and <see cref="MapRoom"/> is <b>NOT</b> Empty</summary>
+    /// <summary>
+    /// <see cref="MapSid"/> is <b>NOT</b> <see cref="string.Empty"/> and <see cref="MapRoom"/> is <b>NOT</b> <see cref="string.Empty"/>
+    /// </summary>
     public readonly bool IsInMap => MapSid != string.Empty && MapRoom != string.Empty;
+
+    /// <summary>
+    /// Both <see cref="MapSid"/> and <see cref="MapRoom"/> is <b>NOT</b> <see langword="null"/>
+    /// </summary>
+    public readonly bool IsValid => MapSid != null && MapRoom != null;
 
     public static PlayerLocation Empty => new(string.Empty, AreaMode.Normal, string.Empty);
 
     public PlayerLocation(string mapSid, AreaMode mapSide, string mapRoom)
     {
+        SafeGuard.Assert(mapSid != null);
+        SafeGuard.Assert(mapRoom != null);
         MapSid = mapSid;
         MapSide = mapSide;
         MapRoom = mapRoom;

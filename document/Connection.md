@@ -4,14 +4,18 @@
 
 1. Handshake & Initialization
 
-- Client 连接后发送 `HandshakeData`, 包含登录信息
-- Server 根据握手信息将玩家分配到对应频道(待完成)
-- Server 随后发送 `PacketClientInitial`, 用来同意客户端的连接, 包含:
-	- 玩家自身信息：self `PlayerInfo`
-	- 频道列表: `ChannelStateInfo` (重命名为 ChannelInfo?), 包含频道 ID 和名称。 
-	- 玩家列表: 包含
-		- `PlayerInfo`: 昵称、头衔、颜色等元信息。 
-		- `LocationInfo`: 所在地图、房间名 (MapSid, MapRoom) 
+> 暂时还没有做 TLS 加密层, 以后加了就是简单套一层
+
+- Client 发送 `ConnectionHead` 以及 `Handshake`, 包含客户端版本, 自己的登录信息, 安装的 mod 等信息
+- Server 根据 `Handshake` 信息决定是否同意, 同意后分配频道, 然后发送 `ClientInitial` 包含玩家列表等信息, 否则拒绝并断开连接
+	- Client 的连接被同意, 根据 `ClientInitial` 初始化联机相关内容, 开始正常互相发包
+	- Client 的连接被拒绝, 如果 `head` 都不对直接断开, 否则发送断开理由再断开.
+	- `ClientInitial`, 包含:
+		- 玩家自身信息：self `PlayerInfo`
+		- 频道列表: `ChannelInfo` , 包含频道 ID 和名称。 
+		- 玩家列表: 包含
+			- `PlayerInfo`: 昵称、头衔、颜色等元信息。 
+			- `LocationInfo`: 所在地图、房间名 (MapSid, MapRoom) 
 - Server 广播新玩家登录信息给其他 Client。
 
 2. 地图变更导致的同步

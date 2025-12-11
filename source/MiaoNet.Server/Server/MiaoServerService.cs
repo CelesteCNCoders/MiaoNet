@@ -62,7 +62,6 @@ public sealed partial class MiaoServerService : BackgroundService
         while (true)
         {
             Socket socket = await acceptSocket.AcceptAsync(stoppingToken);
-            socket.NoDelay = true;
             var ep = socket.RemoteEndPoint;
             logger.LogInformation(AppEvents.Connection, "New client try connecting: {ep}", ep);
             _ = HandleConnectionAsync(socket, stoppingToken);
@@ -78,33 +77,11 @@ public sealed partial class MiaoServerService : BackgroundService
 
             // make handshake first
             Task<HandshakeData?> handshakeTask = HandleHandshakeAsync(socket, cts.Token);
-            Task completedTask = await Task.WhenAny(handshakeTask, Task.Delay(options.HandshakeTimeout, cts.Token));
-            if (completedTask != handshakeTask)
+
+            var handshakeData = await handshakeTask;
+            if (handshakeData is null)
             {
                 cts.Cancel();
-                logger.LogDebug(AppEvents.Connection, "{ep} Handshake timeout.", ep);
-                return;
-            }
-            if (handshakeTask.Result is null)
-            {
-                cts.Cancel();
-                logger.LogDebug(AppEvents.Connection, "{ep} Handshake failed.", ep);
-                return;
-            }
-
-            logger.LogDebug(AppEvents.Connection, "{ep} Handshake succeeded.", ep);
-
-            var handshakeData = handshakeTask.Result;
-
-            if (handshakeData.Version != new Version(0, 1, 0))
-            {
-                // TODO tell the client what's wrong with them
-                cts.Cancel();
-                logger.LogInformation(
-                    AppEvents.Connection,
-                    "{ep} version {v} not match current version.",
-                    ep, handshakeData.Version
-                );
                 return;
             }
 
@@ -123,14 +100,15 @@ public sealed partial class MiaoServerService : BackgroundService
 
             // send the new player initial data
             PlayerInfo clientPlayerInfo = connection.Player.Info;
-            List<ChannelStateInfo> channels = serverState.AllChannels.Select(c => c.Value.StateInfo).ToList();
+            List<ChannelInfo> channels = serverState.AllChannels.Select(c => c.Value.StateInfo).ToList();
             var playerInfos =
                 from pair in serverState.AllPlayers
                 let p = pair.Value.Player
-                select new PacketPlayerJoined(
-                    p.GetChannelPlayerLocationInfo(),
-                    null,
-                    newPlayer.ShouldSyncFrom(p) ? p.State : null
+                let shouldSync = newPlayer.ShouldSyncFrom(p)
+                select new PacketClientInitial.Player(
+                    p.Channel.ID, p.Info, p.Location,
+                    shouldSync ? p.GraphicsInfo : null,
+                    shouldSync ? p.State : null
                 );
 
             PacketClientInitial packetClientInitial = new PacketClientInitial(clientPlayerInfo, channels, playerInfos.ToList());
@@ -140,35 +118,7 @@ public sealed partial class MiaoServerService : BackgroundService
             serverState.AddPlayer(newPlayer, connection);
 
             // and then tell other clients a new player came
-            serverState.StateLock.EnterReadLock();
-            Task withStateTask, generalTask;
-            try
-            {
-                // this part seems similiar...
-                // can we make it... hm... a method?
-                IPacket withStatePacket = new PacketPlayerJoined(
-                    newPlayer.GetChannelPlayerLocationInfo(),
-                    newPlayer.GraphicsInfo,
-                    newPlayer.State
-                );
-                IPacket generalPacket = new PacketPlayerJoined(newPlayer.GetChannelPlayerLocationInfo());
-                withStateTask = BroadcastToOthersAsync(
-                    withStatePacket,
-                    con => con.Player.ShouldSyncFrom(newPlayer),
-                    connection.ID
-                );
-                generalTask = BroadcastToOthersAsync(
-                    generalPacket,
-                    con => !con.Player.ShouldSyncFrom(newPlayer),
-                    connection.ID
-                );
-            }
-            finally
-            {
-                serverState.StateLock.ExitReadLock();
-            }
-            await withStateTask;
-            await generalTask;
+            await BroadcastOthersAsync(new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.Info), newPlayer.ID);
 
             // exchange data with this player
             await connection.HandleClientConnectAsync();
@@ -182,40 +132,70 @@ public sealed partial class MiaoServerService : BackgroundService
 
             async Task<HandshakeData?> HandleHandshakeAsync(Socket socket, CancellationToken token)
             {
-                try
-                {
-                    const int TotalHeadSize = Connection.HandshakeHeadLength + sizeof(ushort);
-                    var buffer = new byte[TotalHeadSize];
-                    int totalReceived = 0;
-                    while (totalReceived < TotalHeadSize)
-                    {
-                        int received = await socket.ReceiveAsync(buffer.AsMemory().Slice(totalReceived), token);
-                        if (received == 0)
-                            return null;
-                        totalReceived += received;
-                    }
-                    if (!buffer.AsSpan()[..^2].SequenceEqual(Connection.HandshakeHead))
-                        return null;
-                    ushort size = BinaryPrimitives.ReadUInt16LittleEndian(buffer.AsSpan()[^2..]);
+                EndPoint? ep = socket.RemoteEndPoint;
+                NetworkStream netStream = new(socket);
 
-                    // TODO size
-                    buffer = new byte[size];
-                    totalReceived = 0;
-                    while (totalReceived < size)
-                    {
-                        int received = await socket.ReceiveAsync(buffer.AsMemory().Slice(totalReceived), token);
-                        if (received == 0)
-                            return null;
-                        totalReceived += received;
-                    }
-                    RefBinaryReader reader = new(buffer);
-                    return reader.Read<HandshakeData>();
-                }
-                catch (Exception e)
+                Task<HandshakeData?> receiveHandshake = ReceiveHandshakeAsync(netStream, token);
+                Task completedTask = await Task.WhenAny(receiveHandshake, Task.Delay(options.HandshakeTimeout, token));
+
+                if (completedTask != receiveHandshake)
                 {
-                    logger.LogWarning(AppEvents.Connection, e, "Exception when receiving handshake data.");
+                    logger.LogDebug(AppEvents.Connection, "{ep} Handshake timeout.", ep);
                     return null;
                 }
+                if (receiveHandshake.Result is null)
+                {
+                    logger.LogDebug(AppEvents.Connection, "{ep} Handshake failed.", ep);
+                    return null;
+                }
+
+                logger.LogDebug(AppEvents.Connection, "{ep} Handshake succeeded.", ep);
+
+                var handshakeData = receiveHandshake.Result;
+
+                Version requiredVersion = new Version(0, 1, 0);
+                if (handshakeData.Version != requiredVersion)
+                {
+                    await SendHandshakeAck(netStream, $"Required version {requiredVersion}.", token);
+                    logger.LogInformation(
+                        AppEvents.Connection,
+                        "{ep} version {v} not match current version.",
+                        ep, handshakeData.Version
+                    );
+                    return null;
+                }
+                await SendHandshakeAck(netStream, null, token);
+
+                return handshakeData;
+            }
+
+            async Task<HandshakeData?> ReceiveHandshakeAsync(Stream netStream, CancellationToken token)
+            {
+                const int TotalHeadSize = Connection.HandshakeHeadLength + sizeof(ushort);
+                var buffer = new byte[TotalHeadSize];
+                await netStream.ReadExactlyAsync(buffer, token);
+
+                if (!buffer.AsSpan()[..^sizeof(ushort)].SequenceEqual(Connection.HandshakeHead.Span))
+                    return null;
+                ushort size = BinaryPrimitives.ReadUInt16LittleEndian(buffer.AsSpan()[^sizeof(ushort)..]);
+
+                buffer = new byte[size];
+                await netStream.ReadExactlyAsync(buffer, token);
+                RefBinaryReader reader = new(buffer);
+                return reader.Read<HandshakeData>();
+            }
+
+            async Task SendHandshakeAck(Stream netStream, string? deniedReason, CancellationToken token)
+            {
+                MemoryStream ms = new(32);
+                ms.Seek(sizeof(ushort), SeekOrigin.Begin);
+                RefBinaryWriter writer = new(ms);
+                writer.Write(new HandshakeAckData(deniedReason));
+                ushort length = (ushort)(ms.Position - sizeof(ushort));
+                ms.Seek(0, SeekOrigin.Begin);
+                writer.Write(length);
+
+                await netStream.WriteAsync(ms.GetBuffer().AsMemory(0, length + sizeof(ushort)), token);
             }
         }
         catch (Exception e)

@@ -18,31 +18,15 @@ public sealed class OnlinePlayer : IPlayerListEntry
 
     public PlayerGraphicsInfo? GraphicsInfo { get; set; }
 
-    public OnlinePlayer(
-        OnlineChannel channel,
-        PlayerInfo info,
-        PlayerLocation locationInfo,
-        PlayerState? state, PlayerGraphicsInfo? graphicsInfo
-    )
+    public OnlinePlayer(OnlineChannel channel, PlayerInfo info)
     {
         Channel = channel;
         Info = info;
-        Location = locationInfo;
-        State = state;
-        GraphicsInfo = graphicsInfo;
-    }
-
-    public OnlinePlayer(
-        OnlineChannel channel,
-        PlayerInfo info,
-        PlayerLocation locationInfo
-    ) : this(channel, info, locationInfo, null, null)
-    {
+        location = PlayerLocation.Empty;
     }
 
     public override string ToString()
         => $"{Info} at {Location}";
-
 
     PlayerLocation IPlayerListEntry.Location => Location;
 

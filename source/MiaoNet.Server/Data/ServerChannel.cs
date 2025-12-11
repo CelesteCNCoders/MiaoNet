@@ -9,13 +9,13 @@ public sealed class ServerChannel
 {
     private ImmutableDictionary<int, ServerState.Client> players;
 
-    public ChannelStateInfo StateInfo { get; private set; }
+    public ChannelInfo StateInfo { get; private set; }
 
     public ImmutableDictionary<int, ServerState.Client> Players { get => players; set => players = value; }
 
     public int ID => StateInfo.ID;
 
-    public ServerChannel(ChannelStateInfo stateInfo)
+    public ServerChannel(ChannelInfo stateInfo)
     {
         players = ImmutableDictionary<int, ServerState.Client>.Empty;
         StateInfo = stateInfo;

@@ -3,6 +3,8 @@ using MiaoNet.Server.Primitives;
 #endif
 namespace MiaoNet.Shared;
 
+// total size:
+// (2 + 2) + 8 + 2 + 2 + 8 + 2 = 26 bytes
 public sealed class PacketPlayerFrame : IPacket<PacketPlayerFrame>
 {
     [Flags]

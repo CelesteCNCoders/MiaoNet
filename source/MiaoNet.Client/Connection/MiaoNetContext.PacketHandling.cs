@@ -21,7 +21,6 @@ public partial class MiaoNetContext
 
     private void RegisterPacketHandlers(PacketHandlerRegister r)
     {
-        r.Register<PacketClientInitial>(HandlePacket);
         r.Register<PacketPlayerJoined>(HandlePacket);
         r.Register<PacketPlayerLeft>(HandlePacket);
         r.Register<PacketPlayerNotification<PacketPlayerFrame>>(HandlePacket);
@@ -34,16 +33,10 @@ public partial class MiaoNetContext
         r.Register<PacketPlayerNotification<PacketPlayerStateFlags>>(HandlePacket);
     }
 
-    private void HandlePacket(PacketClientInitial packet)
-    {
-        clientState = new(packet, PlayerLocation.Empty);
-        ClientInitialized?.Invoke(clientState);
-    }
-
     private void HandlePacket(PacketPlayerJoined packet)
     {
         EnsureState();
-        var player = ClientState.OnNewPlayerJoined(packet);
+        var player = ClientState.OnNewPlayerJoined(packet.ChannelID, packet.PlayerInfo);
         PlayerJoined?.Invoke(player);
     }
 
@@ -85,6 +78,7 @@ public partial class MiaoNetContext
         EnsureState();
         var player = ClientState.Players[packet.PlayerID];
         player.Location = packet.Location;
+        Console.WriteLine($"Packet location changed: {packet.Location} for {player.Info}");
         player.State = packet.InitialState;
         player.GraphicsInfo = packet.GraphicsInfo;
         PlayerMapChanged?.Invoke(player, packet);

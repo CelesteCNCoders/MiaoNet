@@ -28,7 +28,7 @@ public sealed class ServerState
     public ServerState()
     {
         allPlayers = ImmutableDictionary<int, Client>.Empty;
-        allChannels = ImmutableDictionary<int, ServerChannel>.Empty.Add(0, new ServerChannel(new ChannelStateInfo(0, "main")));
+        allChannels = ImmutableDictionary<int, ServerChannel>.Empty.Add(0, new ServerChannel(new ChannelInfo(0, "main")));
         nextPlayerID = nextChannelID = 1;
     }
 
@@ -43,7 +43,7 @@ public sealed class ServerState
     public ServerChannel CreateNewChannel(string channelName)
     {
         int id = Interlocked.Increment(ref nextChannelID);
-        ServerChannel channel = new(new ChannelStateInfo(id, channelName));
+        ServerChannel channel = new(new ChannelInfo(id, channelName));
         return channel;
     }
 

@@ -1,5 +1,6 @@
 // write by qwen, they're good at doing these
 #pragma warning disable IDE0251
+using MiaoNet.Server.Primitives;
 using MiaoNet.Shared;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
@@ -227,7 +228,7 @@ public class RefBinaryReaderWriterTests
         var reader = new RefBinaryReader(ms.ToArray());
 
         var readPeople = reader.ReadArray<Person>();
-        Assert.AreEqual(people.Count, readPeople.Count);
+        Assert.AreEqual(people.Count, readPeople.Length);
         for (int i = 0; i < people.Count; i++)
         {
             Assert.AreEqual(people[i].Name, readPeople[i].Name);
