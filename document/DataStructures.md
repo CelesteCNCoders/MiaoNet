@@ -507,6 +507,23 @@ public sealed class ServerChannel
 - 修改操作返回新的 `ServerChannel` 实例
 - 通过原子操作更新引用
 
+**示例代码：**
+```csharp
+// 原子更新示例
+ServerChannel oldChannel = currentChannel;
+ServerChannel newChannel = oldChannel.AddPlayer(newPlayer);
+
+// 使用 Interlocked.CompareExchange 确保原子性
+ServerChannel result = Interlocked.CompareExchange(
+    ref currentChannel,
+    newChannel,    // 新值
+    oldChannel     // 期望的旧值
+);
+
+// 如果 result == oldChannel，更新成功
+// 否则需要重试（其他线程已修改）
+```
+
 ---
 
 ### ServerState

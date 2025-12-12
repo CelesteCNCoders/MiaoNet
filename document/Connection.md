@@ -308,7 +308,7 @@ stateDiagram-v2
     Disconnected --> [*]
 ```
 
-## 同步级别 (Sync Level)
+## 同步级别策略 (Sync Level Strategy)
 
 根据玩家间的位置关系，采用不同的同步策略:
 
