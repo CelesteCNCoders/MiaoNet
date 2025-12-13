@@ -105,11 +105,8 @@ public sealed partial class MiaoServerService : BackgroundService
             var playerInfos =
                 from pair in serverState.AllPlayers
                 let p = pair.Value.Player
-                let shouldSync = newPlayer.ShouldSyncFrom(p)
                 select new PacketClientInitial.Player(
-                    p.Channel.ID, p.Info, p.Location,
-                    shouldSync ? p.GraphicsInfo : null,
-                    shouldSync ? p.State : null
+                    p.Channel.ID, p.Info, p.Location
                 );
 
             PacketClientInitial packetClientInitial = new PacketClientInitial(clientPlayerInfo, channels, playerInfos.ToList());
