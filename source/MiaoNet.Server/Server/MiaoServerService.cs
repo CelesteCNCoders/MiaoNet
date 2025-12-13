@@ -109,7 +109,7 @@ public sealed partial class MiaoServerService : BackgroundService
                     p.Channel.ID, p.Info, p.Location
                 );
 
-            PacketClientInitial packetClientInitial = new PacketClientInitial(clientPlayerInfo, channels, playerInfos.ToList());
+            PacketClientInitial packetClientInitial = new PacketClientInitial(newPlayer.Channel.ID, clientPlayerInfo, channels, playerInfos.ToList());
             await connection.SendPacketAsync(packetClientInitial);
 
             // other connections can see this player now

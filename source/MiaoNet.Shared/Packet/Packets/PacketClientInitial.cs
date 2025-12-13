@@ -41,11 +41,13 @@ public sealed class PacketClientInitial : IPacket<PacketClientInitial>
     public IReadOnlyCollection<Player> Players { get; }
 
     public PacketClientInitial(
+        int channelID,
         PlayerInfo selfPlayerInfo,
         IReadOnlyCollection<ChannelInfo> channels,
         IReadOnlyCollection<Player> players
     )
     {
+        ChannelID = channelID;
         SelfPlayerInfo = selfPlayerInfo;
         Channels = channels;
         Players = players;
@@ -53,6 +55,7 @@ public sealed class PacketClientInitial : IPacket<PacketClientInitial>
 
     static PacketClientInitial IRefBinarySerializable<PacketClientInitial>.Deserialize(ref RefBinaryReader reader)
         => new(
+            reader.ReadInt32(),
             reader.Read<PlayerInfo>(),
             reader.ReadArray<ChannelInfo>(),
             reader.ReadArray<Player>()
@@ -60,6 +63,7 @@ public sealed class PacketClientInitial : IPacket<PacketClientInitial>
 
     public void Serialize(ref RefBinaryWriter writer)
     {
+        writer.Write(ChannelID);
         writer.Write(SelfPlayerInfo);
         writer.Write(Channels);
         writer.Write(Players);
