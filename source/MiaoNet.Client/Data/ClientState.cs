@@ -29,8 +29,6 @@ public sealed class ClientState
         {
             var p = AddNewPlayer(player.ChannelID, player.PlayerInfo);
             p.Location = player.Location;
-            p.GraphicsInfo = player.GraphicsInfo;
-            p.State = player.State;
         }
         Self = new(channels[clientInitial.ChannelID], clientInitial.SelfPlayerInfo);
     }
