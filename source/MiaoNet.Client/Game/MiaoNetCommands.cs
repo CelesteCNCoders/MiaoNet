@@ -5,8 +5,10 @@ public static class MiaoNetCommands
     private static MiaoNetContext Context => MiaoNetModule.Instance.MiaoNetContext;
 
     [Command("con", "Connect to MiaoNet.")]
-    public static void Connect()
+    public static void Connect(string? server = null)
     {
+        if (server is not null)
+            Context.TargetServer = server;
         Context.Connect();
     }
 
@@ -16,9 +18,11 @@ public static class MiaoNetCommands
         Context.Disconnect();
     }
 
-    [Command("mn_status","Show a MiaoNet status message.")]
+#if DEBUG
+    [Command("mn_status", "Show a MiaoNet status message.")]
     public static void MiaoNet_ShowStatus(string text)
     {
         Context.ShowStatusMessage(text);
     }
+#endif
 }

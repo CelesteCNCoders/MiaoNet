@@ -19,6 +19,7 @@ public sealed partial class MiaoNetContext
     private readonly ConcurrentDictionary<int, Action<PacketResponse>> pendingRequests;
 
     //private int warningTimes;
+    public string TargetServer { get; set; } = "s.saplonily.top";
 
     private CancellationTokenSource? cts;
     private Thread? connectionThread;
@@ -242,11 +243,7 @@ public sealed partial class MiaoNetContext
 
         async Task StartConnectionAsync(CancellationToken token)
         {
-#if DEBUG
-            string host = "local.saplonily.top";
-#else
-            string host = "127.0.0.1";
-#endif
+            string host = TargetServer;
 
             EndPoint ep = IPAddress.TryParse(host, out var ipa)
                 ? new IPEndPoint(ipa, 21473)

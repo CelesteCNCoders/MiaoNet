@@ -121,7 +121,7 @@ public sealed partial class MiaoServerService : BackgroundService
                     channels,
                     playerInfos.ToList()
                 );
-                Thread.Sleep(Random.Shared.Next(1000, 5000));
+                //Thread.Sleep(Random.Shared.Next(1000, 5000));
                 sendStateTask = newConnection.SendPacketAsync(packetClientInitial);
 
                 ServerState.StateLock.EnterWriteLock();
