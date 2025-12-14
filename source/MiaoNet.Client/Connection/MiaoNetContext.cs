@@ -19,7 +19,11 @@ public sealed partial class MiaoNetContext
     private readonly ConcurrentDictionary<int, Action<PacketResponse>> pendingRequests;
 
     //private int warningTimes;
+#if DEBUG
+    public string TargetServer { get; set; } = "local.saplonily.top";
+#else
     public string TargetServer { get; set; } = "s.saplonily.top";
+#endif
 
     private CancellationTokenSource? cts;
     private Thread? connectionThread;
@@ -301,7 +305,7 @@ public sealed partial class MiaoNetContext
                     else
                     {
                         Logger.Info(nameof(MiaoNet), $"Connected to {ep}.");
-                        
+
                         mainThreadQueue.Enqueue(() =>
                         {
                             clientState = new(clientInitial);
