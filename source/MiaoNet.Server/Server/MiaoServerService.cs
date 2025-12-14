@@ -97,29 +97,60 @@ public sealed partial class MiaoServerService : BackgroundService
             );
 
             var conLogger = connectionLoggerFactory.CreateLogger<MiaoClientConnection>();
-            MiaoClientConnection connection = new(newPlayer.ID, socket, newPlayer, conLogger, this);
+            MiaoClientConnection newConnection = new(newPlayer.ID, socket, newPlayer, conLogger, this);
 
             // send the new player initial data
-            PlayerInfo clientPlayerInfo = connection.Player.Info;
-            List<ChannelInfo> channels = serverState.AllChannels.Select(c => c.Value.StateInfo).ToList();
-            var playerInfos =
-                from pair in serverState.AllPlayers
-                let p = pair.Value.Player
-                select new PacketClientInitial.Player(
-                    p.Channel.ID, p.Info, p.Location
+            PlayerInfo clientPlayerInfo = newConnection.Player.Info;
+
+            ValueTask sendStateTask;
+            Task knowJoinedTask;
+            ServerState.StateLock.EnterUpgradeableReadLock();
+            try
+            {
+                List<ChannelInfo> channels = serverState.AllChannels.Select(c => c.Value.StateInfo).ToList();
+                var playerInfos =
+                    from pair in serverState.AllPlayers
+                    let p = pair.Value.Player
+                    select new PacketClientInitial.Player(
+                        p.Channel.ID, p.Info, p.Location
+                    );
+
+                PacketClientInitial packetClientInitial = new PacketClientInitial(
+                    newPlayer.Channel.ID,
+                    clientPlayerInfo,
+                    channels,
+                    playerInfos.ToList()
                 );
+                Thread.Sleep(Random.Shared.Next(1000, 5000));
+                sendStateTask = newConnection.SendPacketAsync(packetClientInitial);
 
-            PacketClientInitial packetClientInitial = new PacketClientInitial(newPlayer.Channel.ID, clientPlayerInfo, channels, playerInfos.ToList());
-            await connection.SendPacketAsync(packetClientInitial);
+                ServerState.StateLock.EnterWriteLock();
+                try
+                {
+                    // other connections can see this player now
+                    serverState.AddPlayer(newPlayer, newConnection);
 
-            // other connections can see this player now
-            serverState.AddPlayer(newPlayer, connection);
+                    // and then tell other clients a new player came
+                    knowJoinedTask = BroadcastOthersAsync(
+                        new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.Info), newPlayer.ID
+                    );
+                    logger.LogInformation("{player} Added and sent joined packet to other!", newPlayer.Info);
+                }
+                finally
+                {
+                    ServerState.StateLock.ExitWriteLock();
+                }
+            }
+            finally
+            {
+                ServerState.StateLock.ExitUpgradeableReadLock();
+            }
 
-            // and then tell other clients a new player came
-            await BroadcastOthersAsync(new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.Info), newPlayer.ID);
+            await sendStateTask;
+            await knowJoinedTask;
 
             // exchange data with this player
-            await connection.HandleClientConnectAsync();
+            await newConnection.HandleClientConnectAsync();
 
             // exchange finished, tell other clients this player left
             logger.LogInformation(AppEvents.Connection, "Client id {id} handle finished.", newPlayer.ID);

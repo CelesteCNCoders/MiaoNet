@@ -104,8 +104,10 @@ public sealed class MainComponent : MiaoNetComponent
 
         bool currentDashing = player.StateMachine.State is Player.StDash;
         int currentDashes = player.Dashes;
-
-        PlayerState? selfState = ClientState.SelfState!;
+        
+        PlayerState? selfState = ClientState.SelfState;
+        if (selfState is null)
+            return;
 
         FFlags flags = 0;
         if (player.Facing is Facings.Left)

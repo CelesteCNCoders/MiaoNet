@@ -1,4 +1,4 @@
-﻿[*.{cs,vb}]
+[*.{cs,vb}]
 
 dotnet_diagnostic.IDE0028.severity = silent
 dotnet_diagnostic.IDE0090.severity = silent
@@ -10,3 +10,6 @@ dotnet_diagnostic.IDE0017.severity = silent
 dotnet_diagnostic.IDE0305.severity = silent
 dotnet_diagnostic.IDE0301.severity = silent
 dotnet_diagnostic.IDE0306.severity = silent
+
+# we will notice that
+dotnet_diagnostic.CA1873.severity = silent

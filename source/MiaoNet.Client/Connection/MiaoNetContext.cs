@@ -109,45 +109,53 @@ public sealed partial class MiaoNetContext
 
     public void Update()
     {
-        while (mainThreadQueue.TryDequeue(out var item))
-            item();
-
-        if (statusMessageTimer > 0f)
+        try
         {
-            statusMessageTimer -= Engine.RawDeltaTime;
-            if (statusMessageTimer <= 0f)
+            while (mainThreadQueue.TryDequeue(out var item))
+                item();
+
+            if (statusMessageTimer > 0f)
             {
-                statusMessage = null;
-            }
-        }
-
-        if (!HasConnection)
-            return;
-
-        while (mainThreadQueue.TryDequeue(out var item))
-            item();
-
-        while (receiveQueue.TryDequeue(out var packet))
-        {
-            if (packet is PacketResponse response)
-            {
-                if (pendingRequests.TryRemove(response.RequestID, out var handler))
+                statusMessageTimer -= Engine.RawDeltaTime;
+                if (statusMessageTimer <= 0f)
                 {
-                    handler(response);
+                    statusMessage = null;
+                }
+            }
+
+            if (!HasConnection)
+                return;
+
+            while (mainThreadQueue.TryDequeue(out var item))
+                item();
+
+            while (receiveQueue.TryDequeue(out var packet))
+            {
+                if (packet is PacketResponse response)
+                {
+                    if (pendingRequests.TryRemove(response.RequestID, out var handler))
+                    {
+                        handler(response);
+                    }
+                    else
+                    {
+                        Logger.Warn(nameof(MiaoNet), $"Unknown response id: {response.RequestID}. Is it the cancelled one?");
+                    }
                 }
                 else
                 {
-                    Logger.Warn(nameof(MiaoNet), $"Unknown response id: {response.RequestID}. Is it the cancelled one?");
+                    bool handled = packetDispatcher.DispatchPacket(packet);
+                    if (!handled)
+                        Logger.Warn(nameof(MiaoNet), $"Unhandled packet type: {packet.GetType()}.");
                 }
             }
-            else
-            {
-                bool handled = packetDispatcher.DispatchPacket(packet);
-                if (!handled)
-                    Logger.Warn(nameof(MiaoNet), $"Unhandled packet type: {packet.GetType()}.");
-            }
+            components.ForEach(c => c.Update());
         }
-        components.ForEach(c => c.Update());
+        catch (Exception e)
+        {
+            Logger.LogDetailed(e, nameof(MiaoNet));
+            Disconnect();
+        }
     }
 
     public void Render()
@@ -234,7 +242,11 @@ public sealed partial class MiaoNetContext
 
         async Task StartConnectionAsync(CancellationToken token)
         {
-            string host = "s.saplonily.top";
+#if DEBUG
+            string host = "local.saplonily.top";
+#else
+            string host = "127.0.0.1";
+#endif
 
             EndPoint ep = IPAddress.TryParse(host, out var ipa)
                 ? new IPEndPoint(ipa, 21473)
@@ -249,7 +261,7 @@ public sealed partial class MiaoNetContext
             MiaoServerConnection? connection;
             try
             {
-                // this will send the full handshake, then we need to receive ack ourselves
+                // this will send the full handshake, then we need to handle ack ourselves
                 (connection, var ackData) = await MiaoServerConnection.CreateAsync(ep, handshakeData, token);
 
                 if (ackData is null)
@@ -281,7 +293,7 @@ public sealed partial class MiaoNetContext
                         if (packetInitial is null)
                             Logger.Warn(nameof(MiaoNet), $"Remote sent empty or invalid initial reply.");
                         else
-                            Logger.Warn(nameof(MiaoNet), $"Remote sent a werid {packetInitial.GetType()}.");
+                            Logger.Warn(nameof(MiaoNet), $"Remote sent a werid initial packet {packetInitial.GetType()}.");
                         mainThreadQueue.Enqueue(() =>
                         {
                             ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
@@ -292,11 +304,11 @@ public sealed partial class MiaoNetContext
                     else
                     {
                         Logger.Info(nameof(MiaoNet), $"Connected to {ep}.");
-
-                        this.connection = connection;
-                        clientState = new(clientInitial);
+                        
                         mainThreadQueue.Enqueue(() =>
                         {
+                            clientState = new(clientInitial);
+                            this.connection = connection;
                             ClientInitialized?.Invoke(clientState);
                             ShowStatusMessage(MiaoNetConnectionStatus.Connected);
                             components.ForEach(c => c.OnConnected());
@@ -315,12 +327,11 @@ public sealed partial class MiaoNetContext
                 return;
             }
 
-
-            _ = ReceivePacketsLoopAsync(token).ContinueWith(HandleTaskCompleted, token);
+            _ = ReceivePacketsLoopAsync(connection, token).ContinueWith(HandleTaskCompleted, token);
             _ = connection.SendPacketsLoopAsync(token).ContinueWith(HandleTaskCompleted, token);
         }
 
-        async Task ReceivePacketsLoopAsync(CancellationToken token)
+        async Task ReceivePacketsLoopAsync(MiaoServerConnection connection, CancellationToken token)
         {
 #if PACKET_TRACING
             System.Text.Json.JsonSerializerOptions options = new()
@@ -333,7 +344,7 @@ public sealed partial class MiaoNetContext
             await Task.Yield();
             while (!token.IsCancellationRequested)
             {
-                IPacket? packet = await connection!.ReceivePacketAsync(token);
+                IPacket? packet = await connection.ReceivePacketAsync(token);
                 if (packet is null)
                     return;
 #if PACKET_TRACING

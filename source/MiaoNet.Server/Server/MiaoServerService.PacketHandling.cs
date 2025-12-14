@@ -51,7 +51,7 @@ public sealed partial class MiaoServerService
         var player = connection.Player;
         player.State = packet.InitialState;
         logger.LogDebug(
-            "Player {p} map changed from {p1} to {p2}.",
+            "Player {p} map changing from {p1} to {p2}.",
             player.Info, player.Location, packet.Location
         );
 
@@ -63,14 +63,40 @@ public sealed partial class MiaoServerService
         {
             // player went to menu or other non-Level places
             // just tell everyone about this thing
-            await BroadcastOthersAsync(new PacketPlayerMapChangedNotification(player.ID, PlayerLocation.Empty), connection.ID);
+            Task task;
+            serverState.StateLock.EnterReadLock();
+            try
+            {
+                task = BroadcastOthersAsync(
+                    new PacketPlayerMapChangedNotification(player.ID, PlayerLocation.Empty),
+                    connection.ID
+                );
+            }
+            finally
+            {
+                serverState.StateLock.ExitReadLock();
+            }
+            await task;
             return;
         }
         else if (packet.Location.IsInDebugMap)
         {
             // player went to the debug map
             // tell everyone about this thing
-            await BroadcastOthersAsync(new PacketPlayerMapChangedNotification(player.ID, packet.Location), connection.ID);
+            Task task;
+            serverState.StateLock.EnterReadLock();
+            try
+            {
+                task = BroadcastOthersAsync(
+                    new PacketPlayerMapChangedNotification(player.ID, packet.Location),
+                    connection.ID
+                );
+            }
+            finally
+            {
+                serverState.StateLock.ExitReadLock();
+            }
+            await task;
             // and seems there're no other things to do...
             // since if the player went to the debug map
             // then they must be in the corresponding map previously

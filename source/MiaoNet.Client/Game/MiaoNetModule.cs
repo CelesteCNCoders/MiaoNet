@@ -18,7 +18,7 @@ public sealed class MiaoNetModule : EverestModule
         = new RasterizerState() { ScissorTestEnable = true };
 
     public static event Action<PlayerLocation>? PlayerLocationChanged;
-
+    
     public MiaoNetModule()
     {
         MiaoNetContext = new();
@@ -34,7 +34,7 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.Level.OnLoadLevel += Level_OnLoadLevel;
         IL.Celeste.Level.Update += Level_Update;
     }
-
+    
     public override void Unload()
     {
         MiaoNetContext.Disconnect();
@@ -65,7 +65,7 @@ public sealed class MiaoNetModule : EverestModule
         cur.Index = cur.Instrs.Count - 1;
         cur.EmitDelegate(static () => Instance.MiaoNetContext.Render());
     }
-
+    
     private static void Level_Update(ILContext il)
     {
         // TODO will there be a mod that opens debug map else where?
