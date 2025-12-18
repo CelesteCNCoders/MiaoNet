@@ -1,7 +1,7 @@
-namespace MiaoNet.Shared;
+namespace Celeste.Mod.MiaoNet;
 
 /// <summary>
-/// Used to specify parts of command args, and also parts of command results
+/// Used to specify parts of command args
 /// </summary>
 public enum CommandSegmentType : byte
 {

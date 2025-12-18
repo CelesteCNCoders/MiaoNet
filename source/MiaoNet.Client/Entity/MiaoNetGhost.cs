@@ -8,38 +8,9 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class MiaoNetGhost : Entity
 {
-    public sealed class NameTag : Entity
-    {
-        private readonly Entity entity;
-        private readonly string text;
-
-        public NameTag(Entity entity, string text)
-        {
-            Tag = TagsExt.SubHUD | entity.Tag;
-            this.entity = entity;
-            this.text = text;
-        }
-
-        public NameTag(MiaoNetGhost ghost) : this(ghost, ghost.Name)
-        {
-        }
-
-        public override void Render()
-        {
-            base.Render();
-            Vector2 worldPos = entity.Position;
-            worldPos.Y -= 16f;
-            MiaoNetFont.DrawGhostName(
-                text,
-                SceneAs<Level>().WorldToScreen(worldPos),
-                Color.White * (MiaoNetModule.Settings.NameOpacity / 10.0f)
-            );
-        }
-    }
-
     private PlayerSprite playerSprite;
     private readonly PlayerHair playerHair;
-    private readonly NameTag nameTag;
+    private readonly GhostNameTag nameTag;
 
     private Facings facing;
     private int dashes;

@@ -16,6 +16,8 @@ public static class MiaoNetFont
 
     public static PixelFontSize FontSize => Font.Get(BaseSize);
 
+    public static PixelFontSize ZhsFontSize => ZhsFont.Get(ZhsBaseSize);
+
     public static int LineHeight => ENLanguage.FontSize.LineHeight;
 
     public static void DrawGhostName(string name, Vector2 position, Color color)

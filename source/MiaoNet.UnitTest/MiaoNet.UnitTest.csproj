@@ -1,18 +1,26 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <DefineConstants>$(DefineConstants);MIAO_SERVER</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MSTest" Version="3.10.0" />
+    <PackageReference Include="MSTest" Version="4.0.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\MiaoNet.Server\MiaoNet.Server.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\MiaoNet.Client\Command\*.cs"
+             Exclude="..\MiaoNet.Client\Command\MiaoNetCommand.Commands.cs"
+             LinkBase="Command" />
+    <Compile Include="..\MiaoNet.Shared\SafeGuard.cs" LinkBase="Command" />
   </ItemGroup>
 
   <ItemGroup>

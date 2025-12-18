@@ -1,16 +1,17 @@
 <Solution>
   <Folder Name="/Solution Items/">
     <File Path=".gitignore" />
+    <File Path="README.md" />
     <File Path="source/.editorconfig" />
     <File Path="source/Directory.Build.props" />
   </Folder>
-  <Folder Name="/Solution Items/Document/" Id="ee50d6f4-c1c9-424d-8636-fdbf2da848e5">
+  <Folder Name="/Solution Items/Document/">
     <File Path="document/Connection.md" />
     <File Path="document/Design.md" />
   </Folder>
-  <Project Path="source/ChatInputBox/ChatInputBox/ChatInputBox.msbuildproj" Type="13b669be-bb05-4ddf-9536-439f39a36129" />
   <Project Path="source/MiaoNet.Client/MiaoNet.Client.csproj" />
   <Project Path="source/MiaoNet.Server/MiaoNet.Server.csproj" />
   <Project Path="source/MiaoNet.Shared/MiaoNet.Shared.msbuildproj" Type="13b669be-bb05-4ddf-9536-439f39a36129" />
   <Project Path="source/MiaoNet.UnitTest/MiaoNet.UnitTest.csproj" />
+  <Project Path="source/ChatInputBox/ChatInputBox/ChatInputBox.msbuildproj" Type="13b669be-bb05-4ddf-9536-439f39a36129" />
 </Solution>

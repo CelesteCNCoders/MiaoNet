@@ -22,4 +22,15 @@ miaonet_connection_status_disconnected= Disconnected
 miaonet_connection_status_kicked= Kicked from server
 miaonet_connection_status_server_closed= Server closed
 
+miaonet_command_status_no_such_command= Command "(0)" not found
+miaonet_command_status_missing_arguments= Command "(0)" needs (1) arguments but got only (2)
+miaonet_command_status_too_many_arguments= Command "(0)" needs only (1) arguments but got (2)
+
+miaonet_command_status_need_in_level= This command needs to be run in the map
+miaonet_command_status_player_not_found= Player "(0)" not found
+miaonet_command_status_player_not_in_map= Player "(0)" is not in a map
+miaonet_command_status_player_is_self= "(0)" is yourself!
+miaonet_command_status_player_map_missing= Map "(1)" where player "(0)" is in is missing
+miaonet_command_status_channel_not_found= Channel "(0)" not found
+
 miaonet_dev_tip= Don't scroll down now, they're all unfinished. :(

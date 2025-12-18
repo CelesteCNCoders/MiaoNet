@@ -9,6 +9,7 @@ public sealed class ChatComponent : MiaoNetComponent
     private bool active;
     private readonly InputBox inputBox;
     private readonly ChatMessageListView<MiaoNetChatMessage> chatView;
+    private readonly CommandParser cmdParser;
 
     public ChatComponent(MiaoNetContext context)
         : base(context)
@@ -16,20 +17,18 @@ public sealed class ChatComponent : MiaoNetComponent
         ITextRenderer r = new MiaoNetTextRenderer();
         inputBox = new InputBox(r);
         chatView = new(r);
+        cmdParser = new(MiaoNetCommand.Commands);
         context.ChatMessageReceived += Context_ChatMessageReceived;
     }
 
     private void Context_ChatMessageReceived(OnlinePlayer? player, PacketChatMessage packet)
     {
         bool isAnnouncement = packet.Type == ChatMessageType.Server;
-        if (player is not null)
-        {
-            chatView.AddChatMessage(new(player.Info.Name, packet.Content, isAnnouncement));
-        }
-        else
-        {
-            chatView.AddChatMessage(new(null, packet.Content, isAnnouncement));
-        }
+
+        MiaoNetChatMessage msg = new(player, packet.Content);
+        if (isAnnouncement) msg.SetIsAnnouncement();
+
+        chatView.AddChatMessage(msg);
     }
 
     public override void Update()
@@ -48,6 +47,7 @@ public sealed class ChatComponent : MiaoNetComponent
         }
         else
         {
+            // TODO custom keys?
             if (MInput.Keyboard.Pressed(Keys.Escape))
             {
                 MInputHack.ConsumeAllInput();
@@ -57,8 +57,15 @@ public sealed class ChatComponent : MiaoNetComponent
             if (MInput.Keyboard.Pressed(Keys.Enter))
             {
                 MInputHack.ConsumeAllInput();
-                if (inputBox.Text != string.Empty && !inputBox.Text.All(char.IsWhiteSpace))
-                    context.QueuePacket(new PacketSendChatMessage(inputBox.Text));
+                string text = inputBox.Text;
+                string trimmedText = text.Trim();
+                if (trimmedText != string.Empty)
+                {
+                    if (!trimmedText.StartsWith(CommandParser.CommandPrefix))
+                        SendChat(trimmedText);
+                    else
+                        HandleCommand(trimmedText);
+                }
                 Deactive();
                 return;
             }
@@ -67,12 +74,60 @@ public sealed class ChatComponent : MiaoNetComponent
         chatView.Update();
     }
 
+    public void SendChat(string text)
+    {
+        context.QueuePacket(new PacketSendChatMessage(text));
+    }
+
+    public void HandleCommand(string text)
+    {
+        var result = cmdParser.Parse(text, out var cmdName, out var cmd, out var args);
+        if (result != CommandParser.ParseResult.Success)
+        {
+            TipCommandError(result, cmdName, cmd, args is null ? -1 : args.Count);
+            return;
+        }
+
+        MiaoNetChatMessage chatMsg = new(text);
+        chatMsg.SetIsCommandEcho();
+        chatView.AddChatMessage(chatMsg);
+        string? error = cmd!.OnExecute(context, args!);
+        if (error is not null)
+        {
+            MiaoNetChatMessage errMsg = new(error);
+            errMsg.SetIsCommandErrorEcho();
+            chatView.AddChatMessage(errMsg);
+        }
+
+        void TipCommandError(CommandParser.ParseResult result, string cmdName, MiaoNetCommand? cmd, int argc)
+        {
+            string msg = result switch
+            {
+                CommandParser.ParseResult.NoSuchCommand =>
+                    Dialog.Clean("miaonet_command_status_no_such_command")
+                    .Replace("(0)", cmdName),
+                CommandParser.ParseResult.MissingArguments =>
+                    Dialog.Clean("miaonet_command_status_missing_arguments")
+                    .Replace("(0)", cmdName)
+                    .Replace("(1)", cmd!.Segments.Count.ToString())
+                    .Replace("(2)", argc.ToString()),
+                CommandParser.ParseResult.TooManyArguments =>
+                    Dialog.Clean("miaonet_command_status_too_many_arguments")
+                    .Replace("(0)", cmdName)
+                    .Replace("(1)", cmd!.Segments.Count.ToString())
+                    .Replace("(2)", argc.ToString()),
+            };
+            MiaoNetChatMessage chatMsg = new(msg);
+            chatMsg.SetIsCommandErrorEcho();
+            chatView.AddChatMessage(chatMsg);
+        }
+    }
+
     // TODO TODO TODO we need a clean up method
     public override void OnDisconnected()
     {
-        if (!active)
-            return;
-        Deactive();
+        if (active)
+            Deactive();
         chatView.CleanUp();
     }
 

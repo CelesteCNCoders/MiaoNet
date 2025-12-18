@@ -87,7 +87,12 @@ public sealed class MiaoNetModule : EverestModule
     }
 
     private void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader)
-        => PlayerLocationChanged?.Invoke(PlayerLocation.FetchFrom(level.Session));
+    {
+        // This is ugly, any better ways?
+        if (isFromLoader)
+            PlayerLocationChanged?.Invoke(PlayerLocation.Empty);
+        PlayerLocationChanged?.Invoke(PlayerLocation.FetchFrom(level.Session));
+    }
 
     private static void Level_OnExit(Level level, LevelExit exit, LevelExit.Mode mode, Session session, HiresSnow snow)
         => PlayerLocationChanged?.Invoke(PlayerLocation.Empty);

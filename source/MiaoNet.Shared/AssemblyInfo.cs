@@ -22,9 +22,6 @@ using MiaoNet.Shared;
 [assembly: PacketRegistry(typeof(PacketChatMessage))]
 [assembly: PacketRegistry(typeof(PacketSendChatMessage))]
 
-[assembly: PacketRegistry(typeof(PacketChatCommand))]
-[assembly: PacketRegistry(typeof(PacketChatCommandResponse))]
-
 [assembly: PacketRegistry(typeof(PacketEmote))]
 [assembly: PacketRegistry(typeof(PacketSendEmote))]
 [assembly: PacketRegistry(typeof(PacketEmoteText))]

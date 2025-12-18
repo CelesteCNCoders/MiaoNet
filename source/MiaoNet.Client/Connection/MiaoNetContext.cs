@@ -20,7 +20,7 @@ public sealed partial class MiaoNetContext
 
     //private int warningTimes;
 #if DEBUG
-    public string TargetServer { get; set; } = "local.saplonily.top";
+    public string TargetServer { get; set; } = "127.0.0.1";
 #else
     public string TargetServer { get; set; } = "s.saplonily.top";
 #endif
@@ -47,6 +47,10 @@ public sealed partial class MiaoNetContext
 
     public MainComponent MainComponent { get; }
 
+    public EmoteComponent EmoteComponent { get; }
+
+    public ChatComponent ChatComponent { get; }
+
     public MiaoNetContext()
     {
         receiveQueue = new();
@@ -55,9 +59,9 @@ public sealed partial class MiaoNetContext
         components = [
             MainComponent = new MainComponent(this),
             new PlayerListComponent(this),
-            new ChatComponent(this),
+            ChatComponent = new ChatComponent(this),
             new DebugMapComponent(this),
-            new EmoteComponent(this)
+            EmoteComponent = new EmoteComponent(this)
         ];
         PacketHandlerRegister r = new();
         RegisterPacketHandlers(r);
@@ -209,12 +213,14 @@ public sealed partial class MiaoNetContext
         => Request(packet, onResponse, CancellationToken.None);
 
     // TODO support cancelling request
+    // or... do we actually need it?
     private void Request<TResponse>(
         PacketRequest<TResponse> packet, Action<TResponse> onResponse,
         CancellationToken token
     )
         where TResponse : PacketResponse
     {
+        _ = token;
         int id;
         packet.RequestID = id = Interlocked.Increment(ref nextRequestID);
 
@@ -248,10 +254,11 @@ public sealed partial class MiaoNetContext
         async Task StartConnectionAsync(CancellationToken token)
         {
             string host = TargetServer;
+            const int Port = 21473;
 
             EndPoint ep = IPAddress.TryParse(host, out var ipa)
-                ? new IPEndPoint(ipa, 21473)
-                : new DnsEndPoint(host, 21473);
+                ? new IPEndPoint(ipa, Port)
+                : new DnsEndPoint(host, Port);
 
             HandshakeData handshakeData = new(
                 MiaoNetModule.Instance.Metadata.Version,

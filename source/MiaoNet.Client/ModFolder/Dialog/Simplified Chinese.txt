@@ -22,4 +22,15 @@ miaonet_connection_status_disconnected= 连接已断开
 miaonet_connection_status_kicked= 被服务器踢出
 miaonet_connection_status_server_closed= 服务器已关闭
 
+miaonet_command_status_no_such_command= 未找到指令 "(0)"
+miaonet_command_status_missing_arguments= 指令 "(0)" 需要 (1) 个参数但只接收到 (2) 个
+miaonet_command_status_too_many_arguments= 指令 "(0)" 需要 (1) 个参数但接收到了 (2) 个
+
+miaonet_command_status_need_in_level= 该指令需要在地图内执行
+miaonet_command_status_player_not_found= 未找到玩家 "(0)"
+miaonet_command_status_player_not_in_map= 玩家 "(0)" 不在地图内
+miaonet_command_status_player_is_self= "(0)" 是你自己！
+miaonet_command_status_player_map_missing= 本地不存在玩家 "(0)" 所在的地图 "(1)"
+miaonet_command_status_channel_not_found= 未找到频道 "(0)"
+
 miaonet_dev_tip= 别往下翻了下面都还没写好(x

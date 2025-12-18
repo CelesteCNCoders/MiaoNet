@@ -1,5 +1,6 @@
 // write by qwen, they're good at doing these
 #pragma warning disable IDE0251
+
 using MiaoNet.Server.Primitives;
 using MiaoNet.Shared;
 using System.Diagnostics.CodeAnalysis;
@@ -228,7 +229,7 @@ public class RefBinaryReaderWriterTests
         var reader = new RefBinaryReader(ms.ToArray());
 
         var readPeople = reader.ReadArray<Person>();
-        Assert.AreEqual(people.Count, readPeople.Length);
+        Assert.HasCount(people.Count, readPeople);
         for (int i = 0; i < people.Count; i++)
         {
             Assert.AreEqual(people[i].Name, readPeople[i].Name);
@@ -242,10 +243,8 @@ public class RefBinaryReaderWriterTests
         // Should throw when trying to read from empty span
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
         {
-        // Test with empty span
-            var emptySpan = Array.Empty<byte>();
-            var reader = new RefBinaryReader(emptySpan);
-            reader.ReadByte();
+            // Test with empty span
+            new RefBinaryReader(Array.Empty<byte>()).ReadByte();
         });
     }
 

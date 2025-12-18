@@ -1,5 +1,6 @@
 [*.{cs,vb}]
 
+# I know them, just don't bother me
 dotnet_diagnostic.IDE0028.severity = silent
 dotnet_diagnostic.IDE0090.severity = silent
 dotnet_diagnostic.IDE0290.severity = silent
@@ -11,5 +12,9 @@ dotnet_diagnostic.IDE0305.severity = silent
 dotnet_diagnostic.IDE0301.severity = silent
 dotnet_diagnostic.IDE0306.severity = silent
 
-# we will notice that
+# we will notice that when it's indeeded (ms logging check log level before logging)
 dotnet_diagnostic.CA1873.severity = silent
+
+# just make them throw (switch expression)
+dotnet_diagnostic.CS8509.severity = silent
+dotnet_diagnostic.CS8524.severity = silent

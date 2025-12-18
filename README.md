@@ -31,7 +31,8 @@ CelesteNet 的一个重写, 以应对数以百计的蔚蓝联机玩家.
     - `Packet`: 包相关的东西
       - `Packets`: MiaoNet 中所有的包
     - `PlayerList`: 目前包含玩家列表排序相关逻辑
-  - `MiaoNet.UnitTest`: 一些单元测试(虽然现在没什么东西能测的)
+  - `MiaoNet.UnitTest`: 一些单元测试(虽然现在没什么东西能测的), 引用了 `MiaoNet.Server` 项目,
+在一些客户端独有的但可(或者需要)单元测试的时候会单独引用一些源文件过来, 例如目前的客户端侧的指令.
 
 有关连接具体如何进行可以参考 [`document/Connection.md` 这个文档](./document/Connection.md),
 一些碎碎的设计相关的杂念可以在 [`document/Design.md`](./document/Design.md) 中找到.  

@@ -9,14 +9,14 @@ internal sealed class MiaoNetTextRenderer : ITextRenderer
     public float LineHeight => MiaoNetFont.LineHeight * Scale;
 
     public bool CanRender(int character)
-        => MiaoNetFont.FontSize.Characters.ContainsKey(character);
+        => MiaoNetFont.ZhsFontSize.Characters.ContainsKey(character);
 
     public Vector2 Measure(string text)
-        => MiaoNetFont.FontSize.Measure(text) * Scale;
+        => MiaoNetFont.ZhsFontSize.Measure(text) * Scale;
 
     public void Draw(string text, Vector2 position, Vector2 justify, Color color)
-        => MiaoNetFont.Font.DrawOutline(
-            MiaoNetFont.BaseSize,
+        => MiaoNetFont.ZhsFont.DrawOutline(
+            MiaoNetFont.ZhsBaseSize,
             text,
             position,
             justify, Vector2.One * Scale,
