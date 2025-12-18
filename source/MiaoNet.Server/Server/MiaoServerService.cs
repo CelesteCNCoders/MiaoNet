@@ -182,10 +182,10 @@ public sealed partial class MiaoServerService : BackgroundService
 
                 var handshakeData = receiveHandshake.Result;
 
-                Version requiredVersion = new Version(0, 1, 0);
+                Version requiredVersion = new Version(0, 1, 1);
                 if (handshakeData.Version != requiredVersion)
                 {
-                    await SendHandshakeAck(netStream, $"Required version {requiredVersion}.", token);
+                    await SendHandshakeAck(netStream, $"Server requires version {requiredVersion}.", token);
                     logger.LogInformation(
                         AppEvents.Connection,
                         "{ep} version {v} not match current version.",
