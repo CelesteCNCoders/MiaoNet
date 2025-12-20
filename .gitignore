@@ -6,3 +6,4 @@ artifacts
 **/Properties/PublishProfiles
 **/Properties/launchSettings.json
 *.csproj.user
+source/MiaoNet.Client/MiaoNet*.zip
