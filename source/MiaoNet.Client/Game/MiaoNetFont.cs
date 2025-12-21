@@ -49,6 +49,9 @@ public static class MiaoNetFont
             Color.Black with { A = color.A }
         );
 
+    public static Vector2 MeasureGhostEmoteText(string text)
+        => ZhsFontSize.Measure(text);
+
     public static void DrawStatusMessage(string text, Vector2 position)
         => ZhsFont.DrawOutline(
             ZhsBaseSize,

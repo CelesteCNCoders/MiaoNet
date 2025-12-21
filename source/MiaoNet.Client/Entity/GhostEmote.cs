@@ -3,30 +3,32 @@ using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
-public sealed class MiaoNetGhostEmote : Entity
+public sealed class GhostEmote : Entity
 {
+    public const float FixedSize = 128f;
+
     private float timer;
-    private float alpha = 1f;
-    private float scale = 1f;
+    private float popupAlpha = 1f;
+    private float popupScale = 1f;
     private readonly Entity target;
 
     private readonly BakedEmoteData? emote;
     private readonly string? text;
 
-    private MiaoNetGhostEmote(Entity target)
+    private GhostEmote(Entity target)
     {
         Tag |= Tags.FrozenUpdate | Tags.HUD | Tags.PauseUpdate | Tags.Persistent | Tags.TransitionUpdate;
         this.target = target;
         Add(new Coroutine(Routine()));
     }
 
-    public MiaoNetGhostEmote(Entity target, BakedEmoteData emote)
+    public GhostEmote(Entity target, BakedEmoteData emote)
         : this(target)
     {
         this.emote = emote;
     }
 
-    public MiaoNetGhostEmote(Entity target, string text)
+    public GhostEmote(Entity target, string text)
         : this(target)
     {
         this.text = text;
@@ -45,23 +47,23 @@ public sealed class MiaoNetGhostEmote : Entity
         while (animTimer >= 0f)
         {
             float t = 1f - animTimer / 0.1f;
-            alpha = Ease.CubeOut(t);
-            scale = Ease.ElasticOut(t);
+            popupAlpha = Ease.CubeOut(t);
+            popupScale = Ease.ElasticOut(t);
 
             animTimer -= Engine.RawDeltaTime;
             yield return null;
         }
 
-        alpha = 1f;
-        scale = 1f;
+        popupAlpha = 1f;
+        popupScale = 1f;
         yield return 1f;
 
         animTimer = 0.5f;
         while (animTimer >= 0f)
         {
             float t = 1f - animTimer / 1f;
-            alpha = 1f - Ease.CubeIn(t);
-            scale = 1f - 0.25f * Ease.CubeIn(t);
+            popupAlpha = 1f - Ease.CubeIn(t);
+            popupScale = 1f - 0.25f * Ease.CubeIn(t);
 
             animTimer -= Engine.RawDeltaTime;
             yield return null;
@@ -81,12 +83,15 @@ public sealed class MiaoNetGhostEmote : Entity
         if (emote is not null)
         {
             var texture = emote.Sample(timer);
-            texture.DrawJustified(position, new Vector2(0.5f, 1f), Color.White * alpha, scale);
+            float scale = FixedSize / Math.Max(texture.Width, texture.Height);
+            texture.DrawJustified(position, new Vector2(0.5f, 1f), Color.White * popupAlpha, popupScale * scale);
         }
         else
         {
             SafeGuard.Assert(text is not null);
-            MiaoNetFont.DrawGhostEmoteText(text, position, Color.White * alpha, scale);
+            Vector2 size = MiaoNetFont.MeasureGhostEmoteText(text);
+            float scale = Math.Min(1f, (FixedSize * 4f) / size.X);
+            MiaoNetFont.DrawGhostEmoteText(text, position, Color.White * popupAlpha, popupScale * scale);
         }
     }
 }

@@ -134,13 +134,13 @@ public sealed class EmoteComponent : MiaoNetComponent
 
     private static void AddGhostEmote(Entity target, EmoteData emote)
     {
-        MiaoNetGhostEmote ghostEmote = new(target, new BakedEmoteData(emote));
+        GhostEmote ghostEmote = new(target, new BakedEmoteData(emote));
         target.Scene.Add(ghostEmote);
     }
 
     private static void AddGhostEmote(Entity target, string text)
     {
-        MiaoNetGhostEmote ghostEmote = new(target, text);
+        GhostEmote ghostEmote = new(target, text);
         target.Scene.Add(ghostEmote);
     }
 }
