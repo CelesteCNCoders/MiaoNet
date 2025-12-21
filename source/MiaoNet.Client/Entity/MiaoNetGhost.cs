@@ -14,6 +14,9 @@ public sealed class MiaoNetGhost : Entity
 
     private Facings facing;
     private int dashes;
+    private int lastDashedDashes;
+    private bool dashing;
+    private float lastDashDirection;
     private float flashTimer;
     private bool respawning;
     private float deadEase;
@@ -82,8 +85,20 @@ public sealed class MiaoNetGhost : Entity
         {
             playerHair.Color = GraphicsInfo.GetHairInfo(dashes).Color;
         }
-        if (Scene.Paused && Player.OnlineStatus == PlayerOnlineStatus.Normal)
-            playerHair.AfterUpdate();
+        if (Player.OnlineStatus == PlayerOnlineStatus.Normal)
+        {
+            if (Scene.Paused)
+                playerHair.AfterUpdate();
+            if (dashing)
+            {
+                ParticleType type = dashes >= 1 ? global::Celeste.Player.P_DashB : global::Celeste.Player.P_DashA;
+                SceneAs<Level>().ParticlesFG.Emit(
+                    type,
+                    Position + Calc.Random.Range(Vector2.One * -2f, Vector2.One * 2f),
+                    lastDashDirection
+                );
+            }
+        }
     }
 
     public void ApplyState(PlayerState state)
@@ -102,16 +117,48 @@ public sealed class MiaoNetGhost : Entity
             playerHair.Sprite = playerSprite;
         }
         dashes = state.Dashes;
+        lastDashedDashes = dashes;
         Position = state.Position;
     }
 
-    public void OnStartDash()
+    public void UpdateDashing(bool dashing, float dashDirection, bool dashesChanged, int dashes)
     {
-        PauseUpdatedBurst.AddBurstTo(SceneAs<Level>().Displacement, Center, 0.4f, 8f, 64f, 0.5f, Ease.QuadOut);
+        if (dashesChanged)
+        {
+            this.dashes = dashes;
+            if (!starFlying)
+            {
+                flashTimer = 0.12f;
+                UpdateHairCount();
+            }
+        }
+
+        if (dashing)
+            lastDashDirection = dashDirection;
+        bool pDashing = this.dashing;
+        this.dashing = dashing;
+        if (!pDashing && dashing)
+        {
+            lastDashedDashes = this.dashes;
+
+            PauseUpdatedBurst.AddBurstTo(SceneAs<Level>().Displacement, Center, 0.4f, 8f, 64f, 0.5f, Ease.QuadOut);
+            AddTrail(this.dashes);
+        }
+        else if (pDashing && !dashing)
+        {
+            AddTrail(lastDashedDashes);
+        }
     }
 
-    public void OnEndDash()
+    private void AddTrail(int dashes)
     {
+        var snap = TrailManager.Add(
+            Position,
+            playerSprite, playerHair,
+            Vector2.One, GraphicsInfo.GetHairInfo(dashes).Color,
+            Depth + 1, useRawDeltaTime: true
+        );
+        snap.Tag |= Tag;
     }
 
     public void OnDied()
@@ -140,15 +187,6 @@ public sealed class MiaoNetGhost : Entity
             }
         );
         tween.UseRawDeltaTime = true;
-    }
-
-    public void OnDashesChange(int dashes)
-    {
-        this.dashes = dashes;
-        if (starFlying)
-            return;
-        flashTimer = 0.12f;
-        UpdateHairCount();
     }
 
     public void NotifyStarFlying(bool starFlying)

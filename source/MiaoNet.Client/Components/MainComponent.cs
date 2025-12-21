@@ -115,10 +115,8 @@ public sealed class MainComponent : MiaoNetComponent
         FFlags flags = 0;
         if (player.Facing is Facings.Left)
             flags |= FFlags.FacingLeft;
-        if (currentDashing && !selfState.Dashing)
-            flags |= FFlags.StartDash;
-        if (!currentDashing && selfState.Dashing)
-            flags |= FFlags.EndDash;
+        if (currentDashing)
+            flags |= FFlags.Dashing;
         if (currentDashes != selfState.Dashes)
             flags |= FFlags.DashesChange;
         if (player.Holding is not null)
@@ -140,6 +138,8 @@ public sealed class MainComponent : MiaoNetComponent
             packetFrame.Dashes = (byte)currentDashes;
         if (packetFrame.HasHoldable)
             packetFrame.HoldableInfo = FetchHoldableInfo(player.Holding!);
+        if (packetFrame.Dashing)
+            packetFrame.DashDirection = (byte)(player.DashDir.Angle() / MathF.Tau * byte.MaxValue);
         context.QueuePacket(packetFrame);
 
         HoldableInfo FetchHoldableInfo(Holdable holdable)
@@ -281,12 +281,11 @@ public sealed class MainComponent : MiaoNetComponent
             {
                 ghost.UpdateNoHoldable();
             }
-            if (packet.Flags.HasFlag(FFlags.StartDash))
-                ghost.OnStartDash();
-            if (packet.Flags.HasFlag(FFlags.EndDash))
-                ghost.OnEndDash();
-            if (packet.DashesChange)
-                ghost.OnDashesChange(packet.Dashes);
+
+            ghost.UpdateDashing(
+                packet.Dashing, packet.DashDirection / (float)byte.MaxValue * MathF.Tau,
+                packet.DashesChange, packet.Dashes
+            );
             ghost.NotifyStarFlying(packet.Flags.HasFlag(FFlags.StarFlying));
         }
         else
@@ -316,7 +315,7 @@ public sealed class MainComponent : MiaoNetComponent
 
     private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotification packet)
     {
-        Logger.Info(nameof(MiaoNet), $"Player map changed: {player}, state: {packet.InitialState}.");
+        Logger.Debug(nameof(MiaoNet), $"Player map changed: {player}, state: {packet.InitialState}.");
         HandleLocationChanging(player, packet.GraphicsInfo, packet.InitialState);
     }
 
@@ -328,7 +327,7 @@ public sealed class MainComponent : MiaoNetComponent
 
     private void Context_PlayerMapChangeResponded(PacketPlayerMapChangedResponse packet)
     {
-        Logger.Info(nameof(MiaoNet), $"Map changed responed, players count: {packet.PlayersInMap.Length}");
+        Logger.Debug(nameof(MiaoNet), $"Map changed responed, players count: {packet.PlayersInMap.Length}");
         foreach (var item in packet.PlayersInMap)
         {
             OnlinePlayer player = ClientState.Players[item.PlayerID];

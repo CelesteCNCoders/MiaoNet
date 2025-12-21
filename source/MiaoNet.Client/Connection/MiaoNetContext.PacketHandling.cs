@@ -61,10 +61,7 @@ public partial class MiaoNetContext
             state.Position = p.Position;
             if (p.DashesChange)
                 state.Dashes = p.Dashes;
-            if (p.Flags.HasFlag(PacketPlayerFrame.FrameFlags.StartDash))
-                state.Dashing = true;
-            if (p.Flags.HasFlag(PacketPlayerFrame.FrameFlags.EndDash))
-                state.Dashing = false;
+            state.Dashing = packet.Packet.Dashing;
         }
         else
         {

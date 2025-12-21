@@ -13,11 +13,10 @@ public sealed class PacketPlayerFrame : IPacket<PacketPlayerFrame>, IHasPooledSt
     public enum FrameFlags : ushort
     {
         FacingLeft = 1 << 0, // true -> face left, false -> face right
-        StartDash = 1 << 1,
-        EndDash = 1 << 2,
-        DashesChange = 1 << 3,
-        HasHoldable = 1 << 4,
-        StarFlying = 1 << 5
+        Dashing = 1 << 1,
+        DashesChange = 1 << 2,
+        HasHoldable = 1 << 3,
+        StarFlying = 1 << 4
     }
 
     public Vector2 Position { get; }
@@ -30,11 +29,17 @@ public sealed class PacketPlayerFrame : IPacket<PacketPlayerFrame>, IHasPooledSt
 
     public FrameFlags Flags { get; }
 
-    public byte Dashes { get; set; } // TODO readonly?
+    /// <summary>Included only when <see cref="FrameFlags.DashesChange"/>,</summary>
+    public byte Dashes { get; set; }
+
+    /// <summary>Included only when <see cref="FrameFlags.Dashing"/>.</summary>
+    public byte DashDirection { get; set; }
 
     public bool FacingLeft => Flags.HasFlag(FrameFlags.FacingLeft);
 
     public bool DashesChange => Flags.HasFlag(FrameFlags.DashesChange);
+
+    public bool Dashing => Flags.HasFlag(FrameFlags.Dashing);
 
     public HoldableInfo HoldableInfo { get; set; }
 
@@ -65,6 +70,8 @@ public sealed class PacketPlayerFrame : IPacket<PacketPlayerFrame>, IHasPooledSt
             writer.Write(Dashes);
         if (HasHoldable)
             writer.Write(HoldableInfo);
+        if (Dashing)
+            writer.Write(DashDirection);
     }
 
     public static PacketPlayerFrame Deserialize(ref RefBinaryReader reader)
@@ -80,6 +87,8 @@ public sealed class PacketPlayerFrame : IPacket<PacketPlayerFrame>, IHasPooledSt
             packet.Dashes = reader.ReadByte();
         if (packet.HasHoldable)
             packet.HoldableInfo = reader.Read<HoldableInfo>();
+        if (packet.Dashing)
+            packet.DashDirection = reader.ReadByte();
         return packet;
     }
 
