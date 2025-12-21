@@ -82,15 +82,17 @@ public sealed class ChatComponent : MiaoNetComponent
     public void HandleCommand(string text)
     {
         var result = cmdParser.Parse(text, out var cmdName, out var cmd, out var args);
+
+        MiaoNetChatMessage chatMsg = new(text);
+        chatMsg.SetIsCommandEcho();
+        chatView.AddChatMessage(chatMsg);
+
         if (result != CommandParser.ParseResult.Success)
         {
             TipCommandError(result, cmdName, cmd, args is null ? -1 : args.Count);
             return;
         }
 
-        MiaoNetChatMessage chatMsg = new(text);
-        chatMsg.SetIsCommandEcho();
-        chatView.AddChatMessage(chatMsg);
         string? error = cmd!.OnExecute(context, args!);
         if (error is not null)
         {

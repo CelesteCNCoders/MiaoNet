@@ -30,7 +30,10 @@ public sealed class MiaoClientConnection
     private readonly Pipe pipe;
 
     public int ID { get; private set; }
+
     public ServerPlayer Player { get; private set; }
+
+    public PooledStringManager PooledStringManager { get; }
 
     private readonly Channel<SerializedPacket> sendChannel;
 
@@ -51,7 +54,9 @@ public sealed class MiaoClientConnection
         pipe = new();
         pendingRequests = new();
 
-        sendChannel = Channel.CreateUnbounded<SerializedPacket>(new UnboundedChannelOptions() { SingleReader = true });
+        UnboundedChannelOptions options = new() { SingleReader = true };
+        sendChannel = Channel.CreateUnbounded<SerializedPacket>(options);
+        PooledStringManager = new(KnownPooledStrings.All);
     }
 
     public async Task HandleClientConnectAsync()

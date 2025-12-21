@@ -96,15 +96,11 @@ public sealed class MainComponent : MiaoNetComponent
         if (player is null)
             return;
 
-        if (!KnownPlayerAnimations.StringToID.TryGetValue(player.Sprite.CurrentAnimationID, out var animID))
-        {
-            // TODO extendable
-            animID = ushort.MaxValue;
-        }
+        PooledString anim = PooledStringManager.Pack(player.Sprite.CurrentAnimationID);
 
         bool currentDashing = player.StateMachine.State is Player.StDash;
         int currentDashes = player.Dashes;
-        
+
         PlayerState? selfState = ClientState.SelfState;
         if (selfState is null)
             return;
@@ -118,6 +114,10 @@ public sealed class MainComponent : MiaoNetComponent
             flags |= FFlags.EndDash;
         if (currentDashes != selfState.Dashes)
             flags |= FFlags.DashesChange;
+        if (player.Holding is not null)
+            flags |= FFlags.HasHoldable;
+        if (player.StateMachine.State == Player.StStarFly)
+            flags |= FFlags.StarFlying;
 
         selfState.Dashing = currentDashing;
         selfState.Dashes = (byte)currentDashes;
@@ -125,13 +125,37 @@ public sealed class MainComponent : MiaoNetComponent
         var packetFrame = new PacketPlayerFrame(
             player.Position,
             (ushort)player.Sprite.CurrentAnimationFrame,
-            (ushort)animID,
+            anim,
             player.Sprite.Scale,
             flags
         );
         if (packetFrame.DashesChange)
             packetFrame.Dashes = (byte)currentDashes;
+        if (packetFrame.HasHoldable)
+            packetFrame.HoldableInfo = FetchHoldableInfo(player.Holding!);
         context.QueuePacket(packetFrame);
+
+        HoldableInfo FetchHoldableInfo(Holdable holdable)
+        {
+            Entity entity = holdable.Entity;
+            if (entity is Glider jelly)
+            {
+                Sprite spr = jelly.Get<Sprite>();
+                return new(
+                    HoldableType.Jelly,
+                    PooledStringManager.Pack(spr.CurrentAnimationID), (ushort)spr.CurrentAnimationFrame,
+                    spr.Scale, spr.Rotation
+                );
+            }
+            else if (entity is TheoCrystal)
+            {
+                return new(HoldableType.Theo);
+            }
+            else
+            {
+                return new(HoldableType.None);
+            }
+        }
     }
 
     private bool TryGetAndSendState(Level level, PlayerLocation location)
@@ -139,8 +163,10 @@ public sealed class MainComponent : MiaoNetComponent
         Player player = level.Tracker.GetEntity<Player>();
         if (player is null)
             return false;
-        PlayerState initialState = new PlayerState(player.Position, (byte)player.Dashes, Engine.DeltaTime);
-        initialState.PlayerSpriteMode = player.Sprite.Mode;
+        PlayerState initialState = new PlayerState(player.Position, (byte)player.Dashes, Engine.DeltaTime)
+        {
+            PlayerSpriteMode = player.Sprite.Mode,
+        };
         ClientState.SelfState = initialState;
         PacketPlayerMapChanged p = new(location, initialState);
         context.QueuePacket(p);
@@ -210,23 +236,46 @@ public sealed class MainComponent : MiaoNetComponent
 
     private void Context_PlayerFrameNotification(OnlinePlayer player, PacketPlayerFrame packet)
     {
+        // TODO any better way to make sure it's being resolved?
+        _ = PooledStringManager.Resolve(packet.Animation);
         if (Engine.Scene is Editor.MapEditor)
             return;
 
         if (ghosts.TryGetValue(player.Info.ID, out var ghost))
         {
             ghost.Position = packet.Position;
-            string? sid = null;
-            if (packet.AnimationID != ushort.MaxValue)
-                KnownPlayerAnimations.IDToString.TryGetValue(packet.AnimationID, out sid);
 
-            ghost.UpdateSprite(packet.AnimationFrame, sid, packet.FacingLeft, packet.Scale);
+            string? anim = PooledStringManager.Resolve(packet.Animation);
+
+            if (anim == string.Empty)
+                anim = null;
+
+            ghost.UpdateSprite(anim, packet.AnimationFrame, packet.FacingLeft, packet.Scale);
+            if (packet.HasHoldable)
+            {
+                var hi = packet.HoldableInfo;
+                if (hi.Type == HoldableType.Jelly)
+                    ghost.UpdateHoldable(
+                        hi.Type,
+                        PooledStringManager.Resolve(hi.Animation),
+                        hi.AnimationFrame,
+                        hi.Scale,
+                        hi.Rotation
+                    );
+                else
+                    ghost.UpdateSimpleHoldable(hi.Type);
+            }
+            else
+            {
+                ghost.UpdateNoHoldable();
+            }
             if (packet.Flags.HasFlag(FFlags.StartDash))
                 ghost.OnStartDash();
             if (packet.Flags.HasFlag(FFlags.EndDash))
                 ghost.OnEndDash();
-            if (packet.Flags.HasFlag(FFlags.DashesChange))
+            if (packet.DashesChange)
                 ghost.OnDashesChange(packet.Dashes);
+            ghost.NotifyStarFlying(packet.Flags.HasFlag(FFlags.StarFlying));
         }
         else
         {

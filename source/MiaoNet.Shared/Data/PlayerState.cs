@@ -8,7 +8,6 @@ namespace MiaoNet.Shared;
 /// <summary>
 /// Player's position, dashes and so on.
 /// </summary>
-[DebuggerDisplay("{DebuggerDisplay,nq}")]
 public sealed class PlayerState : IRefBinarySerializable<PlayerState>
 {
     public Vector2 Position { get; set; }
@@ -43,12 +42,9 @@ public sealed class PlayerState : IRefBinarySerializable<PlayerState>
     public static PlayerState Deserialize(ref RefBinaryReader reader)
         => new(reader.ReadVector2(), reader.ReadByte(), reader.ReadSingle())
         {
-            PlayerSpriteMode = (PlayerSpriteMode)reader.ReadByte()
+            PlayerSpriteMode = (PlayerSpriteMode)reader.ReadByte(),
         };
 
     public override string ToString()
         => $"({Position.X}, {Position.Y})";
-
-    [DebuggerHidden]
-    private string DebuggerDisplay => ToString();
 }

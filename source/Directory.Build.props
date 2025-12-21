@@ -3,14 +3,14 @@
   <PropertyGroup>
     <LangVersion>preview</LangVersion>
   </PropertyGroup>
-  
+
   <PropertyGroup>
     <ProjectRootDirectory>$(MSBuildThisFileDirectory)</ProjectRootDirectory>
-    <PathMap>$(ProjectRootDirectory)=~/</PathMap>
+    <PathMap Condition="$(Configuration)=='Release'">$(ProjectRootDirectory)=~/</PathMap>
   </PropertyGroup>
 
   <PropertyGroup>
     <UseArtifactsOutput>true</UseArtifactsOutput>
   </PropertyGroup>
-  
+
 </Project>

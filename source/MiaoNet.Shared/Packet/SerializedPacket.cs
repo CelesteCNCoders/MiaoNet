@@ -43,6 +43,10 @@ public sealed class SerializedPacket
         this.arraySegment = arraySegment;
     }
 
+    public SerializedPacket(ArrayPool<byte> arrayPool, IPacket packet)
+        : this(arrayPool, packet, 1)
+    { }
+
     public void OnConsumed()
     {
         if (Interlocked.Decrement(ref clientCount) == 0)

@@ -17,6 +17,10 @@ public sealed class MiaoNetGhost : Entity
     private float flashTimer;
     private bool respawning;
     private float deadEase;
+    private bool starFlying;
+
+    private HoldableType lastHoladableType;
+    private Sprite? holdableSprite;
 
     public OnlinePlayer Player { get; set; }
 
@@ -29,7 +33,12 @@ public sealed class MiaoNetGhost : Entity
         set => field = value ?? PlayerGraphicsInfo.Default;
     }
 
-    public MiaoNetGhost(OnlinePlayer player, string name, [AllowNull] PlayerGraphicsInfo playerGraphicsInfo, PlayerState initialState)
+    public MiaoNetGhost(
+        OnlinePlayer player,
+        string name, 
+        [AllowNull] PlayerGraphicsInfo playerGraphicsInfo, 
+        PlayerState initialState
+    )
     {
         Tag = Tags.Persistent | Tags.TransitionUpdate | Tags.FrozenUpdate | Tags.PauseUpdate | Tags.Global;
         Player = player;
@@ -46,13 +55,17 @@ public sealed class MiaoNetGhost : Entity
         playerHair.Start();
 
         ApplyState(initialState);
-        UpdateHair();
+        UpdateHairCount();
     }
 
     public override void Update()
     {
         base.Update();
-        if (dashes == 0)
+        if (starFlying)
+        {
+            playerHair.Color = GraphicsInfo.FeatherHairInfo.Color;
+        }
+        else if (dashes == 0)
         {
             Color target = GraphicsInfo.GetHairInfo(dashes).Color;
             playerHair.Color = Color.Lerp(playerHair.Color, target, 6f * Engine.DeltaTime);
@@ -128,24 +141,90 @@ public sealed class MiaoNetGhost : Entity
 
     public void OnDashesChange(int dashes)
     {
-        flashTimer = 0.12f;
         this.dashes = dashes;
-        UpdateHair();
+        if (starFlying)
+            return;
+        flashTimer = 0.12f;
+        UpdateHairCount();
     }
 
-    public void UpdateSprite(ushort animationFrame, string? animationID, bool faceLeft, Vector2 scale)
+    public void NotifyStarFlying(bool starFlying)
     {
-        if (animationID is not null)
+        if (this.starFlying != starFlying)
         {
-            if (playerSprite.CurrentAnimationID != animationID)
-                playerSprite.Play(animationID, true);
-            playerSprite.SetAnimationFrame(animationFrame);
+            if (starFlying)
+                playerSprite.HairCount = GraphicsInfo.FeatherHairInfo.Length;
+            else
+                UpdateHairCount();
+            this.starFlying = starFlying;
+        }
+    }
+
+    public void UpdateSprite(string? animID, ushort animFrame, bool faceLeft, Vector2 scale)
+    {
+        if (animID is not null)
+        {
+            playerSprite.Play(animID);
+            playerSprite.SetAnimationFrame(animFrame);
         }
         playerHair.Facing = facing = faceLeft ? Facings.Left : Facings.Right;
         playerSprite.Scale = scale;
     }
 
-    private void UpdateHair()
+    public void UpdateNoHoldable()
+    {
+        if (lastHoladableType == HoldableType.None)
+            return;
+        lastHoladableType = HoldableType.None;
+        holdableSprite?.RemoveSelf();
+        holdableSprite = null;
+        return;
+    }
+
+    public void UpdateSimpleHoldable(HoldableType type)
+    {
+        PrepareHoldableSprite(type);
+    }
+
+    public void UpdateHoldable(HoldableType type, string? anim, ushort animFrame, Vector2 scale, float rotation)
+    {
+        PrepareHoldableSprite(type);
+
+        if (type == HoldableType.Jelly)
+        {
+            holdableSprite!.Play(anim);
+            holdableSprite.SetAnimationFrame(animFrame);
+            holdableSprite.Scale = scale;
+            holdableSprite.Rotation = rotation;
+        }
+    }
+
+    private void PrepareHoldableSprite(HoldableType type)
+    {
+        if (lastHoladableType != HoldableType.None)
+            return;
+        if (type == HoldableType.Theo)
+        {
+            holdableSprite ??= GFX.SpriteBank.Create("theo_crystal");
+            Add(holdableSprite);
+            holdableSprite.Scale.X = -1f;
+        }
+        else if (type == HoldableType.Jelly)
+        {
+            holdableSprite ??= GFX.SpriteBank.Create("glider");
+            Add(holdableSprite);
+        }
+        else
+        {
+            return;
+        }
+        // TODO pick-up animation
+        holdableSprite!.Position = global::Celeste.Player.CarryOffsetTarget;
+        holdableSprite.Active = holdableSprite.Visible = false;
+        lastHoladableType = type;
+    }
+
+    private void UpdateHairCount()
     {
         playerSprite.HairCount = GraphicsInfo.GetHairInfo(dashes).Length;
     }
@@ -164,6 +243,12 @@ public sealed class MiaoNetGhost : Entity
 
     public override void Render()
     {
+        if (lastHoladableType != HoldableType.None)
+        {
+            if (lastHoladableType == HoldableType.Jelly)
+                holdableSprite!.DrawSimpleOutline();
+            holdableSprite!.Render();
+        }
         playerSprite.Scale.X *= (float)facing;
         base.Render();
         playerSprite.Scale.X *= (float)facing;

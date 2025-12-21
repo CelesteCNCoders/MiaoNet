@@ -57,7 +57,11 @@ public static class MenuMiaoNetOptions
                     .Goto<OuiModOptionString>()
                     .Init<OuiModOptions>(
                         MiaoNetModule.Settings.Name,
-                        v => MiaoNetModule.Settings.Name = thisButton.Label = v
+                        v => 
+                        {
+                            MiaoNetModule.Settings.Name = v;
+                            thisButton.Label = Dialog.Get("miaonet_options_logged_in") + v;
+                        }
                     );
             });
             item = thisButton;

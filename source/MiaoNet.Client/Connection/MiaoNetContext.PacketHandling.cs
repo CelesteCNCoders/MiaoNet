@@ -67,7 +67,8 @@ public partial class MiaoNetContext
         else
         {
             Logger.Error(nameof(MiaoNetContext), $"No initial state but received frame notification for {player.Info}!");
-            Disconnect();
+            // TODO this is a potential bug
+            //Disconnect();
             return;
         }
         PlayerFrameNotification?.Invoke(player, packet.Packet);
@@ -78,7 +79,6 @@ public partial class MiaoNetContext
         EnsureState();
         var player = ClientState.Players[packet.PlayerID];
         player.Location = packet.Location;
-        Console.WriteLine($"Packet location changed: {packet.Location} for {player.Info}");
         player.State = packet.InitialState;
         player.GraphicsInfo = packet.GraphicsInfo;
         PlayerMapChanged?.Invoke(player, packet);

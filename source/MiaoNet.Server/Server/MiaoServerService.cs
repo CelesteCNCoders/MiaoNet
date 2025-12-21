@@ -10,6 +10,7 @@ using MiaoNet.Shared;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Linq;
 
 namespace MiaoNet.Server;
 
@@ -134,7 +135,6 @@ public sealed partial class MiaoServerService : BackgroundService
                     knowJoinedTask = BroadcastOthersAsync(
                         new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.Info), newPlayer.ID
                     );
-                    logger.LogInformation("{player} Added and sent joined packet to other!", newPlayer.Info);
                 }
                 finally
                 {
@@ -292,7 +292,30 @@ public sealed partial class MiaoServerService : BackgroundService
         Debug.Assert(serverState.AllChannels.ContainsValue(channel));
 
         var players = channel.Players;
-        return BroadcastToAsync(packet, players.Select(p => p.Value.Connection), c => c.ID != selfID && predicate(c), players.Count);
+        return BroadcastToAsync(
+            packet,
+            players.Select(p => p.Value.Connection),
+            c => c.ID != selfID && predicate(c),
+            players.Count
+        );
+    }
+
+    public Task BroadcastToOthersProcessedAsync<TPacket>(
+        TPacket packet,
+        ServerChannel channel,
+        Predicate<MiaoClientConnection> predicate,
+        Func<TPacket, MiaoClientConnection, SerializedPacket> processor,
+        int selfID
+    ) where TPacket : IPacket<TPacket>
+    {
+        Debug.Assert(serverState.AllChannels.ContainsValue(channel));
+
+        return BroadcastToProcessedAsync(
+            packet,
+            channel.Players.Select(p => p.Value.Connection),
+            c => c.ID != selfID && predicate(c),
+            processor
+        );
     }
 
     /// <summary>
@@ -322,6 +345,26 @@ public sealed partial class MiaoServerService : BackgroundService
             }
         }
         serializedPacket.OnConsumed(notMeetCount);
+        if (bounded is not null)
+            return Task.WhenAll(bounded);
+        return Task.CompletedTask;
+    }
+
+    private static Task BroadcastToProcessedAsync<TPacket>(
+        TPacket packet,
+        IEnumerable<MiaoClientConnection> connections,
+        Predicate<MiaoClientConnection> predicate,
+        Func<TPacket, MiaoClientConnection, SerializedPacket> processor
+    ) where TPacket : IPacket<TPacket>
+    {
+        List<Task>? bounded = null;
+        foreach (var connection in connections.Where(c => predicate(c)))
+        {
+            var serializedPacket = processor(packet, connection);
+            if (!connection.TrySendPacket(serializedPacket))
+                (bounded ??= new()).Add(connection.SendPacketAsync(serializedPacket).AsTask());
+        }
+
         if (bounded is not null)
             return Task.WhenAll(bounded);
         return Task.CompletedTask;

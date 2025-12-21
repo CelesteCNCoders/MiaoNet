@@ -39,8 +39,9 @@ public sealed partial class MiaoNetContext
 
     private ClientState? clientState;
 
-    [MemberNotNullWhen(true, nameof(connection))]
-    [MemberNotNullWhen(true, nameof(ClientState))]
+    public PooledStringManager? PooledStringManager { get; private set; }
+
+    [MemberNotNullWhen(true, nameof(connection), nameof(ClientState))]
     public bool HasConnection => connection is not null;
 
     public ClientState? ClientState => clientState;
@@ -85,6 +86,12 @@ public sealed partial class MiaoNetContext
         ShowStatusMessage(MiaoNetConnectionStatus.Connecting);
     }
 
+    public void OnConnected()
+    {
+        PooledStringManager = new(KnownPooledStrings.All);
+        components.ForEach(c => c.OnConnected());
+    }
+
     public void Disconnect()
     {
         cts?.Cancel();
@@ -98,6 +105,11 @@ public sealed partial class MiaoNetContext
         connection.Dispose();
         connection = null;
         ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
+    }
+
+    public void OnDisconnected()
+    {
+        PooledStringManager = null;
     }
 
     public void ShowStatusMessage(string message)
@@ -319,7 +331,7 @@ public sealed partial class MiaoNetContext
                             this.connection = connection;
                             ClientInitialized?.Invoke(clientState);
                             ShowStatusMessage(MiaoNetConnectionStatus.Connected);
-                            components.ForEach(c => c.OnConnected());
+                            OnConnected();
                         });
                     }
                 }

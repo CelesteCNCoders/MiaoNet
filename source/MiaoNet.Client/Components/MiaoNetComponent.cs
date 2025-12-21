@@ -20,6 +20,9 @@ public abstract class MiaoNetComponent
         }
     }
 
+    protected PooledStringManager PooledStringManager
+        => context.PooledStringManager!;
+
     protected bool HasState => context.ClientState is not null;
 
     public MiaoNetComponent(MiaoNetContext context)

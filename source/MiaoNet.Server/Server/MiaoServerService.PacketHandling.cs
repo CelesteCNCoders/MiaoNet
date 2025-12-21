@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using MiaoNet.Shared;
 using System.Diagnostics;
+using System.Buffers;
 
 namespace MiaoNet.Server;
 
@@ -38,10 +39,18 @@ public sealed partial class MiaoServerService
         if (packet.DashesChange)
             state.Dashes = packet.Dashes;
 
-        await BroadcastToOthersAsync(
+        // TODO this is ugly
+        object storage = packet.ResolveAllPooledString(connection.PooledStringManager);
+        await BroadcastToOthersProcessedAsync(
             new PacketPlayerNotification<PacketPlayerFrame>(connection.ID, packet),
             player.Channel,
             con => con.Player.ShouldSyncFrom(player),
+            (p, con) =>
+            {
+                PacketPlayerFrame packet = p.Packet;
+                packet.RepackWith(storage, con.PooledStringManager);
+                return new(ArrayPool<byte>.Shared, p);
+            },
             connection.ID
         );
     }
@@ -51,6 +60,7 @@ public sealed partial class MiaoServerService
         var player = connection.Player;
         player.State = packet.InitialState;
         logger.LogDebug(
+            AppEvents.GameState,
             "Player {p} map changing from {p1} to {p2}.",
             player.Info, player.Location, packet.Location
         );
@@ -112,7 +122,11 @@ public sealed partial class MiaoServerService
         Debug.Assert(packet.Location.IsInMap);
         if (packet.InitialState is null)
         {
-            logger.LogWarning("Player {p} didn't send state when went to {loc}.", player.Info, packet.Location);
+            logger.LogWarning(
+                AppEvents.GameState,
+                "Player {p} didn't send state when went to {loc}.",
+                player.Info, packet.Location
+            );
             connection.Disconnect(KickedReason.InvalidPacketWithState);
             return;
         }
