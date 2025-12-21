@@ -18,6 +18,7 @@ public partial class MiaoNetContext
     public event Action<OnlinePlayer, EmoteData>? EmoteReceived;
     public event Action<OnlinePlayer, string>? EmoteTextReceived;
     public event Action<OnlinePlayer, PacketPlayerStateFlags.StateFlags>? PlayerStateFlagsNotification;
+    public event Action<OnlinePlayer, PlayerOnlineStatus>? PlayerOnlineStatusChanged;
 
     private void RegisterPacketHandlers(PacketHandlerRegister r)
     {
@@ -31,12 +32,13 @@ public partial class MiaoNetContext
         r.Register<PacketEmote>(HandlePacket);
         r.Register<PacketEmoteText>(HandlePacket);
         r.Register<PacketPlayerNotification<PacketPlayerStateFlags>>(HandlePacket);
+        r.Register<PacketPlayerNotification<PacketUpdateOnlineStatus>>(HandlePacket);
     }
 
     private void HandlePacket(PacketPlayerJoined packet)
     {
         EnsureState();
-        var player = ClientState.OnNewPlayerJoined(packet.ChannelID, packet.PlayerInfo);
+        var player = ClientState.OnNewPlayerJoined(packet.ChannelID, packet.PlayerInfo, packet.OnlineStatus);
         PlayerJoined?.Invoke(player);
     }
 
@@ -135,5 +137,14 @@ public partial class MiaoNetContext
         EnsureState();
         var player = ClientState.Players[packet.PlayerID];
         PlayerStateFlagsNotification?.Invoke(player, packet.Packet.Flags);
+    }
+
+    private void HandlePacket(PacketPlayerNotification<PacketUpdateOnlineStatus> packet)
+    {
+        EnsureState();
+        var player = ClientState.Players[packet.PlayerID];
+        var p = player.OnlineStatus;
+        player.OnlineStatus = packet.Packet.Status;
+        PlayerOnlineStatusChanged?.Invoke(player, p);
     }
 }

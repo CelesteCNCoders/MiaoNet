@@ -22,6 +22,8 @@ public sealed class MiaoNetGhost : Entity
     private HoldableType lastHoladableType;
     private Sprite? holdableSprite;
 
+    private IdleHover? idleHover;
+
     public OnlinePlayer Player { get; set; }
 
     public string Name { get; set; }
@@ -35,8 +37,8 @@ public sealed class MiaoNetGhost : Entity
 
     public MiaoNetGhost(
         OnlinePlayer player,
-        string name, 
-        [AllowNull] PlayerGraphicsInfo playerGraphicsInfo, 
+        string name,
+        [AllowNull] PlayerGraphicsInfo playerGraphicsInfo,
         PlayerState initialState
     )
     {
@@ -61,6 +63,7 @@ public sealed class MiaoNetGhost : Entity
     public override void Update()
     {
         base.Update();
+
         if (starFlying)
         {
             playerHair.Color = GraphicsInfo.FeatherHairInfo.Color;
@@ -79,7 +82,7 @@ public sealed class MiaoNetGhost : Entity
         {
             playerHair.Color = GraphicsInfo.GetHairInfo(dashes).Color;
         }
-        if (Scene.Paused)
+        if (Scene.Paused && Player.OnlineStatus == PlayerOnlineStatus.Normal)
             playerHair.AfterUpdate();
     }
 
@@ -104,7 +107,7 @@ public sealed class MiaoNetGhost : Entity
 
     public void OnStartDash()
     {
-        SceneAs<Level>().Displacement.AddBurst(Center, 0.4f, 8f, 64f, 0.5f, Ease.QuadOut, Ease.QuadOut);
+        PauseUpdatedBurst.AddBurstTo(SceneAs<Level>().Displacement, Center, 0.4f, 8f, 64f, 0.5f, Ease.QuadOut);
     }
 
     public void OnEndDash()
@@ -114,7 +117,7 @@ public sealed class MiaoNetGhost : Entity
     public void OnDied()
     {
         playerSprite.Visible = playerHair.Visible = false;
-        SceneAs<Level>().Displacement.AddBurst(Position, 0.3f, 0f, 80f);
+        PauseUpdatedBurst.AddBurstTo(SceneAs<Level>().Displacement, Position, 0.3f, 0f, 80f);
         Add(new DeathEffect(playerHair.Color));
         Depth = Depths.Top;
     }
@@ -199,6 +202,22 @@ public sealed class MiaoNetGhost : Entity
         }
     }
 
+    public void OnUpdateOnlineStatus(PlayerOnlineStatus status)
+    {
+        if (status == PlayerOnlineStatus.Normal)
+        {
+            playerHair.Active = true;
+            idleHover?.RemoveSelf();
+            idleHover = null;
+        }
+        else
+        {
+            playerHair.Active = false;
+            idleHover = new(this);
+            Scene?.Add(idleHover);
+        }
+    }
+
     private void PrepareHoldableSprite(HoldableType type)
     {
         if (lastHoladableType != HoldableType.None)
@@ -233,25 +252,36 @@ public sealed class MiaoNetGhost : Entity
     {
         base.Added(scene);
         scene.Add(nameTag);
+        if (idleHover is not null)
+            scene.Add(idleHover);
     }
 
     public override void Removed(Scene scene)
     {
         base.Removed(scene);
         scene.Remove(nameTag);
+        idleHover?.RemoveSelf();
     }
 
     public override void Render()
     {
-        if (lastHoladableType != HoldableType.None)
+        if (lastHoladableType == HoldableType.Jelly)
         {
-            if (lastHoladableType == HoldableType.Jelly)
-                holdableSprite!.DrawSimpleOutline();
+            holdableSprite!.DrawSimpleOutline();
             holdableSprite!.Render();
         }
-        playerSprite.Scale.X *= (float)facing;
-        base.Render();
-        playerSprite.Scale.X *= (float)facing;
+
+        {
+            playerSprite.Scale.X *= (float)facing;
+            base.Render();
+            playerSprite.Scale.X *= (float)facing;
+        }
+
+        if (lastHoladableType == HoldableType.Theo)
+        {
+            holdableSprite!.Render();
+        }
+
         if (respawning)
         {
             DeathEffect.Draw(Position, playerHair.Color, deadEase);

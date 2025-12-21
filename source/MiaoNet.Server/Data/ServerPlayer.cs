@@ -18,6 +18,8 @@ public sealed class ServerPlayer
 
     public PlayerGraphicsInfo? GraphicsInfo { get; set; }
 
+    public PlayerOnlineStatus OnlineStatus { get; set; }
+
     public int ID => Info.ID;
 
     public ServerPlayer(ServerChannel channel, PlayerInfo info, PlayerLocation location)

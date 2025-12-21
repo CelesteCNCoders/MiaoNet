@@ -113,7 +113,7 @@ public sealed partial class MiaoServerService : BackgroundService
                     from pair in serverState.AllPlayers
                     let p = pair.Value.Player
                     select new PacketClientInitial.Player(
-                        p.Channel.ID, p.Info, p.Location
+                        p.Channel.ID, p.Info, p.Location, p.OnlineStatus
                     );
 
                 PacketClientInitial packetClientInitial = new PacketClientInitial(

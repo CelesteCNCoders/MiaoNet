@@ -18,11 +18,14 @@ public sealed class OnlinePlayer : IPlayerListEntry
 
     public PlayerGraphicsInfo? GraphicsInfo { get; set; }
 
-    public OnlinePlayer(OnlineChannel channel, PlayerInfo info)
+    public PlayerOnlineStatus OnlineStatus { get; set; }
+
+    public OnlinePlayer(OnlineChannel channel, PlayerInfo info, PlayerOnlineStatus onlineStatus)
     {
         Channel = channel;
         Info = info;
         location = PlayerLocation.Empty;
+        OnlineStatus = onlineStatus;
     }
 
     public override string ToString()

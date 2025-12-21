@@ -22,6 +22,7 @@ public sealed class MainComponent : MiaoNetComponent
         context.PlayerMapRoomChanged += Context_PlayerMapRoomChanged;
         context.PlayerMapChangeResponded += Context_PlayerMapChangeResponded;
         context.PlayerStateFlagsNotification += Context_PlayerStateFlagsNotification;
+        context.PlayerOnlineStatusChanged += Context_PlayerOnlineStatusChanged;
 
         MiaoNetModule.PlayerLocationChanged += MiaoNetModule_OnPlayerLocationChanged;
         Everest.Events.Player.OnDie += Player_OnDie;
@@ -83,6 +84,12 @@ public sealed class MainComponent : MiaoNetComponent
         if (Engine.Scene is not Level level)
             return;
 
+        var self = ClientState.Self;
+        var p = self.OnlineStatus;
+        self.OnlineStatus = level.Paused ? PlayerOnlineStatus.Paused : PlayerOnlineStatus.Normal;
+        if (p != self.OnlineStatus)
+            context.QueuePacket(new PacketUpdateOnlineStatus(self.OnlineStatus));
+
         if (pendingMapChanged)
         {
             SafeGuard.Assert(TryGetAndSendState(level, PlayerLocation.FetchFrom(level.Session)));
@@ -101,7 +108,7 @@ public sealed class MainComponent : MiaoNetComponent
         bool currentDashing = player.StateMachine.State is Player.StDash;
         int currentDashes = player.Dashes;
 
-        PlayerState? selfState = ClientState.SelfState;
+        PlayerState? selfState = self.State;
         if (selfState is null)
             return;
 
@@ -155,6 +162,11 @@ public sealed class MainComponent : MiaoNetComponent
             {
                 return new(HoldableType.None);
             }
+        }
+
+        {
+            if (level.Paused)
+                PauseUpdatedBurst.Update(level.Displacement);
         }
     }
 
@@ -321,6 +333,14 @@ public sealed class MainComponent : MiaoNetComponent
         {
             OnlinePlayer player = ClientState.Players[item.PlayerID];
             HandleLocationChanging(player, player.GraphicsInfo, player.State);
+        }
+    }
+
+    private void Context_PlayerOnlineStatusChanged(OnlinePlayer player, PlayerOnlineStatus previousStatus)
+    {
+        if (ghosts.TryGetValue(player.ID, out var ghost))
+        {
+            ghost.OnUpdateOnlineStatus(player.OnlineStatus);
         }
     }
 

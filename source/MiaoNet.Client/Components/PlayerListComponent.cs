@@ -154,6 +154,13 @@ public sealed class PlayerListComponent : MiaoNetComponent
             {
                 float width = MiaoNetFont.MeasurePlayerListEntry(player.Info.Name).X * Scale;
                 width += MiaoNetFont.MeasurePlayerListEntry(player.Location.ToString()).X * Scale;
+                if (player.OnlineStatus != PlayerOnlineStatus.Normal)
+                {
+                    width += midTextWidth;
+                    width += MiaoNetFont.MeasurePlayerListEntry(player.OnlineStatus.ToString()).X * Scale;
+                }
+                width += MiddlePadding;
+                width += midTextWidth;
                 maxLineWidth = Math.Max(maxLineWidth, width);
                 totalHeight += lineHeight;
             }
@@ -162,9 +169,6 @@ public sealed class PlayerListComponent : MiaoNetComponent
             channelHeights[i] = totalHeight - channelYOffsets[i];
             totalHeight += lineHeight; // empty line padding
         }
-
-        maxLineWidth += MiddlePadding;
-        maxLineWidth += midTextWidth;
 
         for (int i = 0; i < channelPlayerList.Count; i++)
         {
@@ -195,8 +199,13 @@ public sealed class PlayerListComponent : MiaoNetComponent
             curY += lineHeight;
             foreach (var player in playerList)
             {
+                string text;
+                if (player.OnlineStatus == PlayerOnlineStatus.Normal)
+                    text = $"{player.Info.Name} @ {player.Location}";
+                else
+                    text = $"{player.Info.Name} @ {player.OnlineStatus} @ {player.Location}";
                 MiaoNetFont.DrawPlayerListEntry(
-                    $"{player.Info.Name} @ {player.Location}",
+                    text,
                     new(curX, curY),
                     Color.White,
                     Scale

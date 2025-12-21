@@ -9,16 +9,17 @@ public sealed partial class MiaoServerService
 {
     private void RegisterPacketHandlers(PacketHandlerRegister register)
     {
-        register.Register<PacketPlayerFrame>(HandlePacket);
-        register.Register<PacketPlayerMapChanged>(HandlePacket);
-        register.Register<PacketPlayerMapRoomChanged>(HandlePacket);
-        register.Register<PacketSendChatMessage>(HandlePacket);
-        register.Register<PacketSendEmote>(HandlePacket);
-        register.Register<PacketSendEmoteText>(HandlePacket);
-        register.Register<PacketPlayerStateFlags>(HandlePacket);
+        register.Register<PacketPlayerFrame>(HandlePacketAsync);
+        register.Register<PacketPlayerMapChanged>(HandlePacketAsync);
+        register.Register<PacketPlayerMapRoomChanged>(HandlePacketAsync);
+        register.Register<PacketSendChatMessage>(HandlePacketAsync);
+        register.Register<PacketSendEmote>(HandlePacketAsync);
+        register.Register<PacketSendEmoteText>(HandlePacketAsync);
+        register.Register<PacketPlayerStateFlags>(HandlePacketAsync);
+        register.Register<PacketUpdateOnlineStatus>(HandlePacketAsync);
     }
 
-    private async Task HandlePacket(MiaoClientConnection connection, PacketPlayerFrame packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerFrame packet)
     {
         var player = connection.Player;
         if (player.State is null)
@@ -55,7 +56,7 @@ public sealed partial class MiaoServerService
         );
     }
 
-    private async Task HandlePacket(MiaoClientConnection connection, PacketPlayerMapChanged packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerMapChanged packet)
     {
         var player = connection.Player;
         player.State = packet.InitialState;
@@ -177,7 +178,7 @@ public sealed partial class MiaoServerService
         await responseTask;
     }
 
-    private async Task HandlePacket(MiaoClientConnection connection, PacketPlayerMapRoomChanged packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerMapRoomChanged packet)
     {
         var player = connection.Player;
         logger.LogDebug(
@@ -192,13 +193,13 @@ public sealed partial class MiaoServerService
         await BroadcastOthersAsync(new PacketPlayerNotification<PacketPlayerMapRoomChanged>(player.ID, packet), connection.ID);
     }
 
-    private async Task HandlePacket(MiaoClientConnection connection, PacketSendChatMessage packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketSendChatMessage packet)
     {
         logger.LogInformation(AppEvents.GameChat, "{player}: {msg}", connection.Player.Info, packet.Content);
         await BroadcastAsync(new PacketChatMessage(ChatMessageType.Chat, connection.Player.ID, packet.Content));
     }
 
-    private async Task HandlePacket(MiaoClientConnection connection, PacketSendEmote packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketSendEmote packet)
     {
         await BroadcastToOthersAsync(
             new PacketEmote(connection.ID, packet.Emote),
@@ -207,7 +208,7 @@ public sealed partial class MiaoServerService
         );
     }
 
-    private async Task HandlePacket(MiaoClientConnection connection, PacketSendEmoteText packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketSendEmoteText packet)
     {
         await BroadcastToOthersAsync(
             new PacketEmoteText(connection.ID, packet.Text),
@@ -216,11 +217,20 @@ public sealed partial class MiaoServerService
         );
     }
 
-    private async Task HandlePacket(MiaoClientConnection connection, PacketPlayerStateFlags packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerStateFlags packet)
     {
         await BroadcastToOthersAsync(
             new PacketPlayerNotification<PacketPlayerStateFlags>(connection.ID, packet),
             con => con.PlayerShouldSyncFrom(connection),
+            connection.ID
+        );
+    }
+
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketUpdateOnlineStatus packet)
+    {
+        connection.Player.OnlineStatus = packet.Status;
+        await BroadcastOthersAsync(
+            new PacketPlayerNotification<PacketUpdateOnlineStatus>(connection.ID, packet),
             connection.ID
         );
     }

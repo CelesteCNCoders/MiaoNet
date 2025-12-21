@@ -10,18 +10,27 @@ public sealed class PacketClientInitial : IPacket<PacketClientInitial>
 
         public PlayerLocation Location { get; }
 
+        public PlayerOnlineStatus OnlineStatus { get; }
+
         public Player(
-            int channelID, PlayerInfo playerInfo, PlayerLocation location
+            int channelID,
+            PlayerInfo playerInfo, PlayerLocation location,
+            PlayerOnlineStatus onlineStatus
         )
         {
             ChannelID = channelID;
             PlayerInfo = playerInfo;
             Location = location;
+            OnlineStatus = onlineStatus;
         }
 
         public static Player Deserialize(ref RefBinaryReader reader)
         {
-            return new(reader.ReadInt32(), reader.Read<PlayerInfo>(), reader.Read<PlayerLocation>());
+            return new(
+                reader.ReadInt32(),
+                reader.Read<PlayerInfo>(), reader.Read<PlayerLocation>(),
+                (PlayerOnlineStatus)reader.ReadByte()
+            );
         }
 
         public void Serialize(ref RefBinaryWriter writer)
@@ -29,6 +38,7 @@ public sealed class PacketClientInitial : IPacket<PacketClientInitial>
             writer.Write(ChannelID);
             writer.Write(PlayerInfo);
             writer.Write(Location);
+            writer.Write((byte)OnlineStatus);
         }
     }
 

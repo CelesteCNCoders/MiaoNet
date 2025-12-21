@@ -26,3 +26,6 @@ using MiaoNet.Shared;
 [assembly: PacketRegistry(typeof(PacketSendEmote))]
 [assembly: PacketRegistry(typeof(PacketEmoteText))]
 [assembly: PacketRegistry(typeof(PacketSendEmoteText))]
+
+[assembly: PacketRegistry(typeof(PacketUpdateOnlineStatus))]
+[assembly: PacketRegistry(typeof(PacketPlayerNotification<PacketUpdateOnlineStatus>))]
