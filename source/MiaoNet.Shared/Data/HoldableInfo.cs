@@ -72,6 +72,6 @@ public struct HoldableInfo : IRefBinarySerializable<HoldableInfo>
             );
         if (type is HoldableType.Theo)
             return new(type);
-        throw new NotImplementedException();
+        return new(type);
     }
 }
