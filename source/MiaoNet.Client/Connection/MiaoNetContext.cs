@@ -99,6 +99,7 @@ public sealed partial class MiaoNetContext
         connectionThread = null;
         receiveQueue.Clear();
         clientState = null;
+        OnDisconnected();
         components.ForEach(c => c.OnDisconnected());
         if (connection is null)
             return;
