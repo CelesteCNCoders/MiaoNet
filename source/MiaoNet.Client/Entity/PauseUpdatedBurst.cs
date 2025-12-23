@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace Celeste.Mod.MiaoNet;
 
+// TODO or is it better just do not create bursts for other players when paused?
 public sealed class PauseUpdatedBurst : DisplacementRenderer.Burst
 {
     public PauseUpdatedBurst(MTexture texture, Vector2 position, Vector2 origin, float duration)
@@ -23,8 +24,8 @@ public sealed class PauseUpdatedBurst : DisplacementRenderer.Burst
     {
         MTexture mTexture = GFX.Game["util/displacementcircle"];
         PauseUpdatedBurst burst = new PauseUpdatedBurst(mTexture, position, mTexture.Center, duration);
-        burst.ScaleFrom = radiusFrom / (float)(mTexture.Width / 2);
-        burst.ScaleTo = radiusTo / (float)(mTexture.Width / 2);
+        burst.ScaleFrom = radiusFrom / (mTexture.Width / 2f);
+        burst.ScaleTo = radiusTo / (mTexture.Width / 2f);
         burst.AlphaFrom = alpha;
         burst.AlphaTo = 0f;
         burst.AlphaEaser = alphaEaser;

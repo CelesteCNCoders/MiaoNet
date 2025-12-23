@@ -23,9 +23,10 @@ public sealed class GhostNameTag : Entity
         base.Render();
         Vector2 worldPos = entity.Position;
         worldPos.Y -= 16f;
-        MiaoNetFont.DrawGhostName(
+        MiaoNetFont.DrawOutlineBottomCentered(
             Text,
             SceneAs<Level>().WorldToScreen(worldPos),
+            Vector2.One / 2f,
             Color.White * (MiaoNetModule.Settings.NameOpacity / 10.0f)
         );
     }

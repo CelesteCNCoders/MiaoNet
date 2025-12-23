@@ -192,7 +192,7 @@ public sealed partial class MiaoNetContext
             const float Scale = 1f / 3.5f;
             tex.DrawOutlineJustified(pos, new Vector2(0f, 1f), Color.White, Scale);
             pos.X += tex.Width * Scale + 32f;
-            MiaoNetFont.DrawStatusMessage(statusMessage!, pos);
+            MiaoNetFont.DrawOutline(statusMessage!, pos, Vector2.UnitY, Vector2.One, Color.White);
         }
         EndRender();
     }

@@ -134,8 +134,8 @@ public sealed class PlayerListComponent : MiaoNetComponent
         const float RectXPadding = 16f;
         const float RectYPadding = 16f;
         const float MiddlePadding = 8f;
-        float midTextWidth = MiaoNetFont.MeasurePlayerListEntry(" @ ").X * Scale;
-        float lineHeight = MiaoNetFont.LineHeight * Scale;
+        float midTextWidth = MiaoNetFont.Measure(" @ ").X * Scale;
+        float lineHeight = MiaoNetFont.ENZhsLineHeight * Scale;
 
         float maxLineWidth = 0f;
         float totalHeight = 0f;
@@ -152,12 +152,12 @@ public sealed class PlayerListComponent : MiaoNetComponent
 
             foreach (var player in channelPlayerList[i].Item2)
             {
-                float width = MiaoNetFont.MeasurePlayerListEntry(player.Info.Name).X * Scale;
-                width += MiaoNetFont.MeasurePlayerListEntry(player.Location.ToString()).X * Scale;
+                float width = MiaoNetFont.Measure(player.Info.Name).X * Scale;
+                width += MiaoNetFont.Measure(player.Location.ToString()).X * Scale;
                 if (player.OnlineStatus != PlayerOnlineStatus.Normal)
                 {
                     width += midTextWidth;
-                    width += MiaoNetFont.MeasurePlayerListEntry(player.OnlineStatus.ToString()).X * Scale;
+                    width += MiaoNetFont.Measure(player.OnlineStatus.ToString()).X * Scale;
                 }
                 width += MiddlePadding;
                 width += midTextWidth;
@@ -190,11 +190,12 @@ public sealed class PlayerListComponent : MiaoNetComponent
             (OnlineChannel channel, List<OnlinePlayer> playerList) = channelPlayerList[i];
             float curX = RectXOffset + RectXPadding;
             float curY = channelYOffsets[i] + RectYPadding;
-            MiaoNetFont.DrawPlayerListEntry(
+            MiaoNetFont.Draw(
                 $"#{channel.Name} {playerList.Count} Players",
-                new(curX, curY),
-                Color.Yellow,
-                Scale
+                position: new(curX, curY),
+                justify: Vector2.Zero,
+                scale: Vector2.One * Scale,
+                Color.Yellow
             );
             curY += lineHeight;
             foreach (var player in playerList)
@@ -204,11 +205,12 @@ public sealed class PlayerListComponent : MiaoNetComponent
                     text = $"{player.Info.Name} @ {player.Location}";
                 else
                     text = $"{player.Info.Name} @ {player.OnlineStatus} @ {player.Location}";
-                MiaoNetFont.DrawPlayerListEntry(
+                MiaoNetFont.Draw(
                     text,
-                    new(curX, curY),
-                    Color.White,
-                    Scale
+                    position: new(curX, curY),
+                    justify: Vector2.Zero,
+                    scale: Vector2.One * Scale,
+                    Color.White
                 );
                 curY += lineHeight;
             }

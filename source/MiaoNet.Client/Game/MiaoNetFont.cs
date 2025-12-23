@@ -1,67 +1,104 @@
+using System.Runtime.CompilerServices;
+
 namespace Celeste.Mod.MiaoNet;
 
 public static class MiaoNetFont
 {
-    public static Language ENLanguage => Dialog.Languages["english"];
+    private const MethodImplOptions MioAI = MethodImplOptions.AggressiveInlining;
 
-    public static Language ZhsLanguage => Dialog.Languages["schinese"];
+    // use en font first, if not found, then fallback to zhs font
+    // will everest support pixel font fallbacking?
+    public static PixelFont ENZhsFont { get; }
 
-    public static PixelFont Font => Fonts.Get(ENLanguage.FontFace);
+    public static float ENZhsBaseSize { get; }
 
-    public static PixelFont ZhsFont => Fonts.Get(ZhsLanguage.FontFace);
+    public static PixelFontSize ENZhsFontSize => ENZhsFont.Get(ENZhsBaseSize);
 
-    public static float BaseSize => ENLanguage.FontFaceSize;
+    public static int ENZhsLineHeight => ENZhsFontSize.LineHeight;
 
-    public static float ZhsBaseSize => ZhsLanguage.FontFaceSize;
+    static MiaoNetFont()
+    {
+        // don't trigger cctor call too early...
+        if (Dialog.Languages is not { Count: not 0 })
+            throw new InvalidOperationException();
 
-    public static PixelFontSize FontSize => Font.Get(BaseSize);
+        Language langEN = Dialog.Languages["english"];
+        Language langZhs = Dialog.Languages["schinese"];
+        ENZhsBaseSize = langEN.FontFaceSize;
+        PixelFont font = SimpleMergeFont(langEN.Font, langZhs.Font);
+        ENZhsFont = font;
+    }
 
-    public static PixelFontSize ZhsFontSize => ZhsFont.Get(ZhsBaseSize);
+    private static PixelFont SimpleMergeFont(PixelFont first, PixelFont second)
+    {
+        PixelFont font = new("MiaoNetFont");
+        font.managedTextures = first.managedTextures.Union(second.managedTextures).ToList();
+        foreach (var size in second.Sizes)
+        {
+            PixelFontSize sizeClone = new()
+            {
+                LineHeight = size.LineHeight,
+                Outline = size.Outline,
+                Size = size.Size
+            };
+            sizeClone.Characters = new(size.Characters);
+            font.Sizes.Add(sizeClone);
+        }
+        foreach (var size in first.Sizes)
+        {
+            var pixelFontSize = font.Sizes.FirstOrDefault(s => s.Size == size.Size);
+            if (pixelFontSize is null)
+                continue;
+            foreach (var pair in size.Characters)
+                pixelFontSize.Characters[pair.Key] = pair.Value;
+        }
+        return font;
+    }
 
-    public static int LineHeight => ENLanguage.FontSize.LineHeight;
+    // we just want to make these methods like macros instead of methods
+    // so mark them with AggressiveInlining
 
-    public static void DrawGhostName(string name, Vector2 position, Color color)
-        => Font.DrawOutline(
-            BaseSize,
-            name,
-            position,
-            new(0.5f, 1.0f), new(0.5f, 0.5f),
-            color, 2f,
-            Color.Black with { A = color.A }
+    [MethodImpl(MioAI)]
+    public static void Draw(string text, Vector2 position, Vector2 justify, Vector2 scale, Color color)
+        => ENZhsFont.Draw(ENZhsBaseSize, text, position, justify, scale, color);
+
+    [MethodImpl(MioAI)]
+    public static void DrawOutline(
+        string text, Vector2 position,
+        Vector2 justify, Vector2 scale,
+        Color color,
+        float stroke, Color strokeColor
+    )
+    {
+        ENZhsFont.DrawOutline(ENZhsBaseSize, text, position, justify, scale, color, stroke, strokeColor);
+    }
+
+    [MethodImpl(MioAI)]
+    public static void DrawOutline(
+        string text, Vector2 position,
+        Vector2 justify, Vector2 scale,
+        Color color
+    )
+    {
+        ENZhsFont.DrawOutline(
+            ENZhsBaseSize, text, position,
+            justify, scale, color,
+            2f, Color.Black with { A = color.A }
         );
+    }
 
-    public static void DrawPlayerListEntry(string text, Vector2 position, Color color, float scale)
-        => Font.Draw(
-            BaseSize,
-            text,
-            position,
-            new(0f, 0f), new(scale, scale),
-            color
-        );
+    [MethodImpl(MioAI)]
+    public static void DrawOutline(string text, Vector2 position, Color color)
+        => DrawOutline(text, position, Vector2.Zero, Vector2.One, color);
 
-    public static void DrawGhostEmoteText(string text, Vector2 position, Color color, float scale)
-        => ZhsFont.DrawOutline(
-            ZhsBaseSize,
-            text,
-            position,
-            new(0.5f, 1f), new(scale, scale),
-            color, 2f,
-            Color.Black with { A = color.A }
-        );
+    [MethodImpl(MioAI)]
+    public static void DrawOutlineBottomCentered(string text, Vector2 position, Vector2 scale, Color color)
+        => DrawOutline(text, position, new Vector2(0.5f, 1.0f), scale, color);
 
-    public static Vector2 MeasureGhostEmoteText(string text)
-        => ZhsFontSize.Measure(text);
+    [MethodImpl(MioAI)]
+    public static Vector2 Measure(string text)
+        => ENZhsFontSize.Measure(text);
 
-    public static void DrawStatusMessage(string text, Vector2 position)
-        => ZhsFont.DrawOutline(
-            ZhsBaseSize,
-            text,
-            position,
-            new(0f, 1f), Vector2.One,
-            Color.White, 2f,
-            Color.Black
-        );
-
-    public static Vector2 MeasurePlayerListEntry(string text)
-        => FontSize.Measure(text);
+    public static bool CanRender(int character)
+        => ENZhsFontSize.Characters.ContainsKey(character);
 }

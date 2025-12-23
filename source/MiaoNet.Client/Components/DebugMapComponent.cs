@@ -12,7 +12,7 @@ public sealed class DebugMapComponent : MiaoNetComponent
 
     public override void Render()
     {
-        if (Engine.Scene is not MapEditor debugMap)
+        if (Engine.Scene is not MapEditor)
             return;
         foreach (var (_, player) in ClientState.SelfChannel.Players)
         {
@@ -25,7 +25,7 @@ public sealed class DebugMapComponent : MiaoNetComponent
                 pos *= MapEditor.Camera.Zoom;
                 pos += new Vector2(Celeste.TargetWidth, Celeste.TargetHeight) / 2f;
 
-                MiaoNetFont.DrawGhostName(player.Info.Name, pos - Vector2.UnitY, Color.White);
+                MiaoNetFont.DrawOutlineBottomCentered(player.Info.Name, pos - Vector2.UnitY, Vector2.One / 2f, Color.White);
                 var gfx = player.GraphicsInfo ?? PlayerGraphicsInfo.Default;
                 Draw.Rect(pos - Vector2.One * 4f, 8f, 8f, gfx.GetHairInfo(player.State.Dashes).Color);
             }

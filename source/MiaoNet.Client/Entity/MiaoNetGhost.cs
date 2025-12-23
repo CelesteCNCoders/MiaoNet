@@ -89,7 +89,7 @@ public sealed class MiaoNetGhost : Entity
         {
             if (Scene.Paused)
                 playerHair.AfterUpdate();
-            if (dashing)
+            else if (dashing)
             {
                 ParticleType type = dashes >= 1 ? global::Celeste.Player.P_DashB : global::Celeste.Player.P_DashA;
                 SceneAs<Level>().ParticlesFG.Emit(
@@ -121,6 +121,7 @@ public sealed class MiaoNetGhost : Entity
         Position = state.Position;
     }
 
+    // TODO these tons of UpdateXXX method could be more maintainerable?
     public void UpdateDashing(bool dashing, float dashDirection, bool dashesChanged, int dashes)
     {
         if (dashesChanged)

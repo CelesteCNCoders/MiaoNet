@@ -33,6 +33,7 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.Level.OnExit += Level_OnExit;
         Everest.Events.Level.OnLoadLevel += Level_OnLoadLevel;
         IL.Celeste.Level.Update += Level_Update;
+        SpriteIDTracker.Load();
     }
 
     public override void Unload()
@@ -44,6 +45,7 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.Level.OnExit -= Level_OnExit;
         Everest.Events.Level.OnLoadLevel -= Level_OnLoadLevel;
         IL.Celeste.Level.Update -= Level_Update;
+        SpriteIDTracker.Unload();
     }
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot)
