@@ -4,7 +4,7 @@ namespace Celeste.Mod.MiaoNet;
 
 internal sealed class MiaoNetTextRenderer : ITextRenderer
 {
-    private const float Scale = 2f / 3f;
+    private static float Scale => MiaoNetModule.Settings.UIScaleValue;
 
     public float LineHeight => MiaoNetFont.ENZhsLineHeight * Scale;
 

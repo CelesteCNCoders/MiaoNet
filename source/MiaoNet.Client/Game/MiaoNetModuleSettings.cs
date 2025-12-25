@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework.Input;
+using YamlDotNet.Serialization;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -7,6 +8,19 @@ namespace Celeste.Mod.MiaoNet;
 public sealed class MiaoNetModuleSettings : EverestModuleSettings
 {
     public string Name { get; set; }
+
+    public int UIScale { get; set; } = 4;
+
+    [YamlIgnore, SettingIgnore]
+    public float UIScaleValue => UIScale switch
+    {
+        1 => 3f / 12f,
+        2 => 5f / 12f,
+        3 => 7f / 12f,
+        4 => 8f / 12f,
+        5 => 10f / 12f,
+        6 => 12f / 12f
+    };
 
     public int PlayerOpacity { get; set; } = 8;
 

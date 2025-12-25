@@ -127,15 +127,15 @@ public sealed class PlayerListComponent : MiaoNetComponent
          * <------------------------------- maxLineWidth ------------------------------------> 
          */
 
-        const float Scale = 2f / 3f;
+        float scale = MiaoNetModule.Settings.UIScaleValue;
 
         const float RectXOffset = 16f;
         const float RectYOffset = 16f;
         const float RectXPadding = 16f;
         const float RectYPadding = 16f;
         const float MiddlePadding = 8f;
-        float midTextWidth = MiaoNetFont.Measure(" @ ").X * Scale;
-        float lineHeight = MiaoNetFont.ENZhsLineHeight * Scale;
+        float midTextWidth = MiaoNetFont.Measure(" @ ").X * scale;
+        float lineHeight = MiaoNetFont.ENZhsLineHeight * scale;
 
         float maxLineWidth = 0f;
         float totalHeight = 0f;
@@ -152,12 +152,12 @@ public sealed class PlayerListComponent : MiaoNetComponent
 
             foreach (var player in channelPlayerList[i].Item2)
             {
-                float width = MiaoNetFont.Measure(player.Info.Name).X * Scale;
-                width += MiaoNetFont.Measure(player.Location.ToString()).X * Scale;
+                float width = MiaoNetFont.Measure(player.Info.Name).X * scale;
+                width += MiaoNetFont.Measure(player.Location.ToString()).X * scale;
                 if (player.OnlineStatus != PlayerOnlineStatus.Normal)
                 {
                     width += midTextWidth;
-                    width += MiaoNetFont.Measure(player.OnlineStatus.ToString()).X * Scale;
+                    width += MiaoNetFont.Measure(player.OnlineStatus.ToString()).X * scale;
                 }
                 width += MiddlePadding;
                 width += midTextWidth;
@@ -194,7 +194,7 @@ public sealed class PlayerListComponent : MiaoNetComponent
                 $"#{channel.Name} {playerList.Count} Players",
                 position: new(curX, curY),
                 justify: Vector2.Zero,
-                scale: Vector2.One * Scale,
+                scale: Vector2.One * scale,
                 Color.Yellow
             );
             curY += lineHeight;
@@ -209,7 +209,7 @@ public sealed class PlayerListComponent : MiaoNetComponent
                     text,
                     position: new(curX, curY),
                     justify: Vector2.Zero,
-                    scale: Vector2.One * Scale,
+                    scale: Vector2.One * scale,
                     Color.White
                 );
                 curY += lineHeight;

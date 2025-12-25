@@ -14,6 +14,8 @@ public static class MenuMiaoNetOptions
 
     public static void BuildMenu(TextMenu menu, bool inGame)
     {
+        MiaoNetModuleSettings settings = MiaoNetModule.Settings;
+
         TextMenu.Item item;
 
         item = new TextMenu.SubHeader($"MiaoNet | v.{MiaoNetModule.Instance.Metadata.VersionString}");
@@ -39,7 +41,7 @@ public static class MenuMiaoNetOptions
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_login_state"));
         menu.Add(item);
 
-        string loggedInText = Dialog.Get("miaonet_options_logged_in") + MiaoNetModule.Settings.Name;
+        string loggedInText = Dialog.Get("miaonet_options_logged_in") + settings.Name;
         if (inGame)
         {
             item = new TextMenu.Button(loggedInText);
@@ -56,10 +58,10 @@ public static class MenuMiaoNetOptions
                 menu.SceneAs<Overworld>()
                     .Goto<OuiModOptionString>()
                     .Init<OuiModOptions>(
-                        MiaoNetModule.Settings.Name,
-                        v => 
+                        settings.Name,
+                        v =>
                         {
-                            MiaoNetModule.Settings.Name = v;
+                            settings.Name = v;
                             thisButton.Label = Dialog.Get("miaonet_options_logged_in") + v;
                         }
                     );
@@ -92,12 +94,17 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_player_opacity"), 0, 10, MiaoNetModule.Settings.PlayerOpacity
+            Dialog.Get("miaonet_options_ui_scale"), 1, 6, settings.UIScale
+        ).Change(v => MiaoNetModule.Settings.UIScale = v);
+        menu.Add(item);
+
+        item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_player_opacity"), 1, 10, MiaoNetModule.Settings.PlayerOpacity
         ).Change(v => MiaoNetModule.Settings.PlayerOpacity = v);
         menu.Add(item);
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_player_name_opacity"), 0, 10, MiaoNetModule.Settings.NameOpacity
+            Dialog.Get("miaonet_options_player_name_opacity"), 1, 10, MiaoNetModule.Settings.NameOpacity
         ).Change(v => MiaoNetModule.Settings.NameOpacity = v);
         menu.Add(item);
 
