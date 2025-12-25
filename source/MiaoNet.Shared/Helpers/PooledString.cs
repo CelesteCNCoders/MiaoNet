@@ -1,62 +1,50 @@
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 
 namespace MiaoNet.Shared;
 
-// TODO if client received a PooledString but do not resolve it
-// then client don't cache this string but server think it does
-// is it ok?
-// actually, no, why will you not resolve it?
-
 /// <summary>
-/// Used to optimize the size of enum-like strings
+/// Used to optimize sizes in sending and receiving enum-like strings
 /// (i.e. Animation names like <c>Walk</c>, <c>Jump</c>).
-/// Always used with <see cref="PooledStringManager"/> at the same time.
 /// </summary>
-[DebuggerDisplay("{DebuggerDisplay,nq}")]
-public readonly struct PooledString : IRefBinarySerializable<PooledString>
+[DebuggerDisplay("{Value}")]
+public readonly struct PooledString : IContextualRefBinarySerializable<PooledString, PooledStringManager>
 {
     private const int Int32HighestBitMask = 1 << 0x1F;
 
-    public int ID { get; }
+    public string Value { get; }
 
-    public string? Value { get; }
-
-    private string DebuggerDisplay => Value is null ? $"ID = {ID}" : $"Value = {Value}, ID = {ID}";
-
-    // bad that we don't have class-level friend access in .net
-
-    /// <summary><b>Do not</b> use this, use <see cref="PooledStringManager"/> instead.</summary>
-    public PooledString(int id, string? value)
+    public PooledString(string value)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(id, 1);
-        ID = id;
+        ArgumentNullException.ThrowIfNull(value);
         Value = value;
     }
 
-    public void Serialize(ref RefBinaryWriter writer)
+    public static implicit operator string(PooledString value)
+        => value.Value;
+
+    public static implicit operator PooledString(string value)
+        => new(value);
+
+    public void Serialize(ref RefBinaryWriter writer, PooledStringManager pooledStringManager)
     {
-        if (Value is not null)
+        if (pooledStringManager.GetOrCreateID(Value, out int id))
         {
-            writer.Write(ID | Int32HighestBitMask);
-            writer.Write(Value);
+            writer.Write(id);
         }
         else
         {
-            writer.Write(ID);
+            writer.Write(id | Int32HighestBitMask);
+            writer.Write(Value);
         }
     }
 
-    public static PooledString Deserialize(ref RefBinaryReader reader)
+    public static PooledString Deserialize(ref RefBinaryReader reader, PooledStringManager pooledStringManager)
     {
         int sid = reader.ReadInt32();
 
         int id = sid & ~Int32HighestBitMask;
         bool hasValue = (sid & Int32HighestBitMask) == Int32HighestBitMask;
 
-        if (hasValue)
-            return new(id, reader.ReadString());
-        else
-            return new(id, null);
+        return pooledStringManager.GetAndRecord(id, hasValue ? reader.ReadString() : null);
     }
 }

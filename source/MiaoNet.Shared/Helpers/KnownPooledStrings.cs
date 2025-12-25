@@ -2,6 +2,12 @@ namespace MiaoNet.Shared;
 
 public static partial class KnownPooledStrings
 {
+#if DEBUG
+
+    public static IEnumerable<string> All => [];
+
+#elif RELEASE
+
     public static IEnumerable<string> All =>
         PlayerAnimations.Prepend(string.Empty);
 
@@ -17,4 +23,6 @@ public static partial class KnownPooledStrings
         "bubble", "bigFall", "spin", "shaking", "hug", "starMorphIdle", "carryTheoWalk", "tentacle_grabbed",
         "tentacle_pull", "tentacle_dangling", "launch"
     ];
+
+#endif
 }

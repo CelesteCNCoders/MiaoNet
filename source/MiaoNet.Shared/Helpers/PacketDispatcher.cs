@@ -5,18 +5,26 @@ using System.Runtime.CompilerServices;
 namespace MiaoNet.Shared;
 
 #if MIAO_CLIENT
+public delegate void PacketHandler<TPacket>(TPacket packet)
+    where TPacket : IContextualPacket;
+#elif MIAO_SERVER
+public delegate Task PacketHandler<TPacket>(Server.MiaoClientConnection connection, TPacket packet) 
+    where TPacket : IContextualPacket;
+#endif
+
+#if MIAO_CLIENT
 public sealed class PacketDispatcher
 {
-    private readonly FrozenDictionary<Type, PacketHandler<IPacket>> dictionary;
+    private readonly FrozenDictionary<Type, PacketHandler<IContextualPacket>> dictionary;
 
     public PacketDispatcher(PacketHandlerRegister register)
     {
         dictionary = register.Dictionary.ToFrozenDictionary();
     }
 
-    public bool DispatchPacket(IPacket packet)
+    public bool DispatchPacket(IContextualPacket packet)
     {
-        if (dictionary.TryGetValue(packet.GetType(), out PacketHandler<IPacket>? d))
+        if (dictionary.TryGetValue(packet.GetType(), out PacketHandler<IContextualPacket>? d))
         {
             d(packet);
             return true;
@@ -30,14 +38,14 @@ public sealed class PacketDispatcher
 #elif MIAO_SERVER
 public sealed class PacketDispatcher
 {
-    private readonly FrozenDictionary<Type, PacketHandler<IPacket>> dictionary;
+    private readonly FrozenDictionary<Type, PacketHandler<IContextualPacket>> dictionary;
 
     public PacketDispatcher(PacketHandlerRegister register)
     {
-        dictionary = register.Dictionary.Select(pair => new KeyValuePair<Type, PacketHandler<IPacket>>(pair.Key, pair.Value)).ToFrozenDictionary();
+        dictionary = register.Dictionary.Select(pair => new KeyValuePair<Type, PacketHandler<IContextualPacket>>(pair.Key, pair.Value)).ToFrozenDictionary();
     }
 
-    public async ValueTask<bool> DispatchPacketAsync(Server.MiaoClientConnection connection, IPacket packet)
+    public async ValueTask<bool> DispatchPacketAsync(Server.MiaoClientConnection connection, IContextualPacket packet)
     {
         if (dictionary.TryGetValue(packet.GetType(), out var handler))
         {

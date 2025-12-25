@@ -242,16 +242,24 @@ public sealed partial class MiaoServerService : BackgroundService
     #region tons of broadcasting
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Task BroadcastAsync(IPacket packet)
+    public Task BroadcastAsync(IContextlessPacket packet)
         => BroadcastToAsync(packet, _ => true);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Task BroadcastOthersAsync(IPacket packet, int selfID)
+    public Task BroadcastOthersAsync(IContextlessPacket packet, int selfID)
         => BroadcastToAsync(packet, c => c.ID != selfID);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Task BroadcastContextuallyOthersAsync(IContextualPacket packet, int selfID)
+        => BoradcastContextuallyToAsync(
+            packet,
+            ServerState.AllPlayers.Select(p => p.Value.Connection),
+            c => c.ID != selfID
+        );
 
     /// <inheritdoc cref="BroadcastToAsync(IPacket, IEnumerable{MiaoClientConnection}, Predicate{MiaoClientConnection}, int)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Task BroadcastToAsync(IPacket packet, Predicate<MiaoClientConnection> predicate)
+    public Task BroadcastToAsync(IContextlessPacket packet, Predicate<MiaoClientConnection> predicate)
     {
         var players = serverState.AllPlayers;
         return BroadcastToAsync(packet, players.Select(p => p.Value.Connection), predicate, players.Count);
@@ -259,7 +267,7 @@ public sealed partial class MiaoServerService : BackgroundService
 
     /// <inheritdoc cref="BroadcastToAsync(IPacket, IEnumerable{MiaoClientConnection}, Predicate{MiaoClientConnection}, int)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Task BroadcastToOthersAsync(IPacket packet, Predicate<MiaoClientConnection> predicate, int selfID)
+    public Task BroadcastToOthersAsync(IContextlessPacket packet, Predicate<MiaoClientConnection> predicate, int selfID)
     {
         var players = serverState.AllPlayers;
         return BroadcastToAsync(
@@ -272,7 +280,7 @@ public sealed partial class MiaoServerService : BackgroundService
 
     /// <inheritdoc cref="BroadcastToAsync(IPacket, IEnumerable{MiaoClientConnection}, Predicate{MiaoClientConnection}, int)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Task BroadcastToAsync(IPacket packet, ServerChannel channel, Predicate<MiaoClientConnection> predicate)
+    public Task BroadcastToAsync(IContextlessPacket packet, ServerChannel channel, Predicate<MiaoClientConnection> predicate)
     {
         Debug.Assert(serverState.AllChannels.ContainsValue(channel));
 
@@ -283,7 +291,7 @@ public sealed partial class MiaoServerService : BackgroundService
     /// <inheritdoc cref="BroadcastToAsync(IPacket, IEnumerable{MiaoClientConnection}, Predicate{MiaoClientConnection}, int)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Task BroadcastToOthersAsync(
-        IPacket packet,
+        IContextlessPacket packet,
         ServerChannel channel,
         Predicate<MiaoClientConnection> predicate,
         int selfID
@@ -300,21 +308,32 @@ public sealed partial class MiaoServerService : BackgroundService
         );
     }
 
-    public Task BroadcastToOthersProcessedAsync<TPacket>(
-        TPacket packet,
+    public Task BroadcastContextuallyToOthersAsync(
+        IContextualPacket packet,
+        Predicate<MiaoClientConnection> predicate,
+        int selfID
+    )
+    {
+        return BoradcastContextuallyToAsync(
+            packet,
+            ServerState.AllPlayers.Select(p => p.Value.Connection),
+            c => c.ID != selfID && predicate(c)
+        );
+    }
+
+    public Task BroadcastContextuallyToOthersAsync(
+        IContextualPacket packet,
         ServerChannel channel,
         Predicate<MiaoClientConnection> predicate,
-        Func<TPacket, MiaoClientConnection, SerializedPacket> processor,
         int selfID
-    ) where TPacket : IPacket<TPacket>
+    )
     {
         Debug.Assert(serverState.AllChannels.ContainsValue(channel));
 
-        return BroadcastToProcessedAsync(
+        return BoradcastContextuallyToAsync(
             packet,
             channel.Players.Select(p => p.Value.Connection),
-            c => c.ID != selfID && predicate(c),
-            processor
+            c => c.ID != selfID && predicate(c)
         );
     }
 
@@ -323,7 +342,7 @@ public sealed partial class MiaoServerService : BackgroundService
     /// All predicate will be tested before the first <see langword="await"/>.
     /// </summary>
     private static Task BroadcastToAsync(
-        IPacket packet,
+        IContextlessPacket packet,
         IEnumerable<MiaoClientConnection> connections,
         Predicate<MiaoClientConnection> predicate,
         int connectionsCount
@@ -350,17 +369,16 @@ public sealed partial class MiaoServerService : BackgroundService
         return Task.CompletedTask;
     }
 
-    private static Task BroadcastToProcessedAsync<TPacket>(
-        TPacket packet,
+    private static Task BoradcastContextuallyToAsync(
+        IContextualPacket packet,
         IEnumerable<MiaoClientConnection> connections,
-        Predicate<MiaoClientConnection> predicate,
-        Func<TPacket, MiaoClientConnection, SerializedPacket> processor
-    ) where TPacket : IPacket<TPacket>
+        Predicate<MiaoClientConnection> predicate
+    )
     {
         List<Task>? bounded = null;
         foreach (var connection in connections.Where(c => predicate(c)))
         {
-            var serializedPacket = processor(packet, connection);
+            var serializedPacket = new SerializedPacket(ArrayPool<byte>.Shared, packet, connection);
             if (!connection.TrySendPacket(serializedPacket))
                 (bounded ??= new()).Add(connection.SendPacketAsync(serializedPacket).AsTask());
         }
@@ -372,7 +390,7 @@ public sealed partial class MiaoServerService : BackgroundService
 
     #endregion
 
-    public async ValueTask HandlePacketAsync(MiaoClientConnection connection, IPacket packet)
+    public async ValueTask HandlePacketAsync(MiaoClientConnection connection, IContextualPacket packet)
     {
         if (!await packetDispatcher.DispatchPacketAsync(connection, packet))
             logger.LogWarning("Unhandled packet received from client: {pc}", packet.GetType());

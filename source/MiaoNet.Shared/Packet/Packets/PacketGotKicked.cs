@@ -7,7 +7,7 @@ public enum KickedReason : byte
     InvalidPacketWithState
 }
 
-public sealed class PacketGotKicked : IPacket<PacketGotKicked>
+public sealed class PacketGotKicked : IContextlessPacket<PacketGotKicked>
 {
     public static PacketGotKicked Deserialize(ref RefBinaryReader reader)
     {

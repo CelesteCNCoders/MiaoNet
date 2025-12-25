@@ -1,6 +1,6 @@
 namespace MiaoNet.Shared;
 
-public abstract class PacketRequest<TResponse> : IPacket
+public abstract class PacketRequest<TResponse> : IContextlessPacket
     where TResponse : PacketResponse
 {
     public int RequestID { get; set; }

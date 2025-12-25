@@ -7,7 +7,7 @@ namespace MiaoNet.Shared;
 
 // used to sync sth that's not so time-sensitive
 // i.e. player died, player's hair is being blown, or player changed their sprite
-public sealed class PacketPlayerStateFlags : IPacket<PacketPlayerStateFlags>
+public sealed class PacketPlayerStateFlags : IContextlessPacket<PacketPlayerStateFlags>
 {
     public enum StateFlags : ushort
     {

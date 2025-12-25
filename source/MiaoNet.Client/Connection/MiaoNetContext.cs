@@ -12,7 +12,7 @@ using Monocle;
 
 namespace Celeste.Mod.MiaoNet;
 
-public sealed partial class MiaoNetContext
+public sealed partial class MiaoNetContext : IPacketSerializationContext
 {
     private int nextRequestID;
     // request id -> on response handler
@@ -27,7 +27,7 @@ public sealed partial class MiaoNetContext
 
     private CancellationTokenSource? cts;
     private Thread? connectionThread;
-    private readonly ConcurrentQueue<IPacket> receiveQueue;
+    private readonly ConcurrentQueue<IContextualPacket> receiveQueue;
     private readonly ConcurrentQueue<Action> mainThreadQueue;
 
     private readonly List<MiaoNetComponent> components;
@@ -40,6 +40,11 @@ public sealed partial class MiaoNetContext
     private ClientState? clientState;
 
     public PooledStringManager? PooledStringManager { get; private set; }
+
+    PooledStringManager IPacketSerializationContext.PooledStringManager
+    {
+        get { EnsureState(); return PooledStringManager!; } // TODO connection status
+    }
 
     [MemberNotNullWhen(true, nameof(connection), nameof(ClientState))]
     public bool HasConnection => connection is not null;
@@ -215,7 +220,7 @@ public sealed partial class MiaoNetContext
         Draw.SpriteBatch.End();
     }
 
-    public void QueuePacket(IPacket packet)
+    public void QueuePacket(IContextualPacket packet)
     {
         SafeGuard.Assert(HasConnection);
         connection.QueuePacket(packet);
@@ -252,7 +257,7 @@ public sealed partial class MiaoNetContext
         SingleThreadedSynchronizationContext syncCtx = new();
         SynchronizationContext.SetSynchronizationContext(syncCtx);
 
-        StartConnectionAsync(token).ContinueWith(HandleTaskCompleted);
+        StartConnectionAsync(this, token).ContinueWith(HandleTaskCompleted);
 
         try
         {
@@ -264,7 +269,7 @@ public sealed partial class MiaoNetContext
 
         return;
 
-        async Task StartConnectionAsync(CancellationToken token)
+        async Task StartConnectionAsync(IPacketSerializationContext context, CancellationToken token)
         {
             string host = TargetServer;
             const int Port = 21473;
@@ -308,7 +313,7 @@ public sealed partial class MiaoNetContext
                 }
                 else
                 {
-                    IPacket? packetInitial = await connection!.ReceivePacketAsync(token);
+                    IContextualPacket? packetInitial = await connection!.ReceivePacketAsync(context, token);
                     if (packetInitial is not PacketClientInitial clientInitial)
                     {
                         if (packetInitial is null)
@@ -348,11 +353,15 @@ public sealed partial class MiaoNetContext
                 return;
             }
 
-            _ = ReceivePacketsLoopAsync(connection, token).ContinueWith(HandleTaskCompleted, token);
-            _ = connection.SendPacketsLoopAsync(token).ContinueWith(HandleTaskCompleted, token);
+            _ = ReceivePacketsLoopAsync(connection, context, token).ContinueWith(HandleTaskCompleted, token);
+            _ = connection.SendPacketsLoopAsync(context, token).ContinueWith(HandleTaskCompleted, token);
         }
 
-        async Task ReceivePacketsLoopAsync(MiaoServerConnection connection, CancellationToken token)
+        async Task ReceivePacketsLoopAsync(
+            MiaoServerConnection connection,
+            IPacketSerializationContext context,
+            CancellationToken token
+        )
         {
 #if PACKET_TRACING
             System.Text.Json.JsonSerializerOptions options = new()
@@ -365,7 +374,7 @@ public sealed partial class MiaoNetContext
             await Task.Yield();
             while (!token.IsCancellationRequested)
             {
-                IPacket? packet = await connection.ReceivePacketAsync(token);
+                IContextualPacket? packet = await connection.ReceivePacketAsync(context, token);
                 if (packet is null)
                     return;
 #if PACKET_TRACING
@@ -389,7 +398,7 @@ public sealed partial class MiaoNetContext
             t.Exception.Handle(HandleTaskException);
             mainThreadQueue.Enqueue(() =>
             {
-                ShowStatusMessage("Disconnected due to exception.");
+                ShowStatusMessage($"Disconnected due to exception.");
                 Disconnect();
             });
 

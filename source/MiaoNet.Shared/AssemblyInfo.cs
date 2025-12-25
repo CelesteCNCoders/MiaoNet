@@ -5,7 +5,7 @@ using MiaoNet.Shared;
 [assembly: PacketRegistry(typeof(PacketPlayerLeft))]
 
 [assembly: PacketRegistry(typeof(PacketPlayerFrame))]
-[assembly: PacketRegistry(typeof(PacketPlayerNotification<PacketPlayerFrame>))]
+[assembly: PacketRegistry(typeof(PacketContextualPlayerNotification<PacketPlayerFrame>))]
 [assembly: PacketRegistry(typeof(PacketPlayerStateFlags))]
 [assembly: PacketRegistry(typeof(PacketPlayerNotification<PacketPlayerStateFlags>))]
 

@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace MiaoNet.Shared;
 
@@ -15,7 +16,13 @@ public sealed class SerializedPacket
 
     public ArraySegment<byte> ArraySegment => arraySegment;
 
-    public SerializedPacket(ArrayPool<byte> arrayPool, IPacket packet, int clientCount)
+    // TODO this two methods are super similiar
+    public SerializedPacket(
+        ArrayPool<byte> arrayPool,
+        IContextualPacket packet,
+        IPacketSerializationContext context,
+        int clientCount = 1
+    )
     {
         if (memoryStream is null)
         {
@@ -24,7 +31,7 @@ public sealed class SerializedPacket
         }
 
         RefBinaryWriter writer = new(memoryStream);
-        PacketRegistry.WritePacket(packet, ref writer);
+        PacketRegistry.WritePacket(packet, ref writer, context);
         if (memoryStream.Position > ushort.MaxValue + sizeof(ushort))
         {
             memoryStream.Seek(sizeof(ushort), SeekOrigin.Begin);
@@ -43,9 +50,10 @@ public sealed class SerializedPacket
         this.arraySegment = arraySegment;
     }
 
-    public SerializedPacket(ArrayPool<byte> arrayPool, IPacket packet)
-        : this(arrayPool, packet, 1)
-    { }
+    public SerializedPacket(ArrayPool<byte> arrayPool, IContextlessPacket packet, int clientCount = 1)
+        : this(arrayPool, packet, null!, clientCount) // is passing null ok...?
+    {
+    }
 
     public void OnConsumed()
     {

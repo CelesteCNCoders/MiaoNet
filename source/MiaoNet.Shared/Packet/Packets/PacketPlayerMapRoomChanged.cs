@@ -2,7 +2,7 @@ namespace MiaoNet.Shared;
 
 // used when room changed
 // NOT used when changing between in debug map and not in debug map
-public sealed class PacketPlayerMapRoomChanged : IPacket<PacketPlayerMapRoomChanged>
+public sealed class PacketPlayerMapRoomChanged : IContextlessPacket<PacketPlayerMapRoomChanged>
 {
     public string MapRoom { get; }
 

@@ -1,4 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
+using MiaoNet.Shared;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -11,6 +13,8 @@ public static class Program
 {
     public static void Main(string[] args)
     {
+        RuntimeHelpers.RunClassConstructor(typeof(PacketRegistry).TypeHandle);
+
         HostApplicationBuilderSettings options = new()
         {
             ApplicationName = "MiaoNet.Server",

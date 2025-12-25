@@ -5,8 +5,8 @@ namespace MiaoNet.Shared;
 
 public static class PacketRegistry
 {
-    private delegate T RefBinaryReadHandler<out T>(ref RefBinaryReader reader);
-    private static readonly FrozenDictionary<ushort, RefBinaryReadHandler<IPacket>> idToReader;
+    private delegate T RefBinaryReadHandler<out T>(ref RefBinaryReader reader, IPacketSerializationContext context);
+    private static readonly FrozenDictionary<ushort, RefBinaryReadHandler<IContextualPacket>> idToReader;
     private static readonly FrozenDictionary<Type, ushort> typeToId;
 
     static PacketRegistry()
@@ -15,18 +15,25 @@ public static class PacketRegistry
 
         var infoAttrs = (PacketRegistryAttribute[])Attribute.GetCustomAttributes(asm, typeof(PacketRegistryAttribute));
 
-        List<(ushort id, Type type, RefBinaryReadHandler<IPacket> reader)> list =
+        List<(ushort id, Type type, RefBinaryReadHandler<IContextualPacket> reader)> list =
             infoAttrs.Select((a, id) =>
             {
                 var type = a.Type;
-                var map = type.GetInterfaceMap(typeof(IRefBinarySerializable<>).MakeGenericType(type));
+                var interfaceType = typeof(IContextualPacket<>).MakeGenericType(type);
+                if (!type.IsAssignableTo(interfaceType))
+                    throw new InvalidOperationException(SR.TypeMustAtLeaseImplContextualPacket);
+
+                var map = type.GetInterfaceMap(
+                    typeof(IContextualRefBinarySerializable<,>)
+                        .MakeGenericType(type, typeof(IPacketSerializationContext))
+                );
                 var readerIndex = Array.FindIndex(
                     map.InterfaceMethods,
-                    m => m.Name is nameof(IRefBinarySerializable<>.Deserialize)
+                    m => m.Name is nameof(IContextualPacket<>.Deserialize)
                 );
                 SafeGuard.Assert(readerIndex is 0 or 1);
 
-                var reader = (RefBinaryReadHandler<IPacket>)map.TargetMethods[readerIndex]
+                var reader = (RefBinaryReadHandler<IContextualPacket>)map.TargetMethods[readerIndex]
                     .CreateDelegate(typeof(RefBinaryReadHandler<>).MakeGenericType(type));
                 return ((ushort)(id + 1), type, reader); // 0 reserved
             }).ToList();
@@ -35,14 +42,14 @@ public static class PacketRegistry
         typeToId = list.ToFrozenDictionary(t => t.type, t => t.id);
     }
 
-    public static IPacket ReadPacket(ushort id, ref RefBinaryReader reader)
-        => idToReader[id](ref reader);
+    public static IContextualPacket ReadPacket(ushort id, ref RefBinaryReader reader, IPacketSerializationContext context)
+        => idToReader[id](ref reader, context);
 
-    public static void WritePacket(IPacket packet, ref RefBinaryWriter writer)
+    public static void WritePacket(IContextualPacket packet, ref RefBinaryWriter writer, IPacketSerializationContext context)
     {
         if (!typeToId.TryGetValue(packet.GetType(), out ushort id))
             throw new KeyNotFoundException(packet.GetType().ToString());
         writer.Write(id);
-        packet.Serialize(ref writer);
+        packet.Serialize(ref writer, context);
     }
 }

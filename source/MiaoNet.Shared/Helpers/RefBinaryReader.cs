@@ -122,12 +122,26 @@ public static class RefBinaryReaderExtensions
     public static T Read<T>(this ref RefBinaryReader reader) where T : IRefBinarySerializable<T>
         => T.Deserialize(ref reader);
 
+    public static T Read<T, TContext>(this ref RefBinaryReader reader, TContext context)
+        where T : IContextualRefBinarySerializable<T, TContext>
+        => T.Deserialize(ref reader, context);
+
     public static T[] ReadArray<T>(this ref RefBinaryReader reader) where T : IRefBinarySerializable<T>
     {
         int count = reader.ReadUInt16();
         T[] list = new T[count];
         for (int i = 0; i < count; i++)
             list[i] = Read<T>(ref reader);
+        return list;
+    }
+
+    public static T[] ReadArray<T, TContext>(this ref RefBinaryReader reader, TContext context)
+        where T : IContextualRefBinarySerializable<T, TContext>
+    {
+        int count = reader.ReadUInt16();
+        T[] list = new T[count];
+        for (int i = 0; i < count; i++)
+            list[i] = Read<T, TContext>(ref reader, context);
         return list;
     }
 }

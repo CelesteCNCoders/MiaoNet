@@ -11,6 +11,7 @@ public sealed class MiaoNetGhost : Entity
     private PlayerSprite playerSprite;
     private readonly PlayerHair playerHair;
     private readonly GhostNameTag nameTag;
+    private readonly Leader leader;
 
     private Facings facing;
     private int dashes;
@@ -52,12 +53,15 @@ public sealed class MiaoNetGhost : Entity
         facing = Facings.Right;
         playerSprite = new PlayerSprite(initialState.PlayerSpriteMode);
         playerSprite.Active = false;
+        Add(leader = new Leader(new Vector2(0f, -8f)));
 
         playerHair = new PlayerHair(playerSprite);
         Add(playerHair);
         Add(playerSprite);
         nameTag = new(this);
         playerHair.Start();
+
+        Add(new MirrorReflection());
 
         ApplyState(initialState);
         UpdateHairCount();
@@ -101,6 +105,7 @@ public sealed class MiaoNetGhost : Entity
         }
     }
 
+    #region state updates
     public void ApplyState(PlayerState state)
     {
         if (playerSprite.Mode != state.PlayerSpriteMode)
@@ -119,6 +124,7 @@ public sealed class MiaoNetGhost : Entity
         dashes = state.Dashes;
         lastDashedDashes = dashes;
         Position = state.Position;
+        OnFollowerInitials(state.FollowerInfos);
     }
 
     // TODO these tons of UpdateXXX method could be more maintainerable?
@@ -149,6 +155,36 @@ public sealed class MiaoNetGhost : Entity
         {
             AddTrail(lastDashedDashes);
         }
+    }
+
+    public void OnFollowerInitials(FollowerInfo[] followerInfos)
+    {
+        CleanUpFollowers();
+        foreach (var info in followerInfos)
+        {
+            GhostFollower gf = new(this, info.Offset, info.Type, info.AnimationID);
+            gf.UpdateSprite(info.Animation, info.AnimationFrame);
+            leader.GainFollower(gf.Follower);
+            Scene?.Add(gf);
+        }
+    }
+
+    public void OnFollowerDeltas(FollowerInfoDelta[] deltas)
+    {
+        for (int i = 0; i < deltas.Length; i++)
+        {
+            FollowerInfoDelta delta = deltas[i];
+            var gf = leader.Followers[i].EntityAs<GhostFollower>();
+            gf.UpdateSprite(delta.Animation, delta.AnimationFrame);
+            gf.Position = leader.Entity.Position + new Vector2(delta.XOffset, delta.YOffset);
+        }
+    }
+
+    private void CleanUpFollowers()
+    {
+        foreach (var follower in leader.Followers)
+            follower.Entity.RemoveSelf();
+        leader.Followers.Clear();
     }
 
     private void AddTrail(int dashes)
@@ -202,9 +238,9 @@ public sealed class MiaoNetGhost : Entity
         }
     }
 
-    public void UpdateSprite(string? animID, ushort animFrame, bool faceLeft, Vector2 scale)
+    public void UpdateSprite(string animID, ushort animFrame, bool faceLeft, Vector2 scale)
     {
-        if (animID is not null)
+        if (animID != string.Empty)
         {
             playerSprite.Play(animID);
             playerSprite.SetAnimationFrame(animFrame);
@@ -286,6 +322,7 @@ public sealed class MiaoNetGhost : Entity
     {
         playerSprite.HairCount = GraphicsInfo.GetHairInfo(dashes).Length;
     }
+    #endregion
 
     public override void Added(Scene scene)
     {
@@ -293,6 +330,12 @@ public sealed class MiaoNetGhost : Entity
         scene.Add(nameTag);
         if (idleHover is not null)
             scene.Add(idleHover);
+        foreach (var fo in leader.Followers)
+        {
+            Entity e = fo.Entity;
+            if (e.Scene is null)
+                scene.Add(e);
+        }
     }
 
     public override void Removed(Scene scene)
@@ -300,13 +343,13 @@ public sealed class MiaoNetGhost : Entity
         base.Removed(scene);
         scene.Remove(nameTag);
         idleHover?.RemoveSelf();
+        CleanUpFollowers();
     }
 
     public override void Render()
     {
-        if (lastHoladableType == HoldableType.Jelly)
+        if (lastHoladableType == HoldableType.Theo)
         {
-            holdableSprite!.DrawSimpleOutline();
             holdableSprite!.Render();
         }
 
@@ -316,8 +359,9 @@ public sealed class MiaoNetGhost : Entity
             playerSprite.Scale.X *= (float)facing;
         }
 
-        if (lastHoladableType == HoldableType.Theo)
+        if (lastHoladableType == HoldableType.Jelly)
         {
+            holdableSprite!.DrawSimpleOutline();
             holdableSprite!.Render();
         }
 

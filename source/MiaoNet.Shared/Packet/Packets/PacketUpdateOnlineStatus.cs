@@ -1,6 +1,6 @@
 namespace MiaoNet.Shared;
 
-public sealed class PacketUpdateOnlineStatus : IPacket<PacketUpdateOnlineStatus>
+public sealed class PacketUpdateOnlineStatus : IContextlessPacket<PacketUpdateOnlineStatus>
 {
     public PlayerOnlineStatus Status { get; set; }
 

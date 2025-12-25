@@ -1,6 +1,6 @@
 namespace MiaoNet.Shared;
 
-public sealed class PacketPlayerChannelMove : IPacket<PacketPlayerChannelMove>
+public sealed class PacketPlayerChannelMove : IContextlessPacket<PacketPlayerChannelMove>
 {
     public int ChannelID { get; }
 

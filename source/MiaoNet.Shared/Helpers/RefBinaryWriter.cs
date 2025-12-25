@@ -169,6 +169,11 @@ public static class RefBinaryWriterExtensions
     public static void Write<T>(this ref RefBinaryWriter writer, T value) where T : IRefBinarySerializable<T>
         => value.Serialize(ref writer);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Write<T, TContext>(this ref RefBinaryWriter writer, T value, TContext context)
+        where T : IContextualRefBinarySerializable<T, TContext>
+        => value.Serialize(ref writer, context);
+
     public static void Write<T>(this ref RefBinaryWriter writer, IReadOnlyCollection<T> value) where T : IRefBinarySerializable<T>
     {
         if (value.Count > ushort.MaxValue)
@@ -176,5 +181,15 @@ public static class RefBinaryWriterExtensions
         writer.Write((ushort)value.Count);
         foreach (var item in value)
             item.Serialize(ref writer);
+    }
+
+    public static void Write<T, TContext>(this ref RefBinaryWriter writer, IReadOnlyCollection<T> value, TContext context)
+        where T : IContextualRefBinarySerializable<T, TContext>
+    {
+        if (value.Count > ushort.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(value));
+        writer.Write((ushort)value.Count);
+        foreach (var item in value)
+            item.Serialize(ref writer, context);
     }
 }

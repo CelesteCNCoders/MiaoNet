@@ -39,19 +39,27 @@ public sealed partial class MiaoServerService
         state.Position = packet.Position;
         if (packet.DashesChange)
             state.Dashes = packet.Dashes;
+        if (packet.HasFollowerInitials)
+            state.FollowerInfos = (FollowerInfo[])packet.FollowerInitials.Clone();
 
-        // TODO this is ugly
-        object storage = packet.ResolveAllPooledString(connection.PooledStringManager);
-        await BroadcastToOthersProcessedAsync(
-            new PacketPlayerNotification<PacketPlayerFrame>(connection.ID, packet),
+        else if (packet.HasFollowerDeltas)
+        {
+            for (int i = 0; i < state.FollowerInfos.Length; i++)
+            {
+                var fi = state.FollowerInfos[i];
+                var d = packet.FollowerDeltas[i];
+                state.FollowerInfos[i] = new(
+                    fi.Type, fi.AnimationID,
+                    d.Animation, d.AnimationFrame,
+                    new(d.XOffset, d.YOffset)
+                );
+            }
+        }
+
+        await BroadcastContextuallyToOthersAsync(
+            new PacketContextualPlayerNotification<PacketPlayerFrame>(connection.ID, packet),
             player.Channel,
             con => con.Player.ShouldSyncFrom(player),
-            (p, con) =>
-            {
-                PacketPlayerFrame packet = p.Packet;
-                packet.RepackWith(storage, con.PooledStringManager);
-                return new(ArrayPool<byte>.Shared, p);
-            },
             connection.ID
         );
     }
@@ -78,7 +86,7 @@ public sealed partial class MiaoServerService
             serverState.StateLock.EnterReadLock();
             try
             {
-                task = BroadcastOthersAsync(
+                task = BroadcastContextuallyOthersAsync(
                     new PacketPlayerMapChangedNotification(player.ID, PlayerLocation.Empty),
                     connection.ID
                 );
@@ -98,7 +106,7 @@ public sealed partial class MiaoServerService
             serverState.StateLock.EnterReadLock();
             try
             {
-                task = BroadcastOthersAsync(
+                task = BroadcastContextuallyOthersAsync(
                     new PacketPlayerMapChangedNotification(player.ID, packet.Location),
                     connection.ID
                 );
@@ -138,10 +146,10 @@ public sealed partial class MiaoServerService
 
         try
         {
-            IPacket generalPacket = new PacketPlayerMapChangedNotification(
+            var generalPacket = new PacketPlayerMapChangedNotification(
                 player.ID, packet.Location
             );
-            IPacket withStatePacket = new PacketPlayerMapChangedNotification(
+            var withStatePacket = new PacketPlayerMapChangedNotification(
                 player.ID, packet.Location,
                 null, packet.InitialState
             );
@@ -154,15 +162,17 @@ public sealed partial class MiaoServerService
                     pair.Value.Player.State!, // TODO check if it's null (then kick them :L)
                     pair.Value.Player.GraphicsInfo
                 );
-            IPacket responsePacket = new PacketPlayerMapChangedResponse(mapPlayers.ToArray());
+            var responsePacket = new PacketPlayerMapChangedResponse(mapPlayers.ToArray());
 
-            generalTask = BroadcastToOthersAsync(
+            generalTask = BroadcastContextuallyToOthersAsync(
                 generalPacket,
                 c => !c.Player.ShouldSyncFrom(player),
                 player.ID
             );
-            withStateTask = BroadcastToOthersAsync(
+
+            withStateTask = BroadcastContextuallyToOthersAsync(
                 withStatePacket,
+                connection.Player.Channel,
                 c => c.Player.ShouldSyncFrom(player),
                 player.ID
             );

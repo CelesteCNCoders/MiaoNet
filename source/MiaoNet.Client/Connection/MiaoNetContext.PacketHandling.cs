@@ -24,7 +24,7 @@ public partial class MiaoNetContext
     {
         r.Register<PacketPlayerJoined>(HandlePacket);
         r.Register<PacketPlayerLeft>(HandlePacket);
-        r.Register<PacketPlayerNotification<PacketPlayerFrame>>(HandlePacket);
+        r.Register<PacketContextualPlayerNotification<PacketPlayerFrame>>(HandlePacket);
         r.Register<PacketPlayerMapChangedNotification>(HandlePacket);
         r.Register<PacketPlayerNotification<PacketPlayerMapRoomChanged>>(HandlePacket);
         r.Register<PacketPlayerMapChangedResponse>(HandlePacket);
@@ -50,7 +50,7 @@ public partial class MiaoNetContext
         PlayerLeft?.Invoke(player);
     }
 
-    private void HandlePacket(PacketPlayerNotification<PacketPlayerFrame> packet)
+    private void HandlePacket(PacketContextualPlayerNotification<PacketPlayerFrame> packet)
     {
         EnsureState();
         var player = ClientState.Players[packet.PlayerID];

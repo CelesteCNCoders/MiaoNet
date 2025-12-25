@@ -1,6 +1,6 @@
 namespace MiaoNet.Shared;
 
-public sealed class PacketPlayerJoined : IPacket<PacketPlayerJoined>
+public sealed class PacketPlayerJoined : IContextlessPacket<PacketPlayerJoined>
 {
     public int ChannelID { get; }
 

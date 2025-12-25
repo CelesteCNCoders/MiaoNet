@@ -1,6 +1,6 @@
 namespace MiaoNet.Shared;
 
-public sealed class PacketPlayerGraphicsUpdate : IPacket<PacketPlayerGraphicsUpdate>
+public sealed class PacketPlayerGraphicsUpdate : IContextlessPacket<PacketPlayerGraphicsUpdate>
 {
     public enum UpdateFlags : byte
     {

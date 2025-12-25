@@ -17,7 +17,7 @@ public sealed class MiaoServerConnection : IDisposable
     private readonly MemoryStream sendMemoryStream;
     private readonly MemoryStream receiveMemoryStream;
 
-    private readonly ConcurrentQueue<IPacket> sendQueue;
+    private readonly ConcurrentQueue<IContextualPacket> sendQueue;
     private readonly SemaphoreSlim sendSemaphore;
 
     public EndPoint EndPoint { get; }
@@ -69,17 +69,17 @@ public sealed class MiaoServerConnection : IDisposable
         tcpSocket = null;
     }
 
-    public async Task SendPacketsLoopAsync(CancellationToken token)
+    public async Task SendPacketsLoopAsync(IPacketSerializationContext context, CancellationToken token)
     {
         while (!token.IsCancellationRequested)
         {
-            while (sendQueue.TryDequeue(out IPacket? packet))
-                await SendPacketAsync(packet, token);
+            while (sendQueue.TryDequeue(out IContextualPacket? packet))
+                await SendPacketAsync(packet, context, token);
             await sendSemaphore.WaitAsync(token);
         }
     }
 
-    public int QueuePacket(IPacket packet)
+    public int QueuePacket(IContextualPacket packet)
     {
         sendQueue.Enqueue(packet);
         int count = sendQueue.Count;
@@ -88,10 +88,10 @@ public sealed class MiaoServerConnection : IDisposable
     }
 
     // TODO these are awful, we need a refactor
-    public async Task SendPacketAsync(IPacket packet, CancellationToken token)
+    public async Task SendPacketAsync(IContextualPacket packet, IPacketSerializationContext context, CancellationToken token)
     {
         RefBinaryWriter writer = new(sendMemoryStream);
-        PacketRegistry.WritePacket(packet, ref writer);
+        PacketRegistry.WritePacket(packet, ref writer, context);
         ushort length = (ushort)(sendMemoryStream.Position - 2 * sizeof(ushort));
         sendMemoryStream.Seek(0, SeekOrigin.Begin);
         writer.Write(length);
@@ -135,7 +135,7 @@ public sealed class MiaoServerConnection : IDisposable
         return packet;
     }
 
-    public async Task<IPacket?> ReceivePacketAsync(CancellationToken token)
+    public async Task<IContextualPacket?> ReceivePacketAsync(IPacketSerializationContext context, CancellationToken token)
     {
         const int HeadSize = 2 * sizeof(ushort);
 
@@ -159,7 +159,7 @@ public sealed class MiaoServerConnection : IDisposable
             return null;
 
         RefBinaryReader reader = new(payloadMemory.Span);
-        IPacket packet = PacketRegistry.ReadPacket(type, ref reader);
+        IContextualPacket packet = PacketRegistry.ReadPacket(type, ref reader, context);
         return packet;
     }
 }

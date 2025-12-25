@@ -8,7 +8,7 @@ namespace MiaoNet.Shared;
 /// <summary>
 /// Player's position, dashes and so on.
 /// </summary>
-public sealed class PlayerState : IRefBinarySerializable<PlayerState>
+public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, PooledStringManager>
 {
     public Vector2 Position { get; set; }
 
@@ -24,25 +24,30 @@ public sealed class PlayerState : IRefBinarySerializable<PlayerState>
 
     public bool Dead { get; set; }
 
+    public FollowerInfo[] FollowerInfos { get; set; }
+
     public PlayerState(Vector2 position, byte dashes, float deltaTime)
     {
         Position = position;
         Dashes = dashes;
         DeltaTime = deltaTime;
+        FollowerInfos = [];
     }
 
-    public void Serialize(ref RefBinaryWriter writer)
+    public void Serialize(ref RefBinaryWriter writer, PooledStringManager pooledStringManager)
     {
         writer.Write(Position);
         writer.Write(Dashes);
         writer.Write(DeltaTime);
         writer.Write((byte)PlayerSpriteMode);
+        writer.Write(FollowerInfos, pooledStringManager);
     }
 
-    public static PlayerState Deserialize(ref RefBinaryReader reader)
+    public static PlayerState Deserialize(ref RefBinaryReader reader, PooledStringManager pooledStringManager)
         => new(reader.ReadVector2(), reader.ReadByte(), reader.ReadSingle())
         {
             PlayerSpriteMode = (PlayerSpriteMode)reader.ReadByte(),
+            FollowerInfos = reader.ReadArray<FollowerInfo, PooledStringManager>(pooledStringManager)
         };
 
     public override string ToString()

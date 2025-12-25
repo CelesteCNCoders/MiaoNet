@@ -13,12 +13,13 @@ public enum HoldableType
     Jelly
 }
 
-public struct HoldableInfo : IRefBinarySerializable<HoldableInfo>
+// TODO Use flags to indicate which flags are custom holdable types needed?
+public struct HoldableInfo : IContextualRefBinarySerializable<HoldableInfo, PooledStringManager>
 {
     public HoldableType Type { get; set; }
 
     /* Jelly only */
-    public PooledString Animation { get; set; }
+    public PooledString Animation { get; }
 
     public ushort AnimationFrame { get; }
 
@@ -37,8 +38,8 @@ public struct HoldableInfo : IRefBinarySerializable<HoldableInfo>
 
     /// <summary>For <see cref="HoldableType.Jelly"/> only.</summary>
     public HoldableInfo(
-        HoldableType type, 
-        PooledString animation, ushort animationFrame, 
+        HoldableType type,
+        PooledString animation, ushort animationFrame,
         Vector2 scale, float rotation
     )
     {
@@ -49,25 +50,25 @@ public struct HoldableInfo : IRefBinarySerializable<HoldableInfo>
         Rotation = rotation;
     }
 
-    public readonly void Serialize(ref RefBinaryWriter writer)
+    public readonly void Serialize(ref RefBinaryWriter writer, PooledStringManager pooledStringManager)
     {
         writer.Write((byte)Type);
         if (Type == HoldableType.Jelly)
         {
-            writer.Write(Animation);
+            writer.Write(Animation, pooledStringManager);
             writer.Write(AnimationFrame);
             writer.Write(Scale);
             writer.Write(Rotation);
         }
     }
 
-    public static HoldableInfo Deserialize(ref RefBinaryReader reader)
+    public static HoldableInfo Deserialize(ref RefBinaryReader reader, PooledStringManager pooledStringManager)
     {
         HoldableType type = (HoldableType)reader.ReadByte();
         if (type is HoldableType.Jelly)
             return new(
-                type, 
-                reader.Read<PooledString>(), reader.ReadUInt16(),
+                type,
+                reader.Read<PooledString, PooledStringManager>(pooledStringManager), reader.ReadUInt16(),
                 reader.ReadVector2(), reader.ReadSingle()
             );
         if (type is HoldableType.Theo)

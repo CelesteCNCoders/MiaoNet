@@ -18,6 +18,11 @@ public sealed class DebugMapComponent : MiaoNetComponent
         {
             if (ClientState.Self.ShouldSyncFrom(player))
             {
+                if (player.State is null)
+                {
+                    Logger.Warn(nameof(MiaoNet), $"Debug map detected null PlayerState of a should be synced player.");
+                    continue;
+                }
                 Vector2 rPos = player.State!.Position;
                 Vector2 pos = new Vector2(rPos.X / 8f + 0.5f, rPos.Y / 8f + 0.5f);
                 pos -= MapEditor.Camera.Position;

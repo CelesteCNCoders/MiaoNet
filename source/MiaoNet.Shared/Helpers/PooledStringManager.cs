@@ -21,37 +21,30 @@ public sealed class PooledStringManager
         nextLocalID = initialStrings.Count() + 1;
     }
 
-    public PooledString Pack(string value)
+    public bool GetOrCreateID(string value, out int id)
     {
-        if (stringToID.TryGetValue(value, out int id))
-        {
-            // we sent this string before
-            // now send just id
-            return new(id: id, value: null);
-        }
-        else
-        {
-            // we haven't sent this string yet
-            // send full string this time
-            int nextID = nextLocalID++;
-            stringToID.Add(value, nextID);
-            return new(id: nextID, value);
-        }
+        if (stringToID.TryGetValue(value, out id))
+            return true;
+        int nextID = nextLocalID++;
+        stringToID[value] = nextID;
+        id = nextID;
+        return false;
     }
 
-    public string Resolve(PooledString pooledString)
+    public string GetAndRecord(int id, string? value)
     {
-        if (idToString.TryGetValue(pooledString.ID, out string? value))
+        if (idToString.TryGetValue(id, out string? foundValue))
         {
-            // we received it before
-            return value;
+            if (value is not null && foundValue != value)
+                throw new InvalidDataException(SR.PooledStringValueNotMatch);
+            return foundValue;
         }
         else
         {
-            // we haven't received it before
-            // record it
-            idToString.Add(pooledString.ID, pooledString.Value!);
-            return pooledString.Value!;
+            if (value is null)
+                throw new InvalidDataException(SR.MissingPooledString);
+            idToString.Add(id, value);
+            return value;
         }
     }
 }

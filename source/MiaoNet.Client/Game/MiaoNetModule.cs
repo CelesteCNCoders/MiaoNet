@@ -2,11 +2,14 @@ using FMOD.Studio;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
+using MonoMod.Utils;
 
 namespace Celeste.Mod.MiaoNet;
 
 public sealed class MiaoNetModule : EverestModule
 {
+    public const string LeaderFollowersDirtyField = "mn_followersDirty";
+
     public static MiaoNetModule Instance { get; private set; } = null!;
 
     public override Type SettingsType => typeof(MiaoNetModuleSettings);
@@ -34,6 +37,9 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.Level.OnLoadLevel += Level_OnLoadLevel;
         IL.Celeste.Level.Update += Level_Update;
         SpriteIDTracker.Load();
+        IL.Celeste.Leader.GainFollower += ILHook_LeaderFollowersMarkDirty;
+        IL.Celeste.Leader.LoseFollower += ILHook_LeaderFollowersMarkDirty;
+        IL.Celeste.Leader.LoseFollowers += ILHook_LeaderFollowersMarkDirty;
     }
 
     public override void Unload()
@@ -46,6 +52,21 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.Level.OnLoadLevel -= Level_OnLoadLevel;
         IL.Celeste.Level.Update -= Level_Update;
         SpriteIDTracker.Unload();
+        IL.Celeste.Leader.GainFollower -= ILHook_LeaderFollowersMarkDirty;
+        IL.Celeste.Leader.LoseFollower -= ILHook_LeaderFollowersMarkDirty;
+        IL.Celeste.Leader.LoseFollowers -= ILHook_LeaderFollowersMarkDirty;
+    }
+
+    private static void ILHook_LeaderFollowersMarkDirty(ILContext il)
+    {
+        ILCursor cur = new(il);
+        cur.EmitLdarg0();
+        cur.EmitDelegate(static (Leader leader) =>
+        {
+            if (leader.Entity is not Player)
+                return;
+            DynamicData.For(leader).Set(LeaderFollowersDirtyField, true);
+        });
     }
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot)

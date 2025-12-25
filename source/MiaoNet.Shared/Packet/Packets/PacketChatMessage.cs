@@ -8,7 +8,7 @@ public enum ChatMessageType : byte
     ServerChat
 }
 
-public sealed class PacketChatMessage : IPacket<PacketChatMessage>
+public sealed class PacketChatMessage : IContextlessPacket<PacketChatMessage>
 {
     public ChatMessageType Type { get; set; }
 
@@ -49,7 +49,7 @@ public sealed class PacketChatMessage : IPacket<PacketChatMessage>
     }
 }
 
-public sealed class PacketSendChatMessage : IPacket<PacketSendChatMessage>
+public sealed class PacketSendChatMessage : IContextlessPacket<PacketSendChatMessage>
 {
     public string Content { get; }
 

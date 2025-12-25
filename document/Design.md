@@ -3,6 +3,14 @@
 原本打算服务端和客户端共用一个 `OnlineContext` 的, 但是发现服务端需要考虑各种并发问题, 客户端单线程一把嗦,
 加上客户端和服务端两边存的东西也不大一样, 所以就分开了
 
+## PooledStringManager & PooledString
+
+一套记录客户端和服务端曾经发过的 enum-like 的 string 的记录,
+但是目前的实现非常遭, 每个用到了 PooledString 的地方都会一路传染到最顶层的类型要求实现 IHasPooledString, 而每个
+解析的地方也要经常制作另一份不含 PooledString 的类型或者将 PooledStringManager 传入, 发包时也被迫引入了 BroadcastProcessed
+用来逐客户端发送, 或许是否应该引入 Contextual Serialization 将 PooledString 当成单纯的 string 的 alias 仅在
+Serialization 时有所区别?
+
 ## Server 端
 
 Server 端的并发控制相关问题尽可能会使用乐观并发控制. 在线玩家, 频道列表等都会使用不可变类型, 并会原子地进行更新.

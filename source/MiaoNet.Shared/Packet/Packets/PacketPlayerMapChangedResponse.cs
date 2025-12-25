@@ -1,8 +1,9 @@
 namespace MiaoNet.Shared;
 
-public sealed class PacketPlayerMapChangedResponse : IPacket<PacketPlayerMapChangedResponse>
+public sealed class PacketPlayerMapChangedResponse
+    : IContextualPacket<PacketPlayerMapChangedResponse>
 {
-    public readonly struct Player : IRefBinarySerializable<Player>
+    public readonly struct Player : IContextualRefBinarySerializable<Player, PooledStringManager>
     {
         public int PlayerID { get; }
 
@@ -17,10 +18,10 @@ public sealed class PacketPlayerMapChangedResponse : IPacket<PacketPlayerMapChan
             GraphicsInfo = graphicsInfo;
         }
 
-        public void Serialize(ref RefBinaryWriter writer)
+        public void Serialize(ref RefBinaryWriter writer, PooledStringManager pooledStringManager)
         {
             writer.Write(PlayerID);
-            writer.Write(State);
+            writer.Write(State, pooledStringManager);
             if (GraphicsInfo is not null)
             {
                 writer.Write(true);
@@ -32,10 +33,10 @@ public sealed class PacketPlayerMapChangedResponse : IPacket<PacketPlayerMapChan
             }
         }
 
-        public static Player Deserialize(ref RefBinaryReader reader)
-            => new(
+        public static Player Deserialize(ref RefBinaryReader reader, PooledStringManager pooledStringManager)
+            => new Player(
                 reader.ReadInt32(),
-                reader.Read<PlayerState>(),
+                reader.Read<PlayerState, PooledStringManager>(pooledStringManager),
                 reader.ReadBoolean() ? reader.Read<PlayerGraphicsInfo>() : null
             );
     }
@@ -47,11 +48,11 @@ public sealed class PacketPlayerMapChangedResponse : IPacket<PacketPlayerMapChan
         PlayersInMap = playersInMap;
     }
 
-    public void Serialize(ref RefBinaryWriter writer)
-    {
-        writer.Write(PlayersInMap);
-    }
+    public void Serialize(ref RefBinaryWriter writer, IPacketSerializationContext context)
+        => writer.Write(PlayersInMap, context.PooledStringManager);
 
-    public static PacketPlayerMapChangedResponse Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadArray<Player>());
+    public static PacketPlayerMapChangedResponse Deserialize(
+        ref RefBinaryReader reader,
+       IPacketSerializationContext context
+    ) => new(reader.ReadArray<Player, PooledStringManager>(context.PooledStringManager));
 }

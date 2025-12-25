@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
+using MonoMod.Utils;
 using FFlags = MiaoNet.Shared.PacketPlayerFrame.FrameFlags;
 
 namespace Celeste.Mod.MiaoNet;
@@ -103,8 +104,6 @@ public sealed class MainComponent : MiaoNetComponent
         if (player is null)
             return;
 
-        PooledString anim = PooledStringManager.Pack(player.Sprite.CurrentAnimationID);
-
         bool currentDashing = player.StateMachine.State is Player.StDash;
         int currentDashes = player.Dashes;
 
@@ -124,13 +123,21 @@ public sealed class MainComponent : MiaoNetComponent
         if (player.StateMachine.State == Player.StStarFly)
             flags |= FFlags.StarFlying;
 
+        if (DynamicData.For(player.Leader).Get(MiaoNetModule.LeaderFollowersDirtyField) as bool? is not false)
+            flags |= FFlags.HasFollowerInitials;
+        else if (player.Leader.Followers.Count > 0)
+            flags |= FFlags.HasFollowerDeltas;
+        DynamicData.For(player.Leader).Set(MiaoNetModule.LeaderFollowersDirtyField, false);
+
+        SafeGuard.Assert(!(flags.HasFlag(FFlags.HasFollowerInitials) && flags.HasFlag(FFlags.HasFollowerDeltas)));
+
         selfState.Dashing = currentDashing;
         selfState.Dashes = (byte)currentDashes;
 
         var packetFrame = new PacketPlayerFrame(
             player.Position,
+            player.Sprite.CurrentAnimationID,
             (ushort)player.Sprite.CurrentAnimationFrame,
-            anim,
             player.Sprite.Scale,
             flags
         );
@@ -140,33 +147,86 @@ public sealed class MainComponent : MiaoNetComponent
             packetFrame.HoldableInfo = FetchHoldableInfo(player.Holding!);
         if (packetFrame.Dashing)
             packetFrame.DashDirection = (byte)(player.DashDir.Angle() / MathF.Tau * byte.MaxValue);
+        if (packetFrame.HasFollowerInitials)
+            packetFrame.FollowerInitials = FetchFollowerInitials(player.Leader);
+        else if (packetFrame.HasFollowerDeltas)
+            packetFrame.FollowerDeltas = FetchFollowerDeltas(player.Leader);
         context.QueuePacket(packetFrame);
-
-        HoldableInfo FetchHoldableInfo(Holdable holdable)
-        {
-            Entity entity = holdable.Entity;
-            if (entity is Glider jelly)
-            {
-                Sprite spr = jelly.Get<Sprite>();
-                return new(
-                    HoldableType.Jelly,
-                    PooledStringManager.Pack(spr.CurrentAnimationID), (ushort)spr.CurrentAnimationFrame,
-                    spr.Scale, spr.Rotation
-                );
-            }
-            else if (entity is TheoCrystal)
-            {
-                return new(HoldableType.Theo);
-            }
-            else
-            {
-                return new(HoldableType.None);
-            }
-        }
 
         {
             if (level.Paused)
                 PauseUpdatedBurst.Update(level.Displacement);
+        }
+    }
+
+    private HoldableInfo FetchHoldableInfo(Holdable holdable)
+    {
+        Entity entity = holdable.Entity;
+        if (entity is Glider jelly)
+        {
+            Sprite spr = jelly.Get<Sprite>();
+            return new(
+                HoldableType.Jelly,
+                spr.CurrentAnimationID, (ushort)spr.CurrentAnimationFrame,
+                spr.Scale, spr.Rotation
+            );
+        }
+        else if (entity is TheoCrystal)
+        {
+            return new(HoldableType.Theo);
+        }
+        else
+        {
+            return new(HoldableType.None);
+        }
+    }
+
+    private FollowerInfo[] FetchFollowerInitials(Leader leader)
+    {
+        var array = new FollowerInfo[leader.Followers.Count];
+        for (int i = 0; i < array.Length; i++)
+            array[i] = FetchFollowerInitial(leader.Entity.Position, leader.Followers[i]);
+        return array;
+
+        FollowerInfo FetchFollowerInitial(Vector2 leaderEntityPosition, Follower follower)
+        {
+            Entity entity = follower.Entity;
+            FollowerType type = entity switch
+            {
+                Strawberry => FollowerType.Strawberry,
+                StrawberrySeed => FollowerType.StrawberrySeed,
+                Key => FollowerType.Key,
+                _ => FollowerType.Custom
+            };
+            Sprite spr = entity.Get<Sprite>();
+
+            string sprID = SpriteIDTracker.LookupID(spr) ?? throw new NullReferenceException();
+            return new FollowerInfo(
+                type, sprID,
+                spr.CurrentAnimationID, (ushort)spr.CurrentAnimationFrame,
+                offset: entity.Position - leaderEntityPosition
+            );
+        }
+    }
+
+    private FollowerInfoDelta[] FetchFollowerDeltas(Leader leader)
+    {
+        var array = new FollowerInfoDelta[leader.Followers.Count];
+        for (int i = 0; i < array.Length; i++)
+            array[i] = FetchFollowerDelta(leader.Entity.Position, leader.Followers[i]);
+        return array;
+
+        FollowerInfoDelta FetchFollowerDelta(Vector2 leaderEntityPosition, Follower follower)
+        {
+            Entity entity = follower.Entity;
+            Sprite spr = entity.Get<Sprite>();
+            var mgr = PooledStringManager;
+            Vector2 offset = entity.Position - leaderEntityPosition;
+            return new(
+                spr.CurrentAnimationID,
+                (ushort)spr.CurrentAnimationFrame,
+                (short)offset.X, (short)offset.Y
+            );
         }
     }
 
@@ -178,6 +238,7 @@ public sealed class MainComponent : MiaoNetComponent
         PlayerState initialState = new PlayerState(player.Position, (byte)player.Dashes, Engine.DeltaTime)
         {
             PlayerSpriteMode = player.Sprite.Mode,
+            FollowerInfos = FetchFollowerInitials(player.Leader)
         };
         ClientState.SelfState = initialState;
         PacketPlayerMapChanged p = new(location, initialState);
@@ -248,8 +309,6 @@ public sealed class MainComponent : MiaoNetComponent
 
     private void Context_PlayerFrameNotification(OnlinePlayer player, PacketPlayerFrame packet)
     {
-        // TODO any better way to make sure it's being resolved?
-        _ = PooledStringManager.Resolve(packet.Animation);
         if (Engine.Scene is Editor.MapEditor)
             return;
 
@@ -257,19 +316,14 @@ public sealed class MainComponent : MiaoNetComponent
         {
             ghost.Position = packet.Position;
 
-            string? anim = PooledStringManager.Resolve(packet.Animation);
-
-            if (anim == string.Empty)
-                anim = null;
-
-            ghost.UpdateSprite(anim, packet.AnimationFrame, packet.FacingLeft, packet.Scale);
+            ghost.UpdateSprite(packet.Animation, packet.AnimationFrame, packet.FacingLeft, packet.Scale);
             if (packet.HasHoldable)
             {
                 var hi = packet.HoldableInfo;
                 if (hi.Type == HoldableType.Jelly)
                     ghost.UpdateHoldable(
                         hi.Type,
-                        PooledStringManager.Resolve(hi.Animation),
+                        hi.Animation,
                         hi.AnimationFrame,
                         hi.Scale,
                         hi.Rotation
@@ -281,12 +335,17 @@ public sealed class MainComponent : MiaoNetComponent
             {
                 ghost.UpdateNoHoldable();
             }
+            // TODO hmm... pass a PooledStringManager is weird
+            if (packet.HasFollowerInitials)
+                ghost.OnFollowerInitials(packet.FollowerInitials);
+            else if (packet.HasFollowerDeltas)
+                ghost.OnFollowerDeltas(packet.FollowerDeltas);
 
             ghost.UpdateDashing(
                 packet.Dashing, packet.DashDirection / (float)byte.MaxValue * MathF.Tau,
                 packet.DashesChange, packet.Dashes
             );
-            ghost.NotifyStarFlying(packet.Flags.HasFlag(FFlags.StarFlying));
+            ghost.NotifyStarFlying(packet.StarFlying);
         }
         else
         {

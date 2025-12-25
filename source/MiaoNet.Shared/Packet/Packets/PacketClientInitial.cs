@@ -1,6 +1,6 @@
 namespace MiaoNet.Shared;
 
-public sealed class PacketClientInitial : IPacket<PacketClientInitial>
+public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial>
 {
     public readonly struct Player : IRefBinarySerializable<Player>
     {

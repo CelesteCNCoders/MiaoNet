@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 namespace MiaoNet.Server;
 
 [DebuggerDisplay("ID = {ID}, Player = {Player}")]
-public sealed class MiaoClientConnection
+public sealed class MiaoClientConnection : IPacketSerializationContext
 {
     public const int TcpBufferSize = 2048;
     public const int UdpBufferSize = 1344;
@@ -85,8 +85,8 @@ public sealed class MiaoClientConnection
         cts.Cancel();
     }
 
-    public ValueTask SendPacketAsync(IPacket packet)
-        => sendChannel.Writer.WriteAsync(new SerializedPacket(ArrayPool<byte>.Shared, packet, 1));
+    public ValueTask SendPacketAsync(IContextualPacket packet)
+        => sendChannel.Writer.WriteAsync(new SerializedPacket(ArrayPool<byte>.Shared, packet, this, 1));
 
     public ValueTask SendPacketAsync(SerializedPacket packet)
         => sendChannel.Writer.WriteAsync(packet);
@@ -144,7 +144,7 @@ public sealed class MiaoClientConnection
             {
                 var result = await pipeReader.ReadAsync(token);
                 var buffer = result.Buffer;
-                while (TryParsePacket(ref buffer, out IPacket? packet))
+                while (TryParsePacket(ref buffer, out IContextualPacket? packet, this))
                     await server.HandlePacketAsync(this, packet);
 
                 pipeReader.AdvanceTo(buffer.Start, buffer.End);
@@ -201,7 +201,11 @@ public sealed class MiaoClientConnection
         }
     }
 
-    private bool TryParsePacket(ref ReadOnlySequence<byte> sequence, [NotNullWhen(true)] out IPacket? packet)
+    private bool TryParsePacket(
+        ref ReadOnlySequence<byte> sequence,
+        [NotNullWhen(true)] out IContextualPacket? packet,
+        IPacketSerializationContext context
+    )
     {
         const int HeadSize = sizeof(ushort) * 2;
         if (sequence.Length < HeadSize)
@@ -227,7 +231,7 @@ public sealed class MiaoClientConnection
         payloadSequence.Slice(0, size).CopyTo(payloadSpan);
         sequence = payloadSequence.Slice(size);
         RefBinaryReader reader = new(payloadSpan);
-        packet = PacketRegistry.ReadPacket(typeID, ref reader);
+        packet = PacketRegistry.ReadPacket(typeID, ref reader, context);
         return true;
     }
 }

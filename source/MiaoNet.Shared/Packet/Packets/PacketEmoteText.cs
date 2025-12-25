@@ -1,15 +1,15 @@
 namespace MiaoNet.Shared;
 
-public sealed class PacketEmoteText : PacketPlayerNotification, IPacket<PacketEmoteText>
+public sealed class PacketEmoteText : PacketPlayerNotification, IContextlessPacket<PacketEmoteText>
 {
     public string Text { get; }
 
     public PacketEmoteText(int playerID, string text) : base(playerID)
         => Text = text;
 
-    public override void Serialize(ref RefBinaryWriter writer)
+    public void Serialize(ref RefBinaryWriter writer)
     {
-        base.Serialize(ref writer);
+        writer.Write(PlayerID);
         writer.Write(Text);
     }
 
@@ -17,7 +17,7 @@ public sealed class PacketEmoteText : PacketPlayerNotification, IPacket<PacketEm
         => new(reader.ReadInt32(), reader.ReadString());
 }
 
-public sealed class PacketSendEmoteText : IPacket<PacketSendEmoteText>
+public sealed class PacketSendEmoteText : IContextlessPacket<PacketSendEmoteText>
 {
     public string Text { get; }
 
