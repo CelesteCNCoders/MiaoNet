@@ -13,6 +13,8 @@ public sealed class MainComponent : MiaoNetComponent
     private bool pendingMapChanged;
     private readonly Dictionary<int, MiaoNetGhost> ghosts;
 
+    private GhostNameTag? selfNameTag;
+
     public MainComponent(MiaoNetContext context) : base(context)
     {
         ghosts = new();
@@ -103,6 +105,22 @@ public sealed class MainComponent : MiaoNetComponent
         Player player = level.Tracker.GetEntity<Player>();
         if (player is null)
             return;
+
+        if (MiaoNetModule.Settings.ShowOwnName)
+        {
+            if (selfNameTag is null)
+            {
+                selfNameTag = new(player, ClientState.Self.Info.Name);
+                selfNameTag.Tag |= Tags.Global;
+                player.Scene.Add(selfNameTag);
+            }
+            selfNameTag.Entity = player;
+        }
+        else
+        {
+            selfNameTag?.RemoveSelf();
+            selfNameTag = null;
+        }
 
         bool currentDashing = player.StateMachine.State is Player.StDash;
         int currentDashes = player.Dashes;

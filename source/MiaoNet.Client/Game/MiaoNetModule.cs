@@ -8,6 +8,8 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class MiaoNetModule : EverestModule
 {
+    private static bool seenOverworld;
+
     public const string LeaderFollowersDirtyField = "mn_followersDirty";
 
     public static MiaoNetModule Instance { get; private set; } = null!;
@@ -40,6 +42,7 @@ public sealed class MiaoNetModule : EverestModule
         IL.Celeste.Leader.GainFollower += ILHook_LeaderFollowersMarkDirty;
         IL.Celeste.Leader.LoseFollower += ILHook_LeaderFollowersMarkDirty;
         IL.Celeste.Leader.LoseFollowers += ILHook_LeaderFollowersMarkDirty;
+        On.Celeste.Overworld.Begin += Overworld_Begin;
     }
 
     public override void Unload()
@@ -55,6 +58,7 @@ public sealed class MiaoNetModule : EverestModule
         IL.Celeste.Leader.GainFollower -= ILHook_LeaderFollowersMarkDirty;
         IL.Celeste.Leader.LoseFollower -= ILHook_LeaderFollowersMarkDirty;
         IL.Celeste.Leader.LoseFollowers -= ILHook_LeaderFollowersMarkDirty;
+        On.Celeste.Overworld.Begin -= Overworld_Begin;
     }
 
     private static void ILHook_LeaderFollowersMarkDirty(ILContext il)
@@ -115,6 +119,21 @@ public sealed class MiaoNetModule : EverestModule
         if (isFromLoader)
             PlayerLocationChanged?.Invoke(PlayerLocation.Empty);
         PlayerLocationChanged?.Invoke(PlayerLocation.FetchFrom(level.Session));
+    }
+
+    private static void Overworld_Begin(On.Celeste.Overworld.orig_Begin orig, Overworld self)
+    {
+        orig(self);
+        if (!seenOverworld)
+        {
+            if (Settings.ConnectOnGameStart)
+            {
+                Entity entity = new();
+                Alarm.Set(entity, 4f, () => { Instance.MiaoNetContext.Connect(); entity.RemoveSelf(); });
+                self.Add(entity);
+            }
+            seenOverworld = true;
+        }
     }
 
     private static void Level_OnExit(Level level, LevelExit exit, LevelExit.Mode mode, Session session, HiresSnow snow)

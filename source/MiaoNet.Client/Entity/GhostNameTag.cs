@@ -2,14 +2,14 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class GhostNameTag : Entity
 {
-    private readonly Entity entity;
+    public Entity Entity { get; set; }
 
     public string Text { get; set; }
 
     public GhostNameTag(Entity entity, string text)
     {
         Tag = TagsExt.SubHUD | entity.Tag;
-        this.entity = entity;
+        Entity = entity;
         Text = text;
     }
 
@@ -21,7 +21,7 @@ public sealed class GhostNameTag : Entity
     public override void Render()
     {
         base.Render();
-        Vector2 worldPos = entity.Position;
+        Vector2 worldPos = Entity.Position;
         worldPos.Y -= 16f;
         MiaoNetFont.DrawOutlineBottomCentered(
             Text,

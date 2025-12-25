@@ -79,10 +79,15 @@ public static class MenuMiaoNetOptions
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_connection"));
         menu.Add(item);
 
+        /*
         item = new TextMenu.OnOff(Dialog.Get("miaonet_options_auto_reconnect"), false);
         menu.Add(item);
+        */
 
-        item = new TextMenu.OnOff(Dialog.Get("miaonet_options_connect_on_game_start"), false);
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_connect_on_game_start"),
+            settings.ConnectOnGameStart
+        ).Change(v => settings.ConnectOnGameStart = v);
         menu.Add(item);
 
         // -- Visuals --
@@ -90,31 +95,37 @@ public static class MenuMiaoNetOptions
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_visuals"));
         menu.Add(item);
 
-        item = new TextMenu.OnOff(Dialog.Get("miaonet_options_show_own_name"), false);
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_show_own_name"), settings.ShowOwnName
+        ).Change(v => settings.ShowOwnName = v);
         menu.Add(item);
 
         item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_ui_scale"), 1, 6, settings.UIScale
-        ).Change(v => MiaoNetModule.Settings.UIScale = v);
+        ).Change(v => settings.UIScale = v);
+        menu.Add(item);
+
+        /*
+        item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_player_opacity"), 1, 10, settings.PlayerOpacity
+        ).Change(v => settings.PlayerOpacity = v);
         menu.Add(item);
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_player_opacity"), 1, 10, MiaoNetModule.Settings.PlayerOpacity
-        ).Change(v => MiaoNetModule.Settings.PlayerOpacity = v);
+            Dialog.Get("miaonet_options_player_name_opacity"), 1, 10, settings.NameOpacity
+        ).Change(v => settings.NameOpacity = v);
         menu.Add(item);
-
-        item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_player_name_opacity"), 1, 10, MiaoNetModule.Settings.NameOpacity
-        ).Change(v => MiaoNetModule.Settings.NameOpacity = v);
-        menu.Add(item);
+        */
 
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_chat"));
         menu.Add(item);
 
+        /*
         item = new TextMenu.Option<string>(Dialog.Get("miaonet_options_new_messages_display"))
             .Add(Dialog.Get("miaonet_options_new_messages_display_chat_only"), null!, false)
             .Add(Dialog.Get("miaonet_options_new_messages_display_system_only"), null!, false)
             .Add(Dialog.Get("miaonet_options_new_messages_display_all"), null!, true);
         menu.Add(item);
+        */
     }
 }

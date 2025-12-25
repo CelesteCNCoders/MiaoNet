@@ -9,6 +9,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 {
     public string Name { get; set; }
 
+    public bool ConnectOnGameStart { get; set; }
+
     public int UIScale { get; set; } = 4;
 
     [YamlIgnore, SettingIgnore]
@@ -21,6 +23,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
         5 => 10f / 12f,
         6 => 12f / 12f
     };
+
+    public bool ShowOwnName { get; set; } = true;
 
     public int PlayerOpacity { get; set; } = 8;
 
