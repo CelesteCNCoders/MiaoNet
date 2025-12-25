@@ -75,8 +75,13 @@ public sealed class ChatComponent : MiaoNetComponent
     }
 
     public void SendChat(string text)
+        => context.QueuePacket(new PacketSendChatMessage(text));
+
+    public void TipMessage(string text)
     {
-        context.QueuePacket(new PacketSendChatMessage(text));
+        MiaoNetChatMessage msg = new(text);
+        msg.SetIsCommandTip();
+        chatView.AddChatMessage(msg);
     }
 
     public void HandleCommand(string text)
@@ -93,7 +98,7 @@ public sealed class ChatComponent : MiaoNetComponent
             return;
         }
 
-        string? error = cmd!.OnExecute(context, args!);
+        string? error = cmd!.OnExecute(new MiaoNetCommand.Context(context, args!));
         if (error is not null)
         {
             MiaoNetChatMessage errMsg = new(error);

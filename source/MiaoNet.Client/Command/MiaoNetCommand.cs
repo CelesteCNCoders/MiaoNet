@@ -1,10 +1,9 @@
-using System.Diagnostics.CodeAnalysis;
-
 namespace Celeste.Mod.MiaoNet;
 
 public sealed partial class MiaoNetCommand
 {
-    public delegate string? ExecuteHandler(MiaoNetContext context, IReadOnlyList<string> arguments);
+    /// <returns>Error string, or <see langword="null"/> if no error.</returns>
+    public delegate string? ExecuteHandler(Context context);
 
     public record Segment(
         CommandSegmentType Type,
@@ -41,6 +40,6 @@ public sealed partial class MiaoNetCommand
         OnExecute = onExecute;
 
         if (captureRestSegments && segments.Count == 0)
-            throw new ArgumentException(null, nameof(captureRestSegments));
+            throw new ArgumentException(SR.SegmentsEmptyButCapture, nameof(captureRestSegments));
     }
 }
