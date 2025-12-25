@@ -22,6 +22,9 @@ miaonet_connection_status_disconnected= Disconnected
 miaonet_connection_status_kicked= Kicked from server
 miaonet_connection_status_server_closed= Server closed
 
+miaonet_context_player_joined= (0) joined MiaoNet
+miaonet_context_player_left= (0) left MiaoNet
+
 miaonet_command_status_no_such_command= Command "(0)" not found
 miaonet_command_status_missing_arguments= Command "(0)" needs (1) arguments but got only (2)
 miaonet_command_status_too_many_arguments= Command "(0)" needs only (1) arguments but got (2)

@@ -84,6 +84,13 @@ public sealed class ChatComponent : MiaoNetComponent
         chatView.AddChatMessage(msg);
     }
 
+    public void OnNotifyMessage(string text)
+    {
+        MiaoNetChatMessage msg = new(text);
+        msg.SetIsAnnouncement();
+        chatView.AddChatMessage(msg);
+    }
+
     public void HandleCommand(string text)
     {
         var result = cmdParser.Parse(text, out var cmdName, out var cmd, out var args);

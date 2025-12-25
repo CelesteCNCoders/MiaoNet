@@ -31,7 +31,7 @@ public struct MiaoNetChatMessage : IChatMessage
     }
 
     public void SetIsAnnouncement()
-        => Color = Color.Cyan;
+        => Color = Color.Yellow;
 
     public void SetIsCommandTip()
         => Color = Color.LightGray;
