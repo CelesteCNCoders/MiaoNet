@@ -71,9 +71,6 @@ public static class MenuMiaoNetOptions
             item.AddDescription(menu, Dialog.Get("miaonet_options_logged_in_tips_2"));
         }
 
-        item = new TextMenu.Button(Dialog.Get("miaonet_dev_tip"));
-        menu.Add(item);
-
         // -- Connection --
 
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_connection"));
