@@ -13,7 +13,7 @@ partial class MiaoNetCommand
         Commands = [
             new MiaoNetCommand(
                 name: "help",
-                description: "Show help messages of all commands.",
+                description: "miaonet_commands_help_description",
                 aliases: ["?", "？", "h"],
                 segments: [],
                 captureRestSegments: false,
@@ -21,33 +21,57 @@ partial class MiaoNetCommand
             ),
             new MiaoNetCommand(
                 name: "help-command",
-                description: "Show help message of a command.",
+                description: "miaonet_commands_help_command_description",
                 aliases: ["??", "？？", "hc"],
-                segments: [new(CommandSegmentType.Text, "Text", "Command name.")],
+                segments: [
+                    new Segment(
+                        CommandSegmentType.Text,
+                        "miaonet_commands_help_command_p1_name",
+                        "miaonet_commands_help_command_p1_description"
+                    )
+                ],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(HelpCommand)
             ),
             new MiaoNetCommand(
                 name: "say",
-                description: "Send a chat message.",
+                description: "miaonet_commands_say_description",
                 aliases: null,
-                segments: [new(CommandSegmentType.Text, "Text", "The message to send.")],
+                segments: [
+                    new Segment(
+                        CommandSegmentType.Text,
+                        "miaonet_commands_say_p1_name",
+                        "miaonet_commands_say_p1_description"
+                    )
+                ],
                 captureRestSegments: true,
                 onExecute: new ExecuteHandler(Say)
             ),
             new MiaoNetCommand(
                 name: "emote",
-                description: "Send a text emote.",
+                description: "miaonet_commands_emote_description",
                 aliases: ["e"],
-                segments: [new(CommandSegmentType.Text, "Text", "The emote text to send.")],
+                segments: [
+                    new Segment(
+                        CommandSegmentType.Text,
+                        "miaonet_commands_emote_p1_name",
+                        "miaonet_commands_emote_p1_description"
+                     )
+                ],
                 captureRestSegments: true,
                 onExecute: new ExecuteHandler(Emote)
             ),
             new MiaoNetCommand(
                 name: "teleport-no-session",
-                description: "Teleport to a player but don't fetch their session.",
+                description: "miaonet_commands_teleport_no_session_description",
                 aliases: ["tp-ns", "tpns"],
-                segments: [new(CommandSegmentType.Player, "Target player", "The player that teleported to.")],
+                segments: [
+                    new Segment(
+                        CommandSegmentType.Player,
+                        "miaonet_commands_teleport_no_session_p1_name",
+                        "miaonet_commands_teleport_no_session_p1_description"
+                    )
+                ],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(TeleportNoSession)
             )
@@ -59,6 +83,8 @@ partial class MiaoNetCommand
     private static string PlayerNotInMap => Dialog.Clean("miaonet_command_status_player_not_in_map");
     private static string PlayerMapMissing => Dialog.Clean("miaonet_command_status_player_map_missing");
     private static string NeedInMap => Dialog.Clean("miaonet_command_status_need_in_level");
+    private static string CommandHelpTitle => Dialog.Clean("miaonet_command_help_title");
+    private static string CommandHelpNotFound => Dialog.Clean("miaonet_command_help_not_found");
 
     private static string? Say(Context context)
     {
@@ -116,7 +142,7 @@ partial class MiaoNetCommand
 
     private static string? Help(Context context)
     {
-        // == MiaoNet Command Help (1/0) ==
+        // == MiaoNet Command Help (2) ==
         // /cmd1 : desc of cmd1 (Aliases: c1, a1)
         // /cmd2 <player> <text> : desc of cmd2
         //     <player> : desc of param1
@@ -124,7 +150,7 @@ partial class MiaoNetCommand
 
         // TODO dialog
         // also messges scrolling
-        context.TipMessage($"== MiaoNet Command Help ({Commands.Count}) ==");
+        context.TipMessage(CommandHelpTitle.Replace("(0)", Commands.Count.ToString()));
         foreach (var command in Commands)
             TipCommandHelp(context, command);
         return null;
@@ -142,7 +168,7 @@ partial class MiaoNetCommand
         );
 
         if (command == null)
-            return $"Command \"{name}\" not found.";
+            return CommandHelpNotFound.Replace("(0)", name);
 
         TipCommandHelp(context, command);
 
@@ -152,13 +178,13 @@ partial class MiaoNetCommand
     private static void TipCommandHelp(Context context, MiaoNetCommand command)
     {
         context.TipMessage(
-                $"/{command.Name} : {command.Description}" +
-                $"{(command.Aliases is not null ? $" (Aliases: {string.Join(", ", command.Aliases)})" : null)}"
+                $"/{command.Name} : {Dialog.Clean(command.Description)}" +
+                $"{(command.Aliases is not null ? $" ({string.Join(", ", command.Aliases)})" : null)}"
             );
         if (command.Segments.Count != 0)
         {
             foreach (var segment in command.Segments)
-                context.TipMessage($"    <{segment.Name}> : {segment.Description}");
+                context.TipMessage($"    <{Dialog.Clean(segment.Name)}> : {Dialog.Clean(segment.Description)}");
         }
     }
 

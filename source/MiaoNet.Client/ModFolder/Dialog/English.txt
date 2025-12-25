@@ -32,5 +32,21 @@ miaonet_command_status_player_not_in_map= Player "(0)" is not in a map
 miaonet_command_status_player_is_self= "(0)" is yourself!
 miaonet_command_status_player_map_missing= Map "(1)" where player "(0)" is in is missing
 miaonet_command_status_channel_not_found= Channel "(0)" not found
+miaonet_command_help_title= == MiaoNet Command Help ((0)) ==
+miaonet_command_help_not_found= Command "(0)" not found
+
+miaonet_commands_help_description= Show help messages of all commands.
+miaonet_commands_help_command_description= Show help message of a command.
+miaonet_commands_help_command_p1_name= Text
+miaonet_commands_help_command_p1_description= Command name.
+miaonet_commands_say_description= Send a chat message.
+miaonet_commands_say_p1_name= Text
+miaonet_commands_say_p1_description= The message to send.
+miaonet_commands_emote_description= Send a text emote.
+miaonet_commands_emote_p1_name= Text
+miaonet_commands_emote_p1_description= The emote text to send.
+miaonet_commands_teleport_no_session_description= Teleport to a player but don't fetch their session.
+miaonet_commands_teleport_no_session_p1_name= Target player
+miaonet_commands_teleport_no_session_p1_description= The player that teleported to.
 
 miaonet_dev_tip= Don't scroll down now, they're all unfinished. :(
