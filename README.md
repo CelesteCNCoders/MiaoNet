@@ -36,7 +36,8 @@ CelesteNet 的一个重写, 以应对数以百计的蔚蓝联机玩家.
 
 有关连接具体如何进行可以参考 [`document/Connection.md` 这个文档](./document/Connection.md),
 一些碎碎的设计相关的杂念可以在 [`document/Design.md`](./document/Design.md) 中找到.  
-有关的更详细的但是是 AI 生成并稍微人工调整的勉强还能看的文档可以在 [`document/AIGC`](./document/AIGC) 中找到.
+有关的更详细的但是是 AI 生成并稍微人工调整的勉强还能看的文档可以在 [`document/AIGC`](./document/AIGC) 中找到.  
+**注意这部分文档可以预见的是会经常过时, 建议还是以阅读代码为主.**
 
 ## 项目进度
 
