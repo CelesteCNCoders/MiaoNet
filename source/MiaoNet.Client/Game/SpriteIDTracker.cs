@@ -22,7 +22,7 @@ public static class SpriteIDTracker
     private static Sprite SpriteBank_Create(On.Monocle.SpriteBank.orig_Create orig, SpriteBank self, string id)
     {
         Sprite sprite = orig(self, id);
-        table.Add(sprite, id);
+        table.AddOrUpdate(sprite, id);
         return sprite;
     }
 
@@ -32,7 +32,7 @@ public static class SpriteIDTracker
     )
     {
         Sprite spriteCreatedOn = orig(self, sprite, id);
-        table.Add(spriteCreatedOn, id);
+        table.AddOrUpdate(spriteCreatedOn, id);
         return spriteCreatedOn;
     }
 
