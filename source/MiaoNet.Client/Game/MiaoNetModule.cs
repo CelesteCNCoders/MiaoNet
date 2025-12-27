@@ -47,6 +47,7 @@ public sealed class MiaoNetModule : EverestModule
         IL.Celeste.Leader.LoseFollowers += ILHook_LeaderFollowersMarkDirty;
         On.Celeste.Overworld.Begin += Overworld_Begin;
         On.Celeste.Player.Added += Player_Added;
+        Everest.Events.LevelLoader.OnLoadingThread += LevelLoader_OnLoadingThread;
     }
 
     public override void Unload()
@@ -64,6 +65,7 @@ public sealed class MiaoNetModule : EverestModule
         IL.Celeste.Leader.LoseFollowers -= ILHook_LeaderFollowersMarkDirty;
         On.Celeste.Overworld.Begin -= Overworld_Begin;
         On.Celeste.Player.Added -= Player_Added;
+        Everest.Events.LevelLoader.OnLoadingThread -= LevelLoader_OnLoadingThread;
     }
 
     private static void ILHook_LeaderFollowersMarkDirty(ILContext il)
@@ -129,12 +131,18 @@ public sealed class MiaoNetModule : EverestModule
         );
     }
 
-    private void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader)
+    private static void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader)
     {
         // TODO this is a temp solution, we should add `isFromLoader` to the event
         if (isFromLoader)
             PlayerLocationChanged?.Invoke(PlayerLocation.Empty);
         PlayerLocationChanged?.Invoke(PlayerLocation.FetchFrom(level.Session));
+    }
+
+    private static void LevelLoader_OnLoadingThread(Level level)
+    {
+        level.Add(new GhostRenderLayerEntity(false));
+        level.Add(new GhostRenderLayerEntity(true));
     }
 
     private static void Overworld_Begin(On.Celeste.Overworld.orig_Begin orig, Overworld self)

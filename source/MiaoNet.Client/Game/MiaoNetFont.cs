@@ -83,7 +83,7 @@ public static class MiaoNetFont
         ENZhsFont.DrawOutline(
             ENZhsBaseSize, text, position,
             justify, scale, color,
-            2f, Color.Black with { A = color.A }
+            2f, Color.Black with { A = (byte)((color.A / 255f) * (color.A / 255f) * 255f) }
         );
     }
 
@@ -99,6 +99,7 @@ public static class MiaoNetFont
     public static Vector2 Measure(string text)
         => ENZhsFontSize.Measure(text);
 
+    [MethodImpl(MioAI)]
     public static bool CanRender(int character)
         => ENZhsFontSize.Characters.ContainsKey(character);
 }

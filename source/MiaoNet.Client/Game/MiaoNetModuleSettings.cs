@@ -13,7 +13,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public int UIScale { get; set; } = 4;
 
-    [YamlIgnore, SettingIgnore]
+    [YamlIgnore]
     public float UIScaleValue => UIScale switch
     {
         1 => 3f / 12f,
@@ -26,9 +26,21 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public bool ShowOwnName { get; set; } = true;
 
+    
     public int PlayerOpacity { get; set; } = 8;
 
+    [YamlIgnore]
+    public float PlayerOpacityValue => PlayerOpacity / 10f;
+
     public int NameOpacity { get; set; } = 8;
+
+    [YamlIgnore]
+    public float NameOpacityValue => NameOpacity / 10f;
+
+    public int SelfNameOpacity { get; set; } = 8;
+
+    [YamlIgnore]
+    public float SelfNameOpacityValue => SelfNameOpacity / 10f;
 
     [DefaultButtonBinding(0, Keys.T)]
     public ButtonBinding ChatButton { get; set; }

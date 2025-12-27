@@ -102,17 +102,21 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.UIScale = v);
         menu.Add(item);
 
-        /*
         item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_player_opacity"), 1, 10, settings.PlayerOpacity
         ).Change(v => settings.PlayerOpacity = v);
         menu.Add(item);
 
         item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_self_player_name_opacity"), 1, 10, settings.SelfNameOpacity
+        ).Change(v => settings.SelfNameOpacity = v);
+        menu.Add(item);
+
+        item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_player_name_opacity"), 1, 10, settings.NameOpacity
         ).Change(v => settings.NameOpacity = v);
         menu.Add(item);
-        */
+        
 
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_chat"));
         menu.Add(item);

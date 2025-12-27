@@ -2,6 +2,7 @@
 
 namespace Celeste.Mod.MiaoNet;
 
+[Tracked]
 public sealed class GhostFollower : Entity
 {
     private readonly Sprite sprite;
@@ -11,6 +12,7 @@ public sealed class GhostFollower : Entity
     public GhostFollower(MiaoNetGhost ghost, Vector2 offset, FollowerType type, string animationID)
         : base(ghost.Position + offset)
     {
+        Visible = false;
         Tag |= ghost.Tag;
         Add(Follower = new());
 

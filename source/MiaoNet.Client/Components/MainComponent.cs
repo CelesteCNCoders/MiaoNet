@@ -170,11 +170,6 @@ public sealed class MainComponent : MiaoNetComponent
         else if (packetFrame.HasFollowerDeltas)
             packetFrame.FollowerDeltas = FetchFollowerDeltas(player.Leader);
         context.QueuePacket(packetFrame);
-
-        {
-            if (level.Paused)
-                PauseUpdatedBurst.Update(level.Displacement);
-        }
     }
 
     private static HoldableInfo FetchHoldableInfo(Holdable holdable)

@@ -6,6 +6,7 @@ using Monocle;
 
 namespace Celeste.Mod.MiaoNet;
 
+[Tracked]
 public sealed class MiaoNetGhost : Entity
 {
     private PlayerSprite playerSprite;
@@ -46,7 +47,9 @@ public sealed class MiaoNetGhost : Entity
         PlayerState initialState
     )
     {
+        Visible = false;
         Tag = Tags.Persistent | Tags.TransitionUpdate | Tags.FrozenUpdate | Tags.PauseUpdate | Tags.Global;
+        Depth = Depths.Player + 1;
         Player = player;
         Name = name;
         GraphicsInfo = playerGraphicsInfo;
@@ -130,6 +133,7 @@ public sealed class MiaoNetGhost : Entity
     // TODO these tons of UpdateXXX method could be more maintainerable?
     public void UpdateDashing(bool dashing, float dashDirection, bool dashesChanged, int dashes)
     {
+        Level level = SceneAs<Level>();
         if (dashesChanged)
         {
             this.dashes = dashes;
@@ -148,7 +152,8 @@ public sealed class MiaoNetGhost : Entity
         {
             lastDashedDashes = this.dashes;
 
-            PauseUpdatedBurst.AddBurstTo(SceneAs<Level>().Displacement, Center, 0.4f, 8f, 64f, 0.5f, Ease.QuadOut);
+            if (!level.Paused)
+                level.Displacement.AddBurst(Center, 0.4f, 8f, 64f, 0.5f, Ease.QuadOut);
             AddTrail(this.dashes);
         }
         else if (pDashing && !dashing)
@@ -189,10 +194,11 @@ public sealed class MiaoNetGhost : Entity
 
     private void AddTrail(int dashes)
     {
+        float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
         var snap = TrailManager.Add(
             Position,
             playerSprite, playerHair,
-            Vector2.One, GraphicsInfo.GetHairInfo(dashes).Color,
+            Vector2.One, GraphicsInfo.GetHairInfo(dashes).Color * alpha,
             Depth + 1, useRawDeltaTime: true
         );
         snap.Tag |= Tag;
@@ -201,8 +207,9 @@ public sealed class MiaoNetGhost : Entity
     public void OnDied()
     {
         playerSprite.Visible = playerHair.Visible = false;
-        PauseUpdatedBurst.AddBurstTo(SceneAs<Level>().Displacement, Position, 0.3f, 0f, 80f);
-        Add(new DeathEffect(playerHair.Color));
+        SceneAs<Level>().Displacement.AddBurst(Position, 0.3f, 0f, 80f);
+        float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
+        Add(new DeathEffect(playerHair.Color * alpha));
         Depth = Depths.Top;
     }
 
@@ -220,7 +227,7 @@ public sealed class MiaoNetGhost : Entity
             {
                 respawning = false;
                 playerSprite.Visible = playerHair.Visible = true;
-                Depth = Depths.Player;
+                Depth = Depths.Player + 1;
             }
         );
         tween.UseRawDeltaTime = true;

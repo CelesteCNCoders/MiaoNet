@@ -14,6 +14,7 @@ miaonet_options_visuals= Visuals
 miaonet_options_ui_scale= UI Scale
 miaonet_options_show_own_name= Show Own Name
 miaonet_options_player_opacity= Player Opacity
+miaonet_options_self_player_name_opacity= Self Name Opacity
 miaonet_options_player_name_opacity= Name Opacity
 
 miaonet_options_chat= Chat
