@@ -22,6 +22,9 @@ public sealed class MiaoNetModule : EverestModule
     public static readonly RasterizerState ScissorEnabledRasterizerState
         = new RasterizerState() { ScissorTestEnable = true };
 
+    // TODO this is ugly
+    public static Vector2? NextPlayerSpawnPosition { get; set; }
+
     public static event Action<PlayerLocation>? PlayerLocationChanged;
 
     public MiaoNetModule()
@@ -43,6 +46,7 @@ public sealed class MiaoNetModule : EverestModule
         IL.Celeste.Leader.LoseFollower += ILHook_LeaderFollowersMarkDirty;
         IL.Celeste.Leader.LoseFollowers += ILHook_LeaderFollowersMarkDirty;
         On.Celeste.Overworld.Begin += Overworld_Begin;
+        On.Celeste.Player.Added += Player_Added;
     }
 
     public override void Unload()
@@ -59,6 +63,7 @@ public sealed class MiaoNetModule : EverestModule
         IL.Celeste.Leader.LoseFollower -= ILHook_LeaderFollowersMarkDirty;
         IL.Celeste.Leader.LoseFollowers -= ILHook_LeaderFollowersMarkDirty;
         On.Celeste.Overworld.Begin -= Overworld_Begin;
+        On.Celeste.Player.Added -= Player_Added;
     }
 
     private static void ILHook_LeaderFollowersMarkDirty(ILContext il)
@@ -72,6 +77,17 @@ public sealed class MiaoNetModule : EverestModule
             DynamicData.For(leader).Set(LeaderFollowersDirtyField, true);
         });
     }
+
+    private static void Player_Added(On.Celeste.Player.orig_Added orig, Player self, Scene scene)
+    {
+        orig(self, scene);
+        if (NextPlayerSpawnPosition.HasValue)
+        {
+            self.Position = NextPlayerSpawnPosition.Value;
+            NextPlayerSpawnPosition = null;
+        }
+    }
+
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot)
     {

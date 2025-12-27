@@ -84,6 +84,13 @@ public sealed class ChatComponent : MiaoNetComponent
         chatView.AddChatMessage(msg);
     }
 
+    public void TipErrorMessage(string text)
+    {
+        MiaoNetChatMessage msg = new(text);
+        msg.SetIsCommandErrorEcho();
+        chatView.AddChatMessage(msg);
+    }
+
     public void OnNotifyMessage(string text)
     {
         MiaoNetChatMessage msg = new(text);
@@ -107,11 +114,7 @@ public sealed class ChatComponent : MiaoNetComponent
 
         string? error = cmd!.OnExecute(new MiaoNetCommand.Context(context, args!));
         if (error is not null)
-        {
-            MiaoNetChatMessage errMsg = new(error);
-            errMsg.SetIsCommandErrorEcho();
-            chatView.AddChatMessage(errMsg);
-        }
+            TipErrorMessage(error);
 
         void TipCommandError(CommandParser.ParseResult result, string cmdName, MiaoNetCommand? cmd, int argc)
         {
@@ -131,9 +134,7 @@ public sealed class ChatComponent : MiaoNetComponent
                     .Replace("(1)", cmd!.Segments.Count.ToString())
                     .Replace("(2)", argc.ToString()),
             };
-            MiaoNetChatMessage chatMsg = new(msg);
-            chatMsg.SetIsCommandErrorEcho();
-            chatView.AddChatMessage(chatMsg);
+            TipErrorMessage(msg);
         }
     }
 

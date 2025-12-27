@@ -17,6 +17,7 @@ public sealed partial class MiaoServerService
         register.Register<PacketSendEmoteText>(HandlePacketAsync);
         register.Register<PacketPlayerStateFlags>(HandlePacketAsync);
         register.Register<PacketUpdateOnlineStatus>(HandlePacketAsync);
+        register.Register<PacketTeleportRequest>(HandlePacketAsync);
     }
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerFrame packet)
@@ -243,5 +244,38 @@ public sealed partial class MiaoServerService
             new PacketPlayerNotification<PacketUpdateOnlineStatus>(connection.ID, packet),
             connection.ID
         );
+    }
+
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketTeleportRequest request)
+    {
+        if (ServerState.AllPlayers.TryGetValue(request.TargetPlayerID, out var target))
+        {
+            await target.Connection.RequestAsync(new PacketBeTeleportedRequest(connection.ID), OnOtherResponse);
+
+            Task OnOtherResponse(PacketBeTeleportedResponse response)
+            {
+                if (response.Accepted)
+                {
+                    return connection.ResponseAsync(
+                        request, 
+                        new PacketTeleportResponse(PacketTeleportResponse.TeleportFailedReason.None, response.Session)
+                    ).AsTask();
+                }
+                else
+                {
+                    return connection.ResponseAsync(
+                        request,
+                        new PacketTeleportResponse(PacketTeleportResponse.TeleportFailedReason.OtherDenied, null)
+                    ).AsTask();
+                }
+            }
+        }
+        else
+        {
+            await connection.ResponseAsync(
+                request,
+                new PacketTeleportResponse(PacketTeleportResponse.TeleportFailedReason.NoSuchPlayer, null)
+            );
+        }
     }
 }

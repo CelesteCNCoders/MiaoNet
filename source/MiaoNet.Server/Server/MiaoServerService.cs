@@ -392,7 +392,27 @@ public sealed partial class MiaoServerService : BackgroundService
 
     public async ValueTask HandlePacketAsync(MiaoClientConnection connection, IContextualPacket packet)
     {
-        if (!await packetDispatcher.DispatchPacketAsync(connection, packet))
-            logger.LogWarning("Unhandled packet received from client: {pc}", packet.GetType());
+        if (packet is PacketResponse res)
+        {
+            var handler = connection.OnResponse(res);
+            if (handler is null)
+            {
+                logger.LogWarning(
+                    "Unknown received response of id {rid} for player {p}.",
+                    res.RequestID,
+                    connection.Player.Info
+                );
+                return;
+            }
+            await handler(res);
+        }
+        else
+        {
+            bool handled = await packetDispatcher.DispatchPacketAsync(connection, packet);
+            if (!handled)
+            {
+                logger.LogWarning("Unhandled packet received from client: {pc}", packet.GetType());
+            }
+        }
     }
 }

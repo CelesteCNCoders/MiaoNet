@@ -4,7 +4,7 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed partial class MiaoNetCommand
 {
-    public readonly ref struct Context
+    public readonly struct Context
     {
         public MiaoNetContext MiaoNetContext { get; }
 
@@ -19,7 +19,14 @@ public sealed partial class MiaoNetCommand
         public void QueuePacket(IContextualPacket packet)
             => MiaoNetContext.QueuePacket(packet);
 
+        public void Request<TResponse>(PacketRequest<TResponse> packet, Action<TResponse> callback)
+            where TResponse : PacketResponse
+            => MiaoNetContext.Request(packet, callback);
+
         public void TipMessage(string message)
             => MiaoNetContext.ChatComponent.TipMessage(message);
+
+        public void TipErrorMessage(string message)
+            => MiaoNetContext.ChatComponent.TipErrorMessage(message);
     }
 }

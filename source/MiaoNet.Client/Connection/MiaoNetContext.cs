@@ -226,25 +226,31 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         connection.QueuePacket(packet);
     }
 
-    public void Request<TResponse>(PacketRequest<TResponse> packet, Action<TResponse> onResponse)
+    public void Request<TResponse>(PacketRequest<TResponse> request, Action<TResponse> callback)
         where TResponse : PacketResponse
-        => Request(packet, onResponse, CancellationToken.None);
+        => Request(request, callback, CancellationToken.None);
 
     // TODO support cancelling request
     // or... do we actually need it?
     private void Request<TResponse>(
         PacketRequest<TResponse> packet, Action<TResponse> onResponse,
         CancellationToken token
-    )
-        where TResponse : PacketResponse
+    ) where TResponse : PacketResponse
     {
         _ = token;
         int id;
         packet.RequestID = id = Interlocked.Increment(ref nextRequestID);
 
-        bool idConflict = pendingRequests.TryAdd(id, (res) => onResponse((TResponse)res));
-        SafeGuard.Assert(!idConflict);
+        bool success = pendingRequests.TryAdd(id, (res) => onResponse((TResponse)res));
+        SafeGuard.Assert(success);
         QueuePacket(packet);
+    }
+
+    public void Response<TResponse>(PacketRequest<TResponse> request, TResponse response)
+        where TResponse : PacketResponse
+    {
+        response.RequestID = request.RequestID;
+        QueuePacket(response);
     }
 
     private void ConnectionThread(object? param)

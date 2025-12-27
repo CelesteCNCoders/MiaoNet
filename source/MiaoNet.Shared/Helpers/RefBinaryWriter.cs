@@ -174,22 +174,32 @@ public static class RefBinaryWriterExtensions
         where T : IContextualRefBinarySerializable<T, TContext>
         => value.Serialize(ref writer, context);
 
-    public static void Write<T>(this ref RefBinaryWriter writer, IReadOnlyCollection<T> value) where T : IRefBinarySerializable<T>
+    public static void Write(this ref RefBinaryWriter writer, IReadOnlyCollection<string> strings)
     {
-        if (value.Count > ushort.MaxValue)
-            throw new ArgumentOutOfRangeException(nameof(value));
-        writer.Write((ushort)value.Count);
-        foreach (var item in value)
+        if (strings.Count > ushort.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(strings));
+        writer.Write((ushort)strings.Count);
+        foreach (var item in strings)
+            writer.Write(item);
+    }
+
+    public static void Write<T>(this ref RefBinaryWriter writer, IReadOnlyCollection<T> values) 
+        where T : IRefBinarySerializable<T>
+    {
+        if (values.Count > ushort.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(values));
+        writer.Write((ushort)values.Count);
+        foreach (var item in values)
             item.Serialize(ref writer);
     }
 
-    public static void Write<T, TContext>(this ref RefBinaryWriter writer, IReadOnlyCollection<T> value, TContext context)
+    public static void Write<T, TContext>(this ref RefBinaryWriter writer, IReadOnlyCollection<T> values, TContext context)
         where T : IContextualRefBinarySerializable<T, TContext>
     {
-        if (value.Count > ushort.MaxValue)
-            throw new ArgumentOutOfRangeException(nameof(value));
-        writer.Write((ushort)value.Count);
-        foreach (var item in value)
+        if (values.Count > ushort.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(values));
+        writer.Write((ushort)values.Count);
+        foreach (var item in values)
             item.Serialize(ref writer, context);
     }
 }

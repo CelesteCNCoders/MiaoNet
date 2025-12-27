@@ -13,6 +13,7 @@ public sealed class PacketPlayerFrame : IContextualPacket<PacketPlayerFrame>
     [Flags]
     public enum FrameFlags : ushort
     {
+        None = 0,
         FacingLeft = 1 << 0, // true -> face left, false -> face right
         Dashing = 1 << 1,
         DashesChange = 1 << 2,

@@ -19,8 +19,10 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     public const int MaxPacketPartSize = 4096;
     public const int PacketChannelSize = 64;
 
+    public delegate Task ResponseHandler(PacketResponse response);
+    public delegate Task ResponseHandler<in TResponse>(TResponse response) where TResponse : PacketResponse;
     private int nextRequestID;
-    private readonly ConcurrentDictionary<int, TaskCompletionSource<PacketResponse>> pendingRequests;
+    private readonly ConcurrentDictionary<int, ResponseHandler> pendingRequests;
 
     private readonly ILogger<MiaoClientConnection> logger;
     private readonly MiaoServerService server;
@@ -47,7 +49,6 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         this.logger = logger;
         this.server = server;
         this.socket = socket;
-        // TODO initial states
         Player = onlinePlayer;
 
         cts = new CancellationTokenSource();
@@ -93,6 +94,26 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
     public bool TrySendPacket(SerializedPacket packet)
         => sendChannel.Writer.TryWrite(packet);
+
+    // TODO maybe we can add a UserParam parameter to avoid closure
+    public ValueTask RequestAsync<TResponse>(PacketRequest<TResponse> packet, ResponseHandler<TResponse> callback)
+        where TResponse : PacketResponse
+    {
+        int id = packet.RequestID = Interlocked.Increment(ref nextRequestID);
+        bool success = pendingRequests.TryAdd(id, (packet) => callback((TResponse)packet));
+        Debug.Assert(success);
+        return SendPacketAsync(packet);
+    }
+
+    public ValueTask ResponseAsync<TResponse>(PacketRequest<TResponse> request, TResponse response)
+        where TResponse : PacketResponse
+    {
+        response.RequestID = request.RequestID;
+        return SendPacketAsync(response);
+    }
+
+    public ResponseHandler? OnResponse(PacketResponse response)
+        => pendingRequests.TryRemove(response.RequestID, out var handler) ? handler : null;
 
     private async Task HandleClientReceivingAsync(CancellationToken token)
     {

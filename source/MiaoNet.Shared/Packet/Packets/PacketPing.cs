@@ -7,9 +7,5 @@ public sealed class PacketPing : PacketRequest<PacketPong>
 
 public sealed class PacketPong : PacketResponse
 {
-    public PacketPong(int requestID) : base(requestID)
-    {
-    }
-
     public override void Serialize(ref RefBinaryWriter writer) { }
 }

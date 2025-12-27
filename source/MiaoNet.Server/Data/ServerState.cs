@@ -1,12 +1,13 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
 
 // TODO make the entire class immutable?
-[DebuggerDisplay("{DebuggerDisplay,nq}")]
+[DebuggerDisplay("Players count = {allPlayers.Count}, Channels count = {allChannels.Count}")]
 public sealed class ServerState
 {
     [DebuggerDisplay("{Player}")]
@@ -72,9 +73,4 @@ public sealed class ServerState
         // TODO
         throw new NotImplementedException();
     }
-
-    [DebuggerHidden]
-    private string DebuggerDisplay => 
-        $"{nameof(AllPlayers)}.{nameof(AllPlayers.Count)} = {allPlayers.Count}, " +
-        $"{nameof(AllChannels)}.{nameof(AllChannels.Count)} = {allChannels.Count}";
 }

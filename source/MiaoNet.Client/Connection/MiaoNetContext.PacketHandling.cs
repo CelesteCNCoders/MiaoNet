@@ -33,6 +33,7 @@ public partial class MiaoNetContext
         r.Register<PacketEmoteText>(HandlePacket);
         r.Register<PacketPlayerNotification<PacketPlayerStateFlags>>(HandlePacket);
         r.Register<PacketPlayerNotification<PacketUpdateOnlineStatus>>(HandlePacket);
+        r.Register<PacketBeTeleportedRequest>(HandlePacket);
     }
 
     private void HandlePacket(PacketPlayerJoined packet)
@@ -145,5 +146,23 @@ public partial class MiaoNetContext
         var p = player.OnlineStatus;
         player.OnlineStatus = packet.Packet.Status;
         PlayerOnlineStatusChanged?.Invoke(player, p);
+    }
+
+    private void HandlePacket(PacketBeTeleportedRequest request)
+    {
+        EnsureState();
+        Level? level = Engine.Scene as Level;
+        Player? player = level?.Tracker.GetEntity<Player>();
+        if (player is null)
+        {
+            Response(request, new PacketBeTeleportedResponse(null));
+            return;
+        }
+        else
+        {
+            Response(request, new PacketBeTeleportedResponse(
+                PlayerSessionData.CreateFrom(level!.Session, player.Position)
+            ));
+        }
     }
 }

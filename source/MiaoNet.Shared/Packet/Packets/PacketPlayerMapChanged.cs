@@ -47,6 +47,7 @@ public sealed class PacketPlayerMapChangedNotification : PacketPlayerNotificatio
     [Flags]
     public enum DataFlags : byte
     {
+        None = 0,
         HasGraphicsInfo = 1 << 0,
         HasInitialStats = 1 << 1
     }
@@ -77,7 +78,7 @@ public sealed class PacketPlayerMapChangedNotification : PacketPlayerNotificatio
     {
         writer.Write(PlayerID);
 
-        DataFlags flags = 0;
+        DataFlags flags = DataFlags.None;
         if (GraphicsInfo is not null) flags |= DataFlags.HasGraphicsInfo;
         if (InitialState is not null) flags |= DataFlags.HasInitialStats;
 

@@ -29,3 +29,8 @@ using MiaoNet.Shared;
 
 [assembly: PacketRegistry(typeof(PacketUpdateOnlineStatus))]
 [assembly: PacketRegistry(typeof(PacketPlayerNotification<PacketUpdateOnlineStatus>))]
+
+[assembly: PacketRegistry(typeof(PacketTeleportRequest))]
+[assembly: PacketRegistry(typeof(PacketTeleportResponse))]
+[assembly: PacketRegistry(typeof(PacketBeTeleportedRequest))]
+[assembly: PacketRegistry(typeof(PacketBeTeleportedResponse))]

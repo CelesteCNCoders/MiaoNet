@@ -129,7 +129,7 @@ public sealed class MainComponent : MiaoNetComponent
         if (selfState is null)
             return;
 
-        FFlags flags = 0;
+        FFlags flags = FFlags.None;
         if (player.Facing is Facings.Left)
             flags |= FFlags.FacingLeft;
         if (currentDashing)
@@ -177,7 +177,7 @@ public sealed class MainComponent : MiaoNetComponent
         }
     }
 
-    private HoldableInfo FetchHoldableInfo(Holdable holdable)
+    private static HoldableInfo FetchHoldableInfo(Holdable holdable)
     {
         Entity entity = holdable.Entity;
         if (entity is Glider jelly)
@@ -199,14 +199,14 @@ public sealed class MainComponent : MiaoNetComponent
         }
     }
 
-    private FollowerInfo[] FetchFollowerInitials(Leader leader)
+    private static FollowerInfo[] FetchFollowerInitials(Leader leader)
     {
         var array = new FollowerInfo[leader.Followers.Count];
         for (int i = 0; i < array.Length; i++)
             array[i] = FetchFollowerInitial(leader.Entity.Position, leader.Followers[i]);
         return array;
 
-        FollowerInfo FetchFollowerInitial(Vector2 leaderEntityPosition, Follower follower)
+        static FollowerInfo FetchFollowerInitial(Vector2 leaderEntityPosition, Follower follower)
         {
             Entity entity = follower.Entity;
             FollowerType type = entity switch
@@ -227,18 +227,17 @@ public sealed class MainComponent : MiaoNetComponent
         }
     }
 
-    private FollowerInfoDelta[] FetchFollowerDeltas(Leader leader)
+    private static FollowerInfoDelta[] FetchFollowerDeltas(Leader leader)
     {
         var array = new FollowerInfoDelta[leader.Followers.Count];
         for (int i = 0; i < array.Length; i++)
             array[i] = FetchFollowerDelta(leader.Entity.Position, leader.Followers[i]);
         return array;
 
-        FollowerInfoDelta FetchFollowerDelta(Vector2 leaderEntityPosition, Follower follower)
+        static FollowerInfoDelta FetchFollowerDelta(Vector2 leaderEntityPosition, Follower follower)
         {
             Entity entity = follower.Entity;
             Sprite spr = entity.Get<Sprite>();
-            var mgr = PooledStringManager;
             Vector2 offset = entity.Position - leaderEntityPosition;
             return new(
                 spr.CurrentAnimationID,
