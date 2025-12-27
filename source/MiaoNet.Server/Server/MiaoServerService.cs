@@ -182,7 +182,7 @@ public sealed partial class MiaoServerService : BackgroundService
 
                 var handshakeData = receiveHandshake.Result;
 
-                Version requiredVersion = new Version(0, 1, 3);
+                Version requiredVersion = new Version(0, 1, 4);
                 if (handshakeData.Version != requiredVersion)
                 {
                     await SendHandshakeAck(netStream, $"Server requires version {requiredVersion}.", token);
