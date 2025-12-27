@@ -131,7 +131,7 @@ public sealed class MiaoNetModule : EverestModule
 
     private void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader)
     {
-        // This is ugly, any better ways?
+        // TODO this is a temp solution, we should add `isFromLoader` to the event
         if (isFromLoader)
             PlayerLocationChanged?.Invoke(PlayerLocation.Empty);
         PlayerLocationChanged?.Invoke(PlayerLocation.FetchFrom(level.Session));
