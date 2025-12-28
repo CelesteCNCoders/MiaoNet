@@ -36,8 +36,6 @@ public sealed class MainComponent : MiaoNetComponent
     {
         if (Engine.Scene is Level level)
             MiaoNetModule_OnPlayerLocationChanged(PlayerLocation.FetchFrom(level.Session), true);
-        if (Engine.Scene is Editor.MapEditor editor)
-            MiaoNetModule_OnPlayerLocationChanged(new PlayerLocation(editor.mapData.Area, string.Empty), true);
     }
 
     public override void OnDisconnected()
@@ -112,6 +110,11 @@ public sealed class MainComponent : MiaoNetComponent
             {
                 selfNameTag = new(player, ClientState.Self.Info.Name);
                 selfNameTag.Tag |= Tags.Global;
+                player.Scene.Add(selfNameTag);
+            }
+            if (selfNameTag.Scene != player.Scene)
+            {
+                selfNameTag.RemoveSelf();
                 player.Scene.Add(selfNameTag);
             }
             selfNameTag.Entity = player;

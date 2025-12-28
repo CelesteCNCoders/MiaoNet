@@ -67,14 +67,18 @@ public sealed class MiaoNetGhost : Entity
 
         playerHair = new PlayerHair(playerSprite);
         Add(playerHair);
+
         Add(playerSprite);
         nameTag = new(this);
         playerHair.Start();
 
-        Add(new MirrorReflection());
-
         ApplyState(initialState);
         UpdateHairCount();
+
+        // update once quickly
+        // playerHair.Render can be called before any its update call
+        playerHair.Update();
+        playerHair.AfterUpdate();
 
         pDashA = new(global::Celeste.Player.P_DashA);
         pDashB = new(global::Celeste.Player.P_DashB);
@@ -150,6 +154,9 @@ public sealed class MiaoNetGhost : Entity
                 playerSprite.SetAnimationFrame(pFrame);
             }
             playerHair.Sprite = playerSprite;
+            Add(playerSprite);
+            playerHair.Start();
+            UpdateHairCount();
         }
         dashes = state.Dashes;
         lastDashedDashes = dashes;
@@ -161,6 +168,7 @@ public sealed class MiaoNetGhost : Entity
     public void UpdateDashing(bool dashing, float dashDirection, bool dashesChanged, int dashes)
     {
         Level level = SceneAs<Level>();
+
         if (dashesChanged)
         {
             this.dashes = dashes;
@@ -179,7 +187,7 @@ public sealed class MiaoNetGhost : Entity
         {
             lastDashedDashes = this.dashes;
 
-            if (!level.Paused)
+            if (level is not null && !level.Paused)
             {
                 float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
                 level.Displacement.AddBurst(Center, 0.4f, 8f, 64f, 0.5f * alpha, Ease.QuadOut);
@@ -238,9 +246,12 @@ public sealed class MiaoNetGhost : Entity
     {
         dead = true;
         playerSprite.Visible = playerHair.Visible = false;
-        SceneAs<Level>().Displacement.AddBurst(Position, 0.3f, 0f, 80f);
-        float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
-        Add(new DeathEffect(playerHair.Color * alpha));
+        if (Scene is Level level)
+        {
+            level.Displacement.AddBurst(Position, 0.3f, 0f, 80f);
+            float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
+            Add(new DeathEffect(playerHair.Color * alpha));
+        }
         Depth = Depths.Top;
     }
 

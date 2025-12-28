@@ -14,7 +14,7 @@ public sealed class IdleHover : Entity
 
     public IdleHover(Entity parentEntity)
     {
-        Tag |= parentEntity.Tag | Tags.HUD;
+        Tag |= parentEntity.Tag | TagsExt.SubHUD;
         hoverTexture = GFX.Gui["hover/idle"];
         Depth = Depths.FakeWalls - 1;
         this.parentEntity = parentEntity;
