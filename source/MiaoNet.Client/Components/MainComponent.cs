@@ -246,7 +246,13 @@ public sealed class MainComponent : MiaoNetComponent
     {
         Player player = level.Tracker.GetEntity<Player>();
         if (player is null)
-            return false;
+        {
+            PlayerDeadBody? body = (PlayerDeadBody?)level.Entities.FirstOrDefault(e => e is PlayerDeadBody);
+            if (body is not null)
+                player = body.player;
+            else
+                return false;
+        }
         PlayerState initialState = new PlayerState(player.Position, (byte)player.Dashes, Engine.DeltaTime)
         {
             PlayerSpriteMode = player.Sprite.Mode,
