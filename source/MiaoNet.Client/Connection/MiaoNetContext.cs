@@ -34,9 +34,6 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     private MiaoServerConnection? connection;
     private readonly PacketDispatcher packetDispatcher;
 
-    private float statusMessageTimer;
-    private string? statusMessage;
-
     private ClientState? clientState;
 
     public PooledStringManager? PooledStringManager { get; private set; }
@@ -57,6 +54,8 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public ChatComponent ChatComponent { get; }
 
+    public StatusComponent StatusComponent { get; }
+
     public MiaoNetContext()
     {
         receiveQueue = new();
@@ -69,6 +68,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             new DebugMapComponent(this),
             EmoteComponent = new EmoteComponent(this)
         ];
+        StatusComponent = new(this);
         PacketHandlerRegister r = new();
         RegisterPacketHandlers(r);
         packetDispatcher = new(r);
@@ -88,7 +88,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         connectionThread = new(ConnectionThread);
         connectionThread.Name = "MiaoNet Connection";
         connectionThread.Start(cts.Token);
-        ShowStatusMessage(MiaoNetConnectionStatus.Connecting);
+        StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Connecting);
     }
 
     public void OnConnected()
@@ -99,39 +99,25 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public void Disconnect()
     {
+        connection?.Dispose();
+        connection = null;
+        OnDisconnected();
+        StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
+    }
+
+    public void OnDisconnected()
+    {
         cts?.Cancel();
         cts = null;
         connectionThread = null;
         receiveQueue.Clear();
         clientState = null;
-        OnDisconnected();
+        PooledStringManager = null;
         components.ForEach(c => c.OnDisconnected());
         if (connection is null)
             return;
         connection.Dispose();
         connection = null;
-        ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
-    }
-
-    public void OnDisconnected()
-    {
-        PooledStringManager = null;
-    }
-
-    public void ShowStatusMessage(string message)
-    {
-        statusMessageTimer = 2f;
-        statusMessage = message;
-    }
-
-    public void ShowStatusMessage(MiaoNetConnectionStatus status)
-    {
-        ShowStatusMessage(status.ToString());
-    }
-
-    public void CleanUp()
-    {
-
     }
 
     public void Update()
@@ -141,14 +127,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             while (mainThreadQueue.TryDequeue(out var item))
                 item();
 
-            if (statusMessageTimer > 0f)
-            {
-                statusMessageTimer -= Engine.RawDeltaTime;
-                if (statusMessageTimer <= 0f)
-                {
-                    statusMessage = null;
-                }
-            }
+            StatusComponent.Update();
 
             if (!HasConnection)
                 return;
@@ -190,15 +169,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         BeginRender();
         if (HasConnection)
             components.ForEach(c => c.Render());
-        if (statusMessageTimer > 0f)
-        {
-            var tex = GFX.Gui["reloader/cogwheel"];
-            Vector2 pos = new Vector2(64f, Engine.Height - 64f);
-            const float Scale = 1f / 3.5f;
-            tex.DrawOutlineJustified(pos, new Vector2(0f, 1f), Color.White, Scale);
-            pos.X += tex.Width * Scale + 32f;
-            MiaoNetFont.DrawOutline(statusMessage!, pos, Vector2.UnitY, Vector2.One, Color.White);
-        }
+        StatusComponent.Render();
         EndRender();
     }
 
@@ -263,7 +234,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         SingleThreadedSynchronizationContext syncCtx = new();
         SynchronizationContext.SetSynchronizationContext(syncCtx);
 
-        StartConnectionAsync(this, token).ContinueWith(HandleTaskCompleted);
+        StartConnectionAsync(this, token).ContinueWith(HandleStartConnectionTaskCompleted);
 
         try
         {
@@ -277,12 +248,19 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
         async Task StartConnectionAsync(IPacketSerializationContext context, CancellationToken token)
         {
+            if (string.IsNullOrWhiteSpace(MiaoNetModule.Settings.Name))
+            {
+
+                return;
+            }
+
             string host = TargetServer;
             const int Port = 21473;
 
             EndPoint ep = IPAddress.TryParse(host, out var ipa)
                 ? new IPEndPoint(ipa, Port)
                 : new DnsEndPoint(host, Port);
+
 
             HandshakeData handshakeData = new(
                 MiaoNetModule.Instance.Metadata.Version,
@@ -301,8 +279,8 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                     Logger.Warn(nameof(MiaoNet), $"Remote sent empty or invalid reply.");
                     mainThreadQueue.Enqueue(() =>
                     {
-                        ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
-                        Disconnect();
+                        StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
+                        OnDisconnected();
                     });
                     return;
                 }
@@ -312,8 +290,8 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                 {
                     mainThreadQueue.Enqueue(() =>
                     {
-                        ShowStatusMessage(reason);
-                        Disconnect();
+                        StatusComponent.ShowStatusMessage(reason);
+                        OnDisconnected();
                     });
                     return;
                 }
@@ -328,8 +306,8 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                             Logger.Warn(nameof(MiaoNet), $"Remote sent a werid initial packet {packetInitial.GetType()}.");
                         mainThreadQueue.Enqueue(() =>
                         {
-                            ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
-                            Disconnect();
+                            StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
+                            OnDisconnected();
                         });
                         return;
                     }
@@ -342,7 +320,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                             clientState = new(clientInitial);
                             this.connection = connection;
                             ClientInitialized?.Invoke(clientState);
-                            ShowStatusMessage(MiaoNetConnectionStatus.Connected);
+                            StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Connected);
                             OnConnected();
                         });
                     }
@@ -353,14 +331,19 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                 Logger.Error(nameof(MiaoNet), $"Error when connecting: {e}");
                 mainThreadQueue.Enqueue(() =>
                 {
-                    ShowStatusMessage($"Error when connecting.");
-                    Disconnect();
+                    StatusComponent.ShowStatusMessage(
+                        MiaoNetConnectionStatus.ConnectFailedWithException,
+                        e.Message
+                    );
+                    OnDisconnected();
                 });
                 return;
             }
 
-            _ = ReceivePacketsLoopAsync(connection, context, token).ContinueWith(HandleTaskCompleted, token);
-            _ = connection.SendPacketsLoopAsync(context, token).ContinueWith(HandleTaskCompleted, token);
+            Task receiveTask = ReceivePacketsLoopAsync(connection, context, token);
+            Task sendTask = connection.SendPacketsLoopAsync(context, token);
+
+            await Task.WhenAll(receiveTask, sendTask);
         }
 
         async Task ReceivePacketsLoopAsync(
@@ -397,24 +380,25 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             }
         }
 
-        void HandleTaskCompleted(Task t)
+        void HandleStartConnectionTaskCompleted(Task t)
         {
             if (!t.IsFaulted)
                 return;
-            t.Exception.Handle(HandleTaskException);
-            mainThreadQueue.Enqueue(() =>
-            {
-                ShowStatusMessage($"Disconnected due to exception.");
-                Disconnect();
-            });
 
-            static bool HandleTaskException(Exception e)
+            bool isExpected = true;
+            Exception? unhandledException = null;
+
+            foreach (var e in t.Exception.InnerExceptions)
             {
                 switch (e)
                 {
-                case IOException
-                when (e.InnerException is SocketException { SocketErrorCode: SocketError.ConnectionAborted }):
+                case IOException when (e.InnerException is SocketException
+                {
+                    SocketErrorCode: SocketError.ConnectionAborted
+                        or SocketError.ConnectionReset
+                } se):
                     Logger.Info(nameof(MiaoNet), "Connection aborted.");
+                    isExpected = false;
                     break;
 
                 case OperationCanceledException:
@@ -423,9 +407,43 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
                 default:
                     Logger.Error(nameof(MiaoNet), e.ToString());
+                    unhandledException = e;
+                    isExpected = false;
                     break;
                 }
-                return true;
+            }
+
+            if (!isExpected)
+            {
+                if (unhandledException is not null)
+                {
+                    mainThreadQueue.Enqueue(() =>
+                    {
+                        StatusComponent.ShowStatusMessage(
+                            MiaoNetConnectionStatus.ConnectionAbortedWithException,
+                            unhandledException.Message
+                        );
+                        OnDisconnected();
+                    });
+                }
+                else
+                {
+                    mainThreadQueue.Enqueue(() =>
+                    {
+                        StatusComponent.ShowStatusMessage(
+                            MiaoNetConnectionStatus.ConnectionAborted
+                        );
+                        OnDisconnected();
+                    });
+                }
+            }
+            else
+            {
+                mainThreadQueue.Enqueue(() =>
+                {
+                    StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
+                    OnDisconnected();
+                });
             }
         }
     }

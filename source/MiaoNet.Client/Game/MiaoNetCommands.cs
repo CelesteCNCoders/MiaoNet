@@ -22,7 +22,7 @@ public static class MiaoNetCommands
     [Command("mn_status", "Show a MiaoNet status message.")]
     public static void MiaoNet_ShowStatus(string text)
     {
-        Context.ShowStatusMessage(text);
+        Context.StatusComponent.ShowStatusMessage(text);
     }
 #endif
 }

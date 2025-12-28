@@ -24,10 +24,16 @@ miaonet_options_new_messages_display_system_only= System Messages Only
 miaonet_options_new_messages_display_all= All
 
 
+miaonet_connection_status_connecting= Connecting...
 miaonet_connection_status_connected= Connected
+miaonet_connection_status_disconnecting= Disconnecting...
 miaonet_connection_status_disconnected= Disconnected
 miaonet_connection_status_kicked= Kicked from server
-miaonet_connection_status_server_closed= Server closed
+miaonet_connection_status_serverclosed= Server closed
+miaonet_connection_status_noname= Please set name first
+miaonet_connection_status_connectfailedwithexception= Connect failed. (0)
+miaonet_connection_status_connectionaborted= Connection aborted
+miaonet_connection_status_connectionabortedwithexception= Connection aborted. (0)
 
 miaonet_context_player_joined= (0) joined MiaoNet
 miaonet_context_player_left= (0) left MiaoNet
