@@ -6,6 +6,8 @@ namespace Celeste.Mod.MiaoNet;
 public sealed class GhostFollower : Entity
 {
     private readonly Sprite sprite;
+    private readonly BloomPoint? bloomPoint;
+    private readonly VertexLight? vertexLight;
 
     public Follower Follower { get; }
 
@@ -14,20 +16,27 @@ public sealed class GhostFollower : Entity
     {
         Visible = false;
         Tag |= ghost.Tag;
-        Add(Follower = new());
+        Add(Follower = new() { MoveTowardsLeader = false });
 
         Add(sprite = GFX.SpriteBank.Create(animationID));
         sprite.Active = false;
         Add(new MirrorReflection());
         if (type is FollowerType.Strawberry or FollowerType.StrawberrySeed)
         {
-            Add(new BloomPoint(1f, 12f));
-            Add(new VertexLight(Color.White, 1f, 16, 24));
+            Add(bloomPoint = new BloomPoint(1f, 12f));
+            Add(vertexLight = new VertexLight(Color.White, 1f, 16, 24));
         }
         else if (type == FollowerType.Key)
         {
-            Add(new VertexLight(Color.White, 1f, 32, 48));
+            Add(vertexLight = new VertexLight(Color.White, 1f, 32, 48));
         }
+    }
+
+    public override void Update()
+    {
+        base.Update();
+        bloomPoint?.Alpha = MiaoNetModule.Settings.PlayerOpacityValue;
+        vertexLight?.Alpha = MiaoNetModule.Settings.PlayerOpacityValue;
     }
 
     public void UpdateSprite(string animation, int animationFrame)

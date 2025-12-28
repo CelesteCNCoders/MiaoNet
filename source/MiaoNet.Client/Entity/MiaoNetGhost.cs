@@ -29,6 +29,11 @@ public sealed class MiaoNetGhost : Entity
 
     private IdleHover? idleHover;
 
+    private (Color, Color) pDashColorBaseA;
+    private (Color, Color) pDashColorBaseB;
+    private readonly ParticleType pDashA;
+    private readonly ParticleType pDashB;
+
     public OnlinePlayer Player { get; set; }
 
     public string Name { get; set; }
@@ -68,6 +73,11 @@ public sealed class MiaoNetGhost : Entity
 
         ApplyState(initialState);
         UpdateHairCount();
+
+        pDashA = new(global::Celeste.Player.P_DashA);
+        pDashB = new(global::Celeste.Player.P_DashB);
+        pDashColorBaseA = (pDashA.Color, pDashA.Color2);
+        pDashColorBaseB = (pDashB.Color, pDashB.Color2);
     }
 
     public override void Update()
@@ -98,7 +108,22 @@ public sealed class MiaoNetGhost : Entity
                 playerHair.AfterUpdate();
             else if (dashing)
             {
-                ParticleType type = dashes >= 1 ? global::Celeste.Player.P_DashB : global::Celeste.Player.P_DashA;
+                // TODO apply graphics info
+                float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
+                ParticleType type;
+                if (lastDashedDashes <= 1)
+                {
+                    type = pDashA;
+                    type.Color = pDashColorBaseA.Item1 * alpha;
+                    type.Color2 = pDashColorBaseA.Item2 * alpha;
+                }
+                else
+                {
+                    type = pDashB;
+                    type.Color = pDashColorBaseB.Item1 * alpha;
+                    type.Color2 = pDashColorBaseB.Item2 * alpha;
+                }
+
                 SceneAs<Level>().ParticlesFG.Emit(
                     type,
                     Position + Calc.Random.Range(Vector2.One * -2f, Vector2.One * 2f),
@@ -153,7 +178,10 @@ public sealed class MiaoNetGhost : Entity
             lastDashedDashes = this.dashes;
 
             if (!level.Paused)
-                level.Displacement.AddBurst(Center, 0.4f, 8f, 64f, 0.5f, Ease.QuadOut);
+            {
+                float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
+                level.Displacement.AddBurst(Center, 0.4f, 8f, 64f, 0.5f * alpha, Ease.QuadOut);
+            }
             AddTrail(this.dashes);
         }
         else if (pDashing && !dashing)
