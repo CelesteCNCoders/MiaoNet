@@ -10,11 +10,9 @@ partial class MiaoNetCommand
 
     static MiaoNetCommand()
     {
-        // TODO using dialog
         Commands = [
             new MiaoNetCommand(
                 name: "help",
-                description: "miaonet_commands_help_description",
                 aliases: ["?", "？", "h"],
                 segments: [],
                 captureRestSegments: false,
@@ -22,90 +20,43 @@ partial class MiaoNetCommand
             ),
             new MiaoNetCommand(
                 name: "help-command",
-                description: "miaonet_commands_help_command_description",
                 aliases: ["??", "？？", "hc"],
-                segments: [
-                    new Segment(
-                        CommandSegmentType.Text,
-                        "miaonet_commands_help_command_p1_name",
-                        "miaonet_commands_help_command_p1_description"
-                    )
-                ],
+                segments: [CommandSegmentType.Text],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(HelpCommand)
             ),
             new MiaoNetCommand(
                 name: "say",
-                description: "miaonet_commands_say_description",
                 aliases: null,
-                segments: [
-                    new Segment(
-                        CommandSegmentType.Text,
-                        "miaonet_commands_say_p1_name",
-                        "miaonet_commands_say_p1_description"
-                    )
-                ],
+                segments: [CommandSegmentType.Text],
                 captureRestSegments: true,
                 onExecute: new ExecuteHandler(Say)
             ),
             new MiaoNetCommand(
                 name: "emote",
-                description: "miaonet_commands_emote_description",
                 aliases: ["e"],
-                segments: [
-                    new Segment(
-                        CommandSegmentType.Text,
-                        "miaonet_commands_emote_p1_name",
-                        "miaonet_commands_emote_p1_description"
-                     )
-                ],
+                segments: [CommandSegmentType.Text],
                 captureRestSegments: true,
                 onExecute: new ExecuteHandler(Emote)
             ),
             new MiaoNetCommand(
                 name: "teleport-no-session",
-                description: "miaonet_commands_teleport_no_session_description",
                 aliases: ["tp-ns", "tpns"],
-                segments: [
-                    new Segment(
-                        CommandSegmentType.Player,
-                        "miaonet_commands_teleport_no_session_p1_name",
-                        "miaonet_commands_teleport_no_session_p1_description"
-                    )
-                ],
+                segments: [CommandSegmentType.Player],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(TeleportNoSession)
             ),
             new MiaoNetCommand(
                 name: "teleport-with-session",
-                description: "miaonet_commands_teleport_with_session_desciption",
                 aliases: ["tp-ws", "tpws"],
-                segments: [
-                    new Segment(
-                        CommandSegmentType.Player,
-                        "miaonet_commands_teleport_with_session_p1_name",
-                        "miaonet_commands_teleport_with_session_p1_description"
-                    )
-                ],
+                segments: [CommandSegmentType.Player],
                 captureRestSegments:false,
                 onExecute: new ExecuteHandler(TeleportWithSession)
             ),
             new MiaoNetCommand(
                 name: "whisper",
-                description: "miaonet_commands_whisper_desciption",
                 aliases: ["w", "msg"],
-                segments: [
-                    new Segment(
-                        CommandSegmentType.Player,
-                        "miaonet_commands_whisper_p1_name",
-                        "miaonet_commands_whisper_p1_description"
-                    ),
-                    new Segment(
-                        CommandSegmentType.Text,
-                        "miaonet_commands_whisper_p2_name",
-                        "miaonet_commands_whisper_p2_description"
-                    )
-                ],
+                segments: [CommandSegmentType.Player, CommandSegmentType.Text],
                 captureRestSegments: true,
                 onExecute: new ExecuteHandler(Whisper)
             )
@@ -275,7 +226,7 @@ partial class MiaoNetCommand
 
         void OnResponse(PacketSendPrivateChatMessageResponse response)
         {
-            switch(response.Result)
+            switch (response.Result)
             {
             case PacketSendPrivateChatMessageResponse.SendResult.Success:
                 context.MiaoNetContext.ChatComponent.OnSentPrivateMessage(player, content);
@@ -294,14 +245,22 @@ partial class MiaoNetCommand
 
     private static void TipCommandHelp(Context context, MiaoNetCommand command)
     {
+        string commandNameKey = command.Name.Replace('-', '_');
+        string commandDescriptionKey = $"miaonet_commands_{commandNameKey}_description";
         context.TipMessage(
-                $"/{command.Name} : {Dialog.Clean(command.Description)}" +
+                $"/{command.Name} : {Dialog.Get(commandDescriptionKey)}" +
                 $"{(command.Aliases is not null ? $" ({string.Join(", ", command.Aliases)})" : null)}"
             );
         if (command.Segments.Count != 0)
         {
+            int i = 0;
             foreach (var segment in command.Segments)
-                context.TipMessage($"    <{Dialog.Clean(segment.Name)}> : {Dialog.Clean(segment.Description)}");
+            {
+                string nameKey = $"miaonet_commands_{commandNameKey}_s{i}_name";
+                string description = $"miaonet_commands_{commandNameKey}_s{i}_description";
+                context.TipMessage($"    <{Dialog.Get(nameKey)}> : {Dialog.Get(description)}");
+                i++;
+            }
         }
     }
 

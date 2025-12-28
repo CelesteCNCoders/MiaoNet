@@ -5,19 +5,11 @@ public sealed partial class MiaoNetCommand
     /// <returns>Error string, or <see langword="null"/> if no error.</returns>
     public delegate string? ExecuteHandler(Context context);
 
-    public record Segment(
-        CommandSegmentType Type,
-        string Name,
-        string? Description
-    );
-
     public string Name { get; }
-
-    public string? Description { get; }
 
     public IReadOnlyCollection<string>? Aliases { get; }
 
-    public IReadOnlyCollection<Segment> Segments { get; }
+    public IReadOnlyCollection<CommandSegmentType> Segments { get; }
 
     public bool CaptureRestSegments { get; }
 
@@ -25,15 +17,13 @@ public sealed partial class MiaoNetCommand
 
     public MiaoNetCommand(
         string name,
-        string? description,
         IReadOnlyCollection<string>? aliases,
-        IReadOnlyCollection<Segment> segments,
+        IReadOnlyCollection<CommandSegmentType> segments,
         bool captureRestSegments,
         ExecuteHandler onExecute
     )
     {
         Name = name;
-        Description = description;
         Aliases = aliases;
         Segments = segments;
         CaptureRestSegments = captureRestSegments;
