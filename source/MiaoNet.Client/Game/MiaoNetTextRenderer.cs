@@ -21,12 +21,12 @@ internal sealed class MiaoNetTextRenderer : ITextRenderer
         => MiaoNetFont.DrawOutline(
             text, position, justify,
             Vector2.One * Scale, color,
-            2f, (IsColorDark(color) ? Color.White : Color.Black) with { A = color.A }
+            1f, (IsColorDark(color) ? Color.White : Color.Black) with { A = color.A }
         );
 
     private static bool IsColorDark(Color color)
     {
         float darkness = 1f - (0.299f * color.R + 0.587f * color.G + 0.114f * color.B) / 255f;
-        return darkness < 0.5f;
+        return darkness > 0.5f;
     }
 }

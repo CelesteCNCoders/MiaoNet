@@ -8,21 +8,21 @@ public static class MiaoNetChatText
         => new ChatText([
             new(ChatTextStyle.None, Color.Yellow, sender.Info.Name),
             new(ChatTextStyle.None, Color.White, ": "),
-            new(ChatTextStyle.None, Color.White, text)
+            ..ChatText.Parse(text, Color.White)
         ]);
 
     public static ChatText CreatePrivateChat(OnlinePlayer sender, string text)
         => new ChatText([
             new(ChatTextStyle.None, Color.DarkGray, $"[whisper] {sender.Info.Name}"),
             new(ChatTextStyle.None, Color.LightGray, ": "),
-            new(ChatTextStyle.None, Color.LightGray, text)
+            ..ChatText.Parse(text, Color.LightGray)
         ]);
 
     public static ChatText CreateSentPrivateChat(OnlinePlayer other, OnlinePlayer self, string text)
         => new ChatText([
             new(ChatTextStyle.None, Color.DarkGray, $"[whisper to {other.Info.Name}] {self.Info.Name}"),
             new(ChatTextStyle.None, Color.LightGray, ": "),
-            new(ChatTextStyle.None, Color.LightGray, text)
+            ..ChatText.Parse(text, Color.LightGray)
         ]);
 
     public static ChatText CreateAnnouncement(string text)
