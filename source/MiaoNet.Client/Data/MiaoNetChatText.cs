@@ -13,14 +13,27 @@ public static class MiaoNetChatText
 
     public static ChatText CreatePrivateChat(OnlinePlayer sender, string text)
         => new ChatText([
-            new(ChatTextStyle.None, Color.DarkGray, $"[whisper] {sender.Info.Name}"),
+            new(
+                ChatTextStyle.None, Color.DarkGray,
+                Dialog.Get("miaonet_chat_whisper_received")
+                      .Replace(@"\[", "[") // idk how to escape '[]'s in Celeste dialogs
+                      .Replace(@"\]", "]")
+                      .Replace("(0)", sender.Info.Name)
+            ),
             new(ChatTextStyle.None, Color.LightGray, ": "),
             ..ChatText.Parse(text, Color.LightGray)
         ]);
 
     public static ChatText CreateSentPrivateChat(OnlinePlayer other, OnlinePlayer self, string text)
         => new ChatText([
-            new(ChatTextStyle.None, Color.DarkGray, $"[whisper to {other.Info.Name}] {self.Info.Name}"),
+            new(
+                ChatTextStyle.None, Color.DarkGray,
+                Dialog.Get("miaonet_chat_whisper_sent")
+                      .Replace(@"\[", "[")
+                      .Replace(@"\]", "]")
+                      .Replace("(0)", other.Info.Name)
+                      .Replace("(1)", self.Info.Name)
+            ),
             new(ChatTextStyle.None, Color.LightGray, ": "),
             ..ChatText.Parse(text, Color.LightGray)
         ]);

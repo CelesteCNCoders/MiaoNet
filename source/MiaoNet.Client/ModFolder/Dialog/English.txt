@@ -73,4 +73,7 @@ miaonet_commands_whisper_s0_description= The player that will be whispered to.
 miaonet_commands_whisper_s1_name= Text
 miaonet_commands_whisper_s1_description= The whisper message to send.
 
+miaonet_chat_whisper_sent= \[whisper to (0)\] (1)
+miaonet_chat_whisper_received= \[whisper\] (0)
+
 miaonet_dev_tip= Don't scroll down now, they're all unfinished. :(
