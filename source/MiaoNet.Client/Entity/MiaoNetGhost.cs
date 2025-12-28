@@ -22,6 +22,7 @@ public sealed class MiaoNetGhost : Entity
     private float flashTimer;
     private bool respawning;
     private float deadEase;
+    private bool dead;
     private bool starFlying;
 
     private HoldableType lastHoladableType;
@@ -62,6 +63,7 @@ public sealed class MiaoNetGhost : Entity
         playerSprite = new PlayerSprite(initialState.PlayerSpriteMode);
         playerSprite.Active = false;
         Add(leader = new Leader(new Vector2(0f, -8f)));
+        Add(new MirrorReflection());
 
         playerHair = new PlayerHair(playerSprite);
         Add(playerHair);
@@ -106,7 +108,7 @@ public sealed class MiaoNetGhost : Entity
         {
             if (Scene.Paused)
                 playerHair.AfterUpdate();
-            else if (dashing)
+            else if (dashing && !dead)
             {
                 // TODO apply graphics info
                 float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
@@ -234,6 +236,7 @@ public sealed class MiaoNetGhost : Entity
 
     public void OnDied()
     {
+        dead = true;
         playerSprite.Visible = playerHair.Visible = false;
         SceneAs<Level>().Displacement.AddBurst(Position, 0.3f, 0f, 80f);
         float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
@@ -254,6 +257,7 @@ public sealed class MiaoNetGhost : Entity
             t =>
             {
                 respawning = false;
+                dead = false;
                 playerSprite.Visible = playerHair.Visible = true;
                 Depth = Depths.Player + 1;
             }

@@ -93,7 +93,7 @@ public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatabl
     public static bool operator !=(PlayerLocation left, PlayerLocation right)
         => !(left == right);
 
-    public enum ChangeResult { None, RoomOnly, FromDebugMap, All }
+    public enum ChangeResult { None, RoomOnly, All }
 
     public readonly ChangeResult CompareTo(PlayerLocation other)
     {
@@ -101,15 +101,9 @@ public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatabl
             return ChangeResult.None;
 
         if (IsSameMapWith(other) && MapRoom != other.MapRoom)
-        {
-            return MapRoom == string.Empty
-                    ? ChangeResult.FromDebugMap
-                    : ChangeResult.RoomOnly;
-        }
+            return ChangeResult.RoomOnly;
         else
-        {
             return ChangeResult.All;
-        }
     }
 
     public readonly bool IsSameMapWith(PlayerLocation other)

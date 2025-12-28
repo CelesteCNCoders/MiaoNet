@@ -25,7 +25,8 @@ public sealed class MiaoNetModule : EverestModule
     // TODO this is ugly
     public static Vector2? NextPlayerSpawnPosition { get; set; }
 
-    public static event Action<PlayerLocation>? PlayerLocationChanged;
+    public delegate void PlayerLocationChangedHandler(PlayerLocation location, bool forceFullChange);
+    public static event PlayerLocationChangedHandler? PlayerLocationChanged;
 
     public MiaoNetModule()
     {
@@ -70,6 +71,7 @@ public sealed class MiaoNetModule : EverestModule
 
     private static void ILHook_LeaderFollowersMarkDirty(ILContext il)
     {
+        // or we can just read Followers._version evilly...
         ILCursor cur = new(il);
         cur.EmitLdarg0();
         cur.EmitDelegate(static (Leader leader) =>
@@ -126,23 +128,19 @@ public sealed class MiaoNetModule : EverestModule
         cur.EmitLdarg0();
         cur.EmitDelegate(
             static (Level level) => PlayerLocationChanged?.Invoke(
-                new PlayerLocation(level.Session.Area.SID, level.Session.Area.Mode, string.Empty)
+                new PlayerLocation(level.Session.Area.SID, level.Session.Area.Mode, string.Empty),
+                false
             )
         );
     }
 
     private static void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader)
-    {
-        // TODO this is a temp solution, we should add `isFromLoader` to the event
-        if (isFromLoader)
-            PlayerLocationChanged?.Invoke(PlayerLocation.Empty);
-        PlayerLocationChanged?.Invoke(PlayerLocation.FetchFrom(level.Session));
-    }
-
+        => PlayerLocationChanged?.Invoke(PlayerLocation.FetchFrom(level.Session), isFromLoader);
+    
     private static void LevelLoader_OnLoadingThread(Level level)
     {
-        level.Add(new GhostRenderLayerEntity(false));
-        level.Add(new GhostRenderLayerEntity(true));
+        level.Add(new GhostRenderLayerEntity(isHigh: false));
+        level.Add(new GhostRenderLayerEntity(isHigh: true));
     }
 
     private static void Overworld_Begin(On.Celeste.Overworld.orig_Begin orig, Overworld self)
@@ -161,7 +159,7 @@ public sealed class MiaoNetModule : EverestModule
     }
 
     private static void Level_OnExit(Level level, LevelExit exit, LevelExit.Mode mode, Session session, HiresSnow snow)
-        => PlayerLocationChanged?.Invoke(PlayerLocation.Empty);
+        => PlayerLocationChanged?.Invoke(PlayerLocation.Empty, true);
 
     private static void Level_OnCreatePauseMenuButtons(Level level, TextMenu menu, bool minimal)
     {

@@ -35,9 +35,9 @@ public sealed class MainComponent : MiaoNetComponent
     public override void OnConnected()
     {
         if (Engine.Scene is Level level)
-            MiaoNetModule_OnPlayerLocationChanged(PlayerLocation.FetchFrom(level.Session));
+            MiaoNetModule_OnPlayerLocationChanged(PlayerLocation.FetchFrom(level.Session), true);
         if (Engine.Scene is Editor.MapEditor editor)
-            MiaoNetModule_OnPlayerLocationChanged(new PlayerLocation(editor.mapData.Area, string.Empty));
+            MiaoNetModule_OnPlayerLocationChanged(new PlayerLocation(editor.mapData.Area, string.Empty), true);
     }
 
     public override void OnDisconnected()
@@ -265,7 +265,7 @@ public sealed class MainComponent : MiaoNetComponent
     }
 
     #region event handlers
-    private void MiaoNetModule_OnPlayerLocationChanged(PlayerLocation location)
+    private void MiaoNetModule_OnPlayerLocationChanged(PlayerLocation location, bool forceFullChange)
     {
         if (!HasState)
             return;
@@ -274,47 +274,45 @@ public sealed class MainComponent : MiaoNetComponent
             ClientState.Self.OnlineStatus = PlayerOnlineStatus.Normal;
             context.QueuePacket(new PacketUpdateOnlineStatus(PlayerOnlineStatus.Normal));
         }
-        switch (ClientState.OnPlayerLocationChanged(location))
+        var changeResult = ClientState.OnPlayerLocationChanged(location);
+        if (changeResult is PlayerLocation.ChangeResult.All || forceFullChange)
         {
-        case PlayerLocation.ChangeResult.RoomOnly:
-        {
-            PacketPlayerMapRoomChanged p = new(location.MapRoom);
-            context.QueuePacket(p);
-            break;
-        }
-        case PlayerLocation.ChangeResult.FromDebugMap:
-        case PlayerLocation.ChangeResult.All:
-        {
-            if (!location.IsInMap)
+            if (location.IsInMap)
             {
-                PacketPlayerMapChanged p = new(location, null);
-                context.QueuePacket(p);
-                break;
-            }
-            Scene scene = Engine.Scene;
-            if (scene is Level level)
-            {
-                if (!TryGetAndSendState(level, location))
+                Scene scene = Engine.Scene;
+                if (scene is Level level)
                 {
-                    level.OnEndOfFrame += () =>
+                    // we assume player will at least exists in 2 frames...
+                    if (!TryGetAndSendState(level, location))
                     {
-                        bool sentState = TryGetAndSendState(level, location);
-                        SafeGuard.Assert(sentState);
-                    };
+                        level.OnEndOfFrame += () =>
+                        {
+                            bool sentState = TryGetAndSendState(level, location);
+                            SafeGuard.Assert(sentState);
+                        };
+                    }
                 }
-            }
-            else if (scene is LevelLoader levelLoader)
-            {
-                if (pendingMapChanged)
-                    Logger.Warn(nameof(MiaoNet), "pendingMapChanged is still true, is this a bug?");
-                pendingMapChanged = true;
+                else if (scene is LevelLoader levelLoader)
+                {
+                    if (pendingMapChanged)
+                        Logger.Warn(nameof(MiaoNet), "pendingMapChanged is still true, is this a bug?");
+                    pendingMapChanged = true;
+                }
+                else
+                {
+                    ClientState.SelfState = null;
+                }
             }
             else
             {
-                ClientState.SelfState = null;
+                PacketPlayerMapChanged p = new(location, null);
+                context.QueuePacket(p);
             }
-            break;
         }
+        else if (changeResult is PlayerLocation.ChangeResult.RoomOnly)
+        {
+            PacketPlayerMapRoomChanged p = new(location.MapRoom);
+            context.QueuePacket(p);
         }
     }
 
