@@ -89,6 +89,25 @@ partial class MiaoNetCommand
                 ],
                 captureRestSegments:false,
                 onExecute: new ExecuteHandler(TeleportWithSession)
+            ),
+            new MiaoNetCommand(
+                name: "whisper",
+                description: "miaonet_commands_whisper_desciption",
+                aliases: ["w", "msg"],
+                segments: [
+                    new Segment(
+                        CommandSegmentType.Player,
+                        "miaonet_commands_whisper_p1_name",
+                        "miaonet_commands_whisper_p1_description"
+                    ),
+                    new Segment(
+                        CommandSegmentType.Text,
+                        "miaonet_commands_whisper_p2_name",
+                        "miaonet_commands_whisper_p2_description"
+                    )
+                ],
+                captureRestSegments: true,
+                onExecute: new ExecuteHandler(Whisper)
             )
         ];
     }
@@ -239,6 +258,36 @@ partial class MiaoNetCommand
             return CommandHelpNotFound.Replace("(0)", name);
 
         TipCommandHelp(context, command);
+
+        return null;
+    }
+
+    private static string? Whisper(Context context)
+    {
+        string playerName = context.Segments[0];
+        string content = context.Segments[1];
+
+        string? error = MatchNotSelfPlayer(context, playerName, out OnlinePlayer? player);
+        if (error is not null)
+            return error;
+
+        context.Request(new PacketSendPrivateChatMessage(player!.ID, content), OnResponse);
+
+        void OnResponse(PacketSendPrivateChatMessageResponse response)
+        {
+            switch(response.Result)
+            {
+            case PacketSendPrivateChatMessageResponse.SendResult.Success:
+                context.MiaoNetContext.ChatComponent.OnSentPrivateMessage(player, content);
+                break;
+            case PacketSendPrivateChatMessageResponse.SendResult.NoSuchPlayer:
+                context.TipErrorMessage($"Could not find player {player.Info.Name}");
+                break;
+            case PacketSendPrivateChatMessageResponse.SendResult.Denied:
+                context.TipErrorMessage($"{player.Info.Name} denied your message");
+                break;
+            }
+        }
 
         return null;
     }

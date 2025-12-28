@@ -18,6 +18,7 @@ public sealed partial class MiaoServerService
         register.Register<PacketPlayerStateFlags>(HandlePacketAsync);
         register.Register<PacketUpdateOnlineStatus>(HandlePacketAsync);
         register.Register<PacketTeleportRequest>(HandlePacketAsync);
+        register.Register<PacketSendPrivateChatMessage>(HandlePacketAsync);
     }
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerFrame packet)
@@ -257,15 +258,15 @@ public sealed partial class MiaoServerService
                 if (response.Accepted)
                 {
                     return connection.ResponseAsync(
-                        request, 
-                        new PacketTeleportResponse(PacketTeleportResponse.TeleportFailedReason.None, response.Session)
+                        request,
+                        new(PacketTeleportResponse.TeleportFailedReason.None, response.Session)
                     ).AsTask();
                 }
                 else
                 {
                     return connection.ResponseAsync(
                         request,
-                        new PacketTeleportResponse(PacketTeleportResponse.TeleportFailedReason.OtherDenied, null)
+                        new(PacketTeleportResponse.TeleportFailedReason.OtherDenied, null)
                     ).AsTask();
                 }
             }
@@ -274,7 +275,39 @@ public sealed partial class MiaoServerService
         {
             await connection.ResponseAsync(
                 request,
-                new PacketTeleportResponse(PacketTeleportResponse.TeleportFailedReason.NoSuchPlayer, null)
+                new(PacketTeleportResponse.TeleportFailedReason.NoSuchPlayer, null)
+            );
+        }
+    }
+
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketSendPrivateChatMessage request)
+    {
+        if (ServerState.AllPlayers.TryGetValue(request.TargetPlayerID, out var target))
+        {
+            logger.LogInformation(
+                AppEvents.GameChat,
+                "{player} -> {target}: {msg}",
+                connection.Player.Info,
+                target.Player.Info,
+                request.Content
+             );
+
+            await target.Connection.SendPacketAsync(
+                new PacketChatMessage(ChatMessageType.PrivateMessage, connection.ID, request.Content)
+            );
+            await connection.ResponseAsync(request, new(PacketSendPrivateChatMessageResponse.SendResult.Success));
+        }
+        else
+        {
+            logger.LogInformation(
+                AppEvents.GameChat,
+                "{player} tries to send private message to player(id: {id}) who is not found.",
+                connection.Player.Info,
+                request.TargetPlayerID
+            );
+            await connection.ResponseAsync(
+                request,
+                new(PacketSendPrivateChatMessageResponse.SendResult.NoSuchPlayer)
             );
         }
     }

@@ -2,43 +2,38 @@ using Celeste.Mod.ChatInputBox;
 
 namespace Celeste.Mod.MiaoNet;
 
-public struct MiaoNetChatMessage : IChatMessage
+public static class MiaoNetChatText
 {
-    public string? Sender { get; set; }
+    public static ChatText CreatePublicChat(OnlinePlayer sender, string text)
+        => new ChatText([
+            new(ChatTextStyle.None, Color.Yellow, sender.Info.Name),
+            new(ChatTextStyle.None, Color.White, ": "),
+            new(ChatTextStyle.None, Color.White, text)
+        ]);
 
-    public Color SenderColor { get; set; }
+    public static ChatText CreatePrivateChat(OnlinePlayer sender, string text)
+        => new ChatText([
+            new(ChatTextStyle.None, Color.DarkGray, $"[whisper] {sender.Info.Name}"),
+            new(ChatTextStyle.None, Color.LightGray, ": "),
+            new(ChatTextStyle.None, Color.LightGray, text)
+        ]);
 
-    public string Content { get; set; }
+    public static ChatText CreateSentPrivateChat(OnlinePlayer other, OnlinePlayer self, string text)
+        => new ChatText([
+            new(ChatTextStyle.None, Color.DarkGray, $"[whisper to {other.Info.Name}] {self.Info.Name}"),
+            new(ChatTextStyle.None, Color.LightGray, ": "),
+            new(ChatTextStyle.None, Color.LightGray, text)
+        ]);
 
-    public Color Color { get; set; }
+    public static ChatText CreateAnnouncement(string text)
+        => new ChatText([new(ChatTextStyle.None, Color.Yellow, text)]);
 
-    public MiaoNetChatMessage(OnlinePlayer? sender, string content)
-        : this(sender?.Info.Name, content)
-    {
-    }
+    public static ChatText CreateCommandTip(string text)
+        => new ChatText([new(ChatTextStyle.None, Color.LightGray, text)]);
 
-    public MiaoNetChatMessage(string? sender, string content)
-    {
-        Sender = sender;
-        SenderColor = Color.Yellow;
-        Content = content;
-        Color = Color.White;
-    }
+    public static ChatText CreateCommandEcho(string text)
+        => new ChatText([new(ChatTextStyle.None, Color.DodgerBlue, text)]);
 
-    public MiaoNetChatMessage(string content)
-        : this((string?)null, content)
-    {
-    }
-
-    public void SetIsAnnouncement()
-        => Color = Color.Yellow;
-
-    public void SetIsCommandTip()
-        => Color = Color.LightGray;
-
-    public void SetIsCommandEcho()
-        => Color = Color.DodgerBlue;
-
-    public void SetIsCommandErrorEcho()
-        => Color = Color.IndianRed;
+    public static ChatText CreateCommandErrorEcho(string text)
+        => new ChatText([new(ChatTextStyle.None, Color.IndianRed, text)]);
 }

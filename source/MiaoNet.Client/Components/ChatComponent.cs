@@ -8,7 +8,7 @@ public sealed class ChatComponent : MiaoNetComponent
 {
     private bool active;
     private readonly InputBox inputBox;
-    private readonly ChatMessageListView<MiaoNetChatMessage> chatView;
+    private readonly ChatMessageListView chatView;
     private readonly CommandParser cmdParser;
 
     public ChatComponent(MiaoNetContext context)
@@ -23,12 +23,14 @@ public sealed class ChatComponent : MiaoNetComponent
 
     private void Context_ChatMessageReceived(OnlinePlayer? player, PacketChatMessage packet)
     {
-        bool isAnnouncement = packet.Type == ChatMessageType.Server;
-
-        MiaoNetChatMessage msg = new(player, packet.Content);
-        if (isAnnouncement) msg.SetIsAnnouncement();
-
-        chatView.AddChatMessage(msg);
+        if (packet.Type == ChatMessageType.Chat)
+            chatView.AddChatMessage(MiaoNetChatText.CreatePublicChat(player!, packet.Content));
+        else if (packet.Type == ChatMessageType.Server)
+            chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.Content));
+        else if (packet.Type == ChatMessageType.PrivateMessage)
+            chatView.AddChatMessage(MiaoNetChatText.CreatePrivateChat(player!, packet.Content));
+        else
+            throw new NotImplementedException();
     }
 
     public override void Update()
@@ -73,38 +75,27 @@ public sealed class ChatComponent : MiaoNetComponent
         }
         chatView.Update();
     }
-
+    
     public void SendChat(string text)
         => context.QueuePacket(new PacketSendChatMessage(text));
 
     public void TipMessage(string text)
-    {
-        MiaoNetChatMessage msg = new(text);
-        msg.SetIsCommandTip();
-        chatView.AddChatMessage(msg);
-    }
+        => chatView.AddChatMessage(MiaoNetChatText.CreateCommandTip(text));
 
     public void TipErrorMessage(string text)
-    {
-        MiaoNetChatMessage msg = new(text);
-        msg.SetIsCommandErrorEcho();
-        chatView.AddChatMessage(msg);
-    }
+        => chatView.AddChatMessage(MiaoNetChatText.CreateCommandErrorEcho(text));
 
     public void OnNotifyMessage(string text)
-    {
-        MiaoNetChatMessage msg = new(text);
-        msg.SetIsAnnouncement();
-        chatView.AddChatMessage(msg);
-    }
+        => chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(text));
+
+    public void OnSentPrivateMessage(OnlinePlayer other, string text) 
+        => chatView.AddChatMessage(MiaoNetChatText.CreateSentPrivateChat(other, context.ClientState!.Self, text));
 
     public void HandleCommand(string text)
     {
         var result = cmdParser.Parse(text, out var cmdName, out var cmd, out var args);
 
-        MiaoNetChatMessage chatMsg = new(text);
-        chatMsg.SetIsCommandEcho();
-        chatView.AddChatMessage(chatMsg);
+        chatView.AddChatMessage(MiaoNetChatText.CreateCommandEcho(text));
 
         if (result != CommandParser.ParseResult.Success)
         {

@@ -34,3 +34,6 @@ using MiaoNet.Shared;
 [assembly: PacketRegistry(typeof(PacketTeleportResponse))]
 [assembly: PacketRegistry(typeof(PacketBeTeleportedRequest))]
 [assembly: PacketRegistry(typeof(PacketBeTeleportedResponse))]
+
+[assembly: PacketRegistry(typeof(PacketSendPrivateChatMessage))]
+[assembly: PacketRegistry(typeof(PacketSendPrivateChatMessageResponse))]
