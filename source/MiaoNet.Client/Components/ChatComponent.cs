@@ -6,9 +6,14 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class ChatComponent : MiaoNetComponent
 {
+    // this seems an fna bug...
+    // we need to manually call `MouseState.Get()`
+    private float lastMouseScrollWheelValue;
+
     private bool active;
     private readonly InputBox inputBox;
     private readonly ChatMessageListView chatView;
+    private float targetChatViewScroll;
     private readonly CommandParser cmdParser;
 
     private string lastInput = string.Empty;
@@ -24,6 +29,8 @@ public sealed class ChatComponent : MiaoNetComponent
         chatView = new(r);
         cmdParser = new(MiaoNetCommand.Commands);
         context.ChatMessageReceived += Context_ChatMessageReceived;
+
+        lastMouseScrollWheelValue = Mouse.GetState().ScrollWheelValue;
     }
 
     private void Context_ChatMessageReceived(OnlinePlayer? player, PacketChatMessage packet)
@@ -54,14 +61,13 @@ public sealed class ChatComponent : MiaoNetComponent
         }
         else
         {
-            // TODO custom keys?
             if (MInput.Keyboard.Pressed(Keys.Escape))
             {
                 MInputHack.ConsumeAllInput();
                 Deactive();
                 return;
             }
-            if (MInput.Keyboard.Pressed(Keys.Enter))
+            else if (MInput.Keyboard.Pressed(Keys.Enter))
             {
                 MInputHack.ConsumeAllInput();
                 string text = inputBox.Text;
@@ -77,7 +83,7 @@ public sealed class ChatComponent : MiaoNetComponent
                 Deactive();
                 return;
             }
-            if (MInput.Keyboard.Pressed(Keys.Up))
+            else if (MInput.Keyboard.Pressed(Keys.Up))
             {
                 int i = historyIndex;
                 i -= 1;
@@ -105,6 +111,20 @@ public sealed class ChatComponent : MiaoNetComponent
                         inputBox.SetText(history[i]);
                 }
             }
+
+            float cur = Mouse.GetState().ScrollWheelValue;
+            float delta = cur - lastMouseScrollWheelValue;
+
+            targetChatViewScroll += delta;
+            targetChatViewScroll = chatView.ClampScrollValue(targetChatViewScroll);
+            chatView.Scroll = Calc.Approach(
+                chatView.Scroll,
+                targetChatViewScroll,
+                Math.Max(Math.Abs(targetChatViewScroll - chatView.Scroll), 24f) * 8f * Engine.RawDeltaTime
+            );
+
+            lastMouseScrollWheelValue = cur;
+
             inputBox.Update();
         }
         chatView.Update();
@@ -178,7 +198,7 @@ public sealed class ChatComponent : MiaoNetComponent
         active = true;
         historyIndex = history.Count;
         inputBox.Active();
-        chatView.AlwaysShow = true;
+        chatView.Active = true;
         Engine.Scene.Paused = true;
     }
 
@@ -187,14 +207,16 @@ public sealed class ChatComponent : MiaoNetComponent
         active = false;
         inputBox.Deactive();
         lastInput = string.Empty;
-        chatView.AlwaysShow = false;
+        chatView.Active = false;
+        targetChatViewScroll = 0f;
+        chatView.Scroll = 0f;
         Engine.Scene.Paused = false;
     }
 
     public override void Render()
     {
+        chatView.Render();
         if (active)
             inputBox.Render();
-        chatView.Render();
     }
 }
