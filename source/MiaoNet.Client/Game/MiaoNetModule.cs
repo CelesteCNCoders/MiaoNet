@@ -52,12 +52,7 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.LevelLoader.OnLoadingThread += LevelLoader_OnLoadingThread;
 
         typeof(SpeedrunToolInterop).ModInterop();
-        SpeedrunToolInterop.AddReturnSameObjectProcessor?.Invoke(
-            t =>
-            {
-                Console.WriteLine($"SL Checking type {t}, result: {t.Assembly == typeof(MiaoNetContext).Assembly}");
-                return t.Assembly == typeof(MiaoNetContext).Assembly;
-            });
+        SpeedrunToolInterop.AddReturnSameObjectProcessor?.Invoke(t => t.Assembly == typeof(MiaoNetContext).Assembly);
     }
 
     public override void Unload()
