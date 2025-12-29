@@ -30,15 +30,25 @@ public sealed class GhostNameTag : Entity
     public override void Render()
     {
         base.Render();
-        Vector2 worldPos = Entity.Position;
-        worldPos.Y -= 16f;
-        float alpha = IsOnSelf 
-            ? MiaoNetModule.Settings.SelfNameOpacityValue 
+        Vector2 worldPosition = Entity.Position;
+        worldPosition.Y -= 16f;
+        float alpha = IsOnSelf
+            ? MiaoNetModule.Settings.SelfNameOpacityValue
             : MiaoNetModule.Settings.NameOpacityValue;
+        const float Scale = 1f / 2f;
+        const float Margin = 8f;
+
+        Vector2 position = ScreenClamper.ClampIntoScreen(
+            SceneAs<Level>().WorldToScreen(worldPosition),
+            MiaoNetFont.Measure(Text) * Scale,
+            new Vector2(1f / 2f, 1f),
+            Margin
+        );
+
         MiaoNetFont.DrawOutlineBottomCentered(
             Text,
-            SceneAs<Level>().WorldToScreen(worldPos),
-            Vector2.One / 2f,
+            position,
+            Vector2.One * Scale,
             Color.White * alpha
         );
     }

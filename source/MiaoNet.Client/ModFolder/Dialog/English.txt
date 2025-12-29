@@ -16,6 +16,9 @@ miaonet_options_show_own_name= Show Own Name
 miaonet_options_player_opacity= Player Opacity
 miaonet_options_self_player_name_opacity= Self Name Opacity
 miaonet_options_player_name_opacity= Name Opacity
+miaonet_options_player_list_button_mode= Player List Showing Mode
+miaonet_options_player_list_button_mode_press= Press
+miaonet_options_player_list_button_mode_hold= Hold
 
 miaonet_options_chat= Chat
 miaonet_options_new_messages_display= New Messages Display

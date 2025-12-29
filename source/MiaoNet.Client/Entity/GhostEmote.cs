@@ -76,14 +76,19 @@ public sealed class GhostEmote : Entity
     public override void Render()
     {
         base.Render();
+        const float Margin = 8f;
+
         Vector2 position = target.Position;
         // - name offset - popup offset
         position.Y -= 16f + 6f;
         position = SceneAs<Level>().WorldToScreen(position);
+
         if (emote is not null)
         {
             var texture = emote.Sample(timer);
             float scale = FixedSize / Math.Max(texture.Width, texture.Height);
+            Vector2 size = new Vector2(texture.Width, texture.Height) * popupScale * scale;
+            position = ScreenClamper.ClampIntoScreen(position, size, new Vector2(1f / 2f, 1f), Margin);
             texture.DrawJustified(position, new Vector2(0.5f, 1f), Color.White * popupAlpha, popupScale * scale);
         }
         else
@@ -91,6 +96,7 @@ public sealed class GhostEmote : Entity
             SafeGuard.Assert(text is not null);
             Vector2 size = MiaoNetFont.Measure(text);
             float scale = Math.Min(1f, (FixedSize * 4f) / size.X);
+            position = ScreenClamper.ClampIntoScreen(position, size, new Vector2(1f / 2f, 1f), Margin);
             MiaoNetFont.DrawOutlineBottomCentered(text, position, Vector2.One * popupScale * scale, Color.White * popupAlpha);
         }
     }

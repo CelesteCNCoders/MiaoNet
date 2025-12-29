@@ -2,6 +2,7 @@ using FMOD.Studio;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
+using MonoMod.ModInterop;
 using MonoMod.Utils;
 
 namespace Celeste.Mod.MiaoNet;
@@ -49,6 +50,14 @@ public sealed class MiaoNetModule : EverestModule
         On.Celeste.Overworld.Begin += Overworld_Begin;
         On.Celeste.Player.Added += Player_Added;
         Everest.Events.LevelLoader.OnLoadingThread += LevelLoader_OnLoadingThread;
+
+        typeof(SpeedrunToolInterop).ModInterop();
+        SpeedrunToolInterop.AddReturnSameObjectProcessor?.Invoke(
+            t =>
+            {
+                Console.WriteLine($"SL Checking type {t}, result: {t.Assembly == typeof(MiaoNetContext).Assembly}");
+                return t.Assembly == typeof(MiaoNetContext).Assembly;
+            });
     }
 
     public override void Unload()
@@ -135,7 +144,7 @@ public sealed class MiaoNetModule : EverestModule
 
     private static void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader)
         => PlayerLocationChanged?.Invoke(PlayerLocation.FetchFrom(level.Session), isFromLoader);
-    
+
     private static void LevelLoader_OnLoadingThread(Level level)
     {
         level.Add(new GhostRenderLayerEntity(isHigh: false));

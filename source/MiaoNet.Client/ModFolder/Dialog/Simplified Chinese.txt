@@ -16,6 +16,9 @@ miaonet_options_show_own_name= 显示自己的昵称
 miaonet_options_player_opacity= 玩家透明度
 miaonet_options_self_player_name_opacity= 自身名称透明度
 miaonet_options_player_name_opacity= 名称透明度
+miaonet_options_player_list_button_mode= 玩家列表展示模式
+miaonet_options_player_list_button_mode_press= 按下
+miaonet_options_player_list_button_mode_hold= 按住
 
 miaonet_options_chat= 聊天
 miaonet_options_new_messages_display= 新消息显示

@@ -116,7 +116,13 @@ public static class MenuMiaoNetOptions
             Dialog.Get("miaonet_options_player_name_opacity"), 1, 10, settings.NameOpacity
         ).Change(v => settings.NameOpacity = v);
         menu.Add(item);
-        
+
+        item = new EnumSlider<MiaoNetModuleSettings.ButtonMode>(
+            Dialog.Get("miaonet_options_player_list_button_mode"),
+            e => Dialog.Get($"miaonet_options_player_list_button_mode_{e}"),
+            settings.PlayerListButtonMode
+        ).Change(v => settings.PlayerListButtonMode = v);
+        menu.Add(item);
 
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_chat"));
         menu.Add(item);
@@ -128,5 +134,15 @@ public static class MenuMiaoNetOptions
             .Add(Dialog.Get("miaonet_options_new_messages_display_all"), null!, true);
         menu.Add(item);
         */
+    }
+
+    public class EnumSlider<T> : TextMenu.Option<T> where T : struct, Enum
+    {
+        public EnumSlider(string label, Func<T, string> enumLabelSelector, T startValue = default)
+            : base(label)
+        {
+            foreach (T enumValue in Enum.GetValues(typeof(T)))
+                Add(enumLabelSelector(enumValue), enumValue, enumValue.Equals(startValue));
+        }
     }
 }

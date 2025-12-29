@@ -94,8 +94,19 @@ public sealed class PlayerListComponent : MiaoNetComponent
 
     public override void Update()
     {
-        if (MInput.Keyboard.Pressed(Keys.Tab))
-            Active = !Active;
+        var settings = MiaoNetModule.Settings;
+        if (settings.PlayerListButtonMode == MiaoNetModuleSettings.ButtonMode.Press)
+        {
+            if (settings.PlayerListButton.Pressed)
+            {
+                settings.PlayerListButton.ConsumePress();
+                Active = !Active;
+            }
+        }
+        else
+        {
+            Active = settings.PlayerListButton.Check;
+        }
     }
 
     public override void Render()
