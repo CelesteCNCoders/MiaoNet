@@ -51,8 +51,8 @@ public sealed partial class MiaoServerService
                 var fi = state.FollowerInfos[i];
                 var d = packet.FollowerDeltas[i];
                 state.FollowerInfos[i] = new(
-                    fi.Type, fi.AnimationID,
-                    d.Animation, d.AnimationFrame,
+                    fi.Type, fi.SpriteID,
+                    d.AnimationID, d.AnimationFrame,
                     new(d.XOffset, d.YOffset)
                 );
             }

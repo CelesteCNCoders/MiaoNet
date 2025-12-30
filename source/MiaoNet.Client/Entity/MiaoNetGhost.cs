@@ -205,8 +205,8 @@ public sealed class MiaoNetGhost : Entity
         CleanUpFollowers();
         foreach (var info in followerInfos)
         {
-            GhostFollower gf = new(this, info.Offset, info.Type, info.AnimationID);
-            gf.UpdateSprite(info.Animation, info.AnimationFrame);
+            GhostFollower gf = new(this, info.Offset, info.Type, info.SpriteID);
+            gf.UpdateSprite(info.AnimationID, info.AnimationFrame);
             leader.GainFollower(gf.Follower);
             Scene?.Add(gf);
         }
@@ -218,7 +218,7 @@ public sealed class MiaoNetGhost : Entity
         {
             FollowerInfoDelta delta = deltas[i];
             var gf = leader.Followers[i].EntityAs<GhostFollower>();
-            gf.UpdateSprite(delta.Animation, delta.AnimationFrame);
+            gf.UpdateSprite(delta.AnimationID, delta.AnimationFrame);
             gf.Position = leader.Entity.Position + new Vector2(delta.XOffset, delta.YOffset);
         }
     }

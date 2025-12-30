@@ -5,21 +5,33 @@ namespace Celeste.Mod.MiaoNet;
 [Tracked]
 public sealed class GhostFollower : Entity
 {
+    private readonly bool spriteFallbacked;
     private readonly Sprite sprite;
     private readonly BloomPoint? bloomPoint;
     private readonly VertexLight? vertexLight;
 
     public Follower Follower { get; }
 
-    public GhostFollower(MiaoNetGhost ghost, Vector2 offset, FollowerType type, string animationID)
+    public GhostFollower(MiaoNetGhost ghost, Vector2 offset, FollowerType type, string spriteID)
         : base(ghost.Position + offset)
     {
         Visible = false;
         Tag |= ghost.Tag;
+        Depth = ghost.Depth;
         Add(Follower = new() { MoveTowardsLeader = false });
 
-        Add(sprite = GFX.SpriteBank.Create(animationID));
-        sprite.Active = false;
+        if (GFX.SpriteBank.SpriteData.ContainsKey(spriteID))
+        {
+            sprite = GFX.SpriteBank.Create(spriteID);
+            sprite.Active = false;
+        }
+        else
+        {
+            sprite = GFX.SpriteBank.Create("flutterBird");
+            sprite.Play("idle");
+            spriteFallbacked = true;
+        }
+        Add(sprite);
         Add(new MirrorReflection() { IgnoreEntityVisible = true });
         if (type is FollowerType.Strawberry or FollowerType.StrawberrySeed)
         {
@@ -39,10 +51,13 @@ public sealed class GhostFollower : Entity
         vertexLight?.Alpha = MiaoNetModule.Settings.PlayerOpacityValue;
     }
 
-    public void UpdateSprite(string animation, int animationFrame)
+    public void UpdateSprite(string animationID, int animationFrame)
     {
-        if (sprite.CurrentAnimationID != animation)
-            sprite.Play(animation);
+        // TODO should we tell server?
+        if (spriteFallbacked)
+            return;
+        if (sprite.CurrentAnimationID != animationID)
+            sprite.Play(animationID);
         sprite.SetAnimationFrame(animationFrame);
     }
 }

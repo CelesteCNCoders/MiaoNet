@@ -17,9 +17,9 @@ public readonly struct FollowerInfo : IContextualRefBinarySerializable<FollowerI
 {
     public FollowerType Type { get; }
 
-    public PooledString AnimationID { get; }
+    public PooledString SpriteID { get; }
 
-    public PooledString Animation { get; }
+    public PooledString AnimationID { get; }
 
     public ushort AnimationFrame { get; }
 
@@ -27,14 +27,14 @@ public readonly struct FollowerInfo : IContextualRefBinarySerializable<FollowerI
 
     public FollowerInfo(
         FollowerType type,
-        PooledString animationID,
-        PooledString animation, ushort animationFrame,
+        PooledString spriteID,
+        PooledString animationID, ushort animationFrame,
         Vector2 offset
     )
     {
         Type = type;
+        SpriteID = spriteID;
         AnimationID = animationID;
-        Animation = animation;
         AnimationFrame = animationFrame;
         Offset = offset;
     }
@@ -42,8 +42,8 @@ public readonly struct FollowerInfo : IContextualRefBinarySerializable<FollowerI
     public readonly void Serialize(ref RefBinaryWriter writer, PooledStringManager pooledStringManager)
     {
         writer.Write((byte)Type);
+        writer.Write(SpriteID, pooledStringManager);
         writer.Write(AnimationID, pooledStringManager);
-        writer.Write(Animation, pooledStringManager);
         writer.Write(AnimationFrame);
         writer.Write(Offset);
     }
@@ -62,7 +62,7 @@ public readonly struct FollowerInfo : IContextualRefBinarySerializable<FollowerI
 
 public readonly struct FollowerInfoDelta : IContextualRefBinarySerializable<FollowerInfoDelta, PooledStringManager>
 {
-    public PooledString Animation { get; }
+    public PooledString AnimationID { get; }
 
     public ushort AnimationFrame { get; }
 
@@ -72,7 +72,7 @@ public readonly struct FollowerInfoDelta : IContextualRefBinarySerializable<Foll
 
     public FollowerInfoDelta(string animation, ushort animationFrame, short xOffset, short yOffset)
     {
-        Animation = animation;
+        AnimationID = animation;
         AnimationFrame = animationFrame;
         XOffset = xOffset;
         YOffset = yOffset;
@@ -80,7 +80,7 @@ public readonly struct FollowerInfoDelta : IContextualRefBinarySerializable<Foll
 
     public readonly void Serialize(ref RefBinaryWriter writer, PooledStringManager pooledStringManager)
     {
-        writer.Write(Animation, pooledStringManager);
+        writer.Write(AnimationID, pooledStringManager);
         writer.Write(AnimationFrame);
         writer.Write(XOffset);
         writer.Write(YOffset);
