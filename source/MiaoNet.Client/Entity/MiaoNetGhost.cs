@@ -63,7 +63,7 @@ public sealed class MiaoNetGhost : Entity
         playerSprite = new PlayerSprite(initialState.PlayerSpriteMode);
         playerSprite.Active = false;
         Add(leader = new Leader(new Vector2(0f, -8f)));
-        Add(new MirrorReflection());
+        Add(new MirrorReflection() { IgnoreEntityVisible = true });
 
         playerHair = new PlayerHair(playerSprite);
         Add(playerHair);

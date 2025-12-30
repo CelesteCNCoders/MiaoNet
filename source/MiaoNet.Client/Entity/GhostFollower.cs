@@ -20,7 +20,7 @@ public sealed class GhostFollower : Entity
 
         Add(sprite = GFX.SpriteBank.Create(animationID));
         sprite.Active = false;
-        Add(new MirrorReflection());
+        Add(new MirrorReflection() { IgnoreEntityVisible = true });
         if (type is FollowerType.Strawberry or FollowerType.StrawberrySeed)
         {
             Add(bloomPoint = new BloomPoint(1f, 12f));
