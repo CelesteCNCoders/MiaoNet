@@ -61,6 +61,7 @@ public sealed class ChatComponent : MiaoNetComponent
         }
         else
         {
+            Engine.Commands.Enabled = false;
             if (MInput.Keyboard.Pressed(Keys.Escape))
             {
                 MInputHack.ConsumeAllInput();

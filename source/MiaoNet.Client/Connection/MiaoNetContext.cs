@@ -173,14 +173,14 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         EndRender();
     }
 
-    public static void BeginRender(bool scissorEnabled = false)
+    public static void BeginRender()
     {
         Draw.SpriteBatch.Begin(
             SpriteSortMode.Deferred,
             BlendState.NonPremultiplied,
             SamplerState.LinearClamp,
             DepthStencilState.Default,
-            scissorEnabled ? MiaoNetModule.ScissorEnabledRasterizerState : RasterizerState.CullNone,
+            RasterizerState.CullNone,
             null,
             Engine.ScreenMatrix
         );

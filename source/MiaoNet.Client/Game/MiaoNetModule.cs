@@ -20,8 +20,11 @@ public sealed class MiaoNetModule : EverestModule
 
     public MiaoNetContext MiaoNetContext { get; private set; }
 
+    // TODO need we use scissors to render chats?
+    /*
     public static readonly RasterizerState ScissorEnabledRasterizerState
         = new RasterizerState() { ScissorTestEnable = true };
+    */
 
     // TODO this is ugly
     public static Vector2? NextPlayerSpawnPosition { get; set; }
