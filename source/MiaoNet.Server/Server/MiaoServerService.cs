@@ -256,32 +256,44 @@ public sealed partial class MiaoServerService : BackgroundService
     Restart:
         try
         {
-            List<(Task<TimeSpan>, MiaoClientConnection)> list = new();
+            List<(Task<TimeSpan?>, MiaoClientConnection)> list = new();
             List<Task> taskList = new();
             while (await pingTimer.WaitForNextTickAsync(token))
             {
                 foreach (var (_, (_, connection)) in ServerState.AllPlayers)
-                    list.Add((PingFor(connection), connection));
+                    list.Add((PingFor(connection, options.HeartbeatTimeoutThreshold), connection));
 
                 foreach (var item in list) taskList.Add(item.Item1);
 
-                // TODO Do not always wait all clients
-                Task totalTask = Task.WhenAll(taskList);
-                await totalTask;
+                // TODO should we wait for all clients to response?
+                await Task.WhenAll(taskList);
+                PacketPingData pingData = new(
+                    list.Where(t => t.Item1.Result is not null)
+                        .Select(t => (t.Item2.ID, t.Item1.Result!.Value.Milliseconds)
+                ).ToList());
 
-                PacketPingData pingData = new(list.Select(t => (t.Item2.ID, t.Item1.Result.Milliseconds)).ToList());
                 await BroadcastAsync(pingData);
 
-                async Task<TimeSpan> PingFor(MiaoClientConnection connection)
+                async Task<TimeSpan?> PingFor(MiaoClientConnection connection, int timeout)
                 {
                     await Task.Yield();
 
                     TaskCompletionSource responseTcs = new();
                     var start = stopwatch.Elapsed;
                     await connection.RequestAsync(new PacketPing(), OnResponse);
-                    await responseTcs.Task;
-                    var end = stopwatch.Elapsed;
-                    return end - start;
+
+                    Task timeoutTask = Task.Delay(timeout, CancellationToken.None);
+                    await Task.WhenAny(responseTcs.Task, timeoutTask);
+                    if (responseTcs.Task == responseTcs.Task)
+                    {
+                        var end = stopwatch.Elapsed;
+                        return end - start;
+                    }
+                    else
+                    {
+                        connection.Disconnect(KickedReason.Timeout);
+                        return null;
+                    }
 
                     Task OnResponse(PacketPong pong)
                     {

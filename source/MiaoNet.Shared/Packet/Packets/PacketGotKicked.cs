@@ -4,7 +4,8 @@ public enum KickedReason : byte
 {
     Manually,
     InvalidPacket,
-    InvalidPacketWithState
+    InvalidPacketWithState,
+    Timeout
 }
 
 public sealed class PacketGotKicked : IContextlessPacket<PacketGotKicked>

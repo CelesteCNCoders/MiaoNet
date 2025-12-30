@@ -8,7 +8,7 @@ public sealed class MiaoServerOptions
 
     public int PingPeriod { get; set; } = 4000;
 
-    public int HeartbeatTimeoutThreshold { get; set; } = 24000;
+    public int HeartbeatTimeoutThreshold { get; set; } = 10000;
 
     public required Version ExpectedVersion { get; set; }
 }
