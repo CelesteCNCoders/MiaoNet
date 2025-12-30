@@ -109,10 +109,14 @@ public sealed class MainComponent : MiaoNetComponent
             if (selfNameTag is null)
             {
                 selfNameTag = new(player, ClientState.Self.Info.Name);
-                selfNameTag.Tag |= Tags.Global;
+                selfNameTag.Tag |= Tags.Persistent | 
+                    Tags.TransitionUpdate | 
+                    Tags.FrozenUpdate | 
+                    Tags.PauseUpdate | 
+                    Tags.Global;
                 player.Scene.Add(selfNameTag);
             }
-            if (selfNameTag.Scene != player.Scene)
+            else if (selfNameTag.Scene != player.Scene)
             {
                 selfNameTag.RemoveSelf();
                 player.Scene.Add(selfNameTag);
