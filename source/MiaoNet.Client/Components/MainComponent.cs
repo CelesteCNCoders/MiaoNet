@@ -220,7 +220,8 @@ public sealed class MainComponent : MiaoNetComponent
             };
             Sprite spr = entity.Get<Sprite>();
 
-            string sprID = SpriteIDTracker.LookupID(spr) ?? throw new NullReferenceException();
+            // TODO Strawberry Jam's RefillShard's sprite only contains Path
+            string sprID = SpriteIDTracker.LookupID(spr) ?? string.Empty;
             return new FollowerInfo(
                 type, sprID,
                 spr.CurrentAnimationID, (ushort)spr.CurrentAnimationFrame,
