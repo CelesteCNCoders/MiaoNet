@@ -19,6 +19,7 @@ partial class MiaoNetContext
     public event Action<OnlinePlayer, string>? EmoteTextReceived;
     public event Action<OnlinePlayer, PacketPlayerStateFlags.StateFlags>? PlayerStateFlagsNotification;
     public event Action<OnlinePlayer, PlayerOnlineStatus>? PlayerOnlineStatusChanged;
+    public event Action<OnlinePlayer, Color, float>? PlayerCreatedFireworks;
     public event Action? PingDataReceived;
     public event Action<OnlinePlayer, PlayerPlayedAudio>? PlayerAudioPlayed;
     public event Action<OnlinePlayer, Vector2?>? PlayerGrabPlayer;
@@ -39,6 +40,7 @@ partial class MiaoNetContext
         r.Register<PacketPlayerNotification<PacketUpdateOnlineStatus>>(HandlePacket);
         r.Register<PacketBeTeleportedRequest>(HandlePacket);
         r.Register<PacketPingData>(HandlePacket);
+        r.Register<PacketPlayerNotification<PacketCreateFireworks>>(HandlePacket);
         r.Register<PacketDisconnected>(HandlePacket);
         r.Register<PacketPlayerGrabPlayer>(HandlePacket);
         r.Register<PacketPlayerGrabJumpOut>(HandlePacket);
@@ -224,5 +226,12 @@ partial class MiaoNetContext
     {
         EnsureState();
         PlayerAudioPlayed?.Invoke(ClientState.GetPlayer(packet.PlayerID), packet.Packet.PlayerPlayedAudio);
+    }
+
+    private void HandlePacket(PacketPlayerNotification<PacketCreateFireworks> packet)
+    {
+        EnsureState();
+        var player = ClientState.Players[packet.PlayerID];
+        PlayerCreatedFireworks?.Invoke(player, packet.Packet.Color, packet.Packet.InitialSpeed);
     }
 }

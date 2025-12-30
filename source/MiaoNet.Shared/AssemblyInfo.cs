@@ -49,5 +49,8 @@ using MiaoNet.Shared;
     typeof(PacketContextualPlayerNotification<PacketPlayerPlayedAudio>),
 
     typeof(PacketPlayerGrabPlayer),
-    typeof(PacketPlayerGrabJumpOut)
+    typeof(PacketPlayerGrabJumpOut),
+
+    typeof(PacketCreateFireworks),
+    typeof(PacketPlayerNotification<PacketCreateFireworks>)
 ])]

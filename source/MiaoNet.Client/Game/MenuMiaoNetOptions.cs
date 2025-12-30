@@ -338,8 +338,9 @@ public static class MenuMiaoNetOptions
             Add(new Header(Dialog.Clean("KEY_CONFIG_TITLE")));
             Add(new InputMappingInfo(false));
 
-            AddMapForceLabel("Chat Button", settings.ChatButton.Binding);
-            AddMapForceLabel("Player List Button", settings.PlayerListButton.Binding);
+            AddMapForceLabel("Chat", settings.ChatButton.Binding);
+            AddMapForceLabel("Player List", settings.PlayerListButton.Binding);
+            AddMapForceLabel("Create Fireworks", settings.CreateFireworksButton.Binding);
 
             while (settings.EmoteButtons.Count < settings.EmotesCount)
                 settings.EmoteButtons.Add(new());

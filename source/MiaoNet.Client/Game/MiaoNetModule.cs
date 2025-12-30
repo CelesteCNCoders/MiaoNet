@@ -108,6 +108,7 @@ public sealed class MiaoNetModule : EverestModule
         InitializeButton(Settings.PlayerListButton);
         foreach (var item in Settings.EmoteButtons)
             InitializeButton(item);
+        InitializeButton(Settings.CreateFireworksButton);
     }
 
     public static void InitializeButton(ButtonBinding buttonBinding)

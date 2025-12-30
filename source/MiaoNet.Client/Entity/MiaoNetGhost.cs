@@ -631,6 +631,18 @@ public sealed class MiaoNetGhost : Entity
         instance.release();
     }
 
+    public void OnCreatedFireworks(Color color, float initialSpeed)
+    {
+        // TODO do not early quit when paused
+        if (Scene is not Level level || level.Paused)
+            return;
+
+        if (!level.InsideCamera(Center, 128f))
+            return;
+
+        level.Add(new Fireworks(Position, color, initialSpeed));
+    }
+
     public void GhostRender()
     {
         if (lastHoladableType == HoldableType.Theo)

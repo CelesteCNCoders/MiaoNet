@@ -10,6 +10,9 @@ namespace Celeste.Mod.MiaoNet;
 /// </summary>
 public sealed partial class MainComponent : MiaoNetComponent
 {
+    private const float SendFireworksCooldown = 1f;
+    private float sendFireworksCooldown;
+
     private bool pendingMapChanged;
     private readonly Dictionary<int, MiaoNetGhost> ghosts;
 
@@ -26,6 +29,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         context.PlayerMapChangeResponded += Context_PlayerMapChangeResponded;
         context.PlayerStateFlagsNotification += Context_PlayerStateFlagsNotification;
         context.PlayerOnlineStatusChanged += Context_PlayerOnlineStatusChanged;
+        context.PlayerCreatedFireworks += Context_PlayerCreatedFireworks;
         context.PlayerAudioPlayed += Context_PlayerAudioPlayed;
         context.PlayerGrabPlayer += Context_PlayerGrabPlayer;
         context.PlayerGrabJumpOut += Context_PlayerGrabJumpOut;
@@ -159,6 +163,26 @@ public sealed partial class MainComponent : MiaoNetComponent
             return;
 
         SendPlayerFrame(player, selfState);
+
+        {
+            if (sendFireworksCooldown <= 0f)
+            {
+                var button = MiaoNetModule.Settings.CreateFireworksButton;
+                if (button.Pressed && !level.Paused)
+                {
+                    button.ConsumePress();
+                    float initialSpeed = 288f + Random.Shared.NextFloat(96f) - 32f;
+                    Color color = player.Hair.Color;
+                    level.Add(new Fireworks(player.Position, color, initialSpeed));
+                    context.QueuePacket(new PacketCreateFireworks(color, initialSpeed));
+                    sendFireworksCooldown = SendFireworksCooldown;
+                }
+            }
+            else
+            {
+                sendFireworksCooldown -= Engine.RawDeltaTime;
+            }
+        }
     }
 
     private void SendPlayerFrame(Player player, PlayerState selfState)
@@ -574,6 +598,14 @@ public sealed partial class MainComponent : MiaoNetComponent
             }
         }
     }
+
+    private void Context_PlayerCreatedFireworks(OnlinePlayer player, Color color, float initialSpeed)
+    {
+        if (!ghosts.TryGetValue(player.ID, out var ghost))
+            return;
+        ghost.OnCreatedFireworks(color, initialSpeed);
+    }
+
     #endregion
 
     // should we expose the ghost entity...?

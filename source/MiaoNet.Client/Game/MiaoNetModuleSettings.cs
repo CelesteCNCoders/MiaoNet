@@ -121,6 +121,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public ButtonBinding PlayerListButton { get; set; }
 
+    public ButtonBinding CreateFireworksButton { get; set; }
+
     #endregion
 
     public MiaoNetModuleSettings()
@@ -137,6 +139,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
         for (int i = 0; i < EmotesCount; i++)
             bindings.Add(new(0, i < 8 ? Keys.D1 + i : Keys.None));
         EmoteButtons = bindings;
+        CreateFireworksButton = new(0, Keys.F);
     }
 
     public void ResetEmotes()
