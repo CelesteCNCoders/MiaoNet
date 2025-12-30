@@ -11,20 +11,19 @@ namespace MiaoNet.UnitTest;
 public class CommandParsingTest
 {
     private static CommandParser parser = null!;
-    private static MiaoNetCommand.Segment seg = new(CommandSegmentType.Text, null!, null);
 
     private static MiaoNetCommand cmdSay
-        = new("say", null, null, [seg], true, null!);
+        = new("say", null, [CommandSegmentType.Text], true, null!);
     private static MiaoNetCommand cmdTest
-        = new("test", null, null, [seg, seg], false, null!);
+        = new("test", null, [CommandSegmentType.Text, CommandSegmentType.Text], false, null!);
     private static MiaoNetCommand cmdPing
-        = new("ping", null, null, [], false, null!);
+        = new("ping", null, [], false, null!);
     private static MiaoNetCommand cmdTp
-        = new("tp", null, null, [seg], false, null!);
+        = new("tp", null, [CommandSegmentType.Text], false, null!);
     private static MiaoNetCommand cmdBack
-        = new("back", null, null, [seg], false, null!);
+        = new("back", null, [CommandSegmentType.Text], false, null!);
     private static MiaoNetCommand cmdWhisper
-        = new("whisper", null, ["w", "msg"], [seg, seg], true, null!);
+        = new("whisper", ["w", "msg"], [CommandSegmentType.Text, CommandSegmentType.Text], true, null!);
 
     [ClassInitialize]
     public static void SetUp(TestContext context)

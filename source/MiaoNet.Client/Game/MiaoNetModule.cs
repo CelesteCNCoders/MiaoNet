@@ -76,6 +76,20 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.LevelLoader.OnLoadingThread -= LevelLoader_OnLoadingThread;
     }
 
+    public override void OnInputInitialize()
+    {
+        InitializeButton(Settings.ChatButton);
+        InitializeButton(Settings.PlayerListButton);
+        foreach (var item in Settings.EmoteButtons)
+            InitializeButton(item);
+    }
+
+    public static void InitializeButton(ButtonBinding buttonBinding)
+    {
+        buttonBinding.Button = new VirtualButton(buttonBinding.Binding, Input.Gamepad, 0.08f, 0.2f);
+        buttonBinding.Button.AutoConsumeBuffer = true;
+    }
+
     private static void ILHook_LeaderFollowersMarkDirty(ILContext il)
     {
         // or we can just read Followers._version evilly...
@@ -102,7 +116,7 @@ public sealed class MiaoNetModule : EverestModule
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot)
     {
         MenuMiaoNetOptions.BuildMenu(menu, inGame);
-        CreateModMenuSectionKeyBindings(menu, inGame, snapshot);
+        MenuMiaoNetOptions.AddKeyBindingsSection(menu, inGame);
     }
 
     private static void Engine_Update(ILContext il)

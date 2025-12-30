@@ -25,7 +25,7 @@ public sealed class BakedEmoteData
 
     private ImmutableArray<MTexture> BakeTextures(EmoteData emote)
     {
-        var builder = ImmutableArray.CreateBuilder<MTexture>(emote.Frames.Length);
+        var builder = ImmutableArray.CreateBuilder<MTexture>(emote.Frames.Count);
 
         Atlas atlas = emote.Category switch
         {

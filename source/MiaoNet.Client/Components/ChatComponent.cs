@@ -6,11 +6,26 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class ChatComponent : MiaoNetComponent
 {
+    // from CelesteNet
+    private class PauseUpdateOverlay : Overlay
+    {
+        public override void Update()
+        {
+            base.Update();
+
+            foreach (Entity e in Engine.Scene[Tags.PauseUpdate])
+                if (e.Active && e is not TextMenu)
+                    e.Update();
+        }
+    }
+
     // this seems an fna bug...
     // we need to manually call `MouseState.Get()`
     private float lastMouseScrollWheelValue;
 
     private bool previousCommandsEnabled = false;
+    private bool previousScenePaused = false;
+    private PauseUpdateOverlay? dummyOverlay;
 
     private bool active;
     private readonly InputBox inputBox;
@@ -51,12 +66,15 @@ public sealed class ChatComponent : MiaoNetComponent
     {
         if (!active)
         {
-            if (!Engine.Scene.Paused)
+            var btn = MiaoNetModule.Settings.ChatButton;
+            if (btn.Pressed)
             {
-                var btn = MiaoNetModule.Settings.ChatButton;
-                if (btn.Pressed)
+                btn.ConsumePress();
+                bool doNotOpenChatForNow =
+                    Engine.Scene.Entities.FindFirst<KeyboardConfigUI>() != null ||
+                    Engine.Scene.Entities.FindFirst<ButtonConfigUI>() != null;
+                if (!doNotOpenChatForNow)
                 {
-                    btn.ConsumePress();
                     Active();
                 }
             }
@@ -203,7 +221,11 @@ public sealed class ChatComponent : MiaoNetComponent
         chatView.Active = true;
         previousCommandsEnabled = Engine.Commands.Enabled;
         Engine.Commands.Enabled = false;
+        previousScenePaused = Engine.Scene.Paused;
         Engine.Scene.Paused = true;
+
+        if (Engine.Scene is Level level)
+            level.Overlay = dummyOverlay ??= new PauseUpdateOverlay();
     }
 
     private void Deactive()
@@ -215,7 +237,10 @@ public sealed class ChatComponent : MiaoNetComponent
         targetChatViewScroll = 0f;
         chatView.Scroll = 0f;
         Engine.Commands.Enabled = previousCommandsEnabled;
-        Engine.Scene.Paused = false;
+        Engine.Scene.Paused = previousScenePaused;
+
+        if (Engine.Scene is Level level)
+            level.Overlay = null;
     }
 
     public override void Render()

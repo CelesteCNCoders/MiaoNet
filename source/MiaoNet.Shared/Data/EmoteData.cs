@@ -14,12 +14,12 @@ public readonly struct EmoteData : IRefBinarySerializable<EmoteData>
 
     public string Prefix { get; }
 
-    public string[] Frames { get; }
+    public IReadOnlyList<string> Frames { get; }
 
-    public EmoteData(ushort fps, bool loop, EmoteAtlasCategory category, string prefix, string[] frames)
+    public EmoteData(ushort fps, bool loop, EmoteAtlasCategory category, string prefix, IReadOnlyList<string> frames)
     {
-        Aoore.ThrowIfEqual(frames.Length, 0);
-        Aoore.ThrowIfGreaterThan(frames.Length, byte.MaxValue);
+        Aoore.ThrowIfEqual(frames.Count, 0);
+        Aoore.ThrowIfGreaterThan(frames.Count, byte.MaxValue);
         foreach (var frame in frames)
             Aoore.ThrowIfGreaterThan(frame.Length, byte.MaxValue);
 
@@ -35,13 +35,83 @@ public readonly struct EmoteData : IRefBinarySerializable<EmoteData>
     {
     }
 
+    #region Parsing
+
+    // <category><fps?>:<prefix> <frame1> <frame2> ... <frameN> !
+    public static EmoteData? Parse(string text)
+    {
+        text = text.Trim();
+
+        if (text.Length == 0)
+            return null;
+
+        ArraySegment<string> splited = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        ReadOnlySpan<char> part1 = splited[0].AsSpan();
+        char cateChar = part1[0];
+
+        if (!TryParseCategory(cateChar, out var category))
+            return null;
+
+        int nextColonIndex = part1.Slice(0).IndexOf(':');
+        if (nextColonIndex == -1)
+            return null;
+
+        ushort fps = DefaultFps;
+        ReadOnlySpan<char> fpsCharSpan = part1[1..nextColonIndex];
+        if (!(fpsCharSpan.IsEmpty || ushort.TryParse(fpsCharSpan, out fps)))
+            return null;
+
+        ReadOnlySpan<char> prefix = part1[(nextColonIndex + 1)..];
+
+        ArraySegment<string> frames = splited[1..];
+
+        bool loop = true;
+        if (frames.Count != 0)
+        {
+            if (frames[^1] == "!")
+            {
+                loop = false;
+                frames = frames[..^1];
+            }
+            else
+            {
+                loop = true;
+            }
+        }
+
+        IReadOnlyList<string> frameList = frames.Count == 0 ? [string.Empty] : frames.ToList();
+        return new EmoteData(fps, loop, category, prefix.ToString(), frameList);
+    }
+
+    private static bool TryParseCategory(char c, out EmoteAtlasCategory category)
+    {
+        switch (char.ToLowerInvariant(c))
+        {
+        case 'p':
+            category = EmoteAtlasCategory.Portrait;
+            return true;
+        case 'i':
+            category = EmoteAtlasCategory.Gui;
+            return true;
+        case 'g':
+            category = EmoteAtlasCategory.Gameplay;
+            return true;
+        default:
+            category = default;
+            return false;
+        }
+    }
+
+    #endregion
+
     public void Serialize(ref RefBinaryWriter writer)
     {
         writer.Write(Fps);
         writer.Write(Loop);
         writer.Write((byte)Category);
         writer.Write(Prefix);
-        writer.Write((byte)Frames.Length);
+        writer.Write((byte)Frames.Count);
         foreach (var frame in Frames)
             writer.Write(frame);
     }

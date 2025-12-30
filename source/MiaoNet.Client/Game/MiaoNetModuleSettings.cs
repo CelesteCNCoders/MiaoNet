@@ -5,6 +5,9 @@ namespace Celeste.Mod.MiaoNet;
 
 #pragma warning disable CS8618
 
+// note: menus for this settings are all created and handled manually
+// so all everest attributes will have no effect
+// check MenuMiaoNetOptions for more details
 public sealed class MiaoNetModuleSettings : EverestModuleSettings
 {
     #region Login State
@@ -54,11 +57,19 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     #region Button Bindings
 
-    [DefaultButtonBinding(0, Keys.T)]
     public ButtonBinding ChatButton { get; set; }
 
-    [DefaultButtonBinding(0, Keys.Tab)]
     public ButtonBinding PlayerListButton { get; set; }
+
+    #endregion
+
+    #region
+
+    public int EmotesCount { get; set; } = 8;
+
+    public List<ButtonBinding> EmoteButtons { get; set; }
+
+    public List<string> Emotes { get; set; }
 
     #endregion
 
@@ -66,5 +77,42 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     {
         Press,
         Hold
+    }
+
+    public MiaoNetModuleSettings()
+    {
+        ResetKeyBindings();
+        ResetEmotes();
+    }
+
+    public void ResetKeyBindings()
+    {
+        ChatButton = new(0, Keys.T);
+        PlayerListButton = new(0, Keys.Tab);
+    }
+
+    public void ResetEmotes()
+    {
+        EmotesCount = 8;
+        EmoteButtons = [
+            new(0, Keys.D1),
+            new(0, Keys.D2),
+            new(0, Keys.D3),
+            new(0, Keys.D4),
+            new(0, Keys.D5),
+            new(0, Keys.D6),
+            new(0, Keys.D7),
+            new(0, Keys.D8)
+        ];
+        Emotes = [
+            "i:collectables/heartgem/0/spin",
+            "i:collectables/strawberry",
+            "Hi!",
+            "Too slow!",
+            "p:madeline/normal04",
+            "p:ghost/scoff03",
+            "p:theo/yolo0 3 2 1 2 !",
+            "p:granny/laugh"
+        ];
     }
 }

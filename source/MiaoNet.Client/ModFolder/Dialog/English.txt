@@ -19,6 +19,15 @@ miaonet_options_player_name_opacity= Name Opacity
 miaonet_options_player_list_button_mode= Player List Showing Mode
 miaonet_options_player_list_button_mode_press= Press
 miaonet_options_player_list_button_mode_hold= Hold
+miaonet_options_emotes_count= Emotes Count
+miaonet_options_emotes_counts_tip= 
+	If you want to set content of emotes, open settings file, edit it manually and reload settings.
+	Warning: Do not decrease this value or you will lose your out-ranged emote settings.
+	Only do that when you know what you are doing.
+miaonet_options_open_settings_file= Open Settings File
+miaonet_options_open_settings_file_tip= Open settings file of this mod, if needed, select a text editor for it.
+miaonet_options_reload_emote_settings= Reload Emote Settings
+miaonet_options_key_bindings= Key Bindings
 
 miaonet_options_chat= Chat
 miaonet_options_new_messages_display= New Messages Display

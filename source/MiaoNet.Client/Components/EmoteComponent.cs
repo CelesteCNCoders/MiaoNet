@@ -22,45 +22,22 @@ public sealed class EmoteComponent : MiaoNetComponent
         Player player = level.Tracker.GetEntity<Player>();
         if (player is null)
             return;
-        if (MInput.Keyboard.Pressed(Keys.D1))
+
+        var settings = MiaoNetModule.Settings;
+        var emoteButtons = settings.EmoteButtons;
+        var minCount = Math.Min(emoteButtons.Count, settings.Emotes.Count);
+        for (int i = 0; i < minCount; i++)
         {
-            EmoteData emote = new(loop: true, EmoteAtlasCategory.Gui, "collectables/heartgem/0/spin", [string.Empty]);
-            SendEmote(player, emote);
-        }
-        else if (MInput.Keyboard.Pressed(Keys.D2))
-        {
-            EmoteData emote = new(loop: true, EmoteAtlasCategory.Gui, "collectables/strawberry", [string.Empty]);
-            SendEmote(player, emote);
-        }
-        else if (MInput.Keyboard.Pressed(Keys.D3))
-        {
-            string text = "Hi!";
-            SendEmote(player, text);
-        }
-        else if (MInput.Keyboard.Pressed(Keys.D4))
-        {
-            string text = "Too slow!";
-            SendEmote(player, text);
-        }
-        else if (MInput.Keyboard.Pressed(Keys.D5))
-        {
-            EmoteData emote = new(loop: true, EmoteAtlasCategory.Portrait, "madeline/normal04", [string.Empty]);
-            SendEmote(player, emote);
-        }
-        else if (MInput.Keyboard.Pressed(Keys.D6))
-        {
-            EmoteData emote = new(loop: true, EmoteAtlasCategory.Portrait, "ghost/scoff03", [string.Empty]);
-            SendEmote(player, emote);
-        }
-        else if (MInput.Keyboard.Pressed(Keys.D7))
-        {
-            EmoteData emote = new(loop: false, EmoteAtlasCategory.Portrait, "theo/yolo0", ["3", "2", "1", "2"]);
-            SendEmote(player, emote);
-        }
-        else if (MInput.Keyboard.Pressed(Keys.D8))
-        {
-            EmoteData emote = new(loop: true, EmoteAtlasCategory.Portrait, "granny/laugh", [string.Empty]);
-            SendEmote(player, emote);
+            if (emoteButtons[i].Pressed)
+            {
+                emoteButtons[i].ConsumePress();
+                string content = settings.Emotes[i];
+                EmoteData? data = EmoteData.Parse(content);
+                if (data is EmoteData emoteData)
+                    SendEmote(player, emoteData);
+                else
+                    SendEmote(player, content);
+            }
         }
     }
 
