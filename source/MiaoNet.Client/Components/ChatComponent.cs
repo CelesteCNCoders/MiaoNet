@@ -10,6 +10,8 @@ public sealed class ChatComponent : MiaoNetComponent
     // we need to manually call `MouseState.Get()`
     private float lastMouseScrollWheelValue;
 
+    private bool previousCommandsEnabled = false;
+
     private bool active;
     private readonly InputBox inputBox;
     private readonly ChatMessageListView chatView;
@@ -61,7 +63,6 @@ public sealed class ChatComponent : MiaoNetComponent
         }
         else
         {
-            Engine.Commands.Enabled = false;
             if (MInput.Keyboard.Pressed(Keys.Escape))
             {
                 MInputHack.ConsumeAllInput();
@@ -200,6 +201,8 @@ public sealed class ChatComponent : MiaoNetComponent
         historyIndex = history.Count;
         inputBox.Active();
         chatView.Active = true;
+        previousCommandsEnabled = Engine.Commands.Enabled;
+        Engine.Commands.Enabled = false;
         Engine.Scene.Paused = true;
     }
 
@@ -211,6 +214,7 @@ public sealed class ChatComponent : MiaoNetComponent
         chatView.Active = false;
         targetChatViewScroll = 0f;
         chatView.Scroll = 0f;
+        Engine.Commands.Enabled = previousCommandsEnabled;
         Engine.Scene.Paused = false;
     }
 
