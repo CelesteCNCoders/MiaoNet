@@ -1,11 +1,29 @@
 namespace MiaoNet.Shared;
 
-public sealed class PacketPing : PacketRequest<PacketPong>
+// server to client
+public sealed class PacketPing : PacketRequest<PacketPong>, IContextlessPacket<PacketPing>
 {
-    public override void Serialize(ref RefBinaryWriter writer) { }
+    public override void Serialize(ref RefBinaryWriter writer)
+    {
+        writer.Write(RequestID);
+    }
+
+    public static PacketPing Deserialize(ref RefBinaryReader reader)
+    {
+        return new() { RequestID = reader.ReadInt32() };
+    }
 }
 
-public sealed class PacketPong : PacketResponse
+// client to server
+public sealed class PacketPong : PacketResponse, IContextlessPacket<PacketPong>
 {
-    public override void Serialize(ref RefBinaryWriter writer) { }
+    public override void Serialize(ref RefBinaryWriter writer)
+    {
+        writer.Write(RequestID);
+    }
+
+    public static PacketPong Deserialize(ref RefBinaryReader reader)
+    {
+        return new() { RequestID = reader.ReadInt32() };
+    }
 }

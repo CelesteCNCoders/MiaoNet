@@ -34,6 +34,7 @@ public partial class MiaoNetContext
         r.Register<PacketPlayerNotification<PacketPlayerStateFlags>>(HandlePacket);
         r.Register<PacketPlayerNotification<PacketUpdateOnlineStatus>>(HandlePacket);
         r.Register<PacketBeTeleportedRequest>(HandlePacket);
+        r.Register<PacketPingData>(HandlePacket);
     }
 
     private void HandlePacket(PacketPlayerJoined packet)
@@ -163,6 +164,21 @@ public partial class MiaoNetContext
             Response(request, new PacketBeTeleportedResponse(
                 PlayerSessionData.CreateFrom(level!.Session, player.Position)
             ));
+        }
+    }
+
+    private void HandlePacket(PacketPingData packet)
+    {
+        EnsureState();
+        foreach (var (playerID, ping) in packet.Datas)
+        {
+            if (!ClientState.Players.TryGetValue(playerID, out var player))
+            {
+                if (playerID == ClientState.Self.ID)
+                    ClientState.Self.LastPing = ping;
+                continue;
+            }
+            player.LastPing = ping;
         }
     }
 }

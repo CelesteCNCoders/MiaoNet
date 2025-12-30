@@ -11,4 +11,5 @@ public static class AppEvents
     public static readonly EventId Command = new(14, "Command");
     public static readonly EventId GameState = new(15, "GameState");
     public static readonly EventId GameChat = new(16, "GameChat");
+    public static readonly EventId Server = new(17, "Server");
 }

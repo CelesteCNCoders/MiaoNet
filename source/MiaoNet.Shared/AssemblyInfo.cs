@@ -37,3 +37,7 @@ using MiaoNet.Shared;
 
 [assembly: PacketRegistry(typeof(PacketSendPrivateChatMessage))]
 [assembly: PacketRegistry(typeof(PacketSendPrivateChatMessageResponse))]
+
+[assembly: PacketRegistry(typeof(PacketPing))]
+[assembly: PacketRegistry(typeof(PacketPong))]
+[assembly: PacketRegistry(typeof(PacketPingData))]

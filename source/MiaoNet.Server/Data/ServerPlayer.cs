@@ -20,6 +20,8 @@ public sealed class ServerPlayer
 
     public PlayerOnlineStatus OnlineStatus { get; set; }
 
+    public float LastPing { get; set; }
+
     public int ID => Info.ID;
 
     public ServerPlayer(ServerChannel channel, PlayerInfo info, PlayerLocation location)

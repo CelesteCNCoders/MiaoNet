@@ -25,6 +25,9 @@ public sealed partial class MiaoServerService : BackgroundService
     private readonly IPEndPoint listenIPEndPoint;
     private readonly Socket acceptSocket;
 
+    private readonly PeriodicTimer pingTimer;
+    private readonly Stopwatch stopwatch;
+
     // all state data, for example, player infos, channel infos
     private readonly ServerState serverState;
 
@@ -45,6 +48,8 @@ public sealed partial class MiaoServerService : BackgroundService
         this.logger = logger;
         this.connectionLoggerFactory = connectionLoggerFactory;
         this.options = options.Value;
+        pingTimer = new(TimeSpan.FromMilliseconds(this.options.PingPeriod));
+        stopwatch = Stopwatch.StartNew();
 
         listenIPEndPoint = IPEndPoint.Parse(this.options.ListenIPEndPoint);
         acceptSocket = new(SocketType.Stream, ProtocolType.Tcp);
@@ -55,6 +60,7 @@ public sealed partial class MiaoServerService : BackgroundService
         logger.LogInformation("Start to listen on port {ep}.", listenIPEndPoint);
         acceptSocket.Bind(listenIPEndPoint);
         acceptSocket.Listen();
+        _ = HandleConnectionsHeartbeats(cancellationToken);
         return base.StartAsync(cancellationToken);
     }
 
@@ -68,6 +74,12 @@ public sealed partial class MiaoServerService : BackgroundService
             logger.LogInformation(AppEvents.Connection, "New client try connecting: {ep}", ep);
             _ = HandleConnectionAsync(socket, stoppingToken);
         }
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        pingTimer.Dispose();
     }
 
     private async Task HandleConnectionAsync(Socket socket, CancellationToken token)
@@ -182,7 +194,7 @@ public sealed partial class MiaoServerService : BackgroundService
 
                 var handshakeData = receiveHandshake.Result;
 
-                Version requiredVersion = new Version(0, 1, 5);
+                Version requiredVersion = options.ExpectedVersion;
                 if (handshakeData.Version != requiredVersion)
                 {
                     await SendHandshakeAck(netStream, $"Server requires version {requiredVersion}.", token);
@@ -236,6 +248,62 @@ public sealed partial class MiaoServerService : BackgroundService
             if (socket.Connected)
                 socket.Shutdown(SocketShutdown.Both);
             socket.Close();
+        }
+    }
+
+    private async Task HandleConnectionsHeartbeats(CancellationToken token)
+    {
+    Restart:
+        try
+        {
+            List<(Task<TimeSpan>, MiaoClientConnection)> list = new();
+            List<Task> taskList = new();
+            while (await pingTimer.WaitForNextTickAsync(token))
+            {
+                foreach (var (_, (_, connection)) in ServerState.AllPlayers)
+                    list.Add((PingFor(connection), connection));
+
+                foreach (var item in list) taskList.Add(item.Item1);
+
+                // TODO Do not always wait all clients
+                Task totalTask = Task.WhenAll(taskList);
+                await totalTask;
+
+                PacketPingData pingData = new(list.Select(t => (t.Item2.ID, t.Item1.Result.Milliseconds)).ToList());
+                await BroadcastAsync(pingData);
+
+                async Task<TimeSpan> PingFor(MiaoClientConnection connection)
+                {
+                    await Task.Yield();
+
+                    TaskCompletionSource responseTcs = new();
+                    var start = stopwatch.Elapsed;
+                    await connection.RequestAsync(new PacketPing(), OnResponse);
+                    await responseTcs.Task;
+                    var end = stopwatch.Elapsed;
+                    return end - start;
+
+                    Task OnResponse(PacketPong pong)
+                    {
+                        responseTcs.SetResult();
+                        return Task.CompletedTask;
+                    }
+                }
+
+                list.Clear();
+                taskList.Clear();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation(AppEvents.Server, "Cancelled heatbeats task.");
+        }
+        catch (Exception e)
+        {
+            // wait what
+            logger.LogCritical(AppEvents.Server, e, "Handler of connections heartbeats is down.");
+            // we'd better not to make the server down too...
+            goto Restart;
         }
     }
 

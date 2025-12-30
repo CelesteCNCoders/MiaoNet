@@ -366,6 +366,12 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                 IContextualPacket? packet = await connection.ReceivePacketAsync(context, token);
                 if (packet is null)
                     return;
+                // quickly handle ping packets
+                if (packet is PacketPing ping)
+                {
+                    Response(ping, new PacketPong());
+                    continue;
+                }
 #if PACKET_TRACING
                 if (!packet.GetType().ToString().Contains("Frame"))
                 {

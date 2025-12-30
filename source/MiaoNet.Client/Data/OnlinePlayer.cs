@@ -20,12 +20,15 @@ public sealed class OnlinePlayer : IPlayerListEntry
 
     public PlayerOnlineStatus OnlineStatus { get; set; }
 
+    public int LastPing { get; set; }
+
     public OnlinePlayer(OnlineChannel channel, PlayerInfo info, PlayerOnlineStatus onlineStatus)
     {
         Channel = channel;
         Info = info;
         location = PlayerLocation.Empty;
         OnlineStatus = onlineStatus;
+        LastPing = -1;
     }
 
     public override string ToString()

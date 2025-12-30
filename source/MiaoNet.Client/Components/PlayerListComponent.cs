@@ -1,3 +1,4 @@
+using System.Text;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Input;
 
@@ -113,7 +114,9 @@ public sealed class PlayerListComponent : MiaoNetComponent
     {
         if (!Active)
             return;
-        /*
+
+        // TODO implement this
+        /* ↓ this is expected, not currently implemented...
          * 
          * #<ChannelName> <PlayerCount>/<Max?> Players                                         
          *                                                                                     
@@ -170,6 +173,11 @@ public sealed class PlayerListComponent : MiaoNetComponent
                     width += midTextWidth;
                     width += MiaoNetFont.Measure(player.OnlineStatus.ToString()).X * scale;
                 }
+                if (player.LastPing != -1)
+                {
+                    width += midTextWidth;
+                    width += MiaoNetFont.Measure($"{player.LastPing}ms").X * scale;
+                }
                 width += MiddlePadding;
                 width += midTextWidth;
                 maxLineWidth = Math.Max(maxLineWidth, width);
@@ -211,13 +219,23 @@ public sealed class PlayerListComponent : MiaoNetComponent
             curY += lineHeight;
             foreach (var player in playerList)
             {
-                string text;
-                if (player.OnlineStatus == PlayerOnlineStatus.Normal)
-                    text = $"{player.Info.Name} @ {player.Location}";
-                else
-                    text = $"{player.Info.Name} @ {player.OnlineStatus} @ {player.Location}";
+                StringBuilder sb = new StringBuilder();
+                sb.Append(player.Info.Name);
+                sb.Append(" @ ");
+                if (player.OnlineStatus != PlayerOnlineStatus.Normal)
+                {
+                    sb.Append(player.OnlineStatus);
+                    sb.Append(" @ ");
+                }
+                sb.Append(player.Location);
+                if(player.LastPing != -1)
+                {
+                    sb.Append(" @ ");
+                    sb.Append(player.LastPing);
+                    sb.Append("ms");
+                }
                 MiaoNetFont.Draw(
-                    text,
+                    sb.ToString(),
                     position: new(curX, curY),
                     justify: Vector2.Zero,
                     scale: Vector2.One * scale,
