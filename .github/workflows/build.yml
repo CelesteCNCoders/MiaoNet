@@ -63,14 +63,21 @@ jobs:
         # Override ModAssetsCopyType to 'copy' to avoid symbolic link creation (mklink requires Admin privileges)
         dotnet build -c Release -p:CelesteRootPath=$libPath -p:ModAssetsCopyType=copy
         
-        # Run the packaging script
-        ./publishToZip.ps1
-
+        # Manual packaging logic (replicating publishToZip.ps1 but using the already built artifacts)
+        # We cannot use publishToZip.ps1 because it runs 'dotnet build' again without parameters, causing failure.
+        $mod_name = "MiaoNet"
+        $v_str = Get-Content -Path ModFolder/everest.yaml -Raw
+        $v = [regex]::Match($v_str, "(?<=Version:\s)(.*?)\n").Value.Trim()
+        Compress-Archive ModFolder/* "$mod_name v$v.zip" -Force
+        
     - name: Locate Client Artifact
       id: client_artifact
       run: |
+        # Use relative path for stability and to match what gh-release expects
         $zip = Get-ChildItem "source/MiaoNet.Client/*.zip" | Select-Object -First 1
-        echo "path=$($zip.FullName)" >> $env:GITHUB_OUTPUT
+        # Convert to relative path from workspace root
+        $relativePath = $zip.FullName.Substring($PWD.Path.Length + 1)
+        echo "path=$relativePath" >> $env:GITHUB_OUTPUT
 
     # Release
     - name: Upload Release
