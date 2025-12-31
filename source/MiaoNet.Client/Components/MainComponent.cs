@@ -43,6 +43,7 @@ public sealed class MainComponent : MiaoNetComponent
         foreach (var pair in ghosts)
             pair.Value.RemoveSelf();
         ghosts.Clear();
+        selfNameTag = null;
     }
 
     private void Player_OnDie(Player player)
