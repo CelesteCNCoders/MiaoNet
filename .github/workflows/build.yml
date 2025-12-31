@@ -13,7 +13,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
+      with:
+        submodules: recursive
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
@@ -53,7 +54,10 @@ jobs:
         cd source/MiaoNet.Client
         # Override CelesteRootPath property to point to the root/lib folder
         # Note: ..\..\lib resolves to the lib folder created in root
-        dotnet build -c Release -p:CelesteRootPath=..\..\lib
+        # Use absolute path for CelesteRootPath to avoid relative path confusion in MSBuild
+        $root = (Get-Item ..\..).FullName
+        $libPath = Join-Path $root "lib"
+        dotnet build -c Release -p:CelesteRootPath=$libPath
         
         # Run the packaging script
         ./publishToZip.ps1
