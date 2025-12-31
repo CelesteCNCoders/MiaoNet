@@ -41,11 +41,11 @@ jobs:
         # Create a lib directory if it doesn't exist (User needs to populate this via repo or cache)
         if (!(Test-Path lib)) { New-Item -ItemType Directory -Path lib }
         
-        # Override the CelesteRootPath in the csproj/props to point to ./lib/
-        # This is a temporary fix for CI. Ideally, use a .user file or environment variable.
-        # Since props file has it hardcoded, we might need to rely on the build command override if possible,
-        # but MSBuild properties in files usually override command line unless treated carefully.
-        # We will attempt to build, but this step is expected to fail without user action (up~loading DLLs).
+        # Mock Celeste.exe and Celeste.Mod.mm.dll to bypass CelesteMod.targets checks
+        # The build only needs the DLLs referenced in .csproj (Celeste.dll, FNA.dll, etc.)
+        if (!(Test-Path lib/Celeste.exe)) { New-Item -Path lib/Celeste.exe -ItemType File }
+        if (!(Test-Path lib/Celeste.Mod.mm.dll)) { New-Item -Path lib/Celeste.Mod.mm.dll -ItemType File }
+
         Write-Host "Ensure Celeste.dll, FNA.dll, etc. are in ./lib/"
 
     - name: Build Client
