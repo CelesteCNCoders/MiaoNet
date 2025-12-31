@@ -27,6 +27,13 @@ public sealed class GhostNameTag : Entity
         IsOnSelf = false;
     }
 
+    public override void Update()
+    {
+        base.Update();
+        if (!MiaoNetModule.Instance.MiaoNetContext.HasConnection)
+            RemoveSelf();
+    }
+
     public override void Render()
     {
         base.Render();

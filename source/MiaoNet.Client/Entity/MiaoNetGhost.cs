@@ -60,7 +60,19 @@ public sealed class MiaoNetGhost : Entity
         Name = name;
         GraphicsInfo = playerGraphicsInfo;
         facing = Facings.Right;
-        playerSprite = new PlayerSprite(initialState.PlayerSpriteMode);
+        PlayerSpriteMode spriteMode = initialState.PlayerSpriteMode;
+    CreatePlayerSprite:
+        try
+        {
+            playerSprite = new PlayerSprite(spriteMode);
+        }
+        catch when (!Enum.IsDefined(initialState.PlayerSpriteMode))
+        {
+            // if we're receiving a locally non-exists skin
+            // use madeline fallback
+            spriteMode = PlayerSpriteMode.Madeline;
+            goto CreatePlayerSprite;
+        }
         playerSprite.Active = false;
         Add(leader = new Leader(new Vector2(0f, -8f)));
         Add(new MirrorReflection() { IgnoreEntityVisible = true });

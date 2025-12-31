@@ -3,6 +3,7 @@ using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.Cil;
 using MonoMod.ModInterop;
+using MonoMod.RuntimeDetour;
 using MonoMod.Utils;
 
 namespace Celeste.Mod.MiaoNet;
@@ -17,6 +18,8 @@ public sealed class MiaoNetModule : EverestModule
 
     public override Type SettingsType => typeof(MiaoNetModuleSettings);
     public static MiaoNetModuleSettings Settings => (MiaoNetModuleSettings)Instance._Settings;
+
+    private static readonly DetourConfig RootConfig = new("MiaoNet");
 
     public MiaoNetContext MiaoNetContext { get; private set; }
 
@@ -40,19 +43,22 @@ public sealed class MiaoNetModule : EverestModule
     public override void Load()
     {
         Instance = this;
-        Everest.Events.Level.OnCreatePauseMenuButtons += Level_OnCreatePauseMenuButtons;
-        IL.Monocle.Engine.Update += Engine_Update;
-        IL.Monocle.Engine.RenderCore += Engine_RenderCore;
-        Everest.Events.Level.OnExit += Level_OnExit;
-        Everest.Events.Level.OnLoadLevel += Level_OnLoadLevel;
-        IL.Celeste.Level.Update += Level_Update;
-        SpriteIDTracker.Load();
-        IL.Celeste.Leader.GainFollower += ILHook_LeaderFollowersMarkDirty;
-        IL.Celeste.Leader.LoseFollower += ILHook_LeaderFollowersMarkDirty;
-        IL.Celeste.Leader.LoseFollowers += ILHook_LeaderFollowersMarkDirty;
-        On.Celeste.Overworld.Begin += Overworld_Begin;
-        On.Celeste.Player.Added += Player_Added;
-        Everest.Events.LevelLoader.OnLoadingThread += LevelLoader_OnLoadingThread;
+        using (new DetourConfigContext(RootConfig).Use())
+        {
+            Everest.Events.Level.OnCreatePauseMenuButtons += Level_OnCreatePauseMenuButtons;
+            IL.Monocle.Engine.Update += Engine_Update;
+            IL.Monocle.Engine.RenderCore += Engine_RenderCore;
+            Everest.Events.Level.OnExit += Level_OnExit;
+            Everest.Events.Level.OnLoadLevel += Level_OnLoadLevel;
+            IL.Celeste.Level.Update += Level_Update;
+            SpriteIDTracker.Load();
+            IL.Celeste.Leader.GainFollower += ILHook_LeaderFollowersMarkDirty;
+            IL.Celeste.Leader.LoseFollower += ILHook_LeaderFollowersMarkDirty;
+            IL.Celeste.Leader.LoseFollowers += ILHook_LeaderFollowersMarkDirty;
+            On.Celeste.Overworld.Begin += Overworld_Begin;
+            On.Celeste.Player.Added += Player_Added;
+            Everest.Events.LevelLoader.OnLoadingThread += LevelLoader_OnLoadingThread;
+        }
 
         typeof(SpeedrunToolInterop).ModInterop();
         SpeedrunToolInterop.AddReturnSameObjectProcessor?.Invoke(t => t.Assembly == typeof(MiaoNetContext).Assembly);

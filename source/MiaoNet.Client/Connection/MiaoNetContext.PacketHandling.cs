@@ -57,7 +57,9 @@ public partial class MiaoNetContext
     private void HandlePacket(PacketContextualPlayerNotification<PacketPlayerFrame> packet)
     {
         EnsureState();
-        var player = ClientState.Players[packet.PlayerID];
+        // TODO frame packets sending is not locked server-side
+        if (!ClientState.Players.TryGetValue(packet.PlayerID, out OnlinePlayer? player))
+            return;
         var state = player.State;
         if (state is not null)
         {

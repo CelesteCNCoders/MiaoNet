@@ -434,6 +434,7 @@ public sealed class MainComponent : MiaoNetComponent
     private void HandleLocationChanging(OnlinePlayer other, PlayerGraphicsInfo? graphicsInfo, PlayerState? initialState)
     {
         // TODO check if there're unused ghosts?
+        // TODO do not handle ghost adding/removing here
         if (Engine.Scene is Editor.MapEditor)
             return;
 
