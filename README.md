@@ -2,7 +2,7 @@
 
 CelesteNet 的一个重写, 以应对数以百计的蔚蓝联机玩家.  
 称为 MiaoNet, 在可能与之前基于 CelesteNet 的 Miao.CelesteNet(也可能被称为 MiaoNet) 混淆时可以使用 MiaoNet+ 进行区分.  
-目前该项目仍在早期的开发中(如你所见目前分支名也叫 wip), 预计将在 2025 结束前完成大部分 CelesteNet 所具有的功能.  
+目前该项目仍在早期的开发中(如你所见目前分支名也叫 wip).
 
 喵服论坛([bbs.celemiao.com](https://bbs.celemiao.com)) 中有关该项目的帖子: [新群服进度追踪](https://bbs.celemiao.com/d/347-xin-qun-fu-jin-du-zhui-zong)
 
@@ -41,28 +41,4 @@ CelesteNet 的一个重写, 以应对数以百计的蔚蓝联机玩家.
 
 ## 项目进度
 
-以下内容同步自上面提到的喵服论坛:
-
-> - [x] 基础设施
-> - [x] 基本玩家状态同步
-> - [x] 部分玩家视觉信息同步(非 CelesteNet 那种每帧每一节头发都同步的)
-> - [x] 基础频道相关内容
-> - [x] 玩家列表
-> - [x] 调试地图玩家显示
-> - [x] 杂项玩家状态同步
-> - [ ] 更多玩家头发同步(不是这个 b 头发怎么东西这么多)
-> - [x] 跟随物同步
-> - [x] 抓取物同步
-> - [x] 聊天栏
-> - [x] 基础指令
-> - [x] Emote
->
-> 并没有计划在跨年之前完成的部分:
->
-> - [ ] 玩家交互
-> - [ ] 管理后端
-> - [ ] 全量皮肤同步模式(类似 CelesteNet 的那种每节头发都同步的模式)
-> - [ ] 项目文档
-> - [ ] 地图传递(CelesteNet 中 tp 时不存在地图时的传递地图下载信息)
-> - [ ] Mod 支持
-> - [ ] UDP 传输支持 (因为国内的 UDP 环境很糟糕, 所以推后很合理)
+[见该 Issue](https://github.com/CelesteCNCoders/MiaoNet/issues/2)
