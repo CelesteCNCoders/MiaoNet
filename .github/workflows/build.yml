@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: write
     
     steps:
     - name: Checkout code
@@ -57,7 +59,9 @@ jobs:
         # Use absolute path for CelesteRootPath to avoid relative path confusion in MSBuild
         $root = (Get-Item ..\..).FullName
         $libPath = Join-Path $root "lib"
-        dotnet build -c Release -p:CelesteRootPath=$libPath
+        
+        # Override ModAssetsCopyType to 'copy' to avoid symbolic link creation (mklink requires Admin privileges)
+        dotnet build -c Release -p:CelesteRootPath=$libPath -p:ModAssetsCopyType=copy
         
         # Run the packaging script
         ./publishToZip.ps1
