@@ -103,7 +103,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
         PlayerListButton = new(0, Keys.Tab);
         List<ButtonBinding> bindings = new();
         for (int i = 0; i < EmotesCount; i++)
-            bindings.Add(new(0, i <= 7 ? Keys.D1 + i : Keys.None));
+            bindings.Add(new(0, i < 8 ? Keys.D1 + i : Keys.None));
+        EmoteButtons = bindings;
     }
 
     public void ResetEmotes()
