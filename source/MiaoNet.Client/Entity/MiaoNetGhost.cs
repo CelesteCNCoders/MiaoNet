@@ -309,7 +309,7 @@ public sealed class MiaoNetGhost : Entity
 
     public void UpdateSprite(string animID, ushort animFrame, bool faceLeft, Vector2 scale)
     {
-        if (animID != string.Empty)
+        if (animID != string.Empty && playerSprite.Has(animID))
         {
             playerSprite.Play(animID);
             playerSprite.SetAnimationFrame(animFrame);
