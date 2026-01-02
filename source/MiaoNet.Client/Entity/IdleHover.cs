@@ -29,6 +29,9 @@ public sealed class IdleHover : Entity
     public override void Render()
     {
         base.Render();
+        if (SpeedrunToolFix.IsSceneNull(this))
+            return;
+
         Level level = SceneAs<Level>();
         Vector2 pos = parentEntity.Position;
         // - name offset - popup offset

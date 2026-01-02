@@ -74,11 +74,6 @@ public sealed class MiaoNetGhost : Entity
         ApplyState(initialState);
         UpdateHairCount();
 
-        // update once quickly
-        // playerHair.Render can be called before any its update call
-        playerHair.Update();
-        playerHair.AfterUpdate();
-
         pDashA = new(global::Celeste.Player.P_DashA);
         pDashB = new(global::Celeste.Player.P_DashB);
         pDashColorBaseA = (pDashA.Color, pDashA.Color2);
@@ -109,12 +104,10 @@ public sealed class MiaoNetGhost : Entity
         }
         if (Player.OnlineStatus == PlayerOnlineStatus.Normal)
         {
-            if (Scene.Paused)
-                playerHair.AfterUpdate();
-            else if (dashing && !dead)
+            if (!Scene.Paused && dashing && !dead)
             {
-                // TODO apply graphics info
                 float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
+                // TODO apply graphics info
                 ParticleType type;
                 if (lastDashedDashes <= 1)
                 {
@@ -134,6 +127,10 @@ public sealed class MiaoNetGhost : Entity
                     Position + Calc.Random.Range(Vector2.One * -2f, Vector2.One * 2f),
                     lastDashDirection
                 );
+            }
+            if (Scene.Paused)
+            {
+                playerHair.AfterUpdate();
             }
         }
     }
@@ -300,7 +297,7 @@ public sealed class MiaoNetGhost : Entity
         if (this.starFlying != starFlying)
         {
             if (starFlying)
-                playerSprite.HairCount = GraphicsInfo.FeatherHairInfo.Length;
+                UpdateHairCount(GraphicsInfo.FeatherHairInfo.Length);
             else
                 UpdateHairCount();
             this.starFlying = starFlying;
@@ -387,10 +384,17 @@ public sealed class MiaoNetGhost : Entity
         lastHoladableType = type;
     }
 
+    private void UpdateHairCount(int count)
+    {
+        playerSprite.HairCount = count;
+        playerHair.AfterUpdate();
+    }
+
     private void UpdateHairCount()
     {
-        playerSprite.HairCount = GraphicsInfo.GetHairInfo(dashes).Length;
+        UpdateHairCount(GraphicsInfo.GetHairInfo(dashes).Length);
     }
+
     #endregion
 
     public override void Added(Scene scene)

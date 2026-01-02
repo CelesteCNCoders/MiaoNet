@@ -1,23 +1,25 @@
+using System.Collections.Immutable;
 using System.Diagnostics;
 
 namespace MiaoNet.Shared;
 
+// TODO maybe client don't need concurrent
 [DebuggerDisplay("LocalCount = {LocalCount}, RemoteCount = {RemoteCount}")]
 public sealed class PooledStringManager
 {
     private int nextLocalID;
     // only used to resolve PooledString from remote
-    private readonly Dictionary<int, string> idToString;
+    private ImmutableDictionary<int, string> idToString;
     // only used to pack local strings to PooledString
-    private readonly Dictionary<string, int> stringToID;
+    private ImmutableDictionary<string, int> stringToID;
 
     private int LocalCount => stringToID.Count;
     private int RemoteCount => idToString.Count;
 
     public PooledStringManager(IEnumerable<string> initialStrings)
     {
-        idToString = new(initialStrings.Select((s, i) => new KeyValuePair<int, string>(i + 1, s)));
-        stringToID = new(initialStrings.Select((s, i) => new KeyValuePair<string, int>(s, i + 1)));
+        idToString = (initialStrings.Select((s, i) => new KeyValuePair<int, string>(i + 1, s))).ToImmutableDictionary();
+        stringToID = (initialStrings.Select((s, i) => new KeyValuePair<string, int>(s, i + 1))).ToImmutableDictionary();
         nextLocalID = initialStrings.Count() + 1;
     }
 
@@ -25,8 +27,8 @@ public sealed class PooledStringManager
     {
         if (stringToID.TryGetValue(value, out id))
             return true;
-        int nextID = nextLocalID++;
-        stringToID[value] = nextID;
+        int nextID = Interlocked.Increment(ref nextLocalID);
+        ImmutableInterlocked.Update(ref stringToID, d => stringToID.SetItem(value, nextID));
         id = nextID;
         return false;
     }
@@ -43,7 +45,7 @@ public sealed class PooledStringManager
         {
             if (value is null)
                 throw new InvalidDataException(SR.MissingPooledString);
-            idToString.Add(id, value);
+            ImmutableInterlocked.Update(ref idToString, d => d.Add(id, value));
             return value;
         }
     }

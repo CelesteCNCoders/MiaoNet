@@ -36,7 +36,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     private ClientState? clientState;
 
-    public static bool IsSuitableToOpenUI => 
+    public static bool IsSuitableToOpenUI =>
         Engine.Scene.Tracker.GetEntity<KeyboardConfigUI>() == null &&
         Engine.Scene.Tracker.GetEntity<ButtonConfigUI>() == null;
 
@@ -259,7 +259,11 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         {
             if (string.IsNullOrWhiteSpace(MiaoNetModule.Settings.Name))
             {
-
+                mainThreadQueue.Enqueue(() =>
+                {
+                    StatusComponent.ShowStatusMessage("No name");
+                    OnDisconnected();
+                });
                 return;
             }
 
@@ -352,7 +356,11 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             Task receiveTask = ReceivePacketsLoopAsync(connection, context, token);
             Task sendTask = connection.SendPacketsLoopAsync(context, token);
 
-            await Task.WhenAll(receiveTask, sendTask);
+            await Task.WhenAll(
+                receiveTask.ContinueWith(t => cts!.Cancel(), token), 
+                sendTask.ContinueWith(t => cts!.Cancel(), token)
+            );
+            cts!.Cancel();
         }
 
         async Task ReceivePacketsLoopAsync(
@@ -384,7 +392,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 #if PACKET_TRACING
                 string typeName = packet.GetType().ToString();
                 if (
-                    !typeName.Contains("Frame") 
+                    !typeName.Contains("Frame")
                     && !typeName.Contains("PingData")
                     && !typeName.Contains("UpdateOnlineStatus")
                 )
