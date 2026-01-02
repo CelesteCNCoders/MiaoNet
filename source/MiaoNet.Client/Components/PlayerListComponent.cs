@@ -96,17 +96,34 @@ public sealed class PlayerListComponent : MiaoNetComponent
     public override void Update()
     {
         var settings = MiaoNetModule.Settings;
-        if (settings.PlayerListButtonMode == MiaoNetModuleSettings.ButtonMode.Press)
+        bool wantsTo;
+        if (settings.PlayerListButtonMode == ButtonMode.Press)
         {
             if (settings.PlayerListButton.Pressed)
             {
                 settings.PlayerListButton.ConsumePress();
-                Active = !Active;
+                wantsTo = !Active;
+            }
+            else
+            {
+                wantsTo = Active;
             }
         }
         else
         {
-            Active = settings.PlayerListButton.Check;
+            wantsTo = settings.PlayerListButton.Check;
+        }
+        if (Active != wantsTo)
+        {
+            if (wantsTo)
+            {
+                if (MiaoNetContext.IsSuitableToOpenUI)
+                    Active = true;
+            }
+            else
+            {
+                Active = false;
+            }
         }
     }
 
@@ -228,7 +245,7 @@ public sealed class PlayerListComponent : MiaoNetComponent
                     sb.Append(" @ ");
                 }
                 sb.Append(player.Location);
-                if(player.LastPing != -1)
+                if (player.LastPing != -1)
                 {
                     sb.Append(" @ ");
                     sb.Append(player.LastPing);
