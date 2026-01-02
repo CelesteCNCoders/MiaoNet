@@ -19,6 +19,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     public const int MaxPacketPartSize = 4096;
     public const int PacketChannelSize = 64;
 
+    // TODO timeout of request
     public delegate Task ResponseHandler(PacketResponse response);
     public delegate Task ResponseHandler<in TResponse>(TResponse response) where TResponse : PacketResponse;
     private int nextRequestID;
@@ -86,13 +87,13 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         cts.Cancel();
     }
 
-    public ValueTask SendPacketAsync(IContextualPacket packet)
+    public ValueTask QueuePacketAsync(IContextualPacket packet)
         => sendChannel.Writer.WriteAsync(new SerializedPacket(ArrayPool<byte>.Shared, packet, this, 1));
 
-    public ValueTask SendPacketAsync(SerializedPacket packet)
+    public ValueTask QueuePacketAsync(SerializedPacket packet)
         => sendChannel.Writer.WriteAsync(packet);
 
-    public bool TrySendPacket(SerializedPacket packet)
+    public bool TryQueuePacket(SerializedPacket packet)
         => sendChannel.Writer.TryWrite(packet);
 
     // TODO maybe we can add a UserParam parameter to avoid closure
@@ -102,14 +103,14 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         int id = packet.RequestID = Interlocked.Increment(ref nextRequestID);
         bool success = pendingRequests.TryAdd(id, (packet) => callback((TResponse)packet));
         Debug.Assert(success);
-        return SendPacketAsync(packet);
+        return QueuePacketAsync(packet);
     }
 
     public ValueTask ResponseAsync<TResponse>(PacketRequest<TResponse> request, TResponse response)
         where TResponse : PacketResponse
     {
         response.RequestID = request.RequestID;
-        return SendPacketAsync(response);
+        return QueuePacketAsync(response);
     }
 
     public ResponseHandler? OnResponse(PacketResponse response)

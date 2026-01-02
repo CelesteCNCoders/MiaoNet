@@ -50,6 +50,25 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
             FollowerInfos = reader.ReadArray<FollowerInfo, PooledStringManager>(pooledStringManager)
         };
 
+    public void ApplyFollowersInitials(FollowerInfo[] followerInitials)
+    {
+        FollowerInfos = (FollowerInfo[])followerInitials.Clone();
+    }
+
+    public void ApplyFollowersDeltas(FollowerInfoDelta[] followersDeltas)
+    {
+        for (int i = 0; i < FollowerInfos.Length; i++)
+        {
+            var fi = FollowerInfos[i];
+            var d = followersDeltas[i];
+            FollowerInfos[i] = new(
+                fi.Type, fi.SpriteID,
+                d.AnimationID, d.AnimationFrame,
+                d.Offset
+            );
+        }
+    }
+
     public override string ToString()
         => $"({Position.X}, {Position.Y})";
 }

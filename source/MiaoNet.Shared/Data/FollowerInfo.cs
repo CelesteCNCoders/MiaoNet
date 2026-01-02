@@ -23,13 +23,13 @@ public readonly struct FollowerInfo : IContextualRefBinarySerializable<FollowerI
 
     public ushort AnimationFrame { get; }
 
-    public Vector2 Offset { get; }
+    public Vector2S Offset { get; }
 
     public FollowerInfo(
         FollowerType type,
         PooledString spriteID,
         PooledString animationID, ushort animationFrame,
-        Vector2 offset
+        Vector2S offset
     )
     {
         Type = type;
@@ -55,7 +55,7 @@ public readonly struct FollowerInfo : IContextualRefBinarySerializable<FollowerI
             reader.Read<PooledString, PooledStringManager>(pooledStringManager),
             reader.Read<PooledString, PooledStringManager>(pooledStringManager),
             reader.ReadUInt16(),
-            reader.ReadVector2()
+            reader.Read<Vector2S>()
         );
     }
 }
@@ -66,24 +66,20 @@ public readonly struct FollowerInfoDelta : IContextualRefBinarySerializable<Foll
 
     public ushort AnimationFrame { get; }
 
-    public short XOffset { get; }
+    public Vector2S Offset { get; }
 
-    public short YOffset { get; }
-
-    public FollowerInfoDelta(string animation, ushort animationFrame, short xOffset, short yOffset)
+    public FollowerInfoDelta(string animation, ushort animationFrame, Vector2S offset)
     {
         AnimationID = animation;
         AnimationFrame = animationFrame;
-        XOffset = xOffset;
-        YOffset = yOffset;
+        Offset = offset;
     }
 
     public readonly void Serialize(ref RefBinaryWriter writer, PooledStringManager pooledStringManager)
     {
         writer.Write(AnimationID, pooledStringManager);
         writer.Write(AnimationFrame);
-        writer.Write(XOffset);
-        writer.Write(YOffset);
+        writer.Write(Offset);
     }
 
     public static FollowerInfoDelta Deserialize(ref RefBinaryReader reader, PooledStringManager pooledStringManager)
@@ -91,8 +87,7 @@ public readonly struct FollowerInfoDelta : IContextualRefBinarySerializable<Foll
         return new FollowerInfoDelta(
             animation: reader.Read<PooledString, PooledStringManager>(pooledStringManager),
             animationFrame: reader.ReadUInt16(),
-            xOffset: reader.ReadInt16(),
-            yOffset: reader.ReadInt16()
+            reader.Read<Vector2S>()
         );
     }
 }

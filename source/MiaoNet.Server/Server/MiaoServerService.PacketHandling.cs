@@ -42,21 +42,9 @@ public sealed partial class MiaoServerService
         if (packet.DashesChange)
             state.Dashes = packet.Dashes;
         if (packet.HasFollowerInitials)
-            state.FollowerInfos = (FollowerInfo[])packet.FollowerInitials.Clone();
-
+            state.ApplyFollowersInitials(packet.FollowerInitials);
         else if (packet.HasFollowerDeltas)
-        {
-            for (int i = 0; i < state.FollowerInfos.Length; i++)
-            {
-                var fi = state.FollowerInfos[i];
-                var d = packet.FollowerDeltas[i];
-                state.FollowerInfos[i] = new(
-                    fi.Type, fi.SpriteID,
-                    d.AnimationID, d.AnimationFrame,
-                    new(d.XOffset, d.YOffset)
-                );
-            }
-        }
+            state.ApplyFollowersDeltas(packet.FollowerDeltas);
 
         await BroadcastContextuallyToOthersAsync(
             new PacketContextualPlayerNotification<PacketPlayerFrame>(connection.ID, packet),
@@ -178,7 +166,7 @@ public sealed partial class MiaoServerService
                 c => c.Player.ShouldSyncFrom(player),
                 player.ID
             );
-            responseTask = connection.SendPacketAsync(responsePacket);
+            responseTask = connection.QueuePacketAsync(responsePacket);
         }
         finally
         {
@@ -292,7 +280,7 @@ public sealed partial class MiaoServerService
                 request.Content
              );
 
-            await target.Connection.SendPacketAsync(
+            await target.Connection.QueuePacketAsync(
                 new PacketChatMessage(ChatMessageType.PrivateMessage, connection.ID, request.Content)
             );
             await connection.ResponseAsync(request, new(PacketSendPrivateChatMessageResponse.SendResult.Success));

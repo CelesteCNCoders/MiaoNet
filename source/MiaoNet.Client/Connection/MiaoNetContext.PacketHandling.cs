@@ -63,11 +63,15 @@ public partial class MiaoNetContext
         var state = player.State;
         if (state is not null)
         {
-            var p = packet.Packet;
+            PacketPlayerFrame p = packet.Packet;
             state.Position = p.Position;
             if (p.DashesChange)
                 state.Dashes = p.Dashes;
-            state.Dashing = packet.Packet.Dashing;
+            state.Dashing = p.Dashing;
+            if (p.HasFollowerInitials)
+                state.ApplyFollowersInitials(p.FollowerInitials);
+            else if (p.HasFollowerDeltas)
+                state.ApplyFollowersDeltas(p.FollowerDeltas);
         }
         else
         {

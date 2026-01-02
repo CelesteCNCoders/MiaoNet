@@ -43,6 +43,13 @@ public sealed class MainComponent : MiaoNetComponent
         foreach (var pair in ghosts)
             pair.Value.RemoveSelf();
         ghosts.Clear();
+        // FIXME unremoved ghost
+
+        //if (Engine.Scene is not null)
+        //{
+        //    foreach (var ghost in Engine.Scene.Entities.Where(e => e is MiaoNetGhost))
+        //        ghost.RemoveSelf();
+        //}
         selfNameTag = null;
     }
 
@@ -110,10 +117,10 @@ public sealed class MainComponent : MiaoNetComponent
             if (selfNameTag is null)
             {
                 selfNameTag = new(player, ClientState.Self.Info.Name);
-                selfNameTag.Tag |= Tags.Persistent | 
-                    Tags.TransitionUpdate | 
-                    Tags.FrozenUpdate | 
-                    Tags.PauseUpdate | 
+                selfNameTag.Tag |= Tags.Persistent |
+                    Tags.TransitionUpdate |
+                    Tags.FrozenUpdate |
+                    Tags.PauseUpdate |
                     Tags.Global;
                 player.Scene.Add(selfNameTag);
             }
@@ -226,7 +233,7 @@ public sealed class MainComponent : MiaoNetComponent
             return new FollowerInfo(
                 type, sprID,
                 spr.CurrentAnimationID, (ushort)spr.CurrentAnimationFrame,
-                offset: entity.Position - leaderEntityPosition
+                offset: (Vector2S)(entity.Position - leaderEntityPosition)
             );
         }
     }
@@ -246,7 +253,7 @@ public sealed class MainComponent : MiaoNetComponent
             return new(
                 spr.CurrentAnimationID,
                 (ushort)spr.CurrentAnimationFrame,
-                (short)offset.X, (short)offset.Y
+                (Vector2S)offset
             );
         }
     }
@@ -267,6 +274,7 @@ public sealed class MainComponent : MiaoNetComponent
             PlayerSpriteMode = player.Sprite.Mode,
             FollowerInfos = FetchFollowerInitials(player.Leader)
         };
+        // FIXME server maybe late to ack this
         ClientState.SelfState = initialState;
         PacketPlayerMapChanged p = new(location, initialState);
         context.QueuePacket(p);
@@ -365,7 +373,6 @@ public sealed class MainComponent : MiaoNetComponent
             {
                 ghost.UpdateNoHoldable();
             }
-            // TODO hmm... pass a PooledStringManager is weird
             if (packet.HasFollowerInitials)
                 ghost.OnFollowerInitials(packet.FollowerInitials);
             else if (packet.HasFollowerDeltas)

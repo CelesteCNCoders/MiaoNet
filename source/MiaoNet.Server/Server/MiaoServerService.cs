@@ -135,7 +135,7 @@ public sealed partial class MiaoServerService : BackgroundService
                     playerInfos.ToList()
                 );
                 //Thread.Sleep(Random.Shared.Next(1000, 5000));
-                sendStateTask = newConnection.SendPacketAsync(packetClientInitial);
+                sendStateTask = newConnection.QueuePacketAsync(packetClientInitial);
 
                 ServerState.StateLock.EnterWriteLock();
                 try
@@ -435,8 +435,8 @@ public sealed partial class MiaoServerService : BackgroundService
         {
             if (predicate(connection))
             {
-                if (!connection.TrySendPacket(serializedPacket))
-                    (bounded ??= new()).Add(connection.SendPacketAsync(serializedPacket).AsTask());
+                if (!connection.TryQueuePacket(serializedPacket))
+                    (bounded ??= new()).Add(connection.QueuePacketAsync(serializedPacket).AsTask());
             }
             else
             {
@@ -459,8 +459,8 @@ public sealed partial class MiaoServerService : BackgroundService
         foreach (var connection in connections.Where(c => predicate(c)))
         {
             var serializedPacket = new SerializedPacket(ArrayPool<byte>.Shared, packet, connection);
-            if (!connection.TrySendPacket(serializedPacket))
-                (bounded ??= new()).Add(connection.SendPacketAsync(serializedPacket).AsTask());
+            if (!connection.TryQueuePacket(serializedPacket))
+                (bounded ??= new()).Add(connection.QueuePacketAsync(serializedPacket).AsTask());
         }
 
         if (bounded is not null)
@@ -478,9 +478,10 @@ public sealed partial class MiaoServerService : BackgroundService
             if (handler is null)
             {
                 logger.LogWarning(
-                    "Unknown received response of id {rid} for player {p}.",
+                    "Unknown received response of id {rid} for player {p}. Type is {type}",
                     res.RequestID,
-                    connection.Player.Info
+                    connection.Player.Info,
+                    packet.GetType()
                 );
                 return;
             }

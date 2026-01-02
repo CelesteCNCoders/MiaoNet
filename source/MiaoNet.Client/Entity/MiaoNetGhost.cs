@@ -60,20 +60,7 @@ public sealed class MiaoNetGhost : Entity
         Name = name;
         GraphicsInfo = playerGraphicsInfo;
         facing = Facings.Right;
-        PlayerSpriteMode spriteMode = initialState.PlayerSpriteMode;
-    CreatePlayerSprite:
-        try
-        {
-            playerSprite = new PlayerSprite(spriteMode);
-        }
-        catch when (!Enum.IsDefined(initialState.PlayerSpriteMode))
-        {
-            // if we're receiving a locally non-exists skin
-            // use madeline fallback
-            spriteMode = PlayerSpriteMode.Madeline;
-            goto CreatePlayerSprite;
-        }
-        playerSprite.Active = false;
+        playerSprite = SafeCreatePlayerSprite(initialState.PlayerSpriteMode);
         Add(leader = new Leader(new Vector2(0f, -8f)));
         Add(new MirrorReflection() { IgnoreEntityVisible = true });
 
@@ -159,7 +146,7 @@ public sealed class MiaoNetGhost : Entity
             var pAnim = playerSprite.CurrentAnimationID;
             var pFrame = playerSprite.CurrentAnimationFrame;
             playerSprite.RemoveSelf();
-            playerSprite = new(state.PlayerSpriteMode);
+            playerSprite = SafeCreatePlayerSprite(state.PlayerSpriteMode);
             if (playerSprite.Has(pAnim))
             {
                 playerSprite.Play(pAnim);
@@ -174,6 +161,26 @@ public sealed class MiaoNetGhost : Entity
         lastDashedDashes = dashes;
         Position = state.Position;
         OnFollowerInitials(state.FollowerInfos);
+    }
+
+    private static PlayerSprite SafeCreatePlayerSprite(PlayerSpriteMode spriteMode)
+    {
+        PlayerSprite playerSprite;
+    CreatePlayerSprite:
+        try
+        {
+            // CelesteNet do this, same for us for compatibility
+            playerSprite = new PlayerSprite(spriteMode | (PlayerSpriteMode)(1 << 31));
+        }
+        catch when (!Enum.IsDefined(spriteMode))
+        {
+            // if we're receiving a locally non-exists skin
+            // use madeline as fallback
+            spriteMode = PlayerSpriteMode.Madeline;
+            goto CreatePlayerSprite;
+        }
+        playerSprite.Active = false;
+        return playerSprite;
     }
 
     // TODO these tons of UpdateXXX method could be more maintainerable?
@@ -231,7 +238,7 @@ public sealed class MiaoNetGhost : Entity
             FollowerInfoDelta delta = deltas[i];
             var gf = leader.Followers[i].EntityAs<GhostFollower>();
             gf.UpdateSprite(delta.AnimationID, delta.AnimationFrame);
-            gf.Position = leader.Entity.Position + new Vector2(delta.XOffset, delta.YOffset);
+            gf.Position = leader.Entity.Position + delta.Offset;
         }
     }
 

@@ -20,6 +20,7 @@ public sealed class MiaoNetModule : EverestModule
     public static MiaoNetModuleSettings Settings => (MiaoNetModuleSettings)Instance._Settings;
 
     private static readonly DetourConfig RootConfig = new("MiaoNet");
+    private static readonly DetourConfig RootBeforeAllConfig = new("MiaoNet.BeforeAll", before: ["*"]);
 
     public MiaoNetContext MiaoNetContext { get; private set; }
 
@@ -59,6 +60,10 @@ public sealed class MiaoNetModule : EverestModule
             On.Celeste.Player.Added += Player_Added;
             Everest.Events.LevelLoader.OnLoadingThread += LevelLoader_OnLoadingThread;
         }
+        using (new DetourConfigContext(RootBeforeAllConfig).Use())
+        {
+            On.Celeste.PlayerSprite.ctor += PlayerSprite_ctor;
+        }
 
         typeof(SpeedrunToolInterop).ModInterop();
         SpeedrunToolInterop.AddReturnSameObjectProcessor?.Invoke(t => t.Assembly == typeof(MiaoNetContext).Assembly);
@@ -80,6 +85,8 @@ public sealed class MiaoNetModule : EverestModule
         On.Celeste.Overworld.Begin -= Overworld_Begin;
         On.Celeste.Player.Added -= Player_Added;
         Everest.Events.LevelLoader.OnLoadingThread -= LevelLoader_OnLoadingThread;
+
+        On.Celeste.PlayerSprite.ctor -= PlayerSprite_ctor;
     }
 
     public override void OnInputInitialize()
@@ -107,6 +114,12 @@ public sealed class MiaoNetModule : EverestModule
                 return;
             DynamicData.For(leader).Set(LeaderFollowersDirtyField, true);
         });
+    }
+
+    private static void PlayerSprite_ctor(On.Celeste.PlayerSprite.orig_ctor orig, PlayerSprite self, PlayerSpriteMode mode)
+    {
+        // CelesteNet do this, same for us for compatibility
+        orig(self, mode & (PlayerSpriteMode)~(1 << 31));
     }
 
     private static void Player_Added(On.Celeste.Player.orig_Added orig, Player self, Scene scene)
