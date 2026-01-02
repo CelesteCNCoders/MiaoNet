@@ -235,19 +235,20 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     private void ConnectionThread(object? param)
     {
-        var token = (CancellationToken)param!;
+        var connectionToken = (CancellationToken)param!;
 
-        if (token.IsCancellationRequested)
+        if (connectionToken.IsCancellationRequested)
             return;
 
         SingleThreadedSynchronizationContext syncCtx = new();
         SynchronizationContext.SetSynchronizationContext(syncCtx);
 
-        StartConnectionAsync(this, token).ContinueWith(HandleStartConnectionTaskCompleted);
+        CancellationTokenSource threadCts = new();
+        StartConnectionAsync(this, connectionToken).ContinueWith(t => HandleStartConnectionTaskCompleted(t, threadCts));
 
         try
         {
-            syncCtx.ProcessLoop(token);
+            syncCtx.ProcessLoop(threadCts.Token);
         }
         catch (OperationCanceledException)
         {
@@ -353,14 +354,14 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                 return;
             }
 
-            Task receiveTask = ReceivePacketsLoopAsync(connection, context, token);
-            Task sendTask = connection.SendPacketsLoopAsync(context, token);
+            CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            Task receiveTask = ReceivePacketsLoopAsync(connection, context, cts.Token);
+            Task sendTask = connection.SendPacketsLoopAsync(context, cts.Token);
 
-            await Task.WhenAll(
-                receiveTask.ContinueWith(t => cts!.Cancel(), token), 
-                sendTask.ContinueWith(t => cts!.Cancel(), token)
-            );
-            cts!.Cancel();
+            Task task = await Task.WhenAny(receiveTask, sendTask);
+            if (task.IsFaulted)
+                await task;
+            cts.Cancel();
         }
 
         async Task ReceivePacketsLoopAsync(
@@ -409,8 +410,9 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             }
         }
 
-        void HandleStartConnectionTaskCompleted(Task t)
+        void HandleStartConnectionTaskCompleted(Task t, CancellationTokenSource threadCts)
         {
+            threadCts.Cancel();
             if (!t.IsFaulted)
                 return;
 
