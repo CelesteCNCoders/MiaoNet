@@ -13,9 +13,13 @@ public sealed class ChatComponent : MiaoNetComponent
         {
             base.Update();
 
+            Level level = SceneAs<Level>();
+
             foreach (Entity e in Engine.Scene[Tags.PauseUpdate])
                 if (e.Active && e is not TextMenu)
                     e.Update();
+
+            level.HudRenderer.BackgroundFade = Calc.Approach(level.HudRenderer.BackgroundFade, level.Paused ? 1f : 0f, 8f * Engine.RawDeltaTime);
         }
     }
 
@@ -70,17 +74,14 @@ public sealed class ChatComponent : MiaoNetComponent
             if (btn.Pressed)
             {
                 btn.ConsumePress();
-                bool doNotOpenChatForNow =
-                    Engine.Scene.Entities.FindFirst<KeyboardConfigUI>() != null ||
-                    Engine.Scene.Entities.FindFirst<ButtonConfigUI>() != null;
-                if (!doNotOpenChatForNow)
-                {
+                if (MiaoNetContext.IsSuitableToOpenUI)
                     Active();
-                }
             }
         }
         else
         {
+            Engine.Scene.Paused = true;
+
             if (MInput.Keyboard.Pressed(Keys.Escape))
             {
                 MInputHack.ConsumeAllInput();
@@ -225,7 +226,7 @@ public sealed class ChatComponent : MiaoNetComponent
         Engine.Scene.Paused = true;
 
         if (Engine.Scene is Level level)
-            level.Overlay = dummyOverlay ??= new PauseUpdateOverlay();
+            level.Add(dummyOverlay ??= new PauseUpdateOverlay());
     }
 
     private void Deactive()
@@ -240,7 +241,7 @@ public sealed class ChatComponent : MiaoNetComponent
         Engine.Scene.Paused = previousScenePaused;
 
         if (Engine.Scene is Level level)
-            level.Overlay = null;
+            level.Remove(dummyOverlay);
     }
 
     public override void Render()

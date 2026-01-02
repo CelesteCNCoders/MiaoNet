@@ -53,7 +53,7 @@ public sealed class BakedEmoteData
             }
             else
             {
-                builder.Add(atlas.DefaultFallback);
+                builder.Add(GFX.Game.GetFallback());
                 Logger.Warn($"{nameof(MiaoNet)}/{nameof(EmoteData)}", $"Could not find frame {fullFrameName}.");
                 break;
             }

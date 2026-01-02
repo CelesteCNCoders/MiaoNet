@@ -19,14 +19,24 @@ miaonet_options_player_name_opacity= Name Opacity
 miaonet_options_player_list_button_mode= Player List Showing Mode
 miaonet_options_player_list_button_mode_press= Press
 miaonet_options_player_list_button_mode_hold= Hold
+
+miaonet_options_interactions= Interactions
 miaonet_options_emotes_count= Emotes Count
 miaonet_options_emotes_counts_tip= 
-	If you want to set content of emotes, open settings file, edit it manually and reload settings.
-	Warning: Do not decrease this value or you will lose your out-ranged emote settings.
+	If you want to set content of emotes,
+	open settings file, edit it 
+	manually and reload settings.
+	Warning: Do not decrease this value or
+	you will lose your out-ranged emote settings.
 	Only do that when you know what you are doing.
 miaonet_options_open_settings_file= Open Settings File
-miaonet_options_open_settings_file_tip= Open settings file of this mod, if needed, select a text editor for it.
+miaonet_options_open_settings_file_tip= 
+	Open the settings file of this mod.
+	Select a text editor for it if needed.
 miaonet_options_reload_emote_settings= Reload Emote Settings
+miaonet_options_teleport_behaviour= Teleport Command Behaviour
+miaonet_options_teleport_behaviour_nosession= Map and room only
+miaonet_options_teleport_behaviour_withsession= Request other's session
 miaonet_options_key_bindings= Key Bindings
 
 miaonet_options_chat= Chat
@@ -79,11 +89,21 @@ miaonet_commands_teleport_no_session_s0_description= The player that teleported 
 miaonet_commands_teleport_with_session_description= Teleport to a player and fetch their session.
 miaonet_commands_teleport_with_session_s0_name= Player
 miaonet_commands_teleport_with_session_s0_description= The player that teleported to.
-miaonet_commands_whisper_description= Whipser a message to a player
+miaonet_commands_whisper_description= Whipser a message to a player.
 miaonet_commands_whisper_s0_name= Player
 miaonet_commands_whisper_s0_description= The player that will be whispered to.
 miaonet_commands_whisper_s1_name= Text
 miaonet_commands_whisper_s1_description= The whisper message to send.
+miaonet_commands_teleport_description= Teleport to a player.
+miaonet_commands_teleport_s0_name= Player
+miaonet_commands_teleport_s0_description= The player that teleported to.
+
+miaonet_commands_teleport_tip= Teleporting to (0)...
+miaonet_commands_teleport_failed_tip= Teleport failed, (0).
+miaonet_commands_teleport_failed_nosuchplayer= no such player
+miaonet_commands_teleport_failed_otherdenied= the other denied
+miaonet_commands_teleport_success= Teleported to (0).
+miaonet_commands_teleport_success_nosession= Teleported to (0)'s location.
 
 miaonet_chat_whisper_sent= \[whisper to (0)\] (1)
 miaonet_chat_whisper_received= \[whisper\] (0)

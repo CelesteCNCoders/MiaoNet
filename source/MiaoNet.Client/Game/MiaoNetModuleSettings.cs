@@ -5,6 +5,18 @@ namespace Celeste.Mod.MiaoNet;
 
 #pragma warning disable CS8618
 
+public enum ButtonMode
+{
+    Press,
+    Hold
+}
+
+public enum TeleportBehaviour
+{
+    NoSession,
+    WithSession
+}
+
 // note: menus for this settings are all created and handled manually
 // so all everest attributes will have no effect
 // check MenuMiaoNetOptions for more details
@@ -51,7 +63,13 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     [YamlIgnore] public float NameOpacityValue => NameOpacity / 10f;
 
+    #endregion
+
+    #region Interactions
+
     public ButtonMode PlayerListButtonMode { get; set; }
+
+    public TeleportBehaviour TeleportBehaviour { get; set; }
 
     #endregion
 
@@ -73,12 +91,6 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     #endregion
 
-    public enum ButtonMode
-    {
-        Press,
-        Hold
-    }
-
     public MiaoNetModuleSettings()
     {
         ResetKeyBindings();
@@ -89,21 +101,14 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     {
         ChatButton = new(0, Keys.T);
         PlayerListButton = new(0, Keys.Tab);
+        List<ButtonBinding> bindings = new();
+        for (int i = 0; i < EmotesCount; i++)
+            bindings.Add(new(0, i <= 7 ? Keys.D1 + i : Keys.None));
     }
 
     public void ResetEmotes()
     {
         EmotesCount = 8;
-        EmoteButtons = [
-            new(0, Keys.D1),
-            new(0, Keys.D2),
-            new(0, Keys.D3),
-            new(0, Keys.D4),
-            new(0, Keys.D5),
-            new(0, Keys.D6),
-            new(0, Keys.D7),
-            new(0, Keys.D8)
-        ];
         Emotes = [
             "i:collectables/heartgem/0/spin",
             "i:collectables/strawberry",

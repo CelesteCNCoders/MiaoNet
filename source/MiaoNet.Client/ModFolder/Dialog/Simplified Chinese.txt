@@ -19,14 +19,22 @@ miaonet_options_player_name_opacity= 名称透明度
 miaonet_options_player_list_button_mode= 玩家列表展示模式
 miaonet_options_player_list_button_mode_press= 按下
 miaonet_options_player_list_button_mode_hold= 按住
+
+miaonet_options_interactions= 交互
 miaonet_options_emotes_count= Emote 数量
 miaonet_options_emotes_counts_tip= 
-	如果要设置具体 Emote 的内容，你需要手动打开设置文件然后编辑并重载设置
+	如果要设置具体 Emote 的内容，
+	你需要手动打开设置文件然后编辑并重载设置
 	警告：减少该值会使你失去超出范围的 Emote 设置
 	仅在你知道你在做什么时减少该值
 miaonet_options_open_settings_file= 打开设置文件
-miaonet_options_open_settings_file_tip= 使用默认打开方式打开本 Mod 的设置文件，如果有需要请选择文本编辑器作为打开方式
+miaonet_options_open_settings_file_tip= 
+	使用默认打开方式打开本 Mod 的设置文件，
+	有需要时请选择文本编辑器作为打开方式
 miaonet_options_reload_emote_settings= 重载 Emote 设置
+miaonet_options_teleport_behaviour= Teleport 指令行为
+miaonet_options_teleport_behaviour_nosession= 仅地图和房间
+miaonet_options_teleport_behaviour_withsession= 请求部分存档信息
 miaonet_options_key_bindings= 按键设置
 
 miaonet_options_chat= 聊天
@@ -78,12 +86,22 @@ miaonet_commands_teleport_no_session_s0_name= 玩家名称
 miaonet_commands_teleport_no_session_s0_description= 要传送到的玩家。
 miaonet_commands_teleport_with_session_description= 携带存档信息地传送到另一个玩家。
 miaonet_commands_teleport_with_session_s0_name= 玩家名称
-miaonet_commands_teleport_with_session_s0_description= 要传送到的玩家
-miaonet_commands_whisper_description= 发送一条私聊信息
+miaonet_commands_teleport_with_session_s0_description= 要传送到的玩家。
+miaonet_commands_whisper_description= 发送一条私聊信息。
 miaonet_commands_whisper_s0_name= 玩家名称
-miaonet_commands_whisper_s0_description= 接受私聊的玩家。
+miaonet_commands_whisper_s0_description= 私聊的玩家。
 miaonet_commands_whisper_s1_name= 文本
 miaonet_commands_whisper_s1_description= 私聊内容。
+miaonet_commands_teleport_description= 传送到另一个玩家。
+miaonet_commands_teleport_s0_name= 玩家名称
+miaonet_commands_teleport_s0_description= 要传送到的玩家。
+
+miaonet_commands_teleport_tip= 正在传送到 (0)...
+miaonet_commands_teleport_failed_tip= 传送失败，(0)。
+miaonet_commands_teleport_failed_nosuchplayer= 对方玩家不存在
+miaonet_commands_teleport_failed_otherdenied= 对方拒绝了传送
+miaonet_commands_teleport_success= 已传送到 (0)。
+miaonet_commands_teleport_success_nosession= 已传送到 (0) 的所在位置。
 
 miaonet_chat_whisper_sent= \[私聊 (0)\] (1)
 miaonet_chat_whisper_received= \[私聊\] (0)

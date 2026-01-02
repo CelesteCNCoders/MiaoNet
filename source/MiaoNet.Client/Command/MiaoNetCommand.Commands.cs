@@ -59,6 +59,13 @@ partial class MiaoNetCommand
                 segments: [CommandSegmentType.Player, CommandSegmentType.Text],
                 captureRestSegments: true,
                 onExecute: new ExecuteHandler(Whisper)
+            ),
+            new MiaoNetCommand(
+                name: "teleport",
+                aliases: ["tp"],
+                segments: [CommandSegmentType.Player],
+                captureRestSegments: false,
+                onExecute: new ExecuteHandler(Teleport)
             )
         ];
     }
@@ -79,7 +86,14 @@ partial class MiaoNetCommand
 
     private static string? Emote(Context context)
     {
-        bool success = context.MiaoNetContext.EmoteComponent.SendEmote(context.Segments[0]);
+        string text = context.Segments[0];
+        EmoteData? data = EmoteData.Parse(text);
+        var c = context.MiaoNetContext.EmoteComponent;
+        bool success;
+        if (data is not null)
+            success = c.SendEmote(data.Value);
+        else
+            success = c.SendEmote(text);
         if (!success)
             return NeedInMap;
         return null;
@@ -102,19 +116,22 @@ partial class MiaoNetCommand
         if (Engine.Scene is Level level)
         {
             // TODO tell player that this action will lose their current progress
-            level.DoScreenWipe(false, () => Goto(areaKey, loc.MapRoom));
+            level.DoScreenWipe(false, () => GotoAndTip(areaKey, loc.MapRoom, context, player.Info.Name));
         }
         else
         {
-            Goto(areaKey, loc.MapRoom);
+            GotoAndTip(areaKey, loc.MapRoom, context, player.Info.Name);
         }
-        static void Goto(AreaKey areaKey, string mapRoom)
+
+        static void GotoAndTip(AreaKey areaKey, string mapRoom, Context context, string playerName)
         {
             SaveData.InitializeDebugMode();
             SaveData.Instance.LastArea_Safe = areaKey;
             Session session = new Session(areaKey);
             session.Level = mapRoom;
             Engine.Scene = new LevelLoader(session) { PlayerIntroTypeOverride = Player.IntroTypes.Respawn };
+
+            context.TipMessage(Dialog.Get("miaonet_commands_teleport_success_nosession").Replace("(0)", playerName));
         }
         return null;
     }
@@ -134,7 +151,7 @@ partial class MiaoNetCommand
         PlayerLocation loc = player!.Location;
         AreaKey areaKey = new(area!.ID, loc.MapSide);
 
-        context.TipMessage($"Teleporting to {player.Info.Name}...");
+        context.TipMessage(Dialog.Get("miaonet_commands_teleport_tip").Replace("(0)", player.Info.Name));
 
         context.Request(new PacketTeleportRequest(player.ID), OnResponse);
 
@@ -142,7 +159,10 @@ partial class MiaoNetCommand
         {
             if (response.IsFailed)
             {
-                context.TipErrorMessage($"Teleport failed with reason {response.FailedReason}");
+                context.TipErrorMessage(
+                    Dialog.Get("miaonet_commands_teleport_failed_tip")
+                    .Replace("(0)", Dialog.Get($"miaonet_commands_teleport_failed_{response.FailedReason}"))
+                );
                 return;
             }
 
@@ -153,17 +173,15 @@ partial class MiaoNetCommand
                 // TODO tell player that this action will lose their current progress
                 level.DoScreenWipe(false, () =>
                 {
-                    Goto(session, sessionData.Position);
-                    context.TipMessage($"Teleported to {player.Info.Name}");
+                    GotoAndTip(context, player.Info.Name, sessionData.Position, session);
                 });
             }
             else
             {
-                Goto(session, sessionData.Position);
-                context.TipMessage($"Teleported to {player.Info.Name}");
+                GotoAndTip(context, player.Info.Name, sessionData.Position, session);
             }
 
-            static void Goto(Session session, Vector2 position)
+            static void GotoAndTip(Context context, string playerName, Vector2 position, Session session)
             {
                 SaveData.InitializeDebugMode();
                 SaveData.Instance.LastArea_Safe = session.Area;
@@ -172,11 +190,21 @@ partial class MiaoNetCommand
                     PlayerIntroTypeOverride = Player.IntroTypes.Respawn,
                 };
                 MiaoNetModule.NextPlayerSpawnPosition = position;
+
+                context.TipMessage(Dialog.Get("miaonet_commands_teleport_success").Replace("(0)", playerName));
             }
         }
 
         return null;
     }
+
+    private static string? Teleport(Context context)
+        => MiaoNetModule.Settings.TeleportBehaviour switch
+        {
+            TeleportBehaviour.NoSession => TeleportNoSession(context),
+            TeleportBehaviour.WithSession => TeleportWithSession(context),
+            _ => null,
+        };
 
     private static string? Help(Context context)
     {

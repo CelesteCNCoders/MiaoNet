@@ -24,6 +24,7 @@ public static class MiaoNetFont
 
         Language langEN = Dialog.Languages["english"];
         Language langZhs = Dialog.Languages["schinese"];
+        Fonts.Load(langZhs.FontFace); // schinese is not always loaded
         ENZhsBaseSize = langEN.FontFaceSize;
         PixelFont font = SimpleMergeFont(langEN.Font, langZhs.Font);
         ENZhsFont = font;

@@ -119,12 +119,18 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.NameOpacity = v);
         menu.Add(item);
 
-        item = new EnumSlider<MiaoNetModuleSettings.ButtonMode>(
+        item = new EnumSlider<ButtonMode>(
             Dialog.Get("miaonet_options_player_list_button_mode"),
             e => Dialog.Get($"miaonet_options_player_list_button_mode_{e}"),
             settings.PlayerListButtonMode
         ).Change(v => settings.PlayerListButtonMode = v);
         menu.Add(item);
+
+        // -- Interactions --
+
+        item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_interactions"));
+        menu.Add(item);
+
 
         item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_emotes_count"), 8, 32, settings.EmotesCount
@@ -144,20 +150,27 @@ public static class MenuMiaoNetOptions
             Process.Start(psi);
         });
         menu.Add(item);
-        item.AddDescription(menu, Dialog.Get("miaonet_options_open_settings_file_tip"));
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_open_settings_file_tip"));
 
         item = new TextMenu.Button(
             Dialog.Get("miaonet_options_reload_emote_settings")
         ).Pressed(() =>
         {
             // load settings will not call on input initialize
-            // so let's behave like CelesteNet...
+            // so let's do this like CelesteNet...
             var o = MiaoNetModule.Settings;
             MiaoNetModule.Instance.LoadSettings();
             var n = MiaoNetModule.Settings;
             o.Emotes = n.Emotes;
             MiaoNetModule.Instance._Settings = o;
         });
+        menu.Add(item);
+
+        item = new EnumSlider<TeleportBehaviour>(
+            Dialog.Get("miaonet_options_teleport_behaviour"),
+            e => Dialog.Get($"miaonet_options_teleport_behaviour_{e}"),
+            settings.TeleportBehaviour
+        ).Change(v => settings.TeleportBehaviour = v);
         menu.Add(item);
 
         // -- Chat --

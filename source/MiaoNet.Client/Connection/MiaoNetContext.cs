@@ -36,6 +36,10 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     private ClientState? clientState;
 
+    public static bool IsSuitableToOpenUI => 
+        Engine.Scene.Tracker.GetEntity<KeyboardConfigUI>() == null &&
+        Engine.Scene.Tracker.GetEntity<ButtonConfigUI>() == null;
+
     public PooledStringManager? PooledStringManager { get; private set; }
 
     PooledStringManager IPacketSerializationContext.PooledStringManager
@@ -111,6 +115,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         cts = null;
         connectionThread = null;
         receiveQueue.Clear();
+        pendingRequests.Clear();
         clientState = null;
         PooledStringManager = null;
         components.ForEach(c => c.OnDisconnected());
@@ -145,7 +150,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                     }
                     else
                     {
-                        Logger.Warn(nameof(MiaoNet), $"Unknown response id: {response.RequestID}. Is it the cancelled one?");
+                        Logger.Warn(nameof(MiaoNet), $"Unknown response id: {response.RequestID}.");
                     }
                 }
                 else
@@ -373,11 +378,17 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                     continue;
                 }
 #if PACKET_TRACING
-                if (!packet.GetType().ToString().Contains("Frame"))
+                string typeName = packet.GetType().ToString();
+                if (
+                    !typeName.Contains("Frame") 
+                    && !typeName.Contains("PingData")
+                    && !typeName.Contains("UpdateOnlineStatus")
+                )
                 {
                     var pColor = Console.ForegroundColor;
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"Type: {packet.GetType()}");
+                    Console.WriteLine($"== Type: {packet.GetType()} ==");
+                    Console.ForegroundColor = ConsoleColor.DarkGreen;
                     Console.WriteLine(System.Text.Json.JsonSerializer.Serialize((object)packet, options));
                     Console.ForegroundColor = pColor;
                 }
