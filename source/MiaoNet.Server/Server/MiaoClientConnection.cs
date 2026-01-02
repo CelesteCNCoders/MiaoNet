@@ -97,6 +97,8 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         => sendChannel.Writer.TryWrite(packet);
 
     // TODO maybe we can add a UserParam parameter to avoid closure
+    // TODO timeout
+    // TODO cancelling
     public ValueTask RequestAsync<TResponse>(PacketRequest<TResponse> packet, ResponseHandler<TResponse> callback)
         where TResponse : PacketResponse
     {

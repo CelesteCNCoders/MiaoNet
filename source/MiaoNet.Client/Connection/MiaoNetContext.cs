@@ -414,7 +414,14 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         {
             threadCts.Cancel();
             if (!t.IsFaulted)
+            {
+                mainThreadQueue.Enqueue(() =>
+                {
+                    StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
+                    OnDisconnected();
+                });
                 return;
+            }
 
             bool isExpected = true;
             Exception? unhandledException = null;
