@@ -8,5 +8,6 @@ public enum MiaoNetConnectionStatus
     Disconnected,
     ConnectFailedWithException,
     ConnectionAborted,
-    ConnectionAbortedWithException
+    ConnectionAbortedWithException,
+    DisconnectedWithReason
 }

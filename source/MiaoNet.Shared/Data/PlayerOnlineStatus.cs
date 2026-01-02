@@ -3,6 +3,7 @@ namespace MiaoNet.Shared;
 public enum PlayerOnlineStatus
 {
     Normal,
-    Afk,
+    Idle,
+    Typing,
     Paused
 }

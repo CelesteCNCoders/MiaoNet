@@ -1,5 +1,7 @@
 namespace MiaoNet.Shared;
 
+// this will contain more properties in the future
+// so it's a class instead of a struct
 public sealed class PlayerInfo : IRefBinarySerializable<PlayerInfo>
 {
     public int ID { get; }
