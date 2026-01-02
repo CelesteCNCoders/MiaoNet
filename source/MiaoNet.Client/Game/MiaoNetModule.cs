@@ -147,7 +147,7 @@ public sealed class MiaoNetModule : EverestModule
     private static void Engine_RenderCore(ILContext il)
     {
         ILCursor cur = new(il);
-        // evil render position
+        // FIXME evil render position
         cur.Index = cur.Instrs.Count - 1;
         cur.EmitDelegate(static () => Instance.MiaoNetContext.Render());
     }

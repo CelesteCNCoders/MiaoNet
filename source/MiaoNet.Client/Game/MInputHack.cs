@@ -12,3 +12,9 @@ internal static class MInputHack
         }
     }
 }
+
+internal static class SpeedrunToolFix
+{
+    public static bool IsSceneNull(Entity entity)
+        => entity.Scene is null;
+}

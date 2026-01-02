@@ -1,43 +1,45 @@
 using MiaoNet.Shared;
 
-[assembly: PacketRegistry(typeof(PacketClientInitial))]
-[assembly: PacketRegistry(typeof(PacketPlayerJoined))]
-[assembly: PacketRegistry(typeof(PacketPlayerLeft))]
+[assembly: PacketRegistry([
+    typeof(PacketClientInitial),
+    typeof(PacketPlayerJoined),
+    typeof(PacketPlayerLeft),
 
-[assembly: PacketRegistry(typeof(PacketPlayerFrame))]
-[assembly: PacketRegistry(typeof(PacketContextualPlayerNotification<PacketPlayerFrame>))]
-[assembly: PacketRegistry(typeof(PacketPlayerStateFlags))]
-[assembly: PacketRegistry(typeof(PacketPlayerNotification<PacketPlayerStateFlags>))]
+    typeof(PacketPlayerFrame),
+    typeof(PacketContextualPlayerNotification<PacketPlayerFrame>),
+    typeof(PacketPlayerStateFlags),
+    typeof(PacketPlayerNotification<PacketPlayerStateFlags>),
 
-[assembly: PacketRegistry(typeof(PacketPlayerMapChanged))]
-[assembly: PacketRegistry(typeof(PacketPlayerMapChangedNotification))]
-[assembly: PacketRegistry(typeof(PacketPlayerMapChangedResponse))]
+    typeof(PacketPlayerMapChanged),
+    typeof(PacketPlayerMapChangedNotification),
+    typeof(PacketPlayerMapChangedResponse),
 
-[assembly: PacketRegistry(typeof(PacketPlayerMapRoomChanged))]
-[assembly: PacketRegistry(typeof(PacketPlayerNotification<PacketPlayerMapRoomChanged>))]
+    typeof(PacketPlayerMapRoomChanged),
+    typeof(PacketPlayerNotification<PacketPlayerMapRoomChanged>),
 
-[assembly: PacketRegistry(typeof(PacketPlayerChannelMove))]
-[assembly: PacketRegistry(typeof(PacketPlayerNotification<PacketPlayerChannelMove>))]
+    typeof(PacketPlayerChannelMove),
+    typeof(PacketPlayerNotification<PacketPlayerChannelMove>),
 
-[assembly: PacketRegistry(typeof(PacketChatMessage))]
-[assembly: PacketRegistry(typeof(PacketSendChatMessage))]
+    typeof(PacketChatMessage),
+    typeof(PacketSendChatMessage),
 
-[assembly: PacketRegistry(typeof(PacketEmote))]
-[assembly: PacketRegistry(typeof(PacketSendEmote))]
-[assembly: PacketRegistry(typeof(PacketEmoteText))]
-[assembly: PacketRegistry(typeof(PacketSendEmoteText))]
+    typeof(PacketEmote),
+    typeof(PacketSendEmote),
+    typeof(PacketEmoteText),
+    typeof(PacketSendEmoteText),
 
-[assembly: PacketRegistry(typeof(PacketUpdateOnlineStatus))]
-[assembly: PacketRegistry(typeof(PacketPlayerNotification<PacketUpdateOnlineStatus>))]
+    typeof(PacketUpdateOnlineStatus),
+    typeof(PacketPlayerNotification<PacketUpdateOnlineStatus>),
 
-[assembly: PacketRegistry(typeof(PacketTeleportRequest))]
-[assembly: PacketRegistry(typeof(PacketTeleportResponse))]
-[assembly: PacketRegistry(typeof(PacketBeTeleportedRequest))]
-[assembly: PacketRegistry(typeof(PacketBeTeleportedResponse))]
+    typeof(PacketTeleportRequest),
+    typeof(PacketTeleportResponse),
+    typeof(PacketBeTeleportedRequest),
+    typeof(PacketBeTeleportedResponse),
 
-[assembly: PacketRegistry(typeof(PacketSendPrivateChatMessage))]
-[assembly: PacketRegistry(typeof(PacketSendPrivateChatMessageResponse))]
+    typeof(PacketSendPrivateChatMessage),
+    typeof(PacketSendPrivateChatMessageResponse),
 
-[assembly: PacketRegistry(typeof(PacketPing))]
-[assembly: PacketRegistry(typeof(PacketPong))]
-[assembly: PacketRegistry(typeof(PacketPingData))]
+    typeof(PacketPing),
+    typeof(PacketPong),
+    typeof(PacketPingData)
+])]

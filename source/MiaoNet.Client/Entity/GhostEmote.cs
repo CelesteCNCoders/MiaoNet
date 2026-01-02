@@ -75,6 +75,9 @@ public sealed class GhostEmote : Entity
 
     public override void Render()
     {
+        if (SpeedrunToolFix.IsSceneNull(this))
+            return;
+
         base.Render();
         const float Margin = 8f;
 
@@ -96,7 +99,7 @@ public sealed class GhostEmote : Entity
             SafeGuard.Assert(text is not null);
             Vector2 size = MiaoNetFont.Measure(text);
             float scale = Math.Min(1f, (FixedSize * 4f) / size.X);
-            position = ScreenClamper.ClampIntoScreen(position, size, new Vector2(1f / 2f, 1f), Margin);
+            position = ScreenClamper.ClampIntoScreen(position, size * popupScale * scale, new Vector2(1f / 2f, 1f), Margin);
             MiaoNetFont.DrawOutlineBottomCentered(text, position, Vector2.One * popupScale * scale, Color.White * popupAlpha);
         }
     }

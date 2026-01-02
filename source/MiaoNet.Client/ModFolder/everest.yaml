@@ -3,7 +3,7 @@
   DLL: Code/MiaoNet.dll
   Dependencies:
     - Name: EverestCore
-      Version: 1.5577.0
+      Version: 1.6088.0
     - Name: ExtendedChineseFont
       Version: 1.0.0
   OptionalDependencies:

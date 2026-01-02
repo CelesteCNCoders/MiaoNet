@@ -1,12 +1,12 @@
 namespace MiaoNet.Shared;
 
-[AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
+[AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false)]
 public sealed class PacketRegistryAttribute : Attribute
 {
-    public Type Type { get; }
+    public Type[] Types { get; }
 
-    public PacketRegistryAttribute(Type type)
+    public PacketRegistryAttribute(Type[] types)
     {
-        Type = type;
+        Types = types;
     }
 }

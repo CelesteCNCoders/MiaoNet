@@ -269,7 +269,7 @@ public sealed partial class MiaoServerService : BackgroundService
                 await Task.WhenAll(taskList);
                 PacketPingData pingData = new(
                     list.Where(t => t.Item1.Result is not null)
-                        .Select(t => (t.Item2.ID, t.Item1.Result!.Value.Milliseconds)
+                        .Select(t => (t.Item2.ID, (int)t.Item1.Result!.Value.TotalMilliseconds)
                 ).ToList());
 
                 await BroadcastAsync(pingData);

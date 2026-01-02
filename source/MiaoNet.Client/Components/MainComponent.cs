@@ -50,6 +50,7 @@ public sealed class MainComponent : MiaoNetComponent
         //    foreach (var ghost in Engine.Scene.Entities.Where(e => e is MiaoNetGhost))
         //        ghost.RemoveSelf();
         //}
+        selfNameTag?.RemoveSelf();
         selfNameTag = null;
     }
 
@@ -452,7 +453,9 @@ public sealed class MainComponent : MiaoNetComponent
         Level? level = Engine.Scene as Level;
 
         if (needGhost)
+        {
             SafeGuard.Assert(level is not null);
+        }
 
         if (ghosts.TryGetValue(other.ID, out MiaoNetGhost? ghost))
         {

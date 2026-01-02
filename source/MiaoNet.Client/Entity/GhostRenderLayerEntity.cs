@@ -6,13 +6,16 @@ public sealed class GhostRenderLayerEntity : Entity
 
     public GhostRenderLayerEntity(bool isHigh)
     {
-        Tag |= Tags.Global | Tags.PauseUpdate | Tags.TransitionUpdate | Tags.FrozenUpdate;
+        Tag |= Tags.Global | Tags.PauseUpdate | Tags.TransitionUpdate | Tags.FrozenUpdate | Tags.Persistent;
         Depth = isHigh ? Depths.Top : Depths.Player + 1;
         this.isHigh = isHigh;
     }
 
     public override void Render()
     {
+        if (SpeedrunToolFix.IsSceneNull(this))
+            return;
+
         var gd = Engine.Instance.GraphicsDevice;
         Level level = SceneAs<Level>();
 
@@ -23,12 +26,12 @@ public sealed class GhostRenderLayerEntity : Entity
 
         GameplayRenderer.Begin();
         {
-            foreach (var follower in Scene.Tracker.GetEntities<GhostFollower>())
+            foreach (var follower in level.Tracker.GetEntities<GhostFollower>())
             {
                 if (isHigh ? follower.Depth <= Depth : follower.Depth >= Depth)
                     follower.Render();
             }
-            foreach (var ghost in Scene.Tracker.GetEntities<MiaoNetGhost>())
+            foreach (var ghost in level.Tracker.GetEntities<MiaoNetGhost>())
             {
                 if (isHigh ? ghost.Depth <= Depth : ghost.Depth >= Depth)
                     ghost.Render();

@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Diagnostics;
+using System.Reflection;
 
 namespace MiaoNet.Shared;
 
@@ -13,12 +14,11 @@ public static class PacketRegistry
     {
         var asm = typeof(PacketRegistry).Assembly;
 
-        var infoAttrs = (PacketRegistryAttribute[])Attribute.GetCustomAttributes(asm, typeof(PacketRegistryAttribute));
+        var infoAttr = asm.GetCustomAttribute<PacketRegistryAttribute>()!;
 
         List<(ushort id, Type type, RefBinaryReadHandler<IContextualPacket> reader)> list =
-            infoAttrs.Select((a, id) =>
+            infoAttr.Types.Select((type, id) =>
             {
-                var type = a.Type;
                 var interfaceType = typeof(IContextualPacket<>).MakeGenericType(type);
                 if (!type.IsAssignableTo(interfaceType))
                     throw new InvalidOperationException(SR.TypeMustAtLeaseImplContextualPacket);
