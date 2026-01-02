@@ -123,7 +123,10 @@ public sealed class MiaoServerConnection : IDisposable
         ushort size = BinaryPrimitives.ReadUInt16LittleEndian(headMemory.Span);
 
         if (receiveMemoryStream.Capacity < size)
+        {
             receiveMemoryStream.Capacity = size;
+            buffer = receiveMemoryStream.GetBuffer();
+        }
 
         Memory<byte> payloadMemory = buffer.AsMemory().Slice(0, size);
         count = await networkStream.ReadAtLeastAsync(payloadMemory, size, false, token);
@@ -151,7 +154,10 @@ public sealed class MiaoServerConnection : IDisposable
         ushort type = BinaryPrimitives.ReadUInt16LittleEndian(headMemory.Span.Slice(sizeof(ushort)));
 
         if (receiveMemoryStream.Capacity < size)
+        {
             receiveMemoryStream.Capacity = size;
+            buffer = receiveMemoryStream.GetBuffer();
+        }
 
         Memory<byte> payloadMemory = buffer.AsMemory().Slice(0, size);
         count = await networkStream.ReadAtLeastAsync(payloadMemory, size, false, token);
