@@ -31,12 +31,12 @@ public partial class MiaoHttpService
             context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
             return;
         }
-        if(!miaoServerService.ServerState.AllPlayers.TryGetValue(pid,out var client))
+        if (!miaoServerService.ServerState.AllPlayers.TryGetValue(pid, out var client))
         {
             context.Response.StatusCode = (int)HttpStatusCode.NotFound;
             return;
         }
-        client.Connection.Disconnect(Shared.KickedReason.Manually);
+        client.Connection.DisconnectAsync(Shared.DisconnectReason.Kicked, "admin kicked.").GetAwaiter().GetResult();
         context.Response.StatusCode = (int)HttpStatusCode.NoContent;
     }
 

@@ -81,10 +81,10 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         }
     }
 
-    public void Disconnect(KickedReason reason)
+    public async Task DisconnectAsync(DisconnectReason reason, string? message = null)
     {
-        // TODO tell the client that they were kicked :(
-        cts.Cancel();
+        await QueuePacketAsync(new PacketDisconnected(reason, message));
+        sendChannel.Writer.Complete();
     }
 
     public ValueTask QueuePacketAsync(IContextualPacket packet)

@@ -160,6 +160,10 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                         Logger.Warn(nameof(MiaoNet), $"Unhandled packet type: {packet.GetType()}.");
                 }
             }
+
+            if (!HasConnection)
+                return;
+
             components.ForEach(c => c.Update());
         }
         catch (Exception e)

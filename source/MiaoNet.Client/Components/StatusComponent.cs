@@ -27,7 +27,7 @@ public sealed class StatusComponent : MiaoNetComponent
     public void ShowStatusMessage(string message, bool spin = false)
     {
         spinning = spin;
-        statusMessageTimer = 2f;
+        statusMessageTimer = 6f;
         statusMessage = message;
     }
 

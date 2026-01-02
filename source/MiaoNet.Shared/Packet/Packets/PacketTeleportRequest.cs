@@ -34,9 +34,10 @@ public sealed class PacketTeleportResponse :
 {
     public enum TeleportFailedReason
     {
-        None = 0,
-        NoSuchPlayer = 1,
-        OtherDenied = 2
+        None,
+        NoSuchPlayer,
+        OtherDenied,
+        OtherDoesNotResponse // TODO
     }
 
     [MemberNotNullWhen(false, nameof(Session))]

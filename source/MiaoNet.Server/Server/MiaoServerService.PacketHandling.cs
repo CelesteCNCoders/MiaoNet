@@ -27,13 +27,13 @@ public sealed partial class MiaoServerService
         if (player.State is null)
         {
             logger.LogError(AppEvents.Game, "Packet frame received but no initial state for {p}.", player.Info);
-            connection.Disconnect(KickedReason.InvalidPacketWithState);
+            await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
             return;
         }
         else if (!player.Location.IsInMap)
         {
             logger.LogError(AppEvents.Game, "Player {p} is not in map but sent PacketPlayerFrame!", player.Info);
-            connection.Disconnect(KickedReason.InvalidPacketWithState);
+            await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
             return;
         }
 
@@ -126,7 +126,7 @@ public sealed partial class MiaoServerService
                 "Player {p} didn't send state when went to {loc}.",
                 player.Info, packet.Location
             );
-            connection.Disconnect(KickedReason.InvalidPacketWithState);
+            await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
             return;
         }
 
@@ -239,12 +239,15 @@ public sealed partial class MiaoServerService
     {
         if (ServerState.AllPlayers.TryGetValue(request.TargetPlayerID, out var target))
         {
+            logger.LogInformation(AppEvents.Game, "{p} is requesting to teleport to {p2}.", connection.Player.Info, target.Player.Info);
             await target.Connection.RequestAsync(new PacketBeTeleportedRequest(connection.ID), OnOtherResponse);
 
+            // TODO timeout
             Task OnOtherResponse(PacketBeTeleportedResponse response)
             {
                 if (response.Accepted)
                 {
+                    logger.LogInformation(AppEvents.Game, "{p}'s teleport request to {p2} accepted.", connection.Player.Info, target.Player.Info);
                     return connection.ResponseAsync(
                         request,
                         new(PacketTeleportResponse.TeleportFailedReason.None, response.Session)
@@ -252,6 +255,7 @@ public sealed partial class MiaoServerService
                 }
                 else
                 {
+                    logger.LogInformation(AppEvents.Game, "{p}'s teleport request to {p2} rejected.", connection.Player.Info, target.Player.Info);
                     return connection.ResponseAsync(
                         request,
                         new(PacketTeleportResponse.TeleportFailedReason.OtherDenied, null)
@@ -261,6 +265,12 @@ public sealed partial class MiaoServerService
         }
         else
         {
+            logger.LogInformation(
+                AppEvents.Game,
+                "{p} is requesting to teleport to player(id: {id}) who is not found.",
+                connection.Player.Info,
+                request.TargetPlayerID
+            );
             await connection.ResponseAsync(
                 request,
                 new(PacketTeleportResponse.TeleportFailedReason.NoSuchPlayer, null)

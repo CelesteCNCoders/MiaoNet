@@ -22,6 +22,7 @@ public partial class MiaoNetContext
 
     private void RegisterPacketHandlers(PacketHandlerRegister r)
     {
+        r.Register<PacketDisconnected>(HandlePacket);
         r.Register<PacketPlayerJoined>(HandlePacket);
         r.Register<PacketPlayerLeft>(HandlePacket);
         r.Register<PacketContextualPlayerNotification<PacketPlayerFrame>>(HandlePacket);
@@ -158,19 +159,29 @@ public partial class MiaoNetContext
     private void HandlePacket(PacketBeTeleportedRequest request)
     {
         EnsureState();
-        Level? level = Engine.Scene as Level;
-        Player? player = level?.Tracker.GetEntity<Player>();
-        if (player is null)
+        if (Engine.Scene is not Level level)
+            goto Reject;
+        Player? player = level.Tracker.GetEntity<Player>();
+        Vector2 position;
+        if (player is not null)
         {
-            Response(request, new PacketBeTeleportedResponse(null));
-            return;
+            position = player.Position;
         }
         else
         {
-            Response(request, new PacketBeTeleportedResponse(
-                PlayerSessionData.CreateFrom(level!.Session, player.Position)
-            ));
+            PlayerDeadBody? body = level.Entities.FindFirst<PlayerDeadBody>();
+            if (body is not null)
+                position = body.Position;
+            else
+                goto Reject;
         }
+        Response(request, new PacketBeTeleportedResponse(
+            PlayerSessionData.CreateFrom(level!.Session, position)
+        ));
+
+    Reject:
+        Response(request, new PacketBeTeleportedResponse(null));
+        return;
     }
 
     private void HandlePacket(PacketPingData packet)
@@ -186,5 +197,12 @@ public partial class MiaoNetContext
             }
             player.LastPing = ping;
         }
+    }
+
+    private void HandlePacket(PacketDisconnected packet)
+    {
+        EnsureState();
+        OnDisconnected();
+        StatusComponent.ShowStatusMessage($"{packet.Reason}, {packet.Message}");
     }
 }

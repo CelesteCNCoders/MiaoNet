@@ -164,12 +164,14 @@ public sealed partial class MiaoServerService : BackgroundService
             // exchange data with this player
             await newConnection.HandleClientConnectAsync();
 
-            // exchange finished, tell other clients this player left
+            // exchange finished, remove this player
+            // this operation is lock-free
+            serverState.RemovePlayer(newPlayer);
+
+            // then, tell other clients this player left
             logger.LogInformation(AppEvents.Connection, "Client id {id} handle finished.", newPlayer.ID);
             await BroadcastAsync(new PacketPlayerLeft(newPlayer.ID));
 
-            // then remove this player
-            serverState.RemovePlayer(newPlayer);
 
             async Task<HandshakeData?> HandleHandshakeAsync(Socket socket, CancellationToken token)
             {
@@ -291,7 +293,8 @@ public sealed partial class MiaoServerService : BackgroundService
                     }
                     else
                     {
-                        connection.Disconnect(KickedReason.Timeout);
+                        logger.LogInformation(AppEvents.Connection, "{p} timeouted heartbeat.", connection.Player.Info);
+                        await connection.DisconnectAsync(DisconnectReason.Timeout);
                         return null;
                     }
 
