@@ -172,7 +172,11 @@ public sealed class MiaoServerConnection : IDisposable
         }
         catch (Exception)
         {
-            Logger.Error($"{nameof(MiaoNet)}/ReadPacket", "Read packet failed, raw packet data: " + Convert.ToBase64String(payloadMemory.ToArray()));
+            Logger.Error(
+                $"{nameof(MiaoNet)}/ReadPacket",
+                $"Read packet failed, size: {size}, type: {type}. Raw payload: \n" +
+                    Convert.ToBase64String(payloadMemory.ToArray())
+            );
             throw;
         }
     }

@@ -68,9 +68,9 @@ public readonly struct FollowerInfoDelta : IContextualRefBinarySerializable<Foll
 
     public Vector2S Offset { get; }
 
-    public FollowerInfoDelta(string animation, ushort animationFrame, Vector2S offset)
+    public FollowerInfoDelta(string animationID, ushort animationFrame, Vector2S offset)
     {
-        AnimationID = animation;
+        AnimationID = animationID;
         AnimationFrame = animationFrame;
         Offset = offset;
     }
@@ -85,7 +85,7 @@ public readonly struct FollowerInfoDelta : IContextualRefBinarySerializable<Foll
     public static FollowerInfoDelta Deserialize(ref RefBinaryReader reader, PooledStringManager pooledStringManager)
     {
         return new FollowerInfoDelta(
-            animation: reader.Read<PooledString, PooledStringManager>(pooledStringManager),
+            animationID: reader.Read<PooledString, PooledStringManager>(pooledStringManager),
             animationFrame: reader.ReadUInt16(),
             reader.Read<Vector2S>()
         );

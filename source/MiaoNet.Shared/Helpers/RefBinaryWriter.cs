@@ -3,6 +3,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using BP = System.Buffers.Binary.BinaryPrimitives;
+using System.Diagnostics;
+
 #if MIAO_SERVER
 using MiaoNet.Server.Primitives;
 #endif
@@ -165,11 +167,11 @@ public static class RefBinaryWriterExtensions
         writer.Write(value.Y);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining), StackTraceHidden, DebuggerHidden]
     public static void Write<T>(this ref RefBinaryWriter writer, T value) where T : IRefBinarySerializable<T>
         => value.Serialize(ref writer);
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining), StackTraceHidden, DebuggerHidden]
     public static void Write<T, TContext>(this ref RefBinaryWriter writer, T value, TContext context)
         where T : IContextualRefBinarySerializable<T, TContext>
         => value.Serialize(ref writer, context);
@@ -183,7 +185,7 @@ public static class RefBinaryWriterExtensions
             writer.Write(item);
     }
 
-    public static void Write<T>(this ref RefBinaryWriter writer, IReadOnlyCollection<T> values) 
+    public static void Write<T>(this ref RefBinaryWriter writer, IReadOnlyCollection<T> values)
         where T : IRefBinarySerializable<T>
     {
         if (values.Count > ushort.MaxValue)

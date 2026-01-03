@@ -181,7 +181,7 @@ public sealed partial class MiaoServerService
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerMapRoomChanged packet)
     {
         var player = connection.Player;
-        logger.LogDebug(
+        logger.LogTrace(
             AppEvents.GameState,
             "Player {p} map room changed from room {p} to {a}.",
             player.Info, player.Location.MapRoom,

@@ -29,7 +29,8 @@ public static class Program
         var builder = Host.CreateEmptyApplicationBuilder(options);
 
         builder.Configuration
-            .AddJsonFile("appsettings.json", false);
+            .AddJsonFile("appsettings.json", false)
+            .AddJsonFile($"appsettings.{builder.Environment}.json", true);
 
         builder.Logging
             .AddConfiguration(builder.Configuration.GetRequiredSection("Logging"))

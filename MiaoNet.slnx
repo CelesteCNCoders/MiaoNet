@@ -14,4 +14,5 @@
   <Project Path="source/MiaoNet.Shared/MiaoNet.Shared.msbuildproj" Type="13b669be-bb05-4ddf-9536-439f39a36129" />
   <Project Path="source/MiaoNet.UnitTest/MiaoNet.UnitTest.csproj" />
   <Project Path="source/ChatInputBox/ChatInputBox/ChatInputBox.msbuildproj" Type="13b669be-bb05-4ddf-9536-439f39a36129" />
+  <Project Path="source/PacketDumpInspector/PacketDumpInspector.csproj" />
 </Solution>

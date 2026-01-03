@@ -33,6 +33,8 @@ public sealed partial class MiaoServerService : BackgroundService
 
     public ServerState ServerState => serverState;
 
+    public int DisconnectTimeout => options.DisconnectTimeout;
+
     public MiaoServerService(
         ILogger<MiaoServerService> logger,
         IOptions<MiaoServerOptions> options,
@@ -57,6 +59,7 @@ public sealed partial class MiaoServerService : BackgroundService
 
     public override Task StartAsync(CancellationToken cancellationToken)
     {
+        logger.LogInformation("MiaoNet Server v{v} starting...", options.ExpectedVersion.ToString(3));
         logger.LogInformation("Start to listen on port {ep}.", listenIPEndPoint);
         acceptSocket.Bind(listenIPEndPoint);
         acceptSocket.Listen();

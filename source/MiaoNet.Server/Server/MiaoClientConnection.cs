@@ -44,7 +44,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         int id, Socket socket, ServerPlayer onlinePlayer,
         ILogger<MiaoClientConnection> logger,
         MiaoServerService server
-        )
+    )
     {
         ID = id;
         this.logger = logger;
@@ -80,9 +80,10 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
             logger.LogInformation(AppEvents.Connection, "Connection id {id} closed.", ID);
         }
     }
-
+    
     public async Task DisconnectAsync(DisconnectReason reason, string? message = null)
     {
+        cts.CancelAfter(server.DisconnectTimeout);
         await QueuePacketAsync(new PacketDisconnected(reason, message));
         sendChannel.Writer.Complete();
     }

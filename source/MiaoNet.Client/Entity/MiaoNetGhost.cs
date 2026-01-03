@@ -78,11 +78,16 @@ public sealed class MiaoNetGhost : Entity
         pDashB = new(global::Celeste.Player.P_DashB);
         pDashColorBaseA = (pDashA.Color, pDashA.Color2);
         pDashColorBaseB = (pDashB.Color, pDashB.Color2);
+
+        if (player.OnlineStatus != PlayerOnlineStatus.Normal)
+            OnUpdateOnlineStatus(player.OnlineStatus);
     }
 
     public override void Update()
     {
         base.Update();
+        if (SpeedrunToolFix.IsSceneNull(this))
+            return;
 
         if (starFlying)
         {

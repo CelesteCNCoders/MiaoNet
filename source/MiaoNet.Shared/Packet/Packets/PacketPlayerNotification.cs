@@ -48,5 +48,5 @@ public sealed class PacketContextualPlayerNotification<TPacket>
     public static PacketContextualPlayerNotification<TPacket> Deserialize(
         ref RefBinaryReader reader,
         IPacketSerializationContext context
-    ) => new(reader.ReadInt32(), reader.Read<TPacket,IPacketSerializationContext>(context));
+    ) => new(reader.ReadInt32(), reader.Read<TPacket, IPacketSerializationContext>(context));
 }

@@ -119,9 +119,11 @@ public static class RefBinaryReaderExtensions
     public static Vector2 ReadVector2(this ref RefBinaryReader reader)
         => new Vector2(reader.ReadSingle(), reader.ReadSingle());
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining), StackTraceHidden, DebuggerHidden]
     public static T Read<T>(this ref RefBinaryReader reader) where T : IRefBinarySerializable<T>
         => T.Deserialize(ref reader);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining), StackTraceHidden, DebuggerHidden]
     public static T Read<T, TContext>(this ref RefBinaryReader reader, TContext context)
         where T : IContextualRefBinarySerializable<T, TContext>
         => T.Deserialize(ref reader, context);

@@ -95,7 +95,7 @@ public sealed class PacketPlayerFrame : IContextualPacket<PacketPlayerFrame>
             writer.Write(DashDirection);
         if (HasFollowerInitials)
             writer.Write(FollowerInitials, context.PooledStringManager);
-        if (HasFollowerDeltas)
+        else if (HasFollowerDeltas)
             writer.Write(FollowerDeltas, context.PooledStringManager);
     }
 
@@ -116,7 +116,7 @@ public sealed class PacketPlayerFrame : IContextualPacket<PacketPlayerFrame>
             packet.DashDirection = reader.ReadByte();
         if (packet.HasFollowerInitials)
             packet.FollowerInitials = reader.ReadArray<FollowerInfo, PooledStringManager>(context.PooledStringManager);
-        if (packet.HasFollowerDeltas)
+        else if (packet.HasFollowerDeltas)
             packet.FollowerDeltas = reader.ReadArray<FollowerInfoDelta, PooledStringManager>(context.PooledStringManager);
         return packet;
     }

@@ -38,7 +38,7 @@ public sealed class PooledStringManager
         if (idToString.TryGetValue(id, out string? foundValue))
         {
             if (value is not null && foundValue != value)
-                throw new InvalidDataException(SR.PooledStringValueNotMatch);
+                throw new InvalidDataException(string.Format(SR.PooledStringValueNotMatch, foundValue, value));
             return foundValue;
         }
         else
