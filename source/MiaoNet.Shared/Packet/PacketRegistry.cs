@@ -43,7 +43,12 @@ public static class PacketRegistry
     }
 
     public static IContextualPacket ReadPacket(ushort id, ref RefBinaryReader reader, IPacketSerializationContext context)
-        => idToReader[id](ref reader, context);
+    {
+        if (idToReader.TryGetValue(id, out var handler))
+            return handler(ref reader, context);
+        else
+            throw new KeyNotFoundException(id.ToString());
+    }
 
     public static void WritePacket(IContextualPacket packet, ref RefBinaryWriter writer, IPacketSerializationContext context)
     {
