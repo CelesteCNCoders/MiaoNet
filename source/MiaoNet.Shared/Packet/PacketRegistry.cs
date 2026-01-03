@@ -44,16 +44,15 @@ public static class PacketRegistry
 
     public static IContextualPacket ReadPacket(ushort id, ref RefBinaryReader reader, IPacketSerializationContext context)
     {
-        if (idToReader.TryGetValue(id, out var handler))
-            return handler(ref reader, context);
-        else
-            throw new KeyNotFoundException(id.ToString());
+        if (!idToReader.TryGetValue(id, out var handler))
+            throw new KeyNotFoundException(string.Format(SR.PacketNotFoundByID, id));
+        return handler(ref reader, context);
     }
 
     public static void WritePacket(IContextualPacket packet, ref RefBinaryWriter writer, IPacketSerializationContext context)
     {
         if (!typeToId.TryGetValue(packet.GetType(), out ushort id))
-            throw new KeyNotFoundException(packet.GetType().ToString());
+            throw new KeyNotFoundException(string.Format(SR.TypeIsNotRegisteredAsAPacket, packet.GetType().FullName));
         writer.Write(id);
         packet.Serialize(ref writer, context);
     }

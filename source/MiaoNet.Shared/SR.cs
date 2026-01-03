@@ -8,4 +8,8 @@ internal static class SR
         = "A pooled string is found locally but remote provided a different value.";
     public const string TypeMustAtLeaseImplContextualPacket
         = "A packet type being registered must at lease implement IContextualPacket.";
+    public const string TypeIsNotRegisteredAsAPacket
+        = "Type \"{0}\" is not registered as a packet.";
+    public const string PacketNotFoundByID
+        = "Packet type with id {0} is not found.";
 }

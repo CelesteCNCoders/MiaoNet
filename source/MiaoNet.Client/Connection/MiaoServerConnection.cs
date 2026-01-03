@@ -165,7 +165,15 @@ public sealed class MiaoServerConnection : IDisposable
             return null;
 
         RefBinaryReader reader = new(payloadMemory.Span);
-        IContextualPacket packet = PacketRegistry.ReadPacket(type, ref reader, context);
-        return packet;
+        try
+        {
+            IContextualPacket packet = PacketRegistry.ReadPacket(type, ref reader, context);
+            return packet;
+        }
+        catch (Exception)
+        {
+            Logger.Error($"{nameof(MiaoNet)}/ReadPacket", "Read packet failed, raw packet data: " + Convert.ToBase64String(payloadMemory.ToArray()));
+            throw;
+        }
     }
 }
