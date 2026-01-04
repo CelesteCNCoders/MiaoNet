@@ -14,7 +14,7 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed partial class MiaoNetContext : IPacketSerializationContext
 {
-    private int nextRequestID;
+    private int currentRequestID;
     // request id -> on response handler
     private readonly ConcurrentDictionary<int, Action<PacketResponse>> pendingRequests;
 
@@ -103,10 +103,16 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public void Disconnect()
     {
-        connection?.Dispose();
-        connection = null;
+        if (connection is not null)
+        {
+            cts?.Cancel();
+            cts = null;
+
+            connection.Dispose();
+            connection = null;
+            StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
+        }
         OnDisconnected();
-        StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
     }
 
     public void OnDisconnected()
@@ -114,6 +120,12 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         cts?.Cancel();
         cts = null;
         connectionThread = null;
+        // any better ways?
+        while (receiveQueue.TryDequeue(out var packet))
+        {
+            if (packet is PacketDisconnected dc)
+                StatusComponent.ShowStatusMessage($"{dc.Reason}, {dc.Message}");
+        }
         receiveQueue.Clear();
         pendingRequests.Clear();
         clientState = null;
@@ -219,7 +231,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     {
         _ = token;
         int id;
-        packet.RequestID = id = Interlocked.Increment(ref nextRequestID);
+        packet.RequestID = id = Interlocked.Increment(ref currentRequestID);
 
         bool success = pendingRequests.TryAdd(id, (res) => onResponse((TResponse)res));
         SafeGuard.Assert(success);
@@ -285,6 +297,9 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             MiaoServerConnection? connection;
             try
             {
+                // TODO maybe we should move these "connection stuffs" into the real
+                // MiaoServerConnection "connection" class
+
                 // this will send the full handshake, then we need to handle ack ourselves
                 (connection, var ackData) = await MiaoServerConnection.CreateAsync(ep, handshakeData, token);
 
@@ -384,8 +399,9 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                 IContextualPacket? packet = await connection.ReceivePacketAsync(context, token);
                 if (packet is null)
                     return;
+
                 // quickly handle ping packets
-                if (packet is PacketPing ping)
+                if (packet is PacketPing ping && HasConnection)
                 {
                     Response(ping, new PacketPong());
                     continue;
@@ -414,7 +430,13 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         {
             threadCts.Cancel();
             if (!t.IsFaulted)
+            {
+                mainThreadQueue.Enqueue(() =>
+                {
+                    OnDisconnected();
+                });
                 return;
+            }
 
             bool isExpected = true;
             Exception? unhandledException = null;

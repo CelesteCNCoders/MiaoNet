@@ -3,29 +3,47 @@
 using System.Collections.Specialized;
 using System.Net;
 using System.Text;
+using MiaoNet.Shared;
+using Microsoft.Extensions.Logging;
 namespace MiaoNet.Server;
 
 public partial class MiaoHttpService
 {
-    private void DispatchQuest(string path, NameValueCollection query, HttpListenerContext context)
+    private async Task HandleRequestAsync(string path, NameValueCollection query, HttpListenerContext context)
     {
-        switch (path)
+        try
         {
-        case "/summary":
-        case "/info":
-            Summary(query, context);
-            break;
-        case "/player/disconnect":
-            PlayerDisconnect(query, context);
-            break;
-        default:
-            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-            break;
+            switch (path)
+            {
+            case "/summary":
+            case "/info":
+                await Summary(query, context);
+                break;
+            case "/player/disconnect":
+                await PlayerDisconnect(query, context);
+                break;
+            case "/announce":
+                await Announce(query, context);
+                break;
+            default:
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                break;
+            }
+        }
+        catch (Exception e)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+            logger.LogError(e, "Error when handling request \"{url}\" from {ep}", context.Request.RawUrl, context.Request.RemoteEndPoint);
         }
     }
-
-    private void PlayerDisconnect(NameValueCollection query, HttpListenerContext context)
+    private async Task PlayerDisconnect(NameValueCollection query, HttpListenerContext context)
     {
+        if (context.Request.HttpMethod != HttpMethod.Post.Method)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+            return;
+        }
+
         if (!int.TryParse(query["id"], out int pid))
         {
             context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
@@ -36,12 +54,12 @@ public partial class MiaoHttpService
             context.Response.StatusCode = (int)HttpStatusCode.NotFound;
             return;
         }
-        client.Connection.DisconnectAsync(Shared.DisconnectReason.Kicked, "admin kicked.").GetAwaiter().GetResult();
+        await client.Connection.DisconnectAsync(DisconnectReason.Kicked, "admin kicked.");
         context.Response.StatusCode = (int)HttpStatusCode.NoContent;
     }
 
     // TODO jsonify
-    private void Summary(NameValueCollection query, HttpListenerContext context)
+    private Task Summary(NameValueCollection query, HttpListenerContext context)
     {
         StringBuilder sb = new(128);
 
@@ -60,5 +78,29 @@ public partial class MiaoHttpService
         }
 
         context.Response.OutputStream.Write(Encoding.UTF8.GetBytes(sb.ToString()));
+        return Task.CompletedTask;
+    }
+
+    private async Task Announce(NameValueCollection query, HttpListenerContext context)
+    {
+        if (context.Request.HttpMethod != HttpMethod.Post.Method)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+            return;
+        }
+
+        string? message = query["msg"];
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            return;
+        }
+
+        foreach (var (_, (p, c)) in miaoServerService.ServerState.AllPlayers)
+        {
+            await c.QueuePacketAsync(new PacketChatMessage(ChatMessageType.Server, null, message));
+            context.Response.OutputStream.Write(Encoding.UTF8.GetBytes($"Announced to {p.Info}\n"));
+        }
+        context.Response.StatusCode = (int)HttpStatusCode.NoContent;
     }
 }

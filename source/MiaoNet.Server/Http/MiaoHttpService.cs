@@ -34,12 +34,21 @@ public sealed partial class MiaoHttpService : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            var context = await httpListener.GetContextAsync();
+            HttpListenerContext context;
+            try
+            {
+                context = await httpListener.GetContextAsync();
+            }
+            catch (HttpListenerException e) when (e.ErrorCode == 995)
+            {
+                break;
+            }
             try
             {
                 Uri? uri = context.Request.Url;
                 if (uri is null)
                 {
+                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                     context.Response.Close();
                     continue;
                 }
@@ -47,14 +56,17 @@ public sealed partial class MiaoHttpService : BackgroundService
                 string path = uri.AbsolutePath;
                 NameValueCollection query = HttpUtility.ParseQueryString(uri.Query);
 
-                DispatchQuest(path, query, context);
+                _ = HandleRequestAsync(path, query, context);
             }
             catch (Exception e)
             {
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                logger.LogError(e, "Error when handling request \"{url}\"", context.Request.RawUrl);
+                logger.LogError(e, "Error when handling request \"{url}\" from {ep}", context.Request.RawUrl, context.Request.RemoteEndPoint);
             }
-            context.Response.Close();
+            finally
+            {
+                context.Response.Close();
+            }
         }
     }
 

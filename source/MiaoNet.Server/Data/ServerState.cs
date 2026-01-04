@@ -15,8 +15,8 @@ public sealed class ServerState
 
     private readonly ReaderWriterLockSlim stateLock = new();
 
-    private int nextPlayerID;
-    private int nextChannelID;
+    private int currentPlayerID;
+    private int currentChannelID;
     private ImmutableDictionary<int, Client> allPlayers;
     private ImmutableDictionary<int, ServerChannel> allChannels;
 
@@ -30,12 +30,12 @@ public sealed class ServerState
     {
         allPlayers = ImmutableDictionary<int, Client>.Empty;
         allChannels = ImmutableDictionary<int, ServerChannel>.Empty.Add(0, new ServerChannel(new ChannelInfo(0, "main")));
-        nextPlayerID = nextChannelID = 1;
+        currentPlayerID = currentChannelID = 0;
     }
 
     public ServerPlayer CreateNewPlayer(HandshakeData handshakeData)
     {
-        int id = Interlocked.Increment(ref nextPlayerID);
+        int id = Interlocked.Increment(ref currentPlayerID);
         ServerChannel channel = AllChannels[0];
         ServerPlayer player = new(channel, new(id, handshakeData.Name), PlayerLocation.Empty);
         return player;
@@ -43,7 +43,7 @@ public sealed class ServerState
 
     public ServerChannel CreateNewChannel(string channelName)
     {
-        int id = Interlocked.Increment(ref nextChannelID);
+        int id = Interlocked.Increment(ref currentChannelID);
         ServerChannel channel = new(new ChannelInfo(id, channelName));
         return channel;
     }

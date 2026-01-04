@@ -22,7 +22,6 @@ public partial class MiaoNetContext
 
     private void RegisterPacketHandlers(PacketHandlerRegister r)
     {
-        r.Register<PacketDisconnected>(HandlePacket);
         r.Register<PacketPlayerJoined>(HandlePacket);
         r.Register<PacketPlayerLeft>(HandlePacket);
         r.Register<PacketContextualPlayerNotification<PacketPlayerFrame>>(HandlePacket);
@@ -43,7 +42,6 @@ public partial class MiaoNetContext
         EnsureState();
         var player = ClientState.OnNewPlayerJoined(packet.ChannelID, packet.PlayerInfo, packet.OnlineStatus);
         PlayerJoined?.Invoke(player);
-        ChatComponent.OnNotifyMessage(Dialog.Clean("miaonet_context_player_joined").Replace("(0)", player.Info.Name));
     }
 
     private void HandlePacket(PacketPlayerLeft packet)
@@ -52,7 +50,6 @@ public partial class MiaoNetContext
         var player = ClientState.Players[packet.PlayerID];
         ClientState.OnPlayerLeft(packet.PlayerID);
         PlayerLeft?.Invoke(player);
-        ChatComponent.OnNotifyMessage(Dialog.Clean("miaonet_context_player_left").Replace("(0)", player.Info.Name));
     }
 
     private void HandlePacket(PacketContextualPlayerNotification<PacketPlayerFrame> packet)
@@ -197,12 +194,5 @@ public partial class MiaoNetContext
             }
             player.LastPing = ping;
         }
-    }
-
-    private void HandlePacket(PacketDisconnected packet)
-    {
-        EnsureState();
-        OnDisconnected();
-        StatusComponent.ShowStatusMessage($"{packet.Reason}, {packet.Message}");
     }
 }

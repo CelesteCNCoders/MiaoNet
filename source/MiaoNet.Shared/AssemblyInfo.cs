@@ -43,5 +43,5 @@ using MiaoNet.Shared;
     typeof(PacketPong),
     typeof(PacketPingData),
 
-    typeof(PacketDisconnected)
+    typeof(PacketDisconnected),
 ])]

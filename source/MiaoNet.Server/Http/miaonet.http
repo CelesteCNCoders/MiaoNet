@@ -1,0 +1,20 @@
+@hostname=localhost
+@port=8000
+@host={{hostname}}:{{port}}
+
+###
+
+# summary / info
+GET http://{{host}}/summary
+
+###
+
+# kick player
+@pid=1
+POST http://{{host}}/player/disconnect?id={{pid}}
+
+###
+
+# announce
+@msg=Server is closing!
+POST http://{{host}}/announce?msg={{msg}}

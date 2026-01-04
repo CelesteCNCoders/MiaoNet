@@ -49,9 +49,21 @@ public sealed class ChatComponent : MiaoNetComponent
         inputBox = new InputBox(r);
         chatView = new(r);
         cmdParser = new(MiaoNetCommand.Commands);
-        context.ChatMessageReceived += Context_ChatMessageReceived;
-
         lastMouseScrollWheelValue = Mouse.GetState().ScrollWheelValue;
+
+        context.ChatMessageReceived += Context_ChatMessageReceived;
+        context.PlayerJoined += Context_PlayerJoined;
+        context.PlayerLeft += Context_PlayerLeft;
+    }
+
+    private void Context_PlayerJoined(OnlinePlayer player)
+    {
+        OnNotifyMessage(Dialog.Clean("miaonet_context_player_joined").Replace("(0)", player.Info.Name));
+    }
+
+    private void Context_PlayerLeft(OnlinePlayer player)
+    {
+        OnNotifyMessage(Dialog.Clean("miaonet_context_player_left").Replace("(0)", player.Info.Name));
     }
 
     private void Context_ChatMessageReceived(OnlinePlayer? player, PacketChatMessage packet)
@@ -62,8 +74,8 @@ public sealed class ChatComponent : MiaoNetComponent
             chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.Content));
         else if (packet.Type == ChatMessageType.PrivateMessage)
             chatView.AddChatMessage(MiaoNetChatText.CreatePrivateChat(player!, packet.Content));
-        else
-            throw new NotImplementedException();
+        else if (packet.Type == ChatMessageType.Server)
+            chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.Content));
     }
 
     public override void Update()

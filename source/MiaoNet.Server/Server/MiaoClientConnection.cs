@@ -22,7 +22,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     // TODO timeout of request
     public delegate Task ResponseHandler(PacketResponse response);
     public delegate Task ResponseHandler<in TResponse>(TResponse response) where TResponse : PacketResponse;
-    private int nextRequestID;
+    private int currentRequestID;
     private readonly ConcurrentDictionary<int, ResponseHandler> pendingRequests;
 
     private readonly ILogger<MiaoClientConnection> logger;
@@ -103,7 +103,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     public ValueTask RequestAsync<TResponse>(PacketRequest<TResponse> packet, ResponseHandler<TResponse> callback)
         where TResponse : PacketResponse
     {
-        int id = packet.RequestID = Interlocked.Increment(ref nextRequestID);
+        int id = packet.RequestID = Interlocked.Increment(ref currentRequestID);
         bool success = pendingRequests.TryAdd(id, (packet) => callback((TResponse)packet));
         Debug.Assert(success);
         return QueuePacketAsync(packet);

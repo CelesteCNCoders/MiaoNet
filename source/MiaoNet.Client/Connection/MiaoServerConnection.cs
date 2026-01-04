@@ -75,6 +75,8 @@ public sealed class MiaoServerConnection : IDisposable
         {
             while (sendQueue.TryDequeue(out IContextualPacket? packet))
                 await SendPacketAsync(packet, context, token);
+            if (token.IsCancellationRequested)
+                return;
             await sendSemaphore.WaitAsync(token);
         }
     }

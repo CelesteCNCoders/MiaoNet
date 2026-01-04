@@ -7,7 +7,7 @@ namespace MiaoNet.Shared;
 [DebuggerDisplay("LocalCount = {LocalCount}, RemoteCount = {RemoteCount}")]
 public sealed class PooledStringManager
 {
-    private int nextLocalID;
+    private int currentLocalID;
     // only used to resolve PooledString from remote
     private ImmutableDictionary<int, string> idToString;
     // only used to pack local strings to PooledString
@@ -20,14 +20,14 @@ public sealed class PooledStringManager
     {
         idToString = (initialStrings.Select((s, i) => new KeyValuePair<int, string>(i + 1, s))).ToImmutableDictionary();
         stringToID = (initialStrings.Select((s, i) => new KeyValuePair<string, int>(s, i + 1))).ToImmutableDictionary();
-        nextLocalID = initialStrings.Count() + 1;
+        currentLocalID = initialStrings.Count() + 1;
     }
 
     public bool GetOrCreateID(string value, out int id)
     {
         if (stringToID.TryGetValue(value, out id))
             return true;
-        int nextID = Interlocked.Increment(ref nextLocalID);
+        int nextID = Interlocked.Increment(ref currentLocalID);
         ImmutableInterlocked.Update(ref stringToID, d => stringToID.SetItem(value, nextID));
         id = nextID;
         return false;
