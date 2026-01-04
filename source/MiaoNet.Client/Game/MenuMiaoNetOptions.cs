@@ -131,7 +131,6 @@ public static class MenuMiaoNetOptions
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_interactions"));
         menu.Add(item);
 
-
         item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_emotes_count"), 8, 32, settings.EmotesCount
         ).Change(v => settings.EmotesCount = v);
@@ -142,9 +141,12 @@ public static class MenuMiaoNetOptions
             Dialog.Get("miaonet_options_open_settings_file")
         ).Pressed(() =>
         {
+            string path = Path.Combine(Everest.PathSettings, "modsettings-MiaoNet.celeste");
+            if (!File.Exists(path))
+                MiaoNetModule.Instance.SaveSettings();
             ProcessStartInfo psi = new()
             {
-                FileName = Path.Combine(Everest.PathSettings, "modsettings-MiaoNet.celeste"),
+                FileName = path,
                 UseShellExecute = true
             };
             Process.Start(psi);
