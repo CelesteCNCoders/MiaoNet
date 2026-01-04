@@ -30,7 +30,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     private readonly ConcurrentQueue<IContextualPacket> receiveQueue;
     private readonly ConcurrentQueue<Action> mainThreadQueue;
 
-    private readonly List<MiaoNetComponent> components;
+    private List<MiaoNetComponent> components;
     private MiaoServerConnection? connection;
     private readonly PacketDispatcher packetDispatcher;
 
@@ -52,26 +52,27 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public ClientState? ClientState => clientState;
 
-    public MainComponent MainComponent { get; }
+    public MainComponent MainComponent { get; private set; }
 
-    public EmoteComponent EmoteComponent { get; }
+    public EmoteComponent EmoteComponent { get; private set; }
 
-    public ChatComponent ChatComponent { get; }
+    public ChatComponent ChatComponent { get; private set; }
 
-    public StatusComponent StatusComponent { get; }
+    public StatusComponent StatusComponent { get; private set; }
 
     public MiaoNetContext()
     {
         receiveQueue = new();
         pendingRequests = new();
         mainThreadQueue = new();
-        components = [
-            MainComponent = new MainComponent(this),
-            new PlayerListComponent(this),
-            ChatComponent = new ChatComponent(this),
-            new DebugMapComponent(this),
-            EmoteComponent = new EmoteComponent(this)
-        ];
+
+        // any better ways?
+        // will fill the first time connect
+        components = null!;
+        MainComponent = null!;
+        EmoteComponent = null!;
+        ChatComponent = null!;
+
         StatusComponent = new(this);
         PacketHandlerRegister r = new();
         RegisterPacketHandlers(r);
@@ -86,6 +87,14 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public void Connect()
     {
+        components ??= [
+            MainComponent = new MainComponent(this),
+            new PlayerListComponent(this),
+            ChatComponent = new ChatComponent(this),
+            new DebugMapComponent(this),
+            EmoteComponent = new EmoteComponent(this)
+        ];
+
         if (connectionThread is not null)
             return;
         cts = new();

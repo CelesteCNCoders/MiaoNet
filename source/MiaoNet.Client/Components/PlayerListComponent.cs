@@ -158,7 +158,7 @@ public sealed class PlayerListComponent : MiaoNetComponent
          * <------------------------------- maxLineWidth ------------------------------------> 
          */
 
-        float scale = MiaoNetModule.Settings.UIScaleValue;
+        float scale = MiaoNetModule.Settings.PlayerListUIScaleValue;
 
         const float RectXOffset = 16f;
         const float RectYOffset = 16f;

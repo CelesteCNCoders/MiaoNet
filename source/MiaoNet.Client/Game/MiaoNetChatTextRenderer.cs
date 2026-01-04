@@ -2,11 +2,17 @@ using Celeste.Mod.ChatInputBox;
 
 namespace Celeste.Mod.MiaoNet;
 
-internal sealed class MiaoNetTextRenderer : ITextRenderer
+internal sealed class MiaoNetChatTextRenderer : ITextRenderer
 {
-    private static float Scale => MiaoNetModule.Settings.UIScaleValue;
+    public float Scale { get; set; }
 
-    public float LineHeight => MiaoNetFont.ENZhsLineHeight * Scale;
+    public float LineHeight { get; set; }
+
+    public MiaoNetChatTextRenderer(float scale, float lineHeight)
+    {
+        Scale = scale;
+        LineHeight = lineHeight;
+    }
 
     public bool CanRender(int character)
         => MiaoNetFont.CanRender(character);
@@ -21,7 +27,7 @@ internal sealed class MiaoNetTextRenderer : ITextRenderer
         => MiaoNetFont.DrawOutline(
             text, position, justify,
             Vector2.One * Scale, color,
-            1f, (IsColorDark(color) ? Color.White : Color.Black) with { A = color.A }
+            1f, (IsColorDark(color) ? Color.White : Color.Black) * (color.A / 255f) * (color.A / 255f)
         );
 
     private static bool IsColorDark(Color color)

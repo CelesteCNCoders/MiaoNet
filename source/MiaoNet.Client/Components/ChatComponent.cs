@@ -37,6 +37,8 @@ public sealed class ChatComponent : MiaoNetComponent
     private float targetChatViewScroll;
     private readonly CommandParser cmdParser;
 
+    private readonly MiaoNetChatTextRenderer textRenderer;
+
     private string lastInput = string.Empty;
     private readonly List<string> history;
     private int historyIndex;
@@ -45,9 +47,10 @@ public sealed class ChatComponent : MiaoNetComponent
         : base(context)
     {
         history = new();
-        ITextRenderer r = new MiaoNetTextRenderer();
-        inputBox = new InputBox(r);
-        chatView = new(r);
+        float scale = MiaoNetModule.Settings.ChatUIScaleValue;
+        textRenderer = new MiaoNetChatTextRenderer(scale, MiaoNetFont.ENZhsLineHeight * scale);
+        inputBox = new InputBox(textRenderer);
+        chatView = new(textRenderer);
         cmdParser = new(MiaoNetCommand.Commands);
         lastMouseScrollWheelValue = Mouse.GetState().ScrollWheelValue;
 
@@ -80,9 +83,25 @@ public sealed class ChatComponent : MiaoNetComponent
 
     public override void Update()
     {
+        var settings = MiaoNetModule.Settings;
+
+        // apply settings
+        // any better ways?
+        {
+            chatView.BackgroundOpacity = settings.ChatBackgroundOpacityValue;
+            chatView.TextOpacity = settings.ChatTextOpacityValue;
+            // TODO explain this factor
+            float factor = 32f / 10f / (settings.ChatUIScaleValue * 24f / 10f);
+            chatView.IdleMaxCount = (int)(factor * settings.IdleChatHeight);
+            chatView.ActiveMaxCount = (int)(factor * settings.ActiveChatHeight);
+            float scale = MiaoNetModule.Settings.ChatUIScaleValue;
+            textRenderer.Scale = scale;
+            textRenderer.LineHeight = MiaoNetFont.ENZhsLineHeight * scale;
+        }
+
         if (!active)
         {
-            var btn = MiaoNetModule.Settings.ChatButton;
+            var btn = settings.ChatButton;
             if (btn.Pressed)
             {
                 btn.ConsumePress();

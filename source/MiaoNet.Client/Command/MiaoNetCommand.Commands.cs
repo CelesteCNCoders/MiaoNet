@@ -80,7 +80,7 @@ partial class MiaoNetCommand
 
     private static string? Say(Context context)
     {
-        context.QueuePacket(new PacketSendChatMessage(context.Segments[0]));
+        context.QueuePacket(new PacketSendChatMessage(context.Segments[0].Replace(@"\", @"\\")));
         return null;
     }
 

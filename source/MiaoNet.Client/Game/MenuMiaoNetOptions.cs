@@ -100,8 +100,28 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_ui_scale"), 1, 6, settings.UIScale
-        ).Change(v => settings.UIScale = v);
+            Dialog.Get("miaonet_options_player_list_ui_scale"), 1, 6, settings.PlayerListUIScale
+        ).Change(v => settings.PlayerListUIScale = v);
+        menu.Add(item);
+
+        item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_chat_ui_scale"), 1, 6, settings.ChatUIScale
+        ).Change(v => settings.ChatUIScale = v);
+        menu.Add(item);
+
+        item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_chat_background_opacity"), 0, 10, settings.ChatBackgroundOpacity
+        ).Change(v => settings.ChatBackgroundOpacity = v);
+        menu.Add(item);
+
+        item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_idle_chat_height"), 1, 10, settings.IdleChatHeight
+        ).Change(v => settings.IdleChatHeight = v);
+        menu.Add(item);
+
+        item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_active_chat_height"), 1, 10, settings.ActiveChatHeight
+        ).Change(v => settings.ActiveChatHeight = v);
         menu.Add(item);
 
         item = new TextMenuExt.IntSlider(
@@ -119,6 +139,11 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.NameOpacity = v);
         menu.Add(item);
 
+        // -- Interactions --
+
+        item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_interactions"));
+        menu.Add(item);
+
         item = new EnumSlider<ButtonMode>(
             Dialog.Get("miaonet_options_player_list_button_mode"),
             e => Dialog.Get($"miaonet_options_player_list_button_mode_{e}"),
@@ -126,9 +151,11 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.PlayerListButtonMode = v);
         menu.Add(item);
 
-        // -- Interactions --
-
-        item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_interactions"));
+        item = new EnumSlider<TeleportBehaviour>(
+            Dialog.Get("miaonet_options_teleport_behaviour"),
+            e => Dialog.Get($"miaonet_options_teleport_behaviour_{e}"),
+            settings.TeleportBehaviour
+        ).Change(v => settings.TeleportBehaviour = v);
         menu.Add(item);
 
         item = new TextMenuExt.IntSlider(
@@ -166,13 +193,6 @@ public static class MenuMiaoNetOptions
             o.Emotes = n.Emotes;
             MiaoNetModule.Instance._Settings = o;
         });
-        menu.Add(item);
-
-        item = new EnumSlider<TeleportBehaviour>(
-            Dialog.Get("miaonet_options_teleport_behaviour"),
-            e => Dialog.Get($"miaonet_options_teleport_behaviour_{e}"),
-            settings.TeleportBehaviour
-        ).Change(v => settings.TeleportBehaviour = v);
         menu.Add(item);
 
         // -- Chat --

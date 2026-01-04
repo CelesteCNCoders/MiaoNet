@@ -38,30 +38,37 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public bool ShowOwnName { get; set; } = true;
 
-    public int UIScale { get; set; } = 4;
+    public int PlayerListUIScale { get; set; } = 4;
 
-    [YamlIgnore]
-    public float UIScaleValue => UIScale switch
-    {
-        1 => 3f / 12f,
-        2 => 5f / 12f,
-        3 => 7f / 12f,
-        4 => 8f / 12f,
-        5 => 10f / 12f,
-        6 => 12f / 12f
-    };
+    public int ChatUIScale { get; set; } = 4;
+
+    public int ChatBackgroundOpacity { get; set; } = 5;
+
+    public int ChatTextOpacity { get; set; } = 10;
+
+    public int IdleChatHeight { get; set; } = 4;
+
+    public int ActiveChatHeight { get; set; } = 8;
 
     public int PlayerOpacity { get; set; } = 8;
 
-    [YamlIgnore] public float PlayerOpacityValue => PlayerOpacity / 10f;
-
     public int SelfNameOpacity { get; set; } = 8;
-
-    [YamlIgnore] public float SelfNameOpacityValue => SelfNameOpacity / 10f;
 
     public int NameOpacity { get; set; } = 8;
 
+    [YamlIgnore] public float PlayerListUIScaleValue => GetScaleValue(PlayerListUIScale);
+
+    [YamlIgnore] public float ChatUIScaleValue => GetScaleValue(ChatUIScale);
+
+    [YamlIgnore] public float PlayerOpacityValue => PlayerOpacity / 10f;
+
+    [YamlIgnore] public float SelfNameOpacityValue => SelfNameOpacity / 10f;
+
     [YamlIgnore] public float NameOpacityValue => NameOpacity / 10f;
+
+    [YamlIgnore] public float ChatBackgroundOpacityValue => ChatBackgroundOpacity / 10f;
+
+    [YamlIgnore] public float ChatTextOpacityValue => ChatTextOpacity / 10f;
 
     #endregion
 
@@ -78,10 +85,6 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     public ButtonBinding ChatButton { get; set; }
 
     public ButtonBinding PlayerListButton { get; set; }
-
-    #endregion
-
-    #region
 
     public int EmotesCount { get; set; } = 8;
 
@@ -121,4 +124,14 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
             "p:granny/laugh"
         ];
     }
+
+    private static float GetScaleValue(int scale) => scale switch
+    {
+        1 => 4f,
+        2 => 6f,
+        3 => 8f,
+        4 => 10f,
+        5 => 12f,
+        6 => 20f,
+    } / 24f;
 }
