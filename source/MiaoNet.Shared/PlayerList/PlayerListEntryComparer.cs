@@ -28,7 +28,7 @@ public sealed class PlayerListEntryComparer : IComparer<IPlayerListEntry>
         if (locationComparison != 0)
             return locationComparison;
 
-        int sideComparison = x.Location.MapSide.CompareTo(y.Location.MapSide);
+        int sideComparison = x.Location.Side.CompareTo(y.Location.Side);
         if (sideComparison != 0)
             return sideComparison;
 

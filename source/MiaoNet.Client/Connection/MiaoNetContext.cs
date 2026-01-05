@@ -139,7 +139,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         pendingRequests.Clear();
         clientState = null;
         PooledStringManager = null;
-        components.ForEach(c => c.OnDisconnected());
+        components?.ForEach(c => c.OnDisconnected());
         if (connection is null)
             return;
         connection.Dispose();

@@ -11,6 +11,8 @@ miaonet_options_auto_reconnect= Auto Reconnect
 miaonet_options_connect_on_game_start= Connect On Game Start
 
 miaonet_options_visuals= Visuals
+miaonet_options_show_own_name= Show Own Name
+miaonet_options_ui= UI
 miaonet_options_player_list_ui_scale= Player List UI Scale
 miaonet_options_chat_ui_scale= Chat UI Scale
 miaonet_options_chat_background_opacity= Chat Background Opacity
@@ -18,7 +20,6 @@ miaonet_options_auto_chat_background_width= Auto Chat Background Width
 miaonet_options_chat_background_width= Chat Background Width
 miaonet_options_idle_chat_height= Chat Height
 miaonet_options_active_chat_height= Active Chat Height
-miaonet_options_show_own_name= Show Own Name
 miaonet_options_player_opacity= Player Opacity
 miaonet_options_self_player_name_opacity= Self Name Opacity
 miaonet_options_player_name_opacity= Name Opacity

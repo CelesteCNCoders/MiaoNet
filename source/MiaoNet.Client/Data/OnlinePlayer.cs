@@ -20,6 +20,7 @@ public sealed class OnlinePlayer : IPlayerListEntry
 
     public PlayerOnlineStatus OnlineStatus { get; set; }
 
+    /// <summary><c>-1</c> No record.</summary>
     public int LastPing { get; set; }
 
     public OnlinePlayer(OnlineChannel channel, PlayerInfo info, PlayerOnlineStatus onlineStatus)

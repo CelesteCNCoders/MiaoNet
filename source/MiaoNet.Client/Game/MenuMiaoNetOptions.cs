@@ -99,30 +99,34 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.ShowOwnName = v);
         menu.Add(item);
 
+        var uiSubMenu = new TextMenuExt.SubMenu(Dialog.Get("miaonet_options_ui"), false);
+
         item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_player_list_ui_scale"), 1, 6, settings.PlayerListUIScale
         ).Change(v => settings.PlayerListUIScale = v);
-        menu.Add(item);
+        uiSubMenu.Add(item);
 
         item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_chat_ui_scale"), 1, 6, settings.ChatUIScale
         ).Change(v => settings.ChatUIScale = v);
-        menu.Add(item);
+        uiSubMenu.Add(item);
 
         item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_chat_background_opacity"), 0, 10, settings.ChatBackgroundOpacity
         ).Change(v => settings.ChatBackgroundOpacity = v);
-        menu.Add(item);
+        uiSubMenu.Add(item);
 
         item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_idle_chat_height"), 1, 10, settings.IdleChatHeight
         ).Change(v => settings.IdleChatHeight = v);
-        menu.Add(item);
+        uiSubMenu.Add(item);
 
         item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_active_chat_height"), 1, 10, settings.ActiveChatHeight
         ).Change(v => settings.ActiveChatHeight = v);
-        menu.Add(item);
+        uiSubMenu.Add(item);
+
+        menu.Add(uiSubMenu);
 
         item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_player_opacity"), 1, 10, settings.PlayerOpacity

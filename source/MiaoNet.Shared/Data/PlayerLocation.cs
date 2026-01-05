@@ -10,7 +10,9 @@ public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatabl
     public string MapSid { get; set; } // empty: player is not in level
 
     // only meaningful when MapSid is not null
-    public AreaMode MapSide { get; set; }
+    public AreaMode Side { get; set; }
+
+    public readonly char SideCharacter => (char)('A' + (char)Side);
 
     public string MapRoom { get; set; } // empty: player is not in level or is in debug map
 
@@ -38,12 +40,12 @@ public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatabl
 
     public static PlayerLocation Empty => new(string.Empty, AreaMode.Normal, string.Empty);
 
-    public PlayerLocation(string mapSid, AreaMode mapSide, string mapRoom)
+    public PlayerLocation(string mapSid, AreaMode side, string mapRoom)
     {
         SafeGuard.Assert(mapSid != null);
         SafeGuard.Assert(mapRoom != null);
         MapSid = mapSid;
-        MapSide = mapSide;
+        Side = side;
         MapRoom = mapRoom;
         if (mapSid == string.Empty)
             SafeGuard.Assert(MapRoom == string.Empty);
@@ -60,16 +62,15 @@ public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatabl
     {
         if (MapSid == string.Empty)
             return "None";
-        char sideChar = (char)('A' + (char)MapSide);
         if (MapRoom == string.Empty)
-            return $"{MapSid}.DebugMap {sideChar}";
-        return $"{MapSid}.{MapRoom} {sideChar}";
+            return $"{MapSid}.DebugMap {SideCharacter}";
+        return $"{MapSid}.{MapRoom} {SideCharacter}";
     }
 
     public readonly void Serialize(ref RefBinaryWriter writer)
     {
         writer.Write(MapSid);
-        writer.Write((byte)MapSide);
+        writer.Write((byte)Side);
         writer.Write(MapRoom);
     }
 
@@ -81,11 +82,11 @@ public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatabl
 
     public readonly bool Equals(PlayerLocation other)
         => MapSid == other.MapSid &&
-           MapSide == other.MapSide &&
+           Side == other.Side &&
            MapRoom == other.MapRoom;
 
     public readonly override int GetHashCode()
-        => HashCode.Combine(MapSid, MapSide, MapRoom);
+        => HashCode.Combine(MapSid, Side, MapRoom);
 
     public static bool operator ==(PlayerLocation left, PlayerLocation right)
         => left.Equals(right);
@@ -107,7 +108,7 @@ public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatabl
     }
 
     public readonly bool IsSameMapWith(PlayerLocation other)
-        => MapSid == other.MapSid && MapSide == other.MapSide;
+        => MapSid == other.MapSid && Side == other.Side;
 
 #if MIAO_CLIENT
     public static PlayerLocation FetchFrom(Session session)

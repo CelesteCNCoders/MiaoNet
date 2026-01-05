@@ -112,7 +112,7 @@ partial class MiaoNetCommand
             return error;
 
         PlayerLocation loc = player!.Location;
-        AreaKey areaKey = new(area!.ID, loc.MapSide);
+        AreaKey areaKey = new(area!.ID, loc.Side);
         if (Engine.Scene is Level level)
         {
             // TODO tell player that this action will lose their current progress
@@ -149,7 +149,7 @@ partial class MiaoNetCommand
             return error;
 
         PlayerLocation loc = player!.Location;
-        AreaKey areaKey = new(area!.ID, loc.MapSide);
+        AreaKey areaKey = new(area!.ID, loc.Side);
 
         context.TipMessage(Dialog.Get("miaonet_commands_teleport_tip").Replace("(0)", player.Info.Name));
 
@@ -320,7 +320,7 @@ partial class MiaoNetCommand
             return PlayerNotInMap.Replace("(0)", player.Info.Name);
 
         var area = AreaData.Get(loc.MapSid);
-        if (area is null || area.Mode.Length <= (int)loc.MapSide)
+        if (area is null || area.Mode.Length <= (int)loc.Side)
             return PlayerMapMissing.Replace("(0)", player.Info.Name).Replace("(1)", loc.ToString());
 
         otherArea = area;

@@ -11,6 +11,8 @@ miaonet_options_auto_reconnect= 自动重连
 miaonet_options_connect_on_game_start= 游戏启动时连接
 
 miaonet_options_visuals= 视觉
+miaonet_options_show_own_name= 显示自己的名称
+miaonet_options_ui= 界面
 miaonet_options_player_list_ui_scale= 玩家列表界面大小
 miaonet_options_chat_ui_scale= 聊天界面大小
 miaonet_options_chat_background_opacity= 聊天背景透明度
@@ -18,7 +20,6 @@ miaonet_options_auto_chat_background_width= 自动聊天背景宽度
 miaonet_options_chat_background_width= 聊天背景宽度
 miaonet_options_idle_chat_height= 聊天高度
 miaonet_options_active_chat_height= 聚焦聊天高度
-miaonet_options_show_own_name= 显示自己的名称
 miaonet_options_player_opacity= 玩家透明度
 miaonet_options_self_player_name_opacity= 自身名称透明度
 miaonet_options_player_name_opacity= 名称透明度
