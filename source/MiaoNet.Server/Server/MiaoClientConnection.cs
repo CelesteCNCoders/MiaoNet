@@ -85,7 +85,6 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     {
         cts.CancelAfter(server.DisconnectTimeout);
         await QueuePacketAsync(new PacketDisconnected(reason, message));
-        sendChannel.Writer.Complete();
     }
 
     public ValueTask QueuePacketAsync(IContextualPacket packet)

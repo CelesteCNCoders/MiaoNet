@@ -43,7 +43,7 @@ public sealed class MiaoServerConnection : IDisposable
     )
     {
         MiaoServerConnection con = new(endPoint);
-        await con.tcpSocket!.ConnectAsync(con.EndPoint);
+        await con.tcpSocket!.ConnectAsync(con.EndPoint, token);
         con.networkStream = new(con.tcpSocket);
 
         await con.networkStream.WriteAsync(Connection.HandshakeHead, token);

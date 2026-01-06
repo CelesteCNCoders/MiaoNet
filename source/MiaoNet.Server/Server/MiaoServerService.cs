@@ -281,15 +281,13 @@ public sealed partial class MiaoServerService : BackgroundService
 
                 async Task<TimeSpan?> PingFor(MiaoClientConnection connection, int timeout)
                 {
-                    await Task.Yield();
-
                     TaskCompletionSource responseTcs = new();
                     var start = stopwatch.Elapsed;
                     await connection.RequestAsync(new PacketPing(), OnResponse);
 
                     Task timeoutTask = Task.Delay(timeout, CancellationToken.None);
-                    await Task.WhenAny(responseTcs.Task, timeoutTask);
-                    if (responseTcs.Task == responseTcs.Task)
+                    Task completedTask = await Task.WhenAny(responseTcs.Task, timeoutTask);
+                    if (completedTask == responseTcs.Task)
                     {
                         var end = stopwatch.Elapsed;
                         return end - start;

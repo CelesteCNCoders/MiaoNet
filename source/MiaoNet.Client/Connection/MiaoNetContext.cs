@@ -112,11 +112,10 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public void Disconnect()
     {
+        cts?.Cancel();
+        cts = null;
         if (connection is not null)
         {
-            cts?.Cancel();
-            cts = null;
-
             connection.Dispose();
             connection = null;
             StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
@@ -133,7 +132,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         while (receiveQueue.TryDequeue(out var packet))
         {
             if (packet is PacketDisconnected dc)
-                StatusComponent.ShowStatusMessage($"{dc.Reason}, {dc.Message}");
+                packetDispatcher.DispatchPacket(dc);
         }
         receiveQueue.Clear();
         pendingRequests.Clear();
@@ -364,6 +363,10 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                     }
                 }
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception e)
             {
                 Logger.Error(nameof(MiaoNet), $"Error when connecting: {e}");
@@ -440,10 +443,21 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             threadCts.Cancel();
             if (!t.IsFaulted)
             {
-                mainThreadQueue.Enqueue(() =>
+                if (t.IsCanceled)
                 {
-                    OnDisconnected();
-                });
+                    mainThreadQueue.Enqueue(() =>
+                    {
+                        StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Cancelled);
+                        OnDisconnected();
+                    });
+                }
+                else
+                {
+                    mainThreadQueue.Enqueue(() =>
+                    {
+                        OnDisconnected();
+                    });
+                }
                 return;
             }
 

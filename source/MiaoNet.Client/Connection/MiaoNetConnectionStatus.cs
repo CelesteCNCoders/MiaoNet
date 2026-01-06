@@ -6,6 +6,7 @@ public enum MiaoNetConnectionStatus
     Connected,
     Disconnecting,
     Disconnected,
+    Cancelled,
     ConnectFailedWithException,
     ConnectionAborted,
     ConnectionAbortedWithException,

@@ -35,6 +35,13 @@ public partial class MiaoNetContext
         r.Register<PacketPlayerNotification<PacketUpdateOnlineStatus>>(HandlePacket);
         r.Register<PacketBeTeleportedRequest>(HandlePacket);
         r.Register<PacketPingData>(HandlePacket);
+        r.Register<PacketDisconnected>(HandlePacket);
+    }
+
+    private void HandlePacket(PacketDisconnected packet)
+    {
+        OnDisconnected();
+        StatusComponent.ShowStatusMessage($"{packet.Reason}, {packet.Message}");
     }
 
     private void HandlePacket(PacketPlayerJoined packet)
