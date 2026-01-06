@@ -197,6 +197,9 @@ public sealed class ChatComponent : MiaoNetComponent
     public void OnSentPrivateMessage(OnlinePlayer other, string text)
         => chatView.AddChatMessage(MiaoNetChatText.CreateSentPrivateChat(other, context.ClientState!.Self, text));
 
+    public void ClearChat()
+        => chatView.CleanUp();
+
     public void HandleCommand(string text)
     {
         var result = cmdParser.Parse(text, out var cmdName, out var cmd, out var args);

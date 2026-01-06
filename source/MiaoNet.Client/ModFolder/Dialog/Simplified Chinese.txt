@@ -55,6 +55,7 @@ miaonet_connection_status_connecting= 连接中...
 miaonet_connection_status_connected= 连接成功
 miaonet_connection_status_disconnecting= 连接断开中...
 miaonet_connection_status_disconnected= 连接断开
+miaonet_connection_status_cancelled= 连接取消
 miaonet_connection_status_kicked= 被服务器踢出
 miaonet_connection_status_serverclosed= 服务器已关闭
 miaonet_connection_status_noname= 请先设置玩家名称
@@ -102,6 +103,7 @@ miaonet_commands_whisper_s1_description= 私聊内容。
 miaonet_commands_teleport_description= 传送到另一个玩家。
 miaonet_commands_teleport_s0_name= 玩家名称
 miaonet_commands_teleport_s0_description= 要传送到的玩家。
+miaonet_commands_clear_description= 清除聊天记录。
 
 miaonet_commands_teleport_tip= 正在传送到 (0)...
 miaonet_commands_teleport_failed_tip= 传送失败，(0)。

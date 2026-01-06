@@ -57,6 +57,7 @@ miaonet_connection_status_connecting= Connecting...
 miaonet_connection_status_connected= Connected
 miaonet_connection_status_disconnecting= Disconnecting...
 miaonet_connection_status_disconnected= Disconnected
+miaonet_connection_status_cancelled= Connection cancelled
 miaonet_connection_status_kicked= Kicked from server
 miaonet_connection_status_serverclosed= Server closed
 miaonet_connection_status_noname= Please set name first
@@ -104,6 +105,7 @@ miaonet_commands_whisper_s1_description= The whisper message to send.
 miaonet_commands_teleport_description= Teleport to a player.
 miaonet_commands_teleport_s0_name= Player
 miaonet_commands_teleport_s0_description= The player that teleported to.
+miaonet_commands_clear_description= Clear chat history.
 
 miaonet_commands_teleport_tip= Teleporting to (0)...
 miaonet_commands_teleport_failed_tip= Teleport failed, (0).

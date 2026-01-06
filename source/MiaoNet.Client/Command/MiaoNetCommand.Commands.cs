@@ -66,6 +66,13 @@ partial class MiaoNetCommand
                 segments: [CommandSegmentType.Player],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(Teleport)
+            ),
+            new MiaoNetCommand(
+                name: "clear",
+                aliases: ["cls"],
+                segments: [],
+                captureRestSegments: false,
+                onExecute: new ExecuteHandler(Clear)
             )
         ];
     }
@@ -268,6 +275,12 @@ partial class MiaoNetCommand
             }
         }
 
+        return null;
+    }
+
+    private static string? Clear(Context context)
+    {
+        context.MiaoNetContext.ChatComponent.ClearChat();
         return null;
     }
 
