@@ -16,7 +16,6 @@ public sealed class SerializedPacket
 
     public ArraySegment<byte> ArraySegment => arraySegment;
 
-    // TODO this two methods are super similiar
     public SerializedPacket(
         ArrayPool<byte> arrayPool,
         IContextualPacket packet,
