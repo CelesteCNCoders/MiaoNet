@@ -482,6 +482,7 @@ public sealed partial class MiaoServerService : BackgroundService
             if (handler is null)
             {
                 logger.LogWarning(
+                    AppEvents.Connection,
                     "Unknown received response of id {rid} for player {p}. Type is {type}",
                     res.RequestID,
                     connection.Player.Info,

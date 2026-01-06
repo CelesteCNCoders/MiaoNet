@@ -56,7 +56,10 @@ public sealed class SerializedPacket
 
     public void OnConsumed()
     {
-        if (Interlocked.Decrement(ref clientCount) == 0)
+        int v = Interlocked.Decrement(ref clientCount);
+        if (v < 0)
+            throw new ArgumentOutOfRangeException();
+        if (v == 0)
         {
             Debug.Assert(arraySegment.Array is not null);
             arrayPool.Return(arraySegment.Array);

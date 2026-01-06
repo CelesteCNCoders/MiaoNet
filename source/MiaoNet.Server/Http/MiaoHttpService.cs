@@ -39,7 +39,13 @@ public sealed partial class MiaoHttpService : BackgroundService
             {
                 context = await httpListener.GetContextAsync();
             }
-            catch (HttpListenerException e) when (e.ErrorCode == 995)
+            catch (HttpListenerException e)
+            when (e.ErrorCode == 995)
+            {
+                break;
+            }
+            catch (ObjectDisposedException e)
+            when (e.ObjectName == typeof(HttpListener).ToString())
             {
                 break;
             }
