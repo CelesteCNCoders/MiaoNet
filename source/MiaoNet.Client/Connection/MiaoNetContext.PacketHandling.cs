@@ -182,6 +182,7 @@ public partial class MiaoNetContext
         Response(request, new PacketBeTeleportedResponse(
             PlayerSessionData.CreateFrom(level!.Session, position)
         ));
+        return;
 
     Reject:
         Response(request, new PacketBeTeleportedResponse(null));
