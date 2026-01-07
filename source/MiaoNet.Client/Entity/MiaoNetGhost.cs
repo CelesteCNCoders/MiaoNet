@@ -114,7 +114,7 @@ public sealed class MiaoNetGhost : Entity
                 float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
                 // TODO apply graphics info
                 ParticleType type;
-                if (lastDashedDashes <= 1)
+                if (lastDashedDashes == 0)
                 {
                     type = pDashA;
                     type.Color = pDashColorBaseA.Item1 * alpha;
