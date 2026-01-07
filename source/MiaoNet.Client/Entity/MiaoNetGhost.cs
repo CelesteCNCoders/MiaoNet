@@ -208,16 +208,20 @@ public sealed class MiaoNetGhost : Entity
         {
             lastDashedDashes = this.dashes;
 
-            if (level is not null && !level.Paused)
+            if (level is not null)
             {
-                float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
-                level.Displacement.AddBurst(Center, 0.4f, 8f, 64f, 0.5f * alpha, Ease.QuadOut);
+                if (!level.Paused)
+                {
+                    float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
+                    level.Displacement.AddBurst(Center, 0.4f, 8f, 64f, 0.5f * alpha, Ease.QuadOut);
+                }
+                AddTrail(this.dashes);
             }
-            AddTrail(this.dashes);
         }
         else if (pDashing && !dashing)
         {
-            AddTrail(lastDashedDashes);
+            if (level is not null)
+                AddTrail(lastDashedDashes);
         }
     }
 
