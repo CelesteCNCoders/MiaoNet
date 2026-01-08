@@ -70,13 +70,13 @@ public sealed class ChatComponent : MiaoNetComponent
     private void Context_ChatMessageReceived(OnlinePlayer? player, PacketChatMessage packet)
     {
         if (packet.Type == ChatMessageType.Chat)
-            chatView.AddChatMessage(MiaoNetChatText.CreatePublicChat(player!, packet.Content));
+            chatView.AddChatMessage(MiaoNetChatText.CreatePublicChat(packet.DateTime, player!, packet.Content));
         else if (packet.Type == ChatMessageType.Server)
-            chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.Content));
+            chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.DateTime, packet.Content));
         else if (packet.Type == ChatMessageType.PrivateMessage)
-            chatView.AddChatMessage(MiaoNetChatText.CreatePrivateChat(player!, packet.Content));
-        else if (packet.Type == ChatMessageType.Server)
-            chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.Content));
+            chatView.AddChatMessage(MiaoNetChatText.CreatePrivateChat(packet.DateTime, player!, packet.Content));
+        else if (packet.Type == ChatMessageType.ServerChat)
+            chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.DateTime, packet.Content));
     }
 
     public override void Update()
@@ -194,8 +194,8 @@ public sealed class ChatComponent : MiaoNetComponent
     public void OnNotifyMessage(string text)
         => chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(text));
 
-    public void OnSentPrivateMessage(OnlinePlayer other, string text)
-        => chatView.AddChatMessage(MiaoNetChatText.CreateSentPrivateChat(other, context.ClientState!.Self, text));
+    public void OnSentPrivateMessage(DateTime dateTime, OnlinePlayer other, string text)
+        => chatView.AddChatMessage(MiaoNetChatText.CreateSentPrivateChat(dateTime, other, context.ClientState!.Self, text));
 
     public void ClearChat()
         => chatView.CleanUp();

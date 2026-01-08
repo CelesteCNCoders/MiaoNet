@@ -10,16 +10,19 @@ public enum ChatMessageType : byte
 
 public sealed class PacketChatMessage : IContextlessPacket<PacketChatMessage>
 {
+    public DateTime DateTime { get; set; }
+
     public ChatMessageType Type { get; set; }
 
     public int? SourcePlayer { get; set; }
 
     public string Content { get; set; }
 
-    public PacketChatMessage(ChatMessageType type, int? sourcePlayer, string content)
+    public PacketChatMessage(DateTime dateTime, ChatMessageType type, int? sourcePlayer, string content)
     {
         if (type is not ChatMessageType.Server)
             SafeGuard.Assert(sourcePlayer is not null);
+        DateTime = dateTime;
         Type = type;
         SourcePlayer = sourcePlayer;
         Content = content;
@@ -27,6 +30,7 @@ public sealed class PacketChatMessage : IContextlessPacket<PacketChatMessage>
 
     public static PacketChatMessage Deserialize(ref RefBinaryReader reader)
         => new(
+            reader.ReadDateTime(),
             (ChatMessageType)reader.ReadByte(),
             reader.ReadBoolean() ? reader.ReadInt32() : null,
             reader.ReadString()
@@ -34,6 +38,7 @@ public sealed class PacketChatMessage : IContextlessPacket<PacketChatMessage>
 
     public void Serialize(ref RefBinaryWriter writer)
     {
+        writer.Write(DateTime);
         writer.Write((byte)Type);
         if (SourcePlayer.HasValue)
         {
@@ -101,22 +106,26 @@ public sealed class PacketSendPrivateChatMessageResponse :
         Denied
     }
 
+    public DateTime DateTime { get; }
+
     public SendResult Result { get; }
 
-    public PacketSendPrivateChatMessageResponse(SendResult result)
+    public PacketSendPrivateChatMessageResponse(DateTime dateTime, SendResult result)
     {
+        DateTime = dateTime;
         Result = result;
     }
 
     public override void Serialize(ref RefBinaryWriter writer)
     {
         writer.Write(RequestID);
+        writer.Write(DateTime);
         writer.Write((byte)Result);
     }
 
     public static PacketSendPrivateChatMessageResponse Deserialize(ref RefBinaryReader reader)
     {
         int reqID = reader.ReadInt32();
-        return new((SendResult)reader.ReadByte()) { RequestID = reqID };
+        return new(reader.ReadDateTime(), (SendResult)reader.ReadByte()) { RequestID = reqID };
     }
 }

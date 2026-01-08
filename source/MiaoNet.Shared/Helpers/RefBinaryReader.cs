@@ -157,4 +157,7 @@ public static class RefBinaryReaderExtensions
             list[i] = Read<T, TContext>(ref reader, context);
         return list;
     }
+
+    public static DateTime ReadDateTime(this ref RefBinaryReader reader)
+        => new DateTime(reader.ReadInt64());
 }

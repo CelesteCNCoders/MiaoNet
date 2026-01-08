@@ -98,7 +98,7 @@ public partial class MiaoHttpService
 
         foreach (var (_, (p, c)) in miaoServerService.ServerState.AllPlayers)
         {
-            await c.QueuePacketAsync(new PacketChatMessage(ChatMessageType.Server, null, message));
+            await c.QueuePacketAsync(new PacketChatMessage(DateTime.UtcNow, ChatMessageType.Server, null, message));
             context.Response.OutputStream.Write(Encoding.UTF8.GetBytes($"Announced to {p.Info}\n"));
         }
         context.Response.StatusCode = (int)HttpStatusCode.NoContent;

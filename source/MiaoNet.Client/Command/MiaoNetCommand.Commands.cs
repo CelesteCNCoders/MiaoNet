@@ -264,7 +264,7 @@ partial class MiaoNetCommand
             switch (response.Result)
             {
             case PacketSendPrivateChatMessageResponse.SendResult.Success:
-                context.MiaoNetContext.ChatComponent.OnSentPrivateMessage(player, content);
+                context.MiaoNetContext.ChatComponent.OnSentPrivateMessage(response.DateTime, player, content);
                 break;
             case PacketSendPrivateChatMessageResponse.SendResult.NoSuchPlayer:
                 context.TipErrorMessage($"Could not find player {player.Info.Name}");

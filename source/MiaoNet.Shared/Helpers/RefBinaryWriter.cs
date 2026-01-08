@@ -204,4 +204,7 @@ public static class RefBinaryWriterExtensions
         foreach (var item in values)
             item.Serialize(ref writer, context);
     }
+
+    public static void Write(this ref RefBinaryWriter writer, DateTime dateTime)
+        => writer.Write(dateTime.Ticks);
 }

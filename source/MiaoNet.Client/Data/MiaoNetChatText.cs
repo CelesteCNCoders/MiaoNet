@@ -1,18 +1,22 @@
+using System.Globalization;
+using System.Runtime.InteropServices;
 using Celeste.Mod.ChatInputBox;
 
 namespace Celeste.Mod.MiaoNet;
 
 public static class MiaoNetChatText
 {
-    public static ChatText CreatePublicChat(OnlinePlayer sender, string text)
+    public static ChatText CreatePublicChat(DateTime dateTime, OnlinePlayer sender, string text)
         => new ChatText([
+            new(ChatTextStyle.None, Color.DimGray, FormatDateTime(dateTime)),
             new(ChatTextStyle.None, Color.Yellow, sender.Info.Name),
             new(ChatTextStyle.None, Color.White, ": "),
             ..ChatText.Parse(text, Color.White)
         ]);
 
-    public static ChatText CreatePrivateChat(OnlinePlayer sender, string text)
+    public static ChatText CreatePrivateChat(DateTime dateTime, OnlinePlayer sender, string text)
         => new ChatText([
+            new(ChatTextStyle.None, Color.DimGray, FormatDateTime(dateTime)),
             new(
                 ChatTextStyle.None, Color.DarkGray,
                 Dialog.Get("miaonet_chat_whisper_received")
@@ -24,8 +28,9 @@ public static class MiaoNetChatText
             ..ChatText.Parse(text, Color.LightGray)
         ]);
 
-    public static ChatText CreateSentPrivateChat(OnlinePlayer other, OnlinePlayer self, string text)
+    public static ChatText CreateSentPrivateChat(DateTime dateTime, OnlinePlayer other, OnlinePlayer self, string text)
         => new ChatText([
+            new(ChatTextStyle.None, Color.DimGray, FormatDateTime(dateTime)),
             new(
                 ChatTextStyle.None, Color.DarkGray,
                 Dialog.Get("miaonet_chat_whisper_sent")
@@ -39,7 +44,15 @@ public static class MiaoNetChatText
         ]);
 
     public static ChatText CreateAnnouncement(string text)
-        => new ChatText([new(ChatTextStyle.None, Color.Yellow, text)]);
+        => new ChatText([
+            new(ChatTextStyle.None, Color.Yellow, text)
+        ]);
+
+    public static ChatText CreateAnnouncement(DateTime dateTime, string text)
+        => new ChatText([
+            new(ChatTextStyle.None, Color.DimGray, FormatDateTime(dateTime)),
+            new(ChatTextStyle.None, Color.Yellow, text)
+        ]);
 
     public static ChatText CreateCommandTip(string text)
         => new ChatText([new(ChatTextStyle.None, Color.LightGray, text)]);
@@ -49,4 +62,7 @@ public static class MiaoNetChatText
 
     public static ChatText CreateCommandErrorEcho(string text)
         => new ChatText([new(ChatTextStyle.None, Color.IndianRed, text)]);
+
+    private static string FormatDateTime(DateTime dateTime)
+        => $"[{dateTime.ToLocalTime():T}] ";
 }

@@ -196,7 +196,7 @@ public sealed partial class MiaoServerService
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketSendChatMessage packet)
     {
         logger.LogInformation(AppEvents.GameChat, "{player}: {msg}", connection.Player.Info, packet.Content);
-        await BroadcastAsync(new PacketChatMessage(ChatMessageType.Chat, connection.Player.ID, packet.Content));
+        await BroadcastAsync(new PacketChatMessage(DateTime.UtcNow, ChatMessageType.Chat, connection.Player.ID, packet.Content));
     }
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketSendEmote packet)
@@ -291,9 +291,9 @@ public sealed partial class MiaoServerService
              );
 
             await target.Connection.QueuePacketAsync(
-                new PacketChatMessage(ChatMessageType.PrivateMessage, connection.ID, request.Content)
+                new PacketChatMessage(DateTime.UtcNow, ChatMessageType.PrivateMessage, connection.ID, request.Content)
             );
-            await connection.ResponseAsync(request, new(PacketSendPrivateChatMessageResponse.SendResult.Success));
+            await connection.ResponseAsync(request, new(DateTime.UtcNow, PacketSendPrivateChatMessageResponse.SendResult.Success));
         }
         else
         {
@@ -305,7 +305,7 @@ public sealed partial class MiaoServerService
             );
             await connection.ResponseAsync(
                 request,
-                new(PacketSendPrivateChatMessageResponse.SendResult.NoSuchPlayer)
+                new(DateTime.UtcNow, PacketSendPrivateChatMessageResponse.SendResult.NoSuchPlayer)
             );
         }
     }
