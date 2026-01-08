@@ -52,13 +52,13 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public ClientState? ClientState => clientState;
 
-    public MainComponent MainComponent { get; private set; }
+    public MainComponent MainComponent { get; }
 
-    public EmoteComponent EmoteComponent { get; private set; }
+    public EmoteComponent EmoteComponent { get; }
 
-    public ChatComponent ChatComponent { get; private set; }
+    public ChatComponent ChatComponent { get; }
 
-    public StatusComponent StatusComponent { get; private set; }
+    public StatusComponent StatusComponent { get; }
 
     public MiaoNetContext()
     {
@@ -66,28 +66,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         pendingRequests = new();
         mainThreadQueue = new();
 
-        // any better ways?
-        // will fill the first time connect
-        components = null!;
-        MainComponent = null!;
-        EmoteComponent = null!;
-        ChatComponent = null!;
-
-        StatusComponent = new(this);
-        PacketHandlerRegister r = new();
-        RegisterPacketHandlers(r);
-        packetDispatcher = new(r);
-
-#if DEBUG
-        Engine.Instance.IsMouseVisible = true;
-        if (GFX.Loaded)
-            Task.Delay(500).ContinueWith(_ => Connect());
-#endif
-    }
-
-    public void Connect()
-    {
-        components ??= [
+        components = [
             MainComponent = new MainComponent(this),
             new PlayerListComponent(this),
             ChatComponent = new ChatComponent(this),
@@ -95,6 +74,14 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             EmoteComponent = new EmoteComponent(this)
         ];
 
+        StatusComponent = new(this);
+        PacketHandlerRegister r = new();
+        RegisterPacketHandlers(r);
+        packetDispatcher = new(r);
+    }
+
+    public void Connect()
+    {
         if (connectionThread is not null)
             return;
         cts = new();

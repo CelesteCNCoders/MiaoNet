@@ -27,7 +27,7 @@ public sealed class ChatComponent : MiaoNetComponent
 
     private bool previousCommandsEnabled = false;
     private bool previousScenePaused = false;
-    private PauseUpdateOverlay? dummyOverlay;
+    private readonly PauseUpdateOverlay dummyOverlay;
 
     private bool active;
     private readonly InputBox inputBox;
@@ -47,6 +47,7 @@ public sealed class ChatComponent : MiaoNetComponent
         history = new();
         float scale = MiaoNetModule.Settings.ChatUIScaleValue;
         textRenderer = new MiaoNetChatTextRenderer(scale, MiaoNetFont.ENZhsLineHeight * scale);
+        dummyOverlay = new();
         inputBox = new InputBox(textRenderer);
         chatView = new(textRenderer);
         cmdParser = new(MiaoNetCommand.Commands);
@@ -260,7 +261,7 @@ public sealed class ChatComponent : MiaoNetComponent
         Engine.Scene.Paused = true;
 
         if (Engine.Scene is Level level)
-            level.Add(dummyOverlay ??= new PauseUpdateOverlay());
+            level.Add(dummyOverlay);
     }
 
     private void Deactive()

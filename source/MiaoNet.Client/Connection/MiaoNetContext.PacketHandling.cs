@@ -19,6 +19,7 @@ public partial class MiaoNetContext
     public event Action<OnlinePlayer, string>? EmoteTextReceived;
     public event Action<OnlinePlayer, PacketPlayerStateFlags.StateFlags>? PlayerStateFlagsNotification;
     public event Action<OnlinePlayer, PlayerOnlineStatus>? PlayerOnlineStatusChanged;
+    public event Action? PingDataReceived;
 
     private void RegisterPacketHandlers(PacketHandlerRegister r)
     {
@@ -202,5 +203,6 @@ public partial class MiaoNetContext
             }
             player.LastPing = ping;
         }
+        PingDataReceived?.Invoke();
     }
 }

@@ -67,6 +67,7 @@ public sealed class MiaoNetGhost : Entity
         UpdateLightSettings(MiaoNetModule.Settings.OtherPlayersLight);
 
         playerHair = new PlayerHair(playerSprite);
+        playerHair.Facing = facing;
         Add(playerHair);
 
         Add(playerSprite);

@@ -18,6 +18,8 @@ public sealed class ClientState
 
     public PlayerState? SelfState { get => Self.State; set => Self.State = value; }
 
+    public event Action? SelfLocationChanged;
+
     public ClientState(PacketClientInitial clientInitial)
     {
         players = new();
@@ -57,6 +59,8 @@ public sealed class ClientState
     {
         PlayerLocation.ChangeResult result = Self.Location.CompareTo(location);
         Self.Location = location;
+        if (result != PlayerLocation.ChangeResult.None)
+            SelfLocationChanged?.Invoke();
         return result;
     }
 }

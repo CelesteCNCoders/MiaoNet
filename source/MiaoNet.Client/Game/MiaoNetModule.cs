@@ -10,8 +10,9 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class MiaoNetModule : EverestModule
 {
-    private static bool seenOverworld;
+    private MiaoNetContext? miaoNetContext;
 
+    private static bool seenOverworld;
     public const string LeaderFollowersDirtyField = "mn_followersDirty";
 
     public static MiaoNetModule Instance { get; private set; } = null!;
@@ -22,7 +23,7 @@ public sealed class MiaoNetModule : EverestModule
     private static readonly DetourConfig RootConfig = new("MiaoNet");
     private static readonly DetourConfig RootBeforeAllConfig = new("MiaoNet.BeforeAll", before: ["*"]);
 
-    public MiaoNetContext MiaoNetContext { get; private set; }
+    public MiaoNetContext MiaoNetContext => miaoNetContext ??= new();
 
     // TODO need we use scissors to render chats?
     /*
@@ -38,7 +39,6 @@ public sealed class MiaoNetModule : EverestModule
 
     public MiaoNetModule()
     {
-        MiaoNetContext = new();
     }
 
     public override void Load()
@@ -70,7 +70,7 @@ public sealed class MiaoNetModule : EverestModule
 
     public override void Unload()
     {
-        MiaoNetContext.Disconnect();
+        miaoNetContext?.Disconnect();
         Everest.Events.Level.OnCreatePauseMenuButtons -= Level_OnCreatePauseMenuButtons;
         IL.Monocle.Engine.Update -= Engine_Update;
         IL.Monocle.Engine.RenderCore -= Engine_RenderCore;
@@ -89,6 +89,15 @@ public sealed class MiaoNetModule : EverestModule
 
         SpeedrunToolCompat.Unload();
     }
+
+#if DEBUG
+    public override void Initialize()
+    {
+        Engine.Instance.IsMouseVisible = true;
+        if (GFX.Loaded)
+            Task.Delay(500).ContinueWith(_ => MiaoNetContext.Connect());
+    }
+#endif
 
     public override void OnInputInitialize()
     {
@@ -142,7 +151,7 @@ public sealed class MiaoNetModule : EverestModule
     private static void Engine_Update(ILContext il)
     {
         ILCursor cur = new(il);
-        cur.EmitDelegate(static () => Instance.MiaoNetContext.Update());
+        cur.EmitDelegate(static () => Instance.miaoNetContext?.Update());
     }
 
     private static void Engine_RenderCore(ILContext il)
@@ -150,7 +159,7 @@ public sealed class MiaoNetModule : EverestModule
         ILCursor cur = new(il);
         // FIXME evil render position
         cur.Index = cur.Instrs.Count - 1;
-        cur.EmitDelegate(static () => Instance.MiaoNetContext.Render());
+        cur.EmitDelegate(static () => Instance.miaoNetContext?.Render());
     }
 
     private static void Level_Update(ILContext il)
