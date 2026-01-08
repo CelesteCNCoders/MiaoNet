@@ -43,13 +43,14 @@ public sealed class MainComponent : MiaoNetComponent
         foreach (var pair in ghosts)
             pair.Value.RemoveSelf();
         ghosts.Clear();
-        // FIXME unremoved ghost
 
-        //if (Engine.Scene is not null)
-        //{
-        //    foreach (var ghost in Engine.Scene.Entities.Where(e => e is MiaoNetGhost))
-        //        ghost.RemoveSelf();
-        //}
+        // FIXME unremoved ghost
+        if (Engine.Scene is not null)
+        {
+            foreach (var ghost in Engine.Scene.Tracker.GetEntities<MiaoNetGhost>())
+                ghost.RemoveSelf();
+        }
+
         selfNameTag?.RemoveSelf();
         selfNameTag = null;
     }
@@ -145,6 +146,9 @@ public sealed class MainComponent : MiaoNetComponent
         if (selfState is null)
             return;
 
+        FollowerInfo[]? followerInitials = null;
+        FollowerInfoDelta[]? followerDeltas = null;
+
         FFlags flags = FFlags.None;
         if (player.Facing is Facings.Left)
             flags |= FFlags.FacingLeft;
@@ -158,15 +162,25 @@ public sealed class MainComponent : MiaoNetComponent
             flags |= FFlags.StarFlying;
 
         if (DynamicData.For(player.Leader).Get(MiaoNetModule.LeaderFollowersDirtyField) as bool? is not false)
+        {
             flags |= FFlags.HasFollowerInitials;
+            followerInitials = FetchFollowerInitials(player.Leader);
+        }
         else if (player.Leader.Followers.Count > 0)
+        {
             flags |= FFlags.HasFollowerDeltas;
-        DynamicData.For(player.Leader).Set(MiaoNetModule.LeaderFollowersDirtyField, false);
+            followerDeltas = FetchFollowerDeltas(player.Leader);
+        }
 
+        DynamicData.For(player.Leader).Set(MiaoNetModule.LeaderFollowersDirtyField, false);
         SafeGuard.Assert(!(flags.HasFlag(FFlags.HasFollowerInitials) && flags.HasFlag(FFlags.HasFollowerDeltas)));
 
         selfState.Dashing = currentDashing;
         selfState.Dashes = (byte)currentDashes;
+        if (followerInitials is not null)
+            selfState.ApplyFollowersInitials(followerInitials);
+        else if (followerDeltas is not null)
+            selfState.ApplyFollowersDeltas(followerDeltas);
 
         var packetFrame = new PacketPlayerFrame(
             player.Position,
@@ -175,6 +189,7 @@ public sealed class MainComponent : MiaoNetComponent
             player.Sprite.Scale,
             flags
         );
+
         if (packetFrame.DashesChange)
             packetFrame.Dashes = (byte)currentDashes;
         if (packetFrame.HasHoldable)
@@ -182,9 +197,9 @@ public sealed class MainComponent : MiaoNetComponent
         if (packetFrame.Dashing)
             packetFrame.DashDirection = (byte)(player.DashDir.Angle() / MathF.Tau * byte.MaxValue);
         if (packetFrame.HasFollowerInitials)
-            packetFrame.FollowerInitials = FetchFollowerInitials(player.Leader);
+            packetFrame.FollowerInitials = followerInitials;
         else if (packetFrame.HasFollowerDeltas)
-            packetFrame.FollowerDeltas = FetchFollowerDeltas(player.Leader);
+            packetFrame.FollowerDeltas = followerDeltas;
         context.QueuePacket(packetFrame);
     }
 
