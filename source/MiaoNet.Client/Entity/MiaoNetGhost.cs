@@ -291,7 +291,7 @@ public sealed class MiaoNetGhost : Entity
     {
         respawning = true;
         deadEase = 1f;
-        var tween = Tween.Set(this, Tween.TweenMode.Oneshot, 0.6f * (Engine.RawDeltaTime / Player.State!.DeltaTime), null,
+        var tween = Tween.Set(this, Tween.TweenMode.Oneshot, 0.6f, null,
             t =>
             {
                 deadEase = 1f - t.Eased;

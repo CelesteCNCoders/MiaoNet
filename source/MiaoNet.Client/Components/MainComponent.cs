@@ -139,6 +139,10 @@ public sealed class MainComponent : MiaoNetComponent
             selfNameTag = null;
         }
 
+        // do not send frame when paused
+        if (level.Paused)
+            return;
+
         bool currentDashing = player.StateMachine.State is Player.StDash;
         int currentDashes = player.Dashes;
 
