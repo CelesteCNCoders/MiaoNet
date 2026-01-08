@@ -65,8 +65,7 @@ public sealed class MiaoNetModule : EverestModule
             On.Celeste.PlayerSprite.ctor += PlayerSprite_ctor;
         }
 
-        typeof(SpeedrunToolInterop).ModInterop();
-        SpeedrunToolInterop.AddReturnSameObjectProcessor?.Invoke(t => t.Assembly == typeof(MiaoNetContext).Assembly);
+        SpeedrunToolCompat.Load();
     }
 
     public override void Unload()
@@ -87,6 +86,8 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.LevelLoader.OnLoadingThread -= LevelLoader_OnLoadingThread;
 
         On.Celeste.PlayerSprite.ctor -= PlayerSprite_ctor;
+
+        SpeedrunToolCompat.Unload();
     }
 
     public override void OnInputInitialize()

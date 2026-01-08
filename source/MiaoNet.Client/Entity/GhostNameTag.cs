@@ -30,8 +30,6 @@ public sealed class GhostNameTag : Entity
     public override void Render()
     {
         base.Render();
-        if (SpeedrunToolFix.IsSceneNull(this))
-            return;
 
         Vector2 worldPosition = Entity.Position;
         worldPosition.Y -= 16f;

@@ -75,9 +75,6 @@ public sealed class GhostEmote : Entity
 
     public override void Render()
     {
-        if (SpeedrunToolFix.IsSceneNull(this))
-            return;
-
         base.Render();
         const float Margin = 8f;
 

@@ -86,8 +86,6 @@ public sealed class MiaoNetGhost : Entity
     public override void Update()
     {
         base.Update();
-        if (SpeedrunToolFix.IsSceneNull(this))
-            return;
 
         if (starFlying)
         {

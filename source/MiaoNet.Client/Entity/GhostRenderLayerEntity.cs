@@ -13,9 +13,6 @@ public sealed class GhostRenderLayerEntity : Entity
 
     public override void Render()
     {
-        if (SpeedrunToolFix.IsSceneNull(this))
-            return;
-
         var gd = Engine.Instance.GraphicsDevice;
         Level level = SceneAs<Level>();
 
