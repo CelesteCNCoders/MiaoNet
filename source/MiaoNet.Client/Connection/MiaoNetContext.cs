@@ -248,10 +248,12 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             return;
 
         SingleThreadedSynchronizationContext syncCtx = new();
+        SingleThreadedTaskScheduler taskScheduler = new(syncCtx);
         SynchronizationContext.SetSynchronizationContext(syncCtx);
 
         CancellationTokenSource threadCts = new();
-        StartConnectionAsync(this, connectionToken).ContinueWith(t => HandleStartConnectionTaskCompleted(t, threadCts));
+        StartConnectionAsync(this, connectionToken)
+            .ContinueWith(t => HandleStartConnectionTaskCompleted(t, threadCts), taskScheduler);
 
         try
         {

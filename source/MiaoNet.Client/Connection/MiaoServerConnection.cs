@@ -11,12 +11,13 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class MiaoServerConnection : IDisposable
 {
+    private static readonly ArrayPool<byte> pool = ArrayPool<byte>.Shared;
+
     private Socket? tcpSocket;
     private NetworkStream networkStream = null!;
 
     // TODO use memory stream is not so good
     private readonly MemoryStream sendMemoryStream;
-    private readonly MemoryStream receiveMemoryStream;
 
     private readonly ConcurrentQueue<IContextualPacket> sendQueue;
     private readonly SemaphoreSlim sendSemaphore;
@@ -31,7 +32,6 @@ public sealed class MiaoServerConnection : IDisposable
 
         sendMemoryStream = new(512);
         sendMemoryStream.Seek(2, SeekOrigin.Begin);
-        receiveMemoryStream = new(512);
 
         sendQueue = new();
         sendSemaphore = new(0);
@@ -117,73 +117,89 @@ public sealed class MiaoServerConnection : IDisposable
     {
         const int HeadSize = sizeof(ushort);
 
-        var buffer = receiveMemoryStream.GetBuffer();
-
-        Memory<byte> headMemory = buffer.AsMemory().Slice(0, HeadSize);
-        int count = await networkStream.ReadAtLeastAsync(headMemory, HeadSize, false, token);
-        if (count < HeadSize)
-            return null;
-        receiveMemoryStream.Seek(HeadSize, SeekOrigin.Begin);
-
-        ushort size = BinaryPrimitives.ReadUInt16LittleEndian(headMemory.Span);
-
-        if (receiveMemoryStream.Capacity < size)
+        var headBuffer = pool.Rent(HeadSize);
+        ushort size;
+        try
         {
-            receiveMemoryStream.Capacity = size;
-            buffer = receiveMemoryStream.GetBuffer();
+            Memory<byte> headMemory = headBuffer.AsMemory().Slice(0, HeadSize);
+            int count = await networkStream.ReadAtLeastAsync(headMemory, HeadSize, false, token);
+            if (count < HeadSize)
+                return null;
+
+            size = BinaryPrimitives.ReadUInt16LittleEndian(headMemory.Span);
+        }
+        finally
+        {
+            pool.Return(headBuffer);
         }
 
-        Memory<byte> payloadMemory = buffer.AsMemory().Slice(0, size);
-        count = await networkStream.ReadAtLeastAsync(payloadMemory, size, false, token);
-        if (count < size)
-            return null;
+        var payloadBuffer = pool.Rent(size);
+        try
+        {
+            Memory<byte> payloadMemory = payloadBuffer.AsMemory().Slice(0, size);
+            int count = await networkStream.ReadAtLeastAsync(payloadMemory, size, false, token);
+            if (count < size)
+                return null;
 
-        RefBinaryReader reader = new(payloadMemory.Span);
-        HandshakeAckData packet = reader.Read<HandshakeAckData>();
-        return packet;
+            RefBinaryReader reader = new(payloadMemory.Span);
+            HandshakeAckData packet = reader.Read<HandshakeAckData>();
+            return packet;
+        }
+        finally
+        {
+            pool.Return(payloadBuffer);
+        }
     }
 
     public async Task<IContextualPacket?> ReceivePacketAsync(IPacketSerializationContext context, CancellationToken token)
     {
         const int HeadSize = 2 * sizeof(ushort);
 
-        var buffer = receiveMemoryStream.GetBuffer();
-
-        Memory<byte> headMemory = buffer.AsMemory().Slice(0, HeadSize);
-        int count = await networkStream.ReadAtLeastAsync(headMemory, HeadSize, false, token);
-        if (count < HeadSize)
-            return null;
-        receiveMemoryStream.Seek(HeadSize, SeekOrigin.Begin);
-
-        ushort size = BinaryPrimitives.ReadUInt16LittleEndian(headMemory.Span);
-        ushort type = BinaryPrimitives.ReadUInt16LittleEndian(headMemory.Span.Slice(sizeof(ushort)));
-
-        if (receiveMemoryStream.Capacity < size)
-        {
-            receiveMemoryStream.Capacity = size;
-            buffer = receiveMemoryStream.GetBuffer();
-        }
-
-        Memory<byte> payloadMemory = buffer.AsMemory().Slice(0, size);
-        count = await networkStream.ReadAtLeastAsync(payloadMemory, size, false, token);
-        if (count < size)
-            return null;
-
+        var headBuffer = pool.Rent(HeadSize);
+        ushort size, type;
         try
         {
-            RefBinaryReader reader = new(payloadMemory.Span);
-            var readHandler = PacketRegistry.GetPacketReader(type);
-            IContextualPacket packet = readHandler(ref reader, context);
-            return packet;
+            Memory<byte> headMemory = headBuffer.AsMemory().Slice(0, HeadSize);
+            int count = await networkStream.ReadAtLeastAsync(headMemory, HeadSize, false, token);
+            if (count < HeadSize)
+                return null;
+
+            size = BinaryPrimitives.ReadUInt16LittleEndian(headMemory.Span);
+            type = BinaryPrimitives.ReadUInt16LittleEndian(headMemory.Span.Slice(sizeof(ushort)));
         }
-        catch (Exception)
+        finally
         {
-            Logger.Error(
-                $"{nameof(MiaoNet)}/ReadPacket",
-                $"Read packet failed, size: {size}, type: {type}. Raw payload:\n" +
-                    Convert.ToBase64String(payloadMemory.ToArray())
-            );
-            throw;
+            pool.Return(headBuffer);
+        }
+
+        var payloadBuffer = pool.Rent(size);
+        try
+        {
+            Memory<byte> payloadMemory = payloadBuffer.AsMemory().Slice(0, size);
+            int count = await networkStream.ReadAtLeastAsync(payloadMemory, size, false, token);
+            if (count < size)
+                return null;
+
+            try
+            {
+                RefBinaryReader reader = new(payloadMemory.Span);
+                var readHandler = PacketRegistry.GetPacketReader(type);
+                IContextualPacket packet = readHandler(ref reader, context);
+                return packet;
+            }
+            catch (Exception)
+            {
+                Logger.Error(
+                    $"{nameof(MiaoNet)}/ReadPacket",
+                    $"Read packet failed, size: {size}, type: {type}. Raw payload:\n" +
+                        Convert.ToBase64String(payloadMemory.ToArray())
+                );
+                throw;
+            }
+        }
+        finally
+        {
+            pool.Return(payloadBuffer);
         }
     }
 }
