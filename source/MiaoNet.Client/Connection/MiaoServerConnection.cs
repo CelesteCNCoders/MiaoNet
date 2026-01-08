@@ -14,6 +14,7 @@ public sealed class MiaoServerConnection : IDisposable
     private Socket? tcpSocket;
     private NetworkStream networkStream = null!;
 
+    // TODO use memory stream is not so good
     private readonly MemoryStream sendMemoryStream;
     private readonly MemoryStream receiveMemoryStream;
 
@@ -93,7 +94,9 @@ public sealed class MiaoServerConnection : IDisposable
     public async Task SendPacketAsync(IContextualPacket packet, IPacketSerializationContext context, CancellationToken token)
     {
         RefBinaryWriter writer = new(sendMemoryStream);
-        PacketRegistry.WritePacket(packet, ref writer, context);
+        ushort type = PacketRegistry.GetPacketID(packet);
+        writer.Write(type);
+        packet.Serialize(ref writer, context);
         ushort length = (ushort)(sendMemoryStream.Position - 2 * sizeof(ushort));
         sendMemoryStream.Seek(0, SeekOrigin.Begin);
         writer.Write(length);
@@ -166,17 +169,18 @@ public sealed class MiaoServerConnection : IDisposable
         if (count < size)
             return null;
 
-        RefBinaryReader reader = new(payloadMemory.Span);
         try
         {
-            IContextualPacket packet = PacketRegistry.ReadPacket(type, ref reader, context);
+            RefBinaryReader reader = new(payloadMemory.Span);
+            var readHandler = PacketRegistry.GetPacketReader(type);
+            IContextualPacket packet = readHandler(ref reader, context);
             return packet;
         }
         catch (Exception)
         {
             Logger.Error(
                 $"{nameof(MiaoNet)}/ReadPacket",
-                $"Read packet failed, size: {size}, type: {type}. Raw payload: \n" +
+                $"Read packet failed, size: {size}, type: {type}. Raw payload:\n" +
                     Convert.ToBase64String(payloadMemory.ToArray())
             );
             throw;

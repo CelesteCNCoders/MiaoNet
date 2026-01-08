@@ -12,4 +12,10 @@ internal static class SR
         = "Type \"{0}\" is not registered as a packet.";
     public const string PacketNotFoundByID
         = "Packet type with id {0} is not found.";
+    public const string PacketTooLarge
+        = "Packet \"{0}\" is too large with size {1}.";
+    public const string PacketHasDataLeft
+        = "Packet id {0} read finished but left {1} bytes not read.";
+    public const string HasDataLeft
+        = "Object {0} read finished but left {1} bytes not read.";
 }

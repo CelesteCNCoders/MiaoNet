@@ -7,18 +7,18 @@ namespace MiaoNet.Server;
 
 public sealed partial class MiaoServerService
 {
-    private void RegisterPacketHandlers(PacketHandlerRegister register)
+    private void RegisterPacketHandlers(PacketHandlerRegister r)
     {
-        register.Register<PacketPlayerFrame>(HandlePacketAsync);
-        register.Register<PacketPlayerMapChanged>(HandlePacketAsync);
-        register.Register<PacketPlayerMapRoomChanged>(HandlePacketAsync);
-        register.Register<PacketSendChatMessage>(HandlePacketAsync);
-        register.Register<PacketSendEmote>(HandlePacketAsync);
-        register.Register<PacketSendEmoteText>(HandlePacketAsync);
-        register.Register<PacketPlayerStateFlags>(HandlePacketAsync);
-        register.Register<PacketUpdateOnlineStatus>(HandlePacketAsync);
-        register.Register<PacketTeleportRequest>(HandlePacketAsync);
-        register.Register<PacketSendPrivateChatMessage>(HandlePacketAsync);
+        r.Register<PacketPlayerFrame>(HandlePacketAsync);
+        r.Register<PacketPlayerMapChanged>(HandlePacketAsync);
+        r.Register<PacketPlayerMapRoomChanged>(HandlePacketAsync);
+        r.Register<PacketSendChatMessage>(HandlePacketAsync);
+        r.Register<PacketSendEmote>(HandlePacketAsync);
+        r.Register<PacketSendEmoteText>(HandlePacketAsync);
+        r.Register<PacketPlayerStateFlags>(HandlePacketAsync);
+        r.Register<PacketUpdateOnlineStatus>(HandlePacketAsync);
+        r.Register<PacketTeleportRequest>(HandlePacketAsync);
+        r.Register<PacketSendPrivateChatMessage>(HandlePacketAsync);
     }
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerFrame packet)

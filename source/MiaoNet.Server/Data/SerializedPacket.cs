@@ -4,9 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace MiaoNet.Shared;
 
-/// <summary>
-/// TODO Need we use this kinda ugly impl?
-/// </summary>
+// TODO this impl is ugly
 public sealed class SerializedPacket
 {
     private int clientCount;
@@ -25,12 +23,14 @@ public sealed class SerializedPacket
     {
         if (memoryStream is null)
         {
-            memoryStream = new(0x200); // 512
+            memoryStream = new(512);
             memoryStream.Seek(sizeof(ushort), SeekOrigin.Begin);
         }
 
         RefBinaryWriter writer = new(memoryStream);
-        PacketRegistry.WritePacket(packet, ref writer, context);
+        ushort id = PacketRegistry.GetPacketID(packet);
+        writer.Write(id);
+        packet.Serialize(ref writer, context);
         if (memoryStream.Position > ushort.MaxValue + sizeof(ushort))
         {
             memoryStream.Seek(sizeof(ushort), SeekOrigin.Begin);

@@ -17,6 +17,8 @@ public ref struct RefBinaryReader
 {
     private ReadOnlySpan<byte> span;
 
+    public readonly int BytesLeft => span.Length;
+
     public RefBinaryReader(ReadOnlySpan<byte> span)
         => this.span = span;
 

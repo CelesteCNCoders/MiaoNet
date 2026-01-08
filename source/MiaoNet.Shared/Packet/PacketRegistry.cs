@@ -1,13 +1,13 @@
 using System.Collections.Frozen;
-using System.Diagnostics;
 using System.Reflection;
 
 namespace MiaoNet.Shared;
 
+public delegate IContextualPacket RefBinaryPacketReadHandler(ref RefBinaryReader reader, IPacketSerializationContext context);
+
 public static class PacketRegistry
 {
-    private delegate T RefBinaryReadHandler<out T>(ref RefBinaryReader reader, IPacketSerializationContext context);
-    private static readonly FrozenDictionary<ushort, RefBinaryReadHandler<IContextualPacket>> idToReader;
+    private static readonly FrozenDictionary<ushort, RefBinaryPacketReadHandler> idToReader;
     private static readonly FrozenDictionary<Type, ushort> typeToId;
 
     static PacketRegistry()
@@ -16,7 +16,7 @@ public static class PacketRegistry
 
         var infoAttr = asm.GetCustomAttribute<PacketRegistryAttribute>()!;
 
-        List<(ushort id, Type type, RefBinaryReadHandler<IContextualPacket> reader)> list =
+        List<(ushort id, Type type, RefBinaryPacketReadHandler reader)> list =
             infoAttr.Types.Select((type, id) =>
             {
                 var interfaceType = typeof(IContextualPacket<>).MakeGenericType(type);
@@ -33,8 +33,7 @@ public static class PacketRegistry
                 );
                 SafeGuard.Assert(readerIndex is 0 or 1);
 
-                var reader = (RefBinaryReadHandler<IContextualPacket>)map.TargetMethods[readerIndex]
-                    .CreateDelegate(typeof(RefBinaryReadHandler<>).MakeGenericType(type));
+                var reader = map.TargetMethods[readerIndex].CreateDelegate<RefBinaryPacketReadHandler>();
                 return ((ushort)(id + 1), type, reader); // 0 reserved
             }).ToList();
 
@@ -42,18 +41,17 @@ public static class PacketRegistry
         typeToId = list.ToFrozenDictionary(t => t.type, t => t.id);
     }
 
-    public static IContextualPacket ReadPacket(ushort id, ref RefBinaryReader reader, IPacketSerializationContext context)
+    public static RefBinaryPacketReadHandler GetPacketReader(ushort id)
     {
         if (!idToReader.TryGetValue(id, out var handler))
             throw new KeyNotFoundException(string.Format(SR.PacketNotFoundByID, id));
-        return handler(ref reader, context);
+        return handler;
     }
 
-    public static void WritePacket(IContextualPacket packet, ref RefBinaryWriter writer, IPacketSerializationContext context)
+    public static ushort GetPacketID(IContextualPacket packet)
     {
         if (!typeToId.TryGetValue(packet.GetType(), out ushort id))
             throw new KeyNotFoundException(string.Format(SR.TypeIsNotRegisteredAsAPacket, packet.GetType().FullName));
-        writer.Write(id);
-        packet.Serialize(ref writer, context);
+        return id;
     }
 }

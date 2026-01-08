@@ -254,8 +254,10 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
         payloadSequence.Slice(0, size).CopyTo(payloadSpan);
         sequence = payloadSequence.Slice(size);
+
         RefBinaryReader reader = new(payloadSpan);
-        packet = PacketRegistry.ReadPacket(typeID, ref reader, context);
+        var readHandler = PacketRegistry.GetPacketReader(typeID);
+        packet = readHandler(ref reader, context);
         return true;
     }
 }
