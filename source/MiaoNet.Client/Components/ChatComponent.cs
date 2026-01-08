@@ -23,8 +23,6 @@ public sealed class ChatComponent : MiaoNetComponent
         }
     }
 
-    // this seems an fna bug...
-    // we need to manually call `MouseState.Get()`
     private float lastMouseScrollWheelValue;
 
     private bool previousCommandsEnabled = false;
@@ -83,6 +81,12 @@ public sealed class ChatComponent : MiaoNetComponent
 
     public override void Update()
     {
+        // this seems an fna bug...
+        // we need to manually call `MouseState.Get()`
+        float currentScrollWheelValue = Mouse.GetState().ScrollWheelValue;
+        float deltaScrollWheelValue = currentScrollWheelValue - lastMouseScrollWheelValue;
+        lastMouseScrollWheelValue = currentScrollWheelValue;
+
         var settings = MiaoNetModule.Settings;
 
         // apply settings
@@ -164,10 +168,7 @@ public sealed class ChatComponent : MiaoNetComponent
                 }
             }
 
-            float cur = Mouse.GetState().ScrollWheelValue;
-            float delta = cur - lastMouseScrollWheelValue;
-
-            targetChatViewScroll += delta;
+            targetChatViewScroll += deltaScrollWheelValue;
             targetChatViewScroll = chatView.ClampScrollValue(targetChatViewScroll);
             chatView.Scroll = Calc.Approach(
                 chatView.Scroll,
@@ -175,7 +176,6 @@ public sealed class ChatComponent : MiaoNetComponent
                 Math.Max(Math.Abs(targetChatViewScroll - chatView.Scroll), 24f) * 8f * Engine.RawDeltaTime
             );
 
-            lastMouseScrollWheelValue = cur;
 
             inputBox.Update();
         }
