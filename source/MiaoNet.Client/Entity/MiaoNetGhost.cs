@@ -239,6 +239,14 @@ public sealed class MiaoNetGhost : Entity
 
     public void OnFollowerDeltas(FollowerInfoDelta[] deltas)
     {
+        if (deltas.Length != leader.Followers.Count)
+        {
+            Logger.Error(
+                nameof(MiaoNet),
+                $"Received {deltas.Length} follower deltas but there's only {leader.Followers.Count} followers."
+            );
+            // let it crash
+        }
         for (int i = 0; i < deltas.Length; i++)
         {
             FollowerInfoDelta delta = deltas[i];
