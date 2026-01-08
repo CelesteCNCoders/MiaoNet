@@ -66,6 +66,7 @@ public sealed class MiaoNetModule : EverestModule
         }
 
         SpeedrunToolCompat.Load();
+        typeof(CollabUtils2Interop).ModInterop();
     }
 
     public override void Unload()

@@ -38,7 +38,19 @@ public sealed partial class PlayerListComponent
                 if (Dialog.Has(areaData.Name))
                     MapName = Dialog.Get(areaData.Name);
                 string iconPath = areaData.Icon;
-                AreaIconTexture = GFX.Gui.GetOrDefault(iconPath, null);
+                string? lobbySid;
+                AreaData? lobbyAreaData;
+                if (
+                    (lobbySid = CollabUtils2Interop.GetLobbyForMap?.Invoke(loc.MapSid)) is not null &&
+                    (lobbyAreaData = AreaData.Get(lobbySid)) is not null
+                )
+                {
+                    AreaIconTexture = GFX.Gui.GetOrDefault(lobbyAreaData.Icon, null);
+                }
+                else
+                {
+                    AreaIconTexture = GFX.Gui.GetOrDefault(iconPath, null);
+                }
                 MapNameColor = Color.Lerp(areaData.TitleBaseColor, Color.LightGray, 0.5f);
                 MapSideColor = Color.Lerp(areaData.TitleAccentColor, Color.LightGray, 0.8f);
             }
