@@ -12,6 +12,7 @@ miaonet_options_connect_on_game_start= 游戏启动时连接
 
 miaonet_options_visuals= 视觉
 miaonet_options_show_own_name= 显示自己的名称
+miaonet_options_other_players_light= 为其他玩家添加光照
 miaonet_options_ui= 界面
 miaonet_options_player_list_ui_scale= 玩家列表界面大小
 miaonet_options_chat_ui_scale= 聊天界面大小

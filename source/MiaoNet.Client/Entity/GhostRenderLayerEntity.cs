@@ -23,15 +23,15 @@ public sealed class GhostRenderLayerEntity : Entity
 
         GameplayRenderer.Begin();
         {
-            foreach (var follower in level.Tracker.GetEntities<GhostFollower>())
+            foreach (GhostFollower follower in level.Tracker.GetEntities<GhostFollower>().Cast<GhostFollower>())
             {
                 if (isHigh ? follower.Depth <= Depth : follower.Depth >= Depth)
-                    follower.Render();
+                    follower.GhostRender();
             }
-            foreach (var ghost in level.Tracker.GetEntities<MiaoNetGhost>())
+            foreach (MiaoNetGhost ghost in level.Tracker.GetEntities<MiaoNetGhost>().Cast<MiaoNetGhost>())
             {
                 if (isHigh ? ghost.Depth <= Depth : ghost.Depth >= Depth)
-                    ghost.Render();
+                    ghost.GhostRender();
             }
         }
         GameplayRenderer.End();

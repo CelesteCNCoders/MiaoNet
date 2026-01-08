@@ -99,6 +99,12 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.ShowOwnName = v);
         menu.Add(item);
 
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_other_players_light"), settings.OtherPlayersLight
+        ).Change(v => settings.OtherPlayersLight = v);
+        menu.Add(item);
+
+        #region UI
         var uiSubMenu = new TextMenuExt.SubMenu(Dialog.Get("miaonet_options_ui"), false);
 
         item = new TextMenuExt.IntSlider(
@@ -127,6 +133,7 @@ public static class MenuMiaoNetOptions
         uiSubMenu.Add(item);
 
         menu.Add(uiSubMenu);
+        #endregion
 
         item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_player_opacity"), 1, 10, settings.PlayerOpacity

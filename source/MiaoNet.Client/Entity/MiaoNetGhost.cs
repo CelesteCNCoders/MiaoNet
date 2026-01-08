@@ -14,6 +14,8 @@ public sealed class MiaoNetGhost : Entity
     private readonly GhostNameTag nameTag;
     private readonly Leader leader;
 
+    private VertexLight? light;
+
     private Facings facing;
     private int dashes;
     private int lastDashedDashes;
@@ -53,7 +55,6 @@ public sealed class MiaoNetGhost : Entity
         PlayerState initialState
     )
     {
-        Visible = false;
         Tag = Tags.Persistent | Tags.TransitionUpdate | Tags.FrozenUpdate | Tags.PauseUpdate | Tags.Global;
         Depth = Depths.Player + 1;
         Player = player;
@@ -62,7 +63,8 @@ public sealed class MiaoNetGhost : Entity
         facing = Facings.Right;
         playerSprite = SafeCreatePlayerSprite(initialState.PlayerSpriteMode);
         Add(leader = new Leader(new Vector2(0f, -8f)));
-        Add(new MirrorReflection() { IgnoreEntityVisible = true });
+        Add(new MirrorReflection());
+        UpdateLightSettings(MiaoNetModule.Settings.OtherPlayersLight);
 
         playerHair = new PlayerHair(playerSprite);
         Add(playerHair);
@@ -86,6 +88,7 @@ public sealed class MiaoNetGhost : Entity
     public override void Update()
     {
         base.Update();
+        UpdateLightSettings(MiaoNetModule.Settings.OtherPlayersLight);
 
         if (starFlying)
         {
@@ -135,6 +138,25 @@ public sealed class MiaoNetGhost : Entity
             {
                 playerHair.AfterUpdate();
             }
+        }
+    }
+
+    public void UpdateLightSettings(bool enabled)
+    {
+        if (enabled)
+        {
+            if (light is null)
+            {
+                // TODO player duck light offset
+                light = new VertexLight(new Vector2(0f, -8f), Color.White with { A = 233 }, 1f, 32, 64);
+                Add(light);
+            }
+            light.Visible = true;
+        }
+        else
+        {
+            // remove it will lead to a vanilla crash...
+            light?.Visible = false;
         }
     }
 
@@ -434,7 +456,7 @@ public sealed class MiaoNetGhost : Entity
         CleanUpFollowers();
     }
 
-    public override void Render()
+    public void GhostRender()
     {
         if (lastHoladableType == HoldableType.Theo)
         {
@@ -457,5 +479,10 @@ public sealed class MiaoNetGhost : Entity
         {
             DeathEffect.Draw(Position, playerHair.Color, deadEase);
         }
+    }
+
+    public override void Render()
+    {
+        // do nothing like it's invisible but do not set visible to false
     }
 }

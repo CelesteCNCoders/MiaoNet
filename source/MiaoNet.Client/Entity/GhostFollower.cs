@@ -15,7 +15,6 @@ public sealed class GhostFollower : Entity
     public GhostFollower(MiaoNetGhost ghost, Vector2 offset, FollowerType type, string spriteID)
         : base(ghost.Position + offset)
     {
-        Visible = false;
         Tag |= ghost.Tag;
         Depth = ghost.Depth;
         Add(Follower = new() { MoveTowardsLeader = false });
@@ -32,7 +31,7 @@ public sealed class GhostFollower : Entity
             spriteFallbacked = true;
         }
         Add(sprite);
-        Add(new MirrorReflection() { IgnoreEntityVisible = true });
+        Add(new MirrorReflection());
         if (type is FollowerType.Strawberry or FollowerType.StrawberrySeed)
         {
             Add(bloomPoint = new BloomPoint(1f, 12f));
@@ -47,8 +46,9 @@ public sealed class GhostFollower : Entity
     public override void Update()
     {
         base.Update();
-        bloomPoint?.Alpha = MiaoNetModule.Settings.PlayerOpacityValue;
-        vertexLight?.Alpha = MiaoNetModule.Settings.PlayerOpacityValue;
+        float v = MiaoNetModule.Settings.PlayerOpacityValue;
+        bloomPoint?.Alpha = v;
+        vertexLight?.Alpha = v;
     }
 
     public void UpdateSprite(string animationID, int animationFrame)
@@ -59,5 +59,15 @@ public sealed class GhostFollower : Entity
         if (sprite.CurrentAnimationID != animationID)
             sprite.Play(animationID);
         sprite.SetAnimationFrame(animationFrame);
+    }
+
+    public void GhostRender()
+    {
+        base.Render();
+    }
+
+    public override void Render()
+    {
+        // see MiaoNetGhost.Render
     }
 }

@@ -12,6 +12,7 @@ miaonet_options_connect_on_game_start= Connect On Game Start
 
 miaonet_options_visuals= Visuals
 miaonet_options_show_own_name= Show Own Name
+miaonet_options_other_players_light= Add light to other players
 miaonet_options_ui= UI
 miaonet_options_player_list_ui_scale= Player List UI Scale
 miaonet_options_chat_ui_scale= Chat UI Scale
