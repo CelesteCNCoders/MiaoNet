@@ -6,6 +6,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Graphics;
 using Monocle;
@@ -62,6 +64,8 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public MiaoNetContext()
     {
+        RuntimeHelpers.RunClassConstructor(typeof(MiaoNetFont).TypeHandle);
+
         receiveQueue = new();
         pendingRequests = new();
         mainThreadQueue = new();
@@ -390,7 +394,8 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             System.Text.Json.JsonSerializerOptions options = new()
             {
                 IncludeFields = true,
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All)
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All),
+                Converters = { new JsonStringEnumConverter() }
             };
 #endif
 
@@ -402,9 +407,10 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                     return;
 
                 // quickly handle ping packets
-                if (packet is PacketPing ping && HasConnection)
+                if (packet is PacketPing ping)
                 {
-                    Response(ping, new PacketPong());
+                    // we may still don't have connection set this time
+                    connection.QueuePacket(new PacketPong() { RequestID = ping.RequestID });
                     continue;
                 }
 #if PACKET_TRACING
@@ -427,7 +433,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             }
         }
 
-        void HandleStartConnectionTaskCompleted(Task t, CancellationTokenSource threadCts)
+        async Task HandleStartConnectionTaskCompleted(Task t, CancellationTokenSource threadCts)
         {
             threadCts.Cancel();
             if (!t.IsFaulted)
@@ -449,6 +455,11 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                 }
                 return;
             }
+
+#if DEBUG
+            Debugger.Launch();
+            await t;
+#endif
 
             bool isExpected = true;
             Exception? unhandledException = null;

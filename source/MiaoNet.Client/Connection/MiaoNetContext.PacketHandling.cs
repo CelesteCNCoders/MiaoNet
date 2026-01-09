@@ -81,7 +81,7 @@ public partial class MiaoNetContext
         }
         else
         {
-            Logger.Error(nameof(MiaoNetContext), $"No initial state but received frame notification for {player.Info}!");
+            Logger.Warn(nameof(MiaoNetContext), $"No initial state but received frame notification for {player.Info}!");
             // TODO this is a potential bug
             //Disconnect();
             return;

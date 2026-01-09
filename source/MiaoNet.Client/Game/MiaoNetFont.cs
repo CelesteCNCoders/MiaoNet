@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace Celeste.Mod.MiaoNet;
@@ -19,7 +20,7 @@ public static class MiaoNetFont
     static MiaoNetFont()
     {
         // don't trigger cctor call too early...
-        if (Dialog.Languages is not { Count: not 0 })
+        if (Dialog.Languages is { Count: 0 })
             throw new InvalidOperationException();
 
         Language langEN = Dialog.Languages["english"];

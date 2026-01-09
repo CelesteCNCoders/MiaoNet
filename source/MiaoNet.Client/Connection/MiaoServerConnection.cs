@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Channels;
@@ -189,6 +190,9 @@ public sealed class MiaoServerConnection : IDisposable
             }
             catch (Exception)
             {
+#if DEBUG
+                Debugger.Launch();
+#endif
                 Logger.Error(
                     $"{nameof(MiaoNet)}/ReadPacket",
                     $"Read packet failed, size: {size}, type: {type}. Raw payload:\n" +
