@@ -28,7 +28,7 @@ public sealed class PooledStringManager
         if (stringToID.TryGetValue(value, out id))
             return true;
         int nextID = Interlocked.Increment(ref currentLocalID);
-        ImmutableInterlocked.Update(ref stringToID, d => stringToID.SetItem(value, nextID));
+        ImmutableInterlocked.Update(ref stringToID, d => d.SetItem(value, nextID));
         id = nextID;
         return false;
     }
