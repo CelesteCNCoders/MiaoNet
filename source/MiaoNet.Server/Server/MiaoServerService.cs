@@ -85,6 +85,8 @@ public sealed partial class MiaoServerService : BackgroundService
         pingTimer.Dispose();
     }
 
+    // TODO TODO TODO we need a refactor of this huge method
+    // or connections management will be hard
     private async Task HandleConnectionAsync(Socket socket, CancellationToken token)
     {
         EndPoint? ep = socket.RemoteEndPoint;
@@ -310,9 +312,10 @@ public sealed partial class MiaoServerService : BackgroundService
                 taskList.Clear();
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException e)
+        when (e.CancellationToken == token)
         {
-            logger.LogInformation(AppEvents.Server, "Cancelled heatbeats task.");
+            logger.LogInformation(AppEvents.Server, "Cancelled heartbeats task.");
         }
         catch (Exception e)
         {
@@ -440,7 +443,9 @@ public sealed partial class MiaoServerService : BackgroundService
             if (predicate(connection))
             {
                 if (!connection.TryQueuePacket(serializedPacket))
+                {
                     (bounded ??= new()).Add(connection.QueuePacketAsync(serializedPacket).AsTask());
+                }
             }
             else
             {
@@ -464,7 +469,9 @@ public sealed partial class MiaoServerService : BackgroundService
         {
             var serializedPacket = new SerializedPacket(ArrayPool<byte>.Shared, packet, connection);
             if (!connection.TryQueuePacket(serializedPacket))
+            {
                 (bounded ??= new()).Add(connection.QueuePacketAsync(serializedPacket).AsTask());
+            }
         }
 
         if (bounded is not null)

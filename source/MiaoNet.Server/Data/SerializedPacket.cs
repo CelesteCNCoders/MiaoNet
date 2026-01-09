@@ -21,11 +21,8 @@ public sealed class SerializedPacket
         int clientCount = 1
     )
     {
-        if (memoryStream is null)
-        {
-            memoryStream = new(512);
-            memoryStream.Seek(sizeof(ushort), SeekOrigin.Begin);
-        }
+        memoryStream ??= new(512);
+        memoryStream.Seek(sizeof(ushort), SeekOrigin.Begin);
 
         RefBinaryWriter writer = new(memoryStream);
         ushort id = PacketRegistry.GetPacketID(packet);
@@ -54,16 +51,23 @@ public sealed class SerializedPacket
     {
     }
 
+    private void Dispose(bool disposing = true)
+    {
+        Debug.Assert(arraySegment.Array is not null);
+        arrayPool.Return(arraySegment.Array);
+#pragma warning disable CA1816
+        if (disposing)
+            GC.SuppressFinalize(this);
+#pragma warning restore CA1816
+    }
+
     public void OnConsumed()
     {
         int v = Interlocked.Decrement(ref clientCount);
         if (v < 0)
             throw new ArgumentOutOfRangeException();
         if (v == 0)
-        {
-            Debug.Assert(arraySegment.Array is not null);
-            arrayPool.Return(arraySegment.Array);
-        }
+            Dispose();
     }
 
     public void OnConsumed(int count)
@@ -72,9 +76,12 @@ public sealed class SerializedPacket
         if (v < 0)
             throw new ArgumentOutOfRangeException(nameof(count)); // TODO message
         if (v == 0)
-        {
-            Debug.Assert(arraySegment.Array is not null);
-            arrayPool.Return(arraySegment.Array);
-        }
+            Dispose();
+    }
+
+    // TODO TODO TODO this should not be used
+    ~SerializedPacket()
+    {
+        Dispose(false);
     }
 }

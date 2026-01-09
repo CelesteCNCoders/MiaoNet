@@ -25,6 +25,9 @@ public partial class MiaoHttpService
             case "/announce":
                 await Announce(query, context);
                 break;
+            case "/gc":
+                await GC(query, context);
+                break;
             default:
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 break;
@@ -102,5 +105,13 @@ public partial class MiaoHttpService
             context.Response.OutputStream.Write(Encoding.UTF8.GetBytes($"Announced to {p.Info}\n"));
         }
         context.Response.StatusCode = (int)HttpStatusCode.NoContent;
+    }
+
+    private Task GC(NameValueCollection query, HttpListenerContext context)
+    {
+        System.GC.Collect(System.GC.MaxGeneration, GCCollectionMode.Forced, true, true);
+        System.GC.WaitForPendingFinalizers();
+        context.Response.OutputStream.Write(Encoding.UTF8.GetBytes("Done GC."));
+        return Task.CompletedTask;
     }
 }

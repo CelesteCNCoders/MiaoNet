@@ -94,6 +94,7 @@ public sealed class MiaoServerConnection : IDisposable
     // TODO these are awful, we need a refactor
     public async Task SendPacketAsync(IContextualPacket packet, IPacketSerializationContext context, CancellationToken token)
     {
+        sendMemoryStream.Seek(2, SeekOrigin.Begin);
         RefBinaryWriter writer = new(sendMemoryStream);
         ushort type = PacketRegistry.GetPacketID(packet);
         writer.Write(type);
@@ -106,6 +107,7 @@ public sealed class MiaoServerConnection : IDisposable
 
     private async Task SendHandshakeAsync(HandshakeData data, CancellationToken token)
     {
+        sendMemoryStream.Seek(2, SeekOrigin.Begin);
         RefBinaryWriter writer = new(sendMemoryStream);
         writer.Write(data);
         ushort length = (ushort)(sendMemoryStream.Position - sizeof(ushort));
@@ -190,15 +192,12 @@ public sealed class MiaoServerConnection : IDisposable
             }
             catch (Exception e)
             {
-                _ = e;
-#if DEBUG
-                Debugger.Launch();
-#endif
                 Logger.Error(
                     $"{nameof(MiaoNet)}/ReadPacket",
                     $"Read packet failed, size: {size}, type: {type}. Raw payload:\n" +
                         Convert.ToBase64String(payloadMemory.ToArray())
                 );
+                Logger.LogDetailed(e, $"{nameof(MiaoNet)}/ReadPacket");
                 throw;
             }
         }

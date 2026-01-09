@@ -80,20 +80,20 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
             logger.LogInformation(AppEvents.Connection, "Connection id {id} closed.", ID);
         }
     }
-    
+
     public async Task DisconnectAsync(DisconnectReason reason, string? message = null)
     {
         cts.CancelAfter(server.DisconnectTimeout);
         await QueuePacketAsync(new PacketDisconnected(reason, message));
     }
 
-    public ValueTask QueuePacketAsync(IContextualPacket packet)
+    public ValueTask QueuePacketAsync(IContextualPacket packet) 
         => sendChannel.Writer.WriteAsync(new SerializedPacket(ArrayPool<byte>.Shared, packet, this, 1));
 
-    public ValueTask QueuePacketAsync(SerializedPacket packet)
+    public ValueTask QueuePacketAsync(SerializedPacket packet) 
         => sendChannel.Writer.WriteAsync(packet);
 
-    public bool TryQueuePacket(SerializedPacket packet)
+    public bool TryQueuePacket(SerializedPacket packet) 
         => sendChannel.Writer.TryWrite(packet);
 
     // TODO maybe we can add a UserParam parameter to avoid closure
@@ -115,7 +115,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         return QueuePacketAsync(response);
     }
 
-    public ResponseHandler? OnResponse(PacketResponse response)
+    public ResponseHandler? OnResponse(PacketResponse response) 
         => pendingRequests.TryRemove(response.RequestID, out var handler) ? handler : null;
 
     private async Task HandleClientReceivingAsync(CancellationToken token)
@@ -222,6 +222,9 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         finally
         {
             cts.Cancel();
+            // TODO currently there'll be still packets remaining after this
+            while (channelReader.TryRead(out var item))
+                item.OnConsumed();
         }
     }
 
