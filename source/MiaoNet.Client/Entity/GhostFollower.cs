@@ -56,9 +56,11 @@ public sealed class GhostFollower : Entity
         // TODO should we tell server?
         if (spriteFallbacked)
             return;
-        if (sprite.CurrentAnimationID != animationID)
+        if (sprite.Has(animationID))
+        {
             sprite.Play(animationID);
-        sprite.SetAnimationFrame(animationFrame);
+            sprite.SetAnimationFrame(animationFrame);
+        }
     }
 
     public void GhostRender()
