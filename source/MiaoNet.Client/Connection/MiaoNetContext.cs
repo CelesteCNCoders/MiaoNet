@@ -23,9 +23,13 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     //private int warningTimes;
 #if DEBUG
     public string TargetServer { get; set; } = "127.0.0.1";
+
 #else
     public string TargetServer { get; set; } = "s.saplonily.top";
+
 #endif
+
+    public int TargetPort { get; set; } = 21473;
 
     private CancellationTokenSource? cts;
     private Thread? connectionThread;
@@ -282,7 +286,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             }
 
             string host = TargetServer;
-            const int Port = 21473;
+            int Port = TargetPort;
 
             EndPoint ep = IPAddress.TryParse(host, out var ipa)
                 ? new IPEndPoint(ipa, Port)

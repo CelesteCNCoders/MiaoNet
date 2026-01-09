@@ -188,8 +188,9 @@ public sealed class MiaoServerConnection : IDisposable
                 IContextualPacket packet = readHandler(ref reader, context);
                 return packet;
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                _ = e;
 #if DEBUG
                 Debugger.Launch();
 #endif
