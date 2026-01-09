@@ -87,13 +87,13 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         await QueuePacketAsync(new PacketDisconnected(reason, message));
     }
 
-    public ValueTask QueuePacketAsync(IContextualPacket packet) 
+    public ValueTask QueuePacketAsync(IContextualPacket packet)
         => sendChannel.Writer.WriteAsync(new SerializedPacket(ArrayPool<byte>.Shared, packet, this, 1));
 
-    public ValueTask QueuePacketAsync(SerializedPacket packet) 
+    public ValueTask QueuePacketAsync(SerializedPacket packet)
         => sendChannel.Writer.WriteAsync(packet);
 
-    public bool TryQueuePacket(SerializedPacket packet) 
+    public bool TryQueuePacket(SerializedPacket packet)
         => sendChannel.Writer.TryWrite(packet);
 
     // TODO maybe we can add a UserParam parameter to avoid closure
@@ -102,7 +102,8 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     public ValueTask RequestAsync<TResponse>(PacketRequest<TResponse> packet, ResponseHandler<TResponse> callback)
         where TResponse : PacketResponse
     {
-        int id = packet.RequestID = Interlocked.Increment(ref currentRequestID);
+        int id = Interlocked.Increment(ref currentRequestID);
+        packet.RequestID = id;
         bool success = pendingRequests.TryAdd(id, (packet) => callback((TResponse)packet));
         Debug.Assert(success);
         return QueuePacketAsync(packet);
@@ -115,8 +116,21 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         return QueuePacketAsync(response);
     }
 
-    public ResponseHandler? OnResponse(PacketResponse response) 
-        => pendingRequests.TryRemove(response.RequestID, out var handler) ? handler : null;
+    public ResponseHandler? OnResponse(PacketResponse response)
+    {
+        if (pendingRequests.TryRemove(response.RequestID, out var handler))
+            return handler;
+
+        logger.LogWarning(
+            "Could not find source request id of response {id}, type is {type}.",
+            response.RequestID,
+            response.GetType().FullName
+        );
+        foreach (var item in pendingRequests)
+            logger.LogWarning("pendingRequests has key: {key}", item.Key);
+
+        return null;
+    }
 
     private async Task HandleClientReceivingAsync(CancellationToken token)
     {

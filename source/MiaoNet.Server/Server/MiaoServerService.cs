@@ -338,7 +338,7 @@ public sealed partial class MiaoServerService : BackgroundService
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Task BroadcastContextuallyOthersAsync(IContextualPacket packet, int selfID)
-        => BoradcastContextuallyToAsync(
+        => BroadcastContextuallyToAsync(
             packet,
             ServerState.AllPlayers.Select(p => p.Value.Connection),
             c => c.ID != selfID
@@ -401,7 +401,7 @@ public sealed partial class MiaoServerService : BackgroundService
         int selfID
     )
     {
-        return BoradcastContextuallyToAsync(
+        return BroadcastContextuallyToAsync(
             packet,
             ServerState.AllPlayers.Select(p => p.Value.Connection),
             c => c.ID != selfID && predicate(c)
@@ -417,7 +417,7 @@ public sealed partial class MiaoServerService : BackgroundService
     {
         Debug.Assert(serverState.AllChannels.ContainsValue(channel));
 
-        return BoradcastContextuallyToAsync(
+        return BroadcastContextuallyToAsync(
             packet,
             channel.Players.Select(p => p.Value.Connection),
             c => c.ID != selfID && predicate(c)
@@ -458,7 +458,7 @@ public sealed partial class MiaoServerService : BackgroundService
         return Task.CompletedTask;
     }
 
-    private static Task BoradcastContextuallyToAsync(
+    private static Task BroadcastContextuallyToAsync(
         IContextualPacket packet,
         IEnumerable<MiaoClientConnection> connections,
         Predicate<MiaoClientConnection> predicate

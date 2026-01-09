@@ -481,10 +481,6 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                     break;
 
                 default:
-#if DEBUG
-                    Debugger.Launch();
-                    await t;
-#endif
 
                     Logger.Error(nameof(MiaoNet), e.ToString());
                     unhandledException = e;

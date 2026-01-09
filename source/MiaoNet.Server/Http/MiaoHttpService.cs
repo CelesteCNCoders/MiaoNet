@@ -45,7 +45,7 @@ public sealed partial class MiaoHttpService : BackgroundService
                 break;
             }
             catch (ObjectDisposedException e)
-            when (e.ObjectName == typeof(HttpListener).ToString())
+            when (e.ObjectName == "listener")
             {
                 break;
             }
