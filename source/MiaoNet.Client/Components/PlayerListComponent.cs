@@ -106,6 +106,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         var pair = channelPlayerList.Find(p => p.Item1 == channel);
         var item = pair.Item2.Find(i => i.Player == player);
         item!.Update();
+        SortPlayerList();
         return;
     }
 
