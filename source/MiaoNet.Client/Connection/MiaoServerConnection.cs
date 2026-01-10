@@ -3,7 +3,9 @@ using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Channels;
 using System.Threading.Tasks.Sources;
 using MiaoNet.Shared;
@@ -15,7 +17,7 @@ public sealed class MiaoServerConnection : IDisposable
     private static readonly ArrayPool<byte> pool = ArrayPool<byte>.Shared;
 
     private Socket? tcpSocket;
-    private NetworkStream networkStream = null!;
+    private SslStream sslStream = null!;
 
     // TODO use memory stream is not so good
     private readonly MemoryStream sendMemoryStream;
@@ -40,15 +42,30 @@ public sealed class MiaoServerConnection : IDisposable
 
     public static async Task<(MiaoServerConnection?, HandshakeAckData?)> CreateAsync(
         EndPoint endPoint,
+        string hostName,
         HandshakeData handshakeData,
         CancellationToken token
     )
     {
         MiaoServerConnection con = new(endPoint);
         await con.tcpSocket!.ConnectAsync(con.EndPoint, token);
-        con.networkStream = new(con.tcpSocket);
+#if !USE_LOCALHOST_PFX
+        con.sslStream = new SslStream(new NetworkStream(con.tcpSocket));
+#else
+        var certStream = typeof(MiaoServerConnection).Assembly.GetManifestResourceStream("localhost.pfx")!;
+        byte[] certRawData = new byte[certStream.Length];
+        certStream.ReadExactly(certRawData, 0, certRawData.Length);
+        var cert = new X509Certificate2(certRawData);
+        con.sslStream = new SslStream(new NetworkStream(con.tcpSocket), false, (sender, certificate, chain, errors) =>
+        {
+            if (certificate == null) return false;
+            var remote = new X509Certificate2(certificate);
+            return string.Equals(remote.Thumbprint, cert.Thumbprint, StringComparison.OrdinalIgnoreCase);
+        });
+#endif
+        await con.sslStream.AuthenticateAsClientAsync(hostName);
 
-        await con.networkStream.WriteAsync(Connection.HandshakeHead, token);
+        await con.sslStream.WriteAsync(Connection.HandshakeHead, token);
         await con.SendHandshakeAsync(handshakeData, token);
         var ack = await con.ReceiveHandshakeAsync(token);
         if (ack is null)
@@ -102,7 +119,8 @@ public sealed class MiaoServerConnection : IDisposable
         ushort length = (ushort)(sendMemoryStream.Position - 2 * sizeof(ushort));
         sendMemoryStream.Seek(0, SeekOrigin.Begin);
         writer.Write(length);
-        await networkStream.WriteAsync(sendMemoryStream.GetBuffer().AsMemory(0, length + 2 * sizeof(ushort)), token);
+        await sslStream.WriteAsync(sendMemoryStream.GetBuffer().AsMemory(0, length + 2 * sizeof(ushort)), token);
+        await sslStream.FlushAsync(token);
     }
 
     private async Task SendHandshakeAsync(HandshakeData data, CancellationToken token)
@@ -113,7 +131,8 @@ public sealed class MiaoServerConnection : IDisposable
         ushort length = (ushort)(sendMemoryStream.Position - sizeof(ushort));
         sendMemoryStream.Seek(0, SeekOrigin.Begin);
         writer.Write(length);
-        await networkStream.WriteAsync(sendMemoryStream.GetBuffer().AsMemory(0, length + sizeof(ushort)), token);
+        await sslStream.WriteAsync(sendMemoryStream.GetBuffer().AsMemory(0, length + sizeof(ushort)), token);
+        await sslStream.FlushAsync(token);
     }
 
     private async Task<HandshakeAckData?> ReceiveHandshakeAsync(CancellationToken token)
@@ -125,7 +144,7 @@ public sealed class MiaoServerConnection : IDisposable
         try
         {
             Memory<byte> headMemory = headBuffer.AsMemory().Slice(0, HeadSize);
-            int count = await networkStream.ReadAtLeastAsync(headMemory, HeadSize, false, token);
+            int count = await sslStream.ReadAtLeastAsync(headMemory, HeadSize, false, token);
             if (count < HeadSize)
                 return null;
 
@@ -140,7 +159,7 @@ public sealed class MiaoServerConnection : IDisposable
         try
         {
             Memory<byte> payloadMemory = payloadBuffer.AsMemory().Slice(0, size);
-            int count = await networkStream.ReadAtLeastAsync(payloadMemory, size, false, token);
+            int count = await sslStream.ReadAtLeastAsync(payloadMemory, size, false, token);
             if (count < size)
                 return null;
 
@@ -163,7 +182,7 @@ public sealed class MiaoServerConnection : IDisposable
         try
         {
             Memory<byte> headMemory = headBuffer.AsMemory().Slice(0, HeadSize);
-            int count = await networkStream.ReadAtLeastAsync(headMemory, HeadSize, false, token);
+            int count = await sslStream.ReadAtLeastAsync(headMemory, HeadSize, false, token);
             if (count < HeadSize)
                 return null;
 
@@ -179,7 +198,7 @@ public sealed class MiaoServerConnection : IDisposable
         try
         {
             Memory<byte> payloadMemory = payloadBuffer.AsMemory().Slice(0, size);
-            int count = await networkStream.ReadAtLeastAsync(payloadMemory, size, false, token);
+            int count = await sslStream.ReadAtLeastAsync(payloadMemory, size, false, token);
             if (count < size)
                 return null;
 

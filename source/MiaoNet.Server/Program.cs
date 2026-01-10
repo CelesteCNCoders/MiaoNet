@@ -41,6 +41,13 @@ public static class Program
 
         builder.Services.AddSingleton<MiaoServerService>();
         builder.Services.AddHostedService(s => s.GetRequiredService<MiaoServerService>());
+#if USE_LOCALHOST_PFX
+        builder.Services.AddSingleton<IMiaoCertificateService, LocalMiaoCertificateService>();
+#else
+        builder.Services.AddSingleton<IMiaoCertificateService, MiaoCertificateService>();
+        // hm...?
+        builder.Services.AddHostedService(s => (MiaoCertificateService)s.GetRequiredService<IMiaoCertificateService>());
+#endif
         builder.Services.Configure<MiaoServerOptions>(builder.Configuration.GetRequiredSection("MiaoServer"));
 
         builder.Services.AddHostedService<MiaoHttpService>();

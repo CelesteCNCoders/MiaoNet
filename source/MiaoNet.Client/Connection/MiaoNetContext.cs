@@ -315,7 +315,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                 // MiaoServerConnection "connection" class
 
                 // this will send the full handshake, then we need to handle ack ourselves
-                (connection, var ackData) = await MiaoServerConnection.CreateAsync(ep, handshakeData, token);
+                (connection, var ackData) = await MiaoServerConnection.CreateAsync(ep, TargetServer, handshakeData, token);
 
                 if (ackData is null)
                 {

@@ -13,6 +13,7 @@
     <UseCelestePublicizer>true</UseCelestePublicizer>
     <DefineConstants>$(DefineConstants);MIAO_CLIENT;SAFE_GUARD</DefineConstants>
     <DefineConstants Condition="$(Configuration) == 'Debug'">$(DefineConstants);PACKET_TRACING</DefineConstants>
+    <DefineConstants Condition="$(UseLocalhostPfx) == 'true'">$(DefineConstants);USE_LOCALHOST_PFX</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,6 +26,10 @@
     <None Include="CelesteMod.targets">
       <Visible>false</Visible>
     </None>
+  </ItemGroup>
+
+  <ItemGroup Condition="$(UseLocalhostPfx) == 'true'">
+    <EmbeddedResource Include="../localhost.pfx" LogicalName="localhost.pfx" Visible="false" />
   </ItemGroup>
 
   <Import Project="CelesteMod.targets" />

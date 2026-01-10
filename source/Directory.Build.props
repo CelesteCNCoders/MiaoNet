@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <LangVersion>preview</LangVersion>
+    <UseLocalhostPfx>false</UseLocalhostPfx>
+    <UseLocalhostPfx Condition="$(Configuration) == 'Debug'">true</UseLocalhostPfx>
   </PropertyGroup>
 
   <PropertyGroup>

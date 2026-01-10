@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipelines;
+using System.Net.Security;
 using System.Net.Sockets;
 using System.Threading.Channels;
 using MiaoNet.Shared;
@@ -29,6 +30,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     private readonly MiaoServerService server;
 
     private readonly Socket socket;
+    private readonly SslStream sslStream;
     private readonly CancellationTokenSource cts;
     private readonly Pipe pipe;
 
@@ -41,7 +43,8 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     private readonly Channel<SerializedPacket> sendChannel;
 
     public MiaoClientConnection(
-        int id, Socket socket, ServerPlayer onlinePlayer,
+        int id, Socket socket, SslStream sslStream,
+        ServerPlayer onlinePlayer,
         ILogger<MiaoClientConnection> logger,
         MiaoServerService server
     )
@@ -50,6 +53,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         this.logger = logger;
         this.server = server;
         this.socket = socket;
+        this.sslStream = sslStream;
         Player = onlinePlayer;
 
         cts = new CancellationTokenSource();
@@ -140,7 +144,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
             while (true)
             {
                 var mem = pipeWriter.GetMemory(TcpBufferSize);
-                int received = await socket.ReceiveAsync(mem, token);
+                int received = await sslStream.ReadAsync(mem, token);
                 if (received is 0 || token.IsCancellationRequested)
                     break;
 
@@ -216,7 +220,9 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         {
             await foreach (var packet in channelReader.ReadAllAsync(token))
             {
-                await socket.SendAsync(packet.ArraySegment, token);
+                await sslStream.WriteAsync(packet.ArraySegment, token);
+                await sslStream.FlushAsync(token);
+                // TODO packet is not always "consumed"
                 packet.OnConsumed();
             }
         }

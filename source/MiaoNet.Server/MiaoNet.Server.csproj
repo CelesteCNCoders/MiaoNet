@@ -9,6 +9,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CETCompat>false</CETCompat>
     <DefineConstants>$(DefineConstants);MIAO_SERVER</DefineConstants>
+    <DefineConstants Condition="$(UseLocalhostPfx) == 'true'">$(DefineConstants);USE_LOCALHOST_PFX</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="$(Configuration) == 'Release'">
@@ -31,6 +32,10 @@
     <None Update="appsettings*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup Condition="$(UseLocalhostPfx) == 'true'">
+    <EmbeddedResource Include="../localhost.pfx" LogicalName="localhost.pfx" Visible="false" />
   </ItemGroup>
 
 </Project>

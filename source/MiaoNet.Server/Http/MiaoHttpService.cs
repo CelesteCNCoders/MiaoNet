@@ -4,6 +4,7 @@ using System.Text;
 using System.Web;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace MiaoNet.Server;
 
@@ -14,12 +15,12 @@ public sealed partial class MiaoHttpService : BackgroundService
 
     private readonly HttpListener httpListener;
 
-    public MiaoHttpService(ILogger<MiaoHttpService> logger, MiaoServerService miaoServerService)
+    public MiaoHttpService(ILogger<MiaoHttpService> logger, IOptions<MiaoServerOptions> options, MiaoServerService miaoServerService)
     {
         this.logger = logger;
         this.miaoServerService = miaoServerService;
         httpListener = new();
-        httpListener.Prefixes.Add("http://+:8000/");
+        httpListener.Prefixes.Add(options.Value.HttpListenerPrefix);
     }
 
     public override Task StartAsync(CancellationToken cancellationToken)
