@@ -42,9 +42,18 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     private ClientState? clientState;
 
-    public static bool IsSuitableToOpenUI =>
-        Engine.Scene.Tracker.GetEntity<KeyboardConfigUI>() == null &&
-        Engine.Scene.Tracker.GetEntity<ButtonConfigUI>() == null;
+    public static bool IsSuitableToOpenUI
+    {
+        get
+        {
+            var scene = Engine.Scene;
+            return scene.Entities.Any(t => t is KeyboardConfigUI or ButtonConfigUI) == false &&
+                   // do not open ui when it's teleporting using CollabLobbyUI
+                   // but why level.Overlay is null at this time??
+                   scene is not LevelLoader &&
+                   (scene as Level)?.Overlay == null;
+        }
+    }
 
     public PooledStringManager? PooledStringManager { get; private set; }
 
