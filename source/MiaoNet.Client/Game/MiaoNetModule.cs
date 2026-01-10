@@ -68,9 +68,11 @@ public sealed class MiaoNetModule : EverestModule
         SpeedrunToolCompat.Load();
         typeof(CollabUtils2Interop).ModInterop();
 
+#if DEBUG
         Engine.Instance.IsMouseVisible = true;
         if (GFX.Loaded && Engine.Scene is Level or AssetReloadHelper)
             Task.Delay(500).ContinueWith(_ => MiaoNetContext.Connect());
+#endif
     }
 
     public override void Unload()
