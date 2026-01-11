@@ -1,8 +1,10 @@
-#if MIAO_SERVER && !INSPECTOR
+#if MIAO_SERVER
 #define CONCURRENT
 #endif
 
+#if CONCURRENT
 using System.Collections.Immutable;
+#endif
 using System.Diagnostics;
 
 namespace MiaoNet.Shared;

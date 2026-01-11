@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace MiaoNet.Server.Primitives;
+namespace MiaoNet.Shared;
 
 [DebuggerDisplay("{DebuggerDisplay}")]
 public struct Vector2 : IEquatable<Vector2>

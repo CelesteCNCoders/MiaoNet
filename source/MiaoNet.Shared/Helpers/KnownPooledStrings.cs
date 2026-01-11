@@ -2,22 +2,11 @@ namespace MiaoNet.Shared;
 
 public static partial class KnownPooledStrings
 {
-#if !INSPECTOR
-
 #if DEBUG
 
     public static IEnumerable<string> All => [];
 
-#elif RELEASE
-
-    public static IEnumerable<string> All =>
-        PlayerAnimations.Prepend(string.Empty);
-
-#endif
-
 #else
-
-    public static IEnumerable<string> Empty => [];
 
     public static IEnumerable<string> All =>
         PlayerAnimations.Prepend(string.Empty);

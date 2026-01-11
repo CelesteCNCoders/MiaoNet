@@ -1,7 +1,6 @@
 #if MIAO_CLIENT
 using SessionCoreModes = Celeste.Session.CoreModes;
 #elif MIAO_SERVER
-using MiaoNet.Server.Primitives;
 using SessionCoreModes = System.Int32;
 #endif
 

@@ -1,7 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-#if MIAO_SERVER
-using MiaoNet.Server.Primitives;
-#endif
 
 namespace MiaoNet.Shared;
 

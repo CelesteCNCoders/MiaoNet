@@ -1,8 +1,5 @@
 using System.Diagnostics;
 using System.Text.Json.Serialization;
-#if MIAO_SERVER
-using MiaoNet.Server.Primitives;
-#endif
 namespace MiaoNet.Shared;
 
 /// <summary>

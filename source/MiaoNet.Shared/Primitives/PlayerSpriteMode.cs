@@ -1,4 +1,4 @@
-namespace MiaoNet.Server.Primitives;
+namespace MiaoNet.Shared;
 
 public enum PlayerSpriteMode
 {

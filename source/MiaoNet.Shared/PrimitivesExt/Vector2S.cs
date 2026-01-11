@@ -1,7 +1,3 @@
-#if MIAO_SERVER
-using MiaoNet.Server.Primitives;
-#endif
-
 namespace MiaoNet.Shared;
 
 public struct Vector2S : IRefBinarySerializable<Vector2S>, IEquatable<Vector2S>

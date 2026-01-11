@@ -1,6 +1,3 @@
-#if MIAO_SERVER
-using MiaoNet.Server.Primitives;
-#endif
 using MiaoNet.Shared;
 
 namespace MiaoNet.Shared;

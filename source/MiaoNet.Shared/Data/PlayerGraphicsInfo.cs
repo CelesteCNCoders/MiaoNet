@@ -1,7 +1,3 @@
-#if MIAO_SERVER
-using MiaoNet.Server.Primitives;
-#endif
-
 namespace MiaoNet.Shared;
 
 public sealed class PlayerGraphicsInfo : IRefBinarySerializable<PlayerGraphicsInfo>
