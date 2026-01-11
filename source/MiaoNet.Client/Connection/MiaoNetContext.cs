@@ -23,10 +23,8 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     //private int warningTimes;
 #if DEBUG
     public string TargetServer { get; set; } = "127.0.0.1";
-
 #else
     public string TargetServer { get; set; } = "s.saplonily.top";
-
 #endif
 
     public int TargetPort { get; set; } = 21473;
