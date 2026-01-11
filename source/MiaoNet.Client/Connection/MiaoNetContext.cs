@@ -36,7 +36,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     private readonly ConcurrentQueue<IContextualPacket> receiveQueue;
     private readonly ConcurrentQueue<Action> mainThreadQueue;
 
-    private List<MiaoNetComponent> components;
+    private readonly List<MiaoNetComponent> components;
     private MiaoServerConnection? connection;
     private readonly PacketDispatcher packetDispatcher;
 

@@ -55,7 +55,7 @@ public partial class MiaoNetContext
     private void HandlePacket(PacketPlayerLeft packet)
     {
         EnsureState();
-        var player = ClientState.Players[packet.PlayerID];
+        var player = ClientState.GetPlayer(packet.PlayerID);
         ClientState.OnPlayerLeft(packet.PlayerID);
         PlayerLeft?.Invoke(player);
     }
@@ -92,7 +92,7 @@ public partial class MiaoNetContext
     private void HandlePacket(PacketPlayerMapChangedNotification packet)
     {
         EnsureState();
-        var player = ClientState.Players[packet.PlayerID];
+        var player = ClientState.GetPlayer(packet.PlayerID);
         player.Location = packet.Location;
         player.State = packet.InitialState;
         player.GraphicsInfo = packet.GraphicsInfo;
@@ -102,7 +102,7 @@ public partial class MiaoNetContext
     private void HandlePacket(PacketPlayerNotification<PacketPlayerMapRoomChanged> packet)
     {
         EnsureState();
-        var player = ClientState.Players[packet.PlayerID];
+        var player = ClientState.GetPlayer(packet.PlayerID);
         player.Location.MapRoom = packet.Packet.MapRoom;
         PlayerMapRoomChanged?.Invoke(player, packet.Packet.MapRoom);
     }
@@ -112,7 +112,7 @@ public partial class MiaoNetContext
         EnsureState();
         foreach (var playerInMap in packet.PlayersInMap)
         {
-            var player = ClientState.Players[playerInMap.PlayerID];
+            var player = ClientState.GetPlayer(playerInMap.PlayerID);
             player.State = playerInMap.State;
             player.GraphicsInfo = playerInMap.GraphicsInfo;
         }
@@ -123,39 +123,36 @@ public partial class MiaoNetContext
     {
         EnsureState();
         OnlinePlayer? player = null;
-        if (packet.SourcePlayer.HasValue)
-        {
-            int id = (int)packet.SourcePlayer;
-            player = id == ClientState.Self.ID ? ClientState.Self : ClientState.Players[id];
-        }
+        if (packet.SourcePlayer is not null)
+            player = ClientState.GetPlayerOrSelf((int)packet.SourcePlayer);
         ChatMessageReceived?.Invoke(player, packet);
     }
 
     private void HandlePacket(PacketEmote packet)
     {
         EnsureState();
-        var player = ClientState.Players[packet.PlayerID];
+        var player = ClientState.GetPlayer(packet.PlayerID);
         EmoteReceived?.Invoke(player, packet.Emote);
     }
 
     private void HandlePacket(PacketEmoteText packet)
     {
         EnsureState();
-        var player = ClientState.Players[packet.PlayerID];
+        var player = ClientState.GetPlayer(packet.PlayerID);
         EmoteTextReceived?.Invoke(player, packet.Text);
     }
 
     private void HandlePacket(PacketPlayerNotification<PacketPlayerStateFlags> packet)
     {
         EnsureState();
-        var player = ClientState.Players[packet.PlayerID];
+        var player = ClientState.GetPlayer(packet.PlayerID);
         PlayerStateFlagsNotification?.Invoke(player, packet.Packet.Flags);
     }
 
     private void HandlePacket(PacketPlayerNotification<PacketUpdateOnlineStatus> packet)
     {
         EnsureState();
-        var player = ClientState.Players[packet.PlayerID];
+        var player = ClientState.GetPlayer(packet.PlayerID);
         var p = player.OnlineStatus;
         player.OnlineStatus = packet.Packet.Status;
         PlayerOnlineStatusChanged?.Invoke(player, p);
@@ -194,15 +191,7 @@ public partial class MiaoNetContext
     {
         EnsureState();
         foreach (var (playerID, ping) in packet.Datas)
-        {
-            if (!ClientState.Players.TryGetValue(playerID, out var player))
-            {
-                if (playerID == ClientState.Self.ID)
-                    ClientState.Self.LastPing = ping;
-                continue;
-            }
-            player.LastPing = ping;
-        }
+            ClientState.GetPlayerOrSelf(playerID).LastPing = ping;
         PingDataReceived?.Invoke();
     }
 }

@@ -443,10 +443,10 @@ public sealed class MainComponent : MiaoNetComponent
 
     private void Context_PlayerMapChangeResponded(PacketPlayerMapChangedResponse packet)
     {
-        Logger.Debug(nameof(MiaoNet), $"Map changed responed, players count: {packet.PlayersInMap.Length}");
+        Logger.Debug(nameof(MiaoNet), $"Map changed responded, players count: {packet.PlayersInMap.Length}");
         foreach (var item in packet.PlayersInMap)
         {
-            OnlinePlayer player = ClientState.Players[item.PlayerID];
+            OnlinePlayer player = ClientState.GetPlayer(item.PlayerID);
             HandleLocationChanging(player, player.GraphicsInfo, player.State);
         }
     }

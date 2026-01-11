@@ -55,6 +55,22 @@ public sealed class ClientState
         players.Remove(playerID);
     }
 
+    public OnlinePlayer GetPlayer(int playerID)
+    {
+        if (players.TryGetValue(playerID, out var player))
+            return player;
+        throw new KeyNotFoundException(string.Format(SR.PlayerNotFound, playerID));
+    }
+
+    public OnlinePlayer GetPlayerOrSelf(int playerID)
+    {
+        if (players.TryGetValue(playerID, out var player))
+            return player;
+        if (Self.ID == playerID)
+            return Self;
+        throw new KeyNotFoundException(string.Format(SR.PlayerNotFound, playerID));
+    }
+
     public PlayerLocation.ChangeResult OnPlayerLocationChanged(PlayerLocation location)
     {
         PlayerLocation.ChangeResult result = Self.Location.CompareTo(location);
