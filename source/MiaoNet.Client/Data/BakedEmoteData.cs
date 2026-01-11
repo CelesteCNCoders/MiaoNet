@@ -23,7 +23,7 @@ public sealed class BakedEmoteData
         return textures[index];
     }
 
-    private ImmutableArray<MTexture> BakeTextures(EmoteData emote)
+    private static ImmutableArray<MTexture> BakeTextures(EmoteData emote)
     {
         var builder = ImmutableArray.CreateBuilder<MTexture>(emote.Frames.Count);
 
@@ -32,7 +32,7 @@ public sealed class BakedEmoteData
             EmoteAtlasCategory.Gameplay => GFX.Game,
             EmoteAtlasCategory.Gui => GFX.Gui,
             EmoteAtlasCategory.Portrait => GFX.Portraits,
-            _ => throw new ArgumentException("Atlas of category not found.", nameof(emote))
+            _ => throw new ArgumentException(SR.AtlasCategoryNotFound, nameof(emote))
         };
 
         foreach (var frame in emote.Frames)
@@ -54,7 +54,7 @@ public sealed class BakedEmoteData
             else
             {
                 builder.Add(GFX.Game.GetFallback());
-                Logger.Warn($"{nameof(MiaoNet)}/{nameof(EmoteData)}", $"Could not find frame {fullFrameName}.");
+                Logger.Warn(LT.MiaoNetEmoteData, string.Format(SR.FrameNotFound, fullFrameName));
                 break;
             }
         }

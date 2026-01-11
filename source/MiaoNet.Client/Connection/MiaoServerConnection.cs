@@ -212,11 +212,11 @@ public sealed class MiaoServerConnection : IDisposable
             catch (Exception e)
             {
                 Logger.Error(
-                    $"{nameof(MiaoNet)}/ReadPacket",
+                    LT.MiaoNetPacketReading,
                     $"Read packet failed, size: {size}, type: {type}. Raw payload:\n" +
                         Convert.ToBase64String(payloadMemory.ToArray())
                 );
-                Logger.LogDetailed(e, $"{nameof(MiaoNet)}/ReadPacket");
+                Logger.LogDetailed(e, LT.MiaoNetPacketReading);
                 throw;
             }
         }

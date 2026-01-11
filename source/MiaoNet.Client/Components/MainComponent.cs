@@ -332,7 +332,7 @@ public sealed class MainComponent : MiaoNetComponent
                 else if (scene is LevelLoader levelLoader)
                 {
                     if (pendingMapChanged)
-                        Logger.Warn(nameof(MiaoNet), "pendingMapChanged is still true, is this a bug?");
+                        Logger.Warn(LT.MiaoNet, "pendingMapChanged is still true, is this a bug?");
                     pendingMapChanged = true;
                 }
                 else
@@ -359,7 +359,7 @@ public sealed class MainComponent : MiaoNetComponent
             return;
         if (!ghosts.Remove(player.Info.ID, out MiaoNetGhost? ghost))
         {
-            Logger.Warn(nameof(MiaoNet), $"Try removing a player({player.Info}) which is not exists.");
+            Logger.Warn(LT.MiaoNet, $"Try removing a player({player.Info}) which is not exists.");
             return;
         }
         ghost.RemoveSelf();
@@ -406,7 +406,7 @@ public sealed class MainComponent : MiaoNetComponent
         }
         else
         {
-            Logger.Warn(nameof(MiaoNet), $"Notified but ghost does not exists for {player.Info}");
+            Logger.Warn(LT.MiaoNet, $"Notified but ghost does not exists for {player.Info}");
             // TODO something that records the warning times
             // if there are so many warnings then we may have to
             // disconnect from the server (a server or client bug?)
@@ -425,25 +425,25 @@ public sealed class MainComponent : MiaoNetComponent
         }
         else
         {
-            Logger.Warn(nameof(MiaoNet), $"Flgas notified but ghost does not exists for {player.Info}");
+            Logger.Warn(LT.MiaoNet, $"Flgas notified but ghost does not exists for {player.Info}");
         }
     }
 
     private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotification packet)
     {
-        Logger.Debug(nameof(MiaoNet), $"Player map changed: {player}, state: {packet.InitialState}.");
+        Logger.Debug(LT.MiaoNet, $"Player map changed: {player}, state: {packet.InitialState}.");
         HandleLocationChanging(player, packet.GraphicsInfo, packet.InitialState);
     }
 
     private void Context_PlayerMapRoomChanged(OnlinePlayer player, string room)
     {
-        Logger.Debug(nameof(MiaoNet), $"Player map room changed: {player}.");
+        Logger.Debug(LT.MiaoNet, $"Player map room changed: {player}.");
         HandleLocationChanging(player, null, null);
     }
 
     private void Context_PlayerMapChangeResponded(PacketPlayerMapChangedResponse packet)
     {
-        Logger.Debug(nameof(MiaoNet), $"Map changed responded, players count: {packet.PlayersInMap.Length}");
+        Logger.Debug(LT.MiaoNet, $"Map changed responded, players count: {packet.PlayersInMap.Length}");
         foreach (var item in packet.PlayersInMap)
         {
             OnlinePlayer player = ClientState.GetPlayer(item.PlayerID);
@@ -467,7 +467,7 @@ public sealed class MainComponent : MiaoNetComponent
             return;
 
         bool needGhost = ClientState.Self.ShouldSyncFrom(other);
-        Logger.Debug(nameof(MiaoNet), $"needGhost of {other.Info} = {needGhost}");
+        Logger.Debug(LT.MiaoNet, $"needGhost of {other.Info} = {needGhost}");
 
         Level? level = Engine.Scene as Level;
 
@@ -504,7 +504,7 @@ public sealed class MainComponent : MiaoNetComponent
                 }
                 ghosts[other.ID] = ghost = new(other, other.Info.Name, graphicsInfo, initialState!);
                 level!.Add(ghost);
-                Logger.Debug(nameof(MiaoNet), $"added ghost for {other.Info}!");
+                Logger.Debug(LT.MiaoNet, $"added ghost for {other.Info}!");
             }
         }
     }

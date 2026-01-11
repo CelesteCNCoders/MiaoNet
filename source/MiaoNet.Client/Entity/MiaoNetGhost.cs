@@ -263,7 +263,7 @@ public sealed class MiaoNetGhost : Entity
         if (deltas.Length != leader.Followers.Count)
         {
             Logger.Error(
-                nameof(MiaoNet),
+                LT.MiaoNet,
                 $"Received {deltas.Length} follower deltas but there's only {leader.Followers.Count} followers."
             );
             // let it crash

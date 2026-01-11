@@ -174,14 +174,14 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                     }
                     else
                     {
-                        Logger.Warn(nameof(MiaoNet), $"Unknown response id: {response.RequestID}.");
+                        Logger.Warn(LT.MiaoNet, $"Unknown response id: {response.RequestID}.");
                     }
                 }
                 else
                 {
                     bool handled = packetDispatcher.DispatchPacket(packet);
                     if (!handled)
-                        Logger.Warn(nameof(MiaoNet), $"Unhandled packet type: {packet.GetType()}.");
+                        Logger.Warn(LT.MiaoNet, $"Unhandled packet type: {packet.GetType()}.");
                 }
             }
 
@@ -192,7 +192,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         }
         catch (Exception e)
         {
-            Logger.LogDetailed(e, nameof(MiaoNet));
+            Logger.LogDetailed(e, LT.MiaoNet);
             Disconnect();
         }
     }
@@ -319,7 +319,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
                 if (ackData is null)
                 {
-                    Logger.Warn(nameof(MiaoNet), $"Remote sent empty or invalid reply.");
+                    Logger.Warn(LT.MiaoNet, $"Remote sent empty or invalid reply.");
                     mainThreadQueue.Enqueue(() =>
                     {
                         StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
@@ -344,9 +344,9 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                     if (packetInitial is not PacketClientInitial clientInitial)
                     {
                         if (packetInitial is null)
-                            Logger.Warn(nameof(MiaoNet), $"Remote sent empty or invalid initial reply.");
+                            Logger.Warn(LT.MiaoNet, $"Remote sent empty or invalid initial reply.");
                         else
-                            Logger.Warn(nameof(MiaoNet), $"Remote sent a werid initial packet {packetInitial.GetType()}.");
+                            Logger.Warn(LT.MiaoNet, $"Remote sent a werid initial packet {packetInitial.GetType()}.");
                         mainThreadQueue.Enqueue(() =>
                         {
                             StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
@@ -356,7 +356,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                     }
                     else
                     {
-                        Logger.Info(nameof(MiaoNet), $"Connected to {ep}.");
+                        Logger.Info(LT.MiaoNet, $"Connected to {ep}.");
 
                         mainThreadQueue.Enqueue(() =>
                         {
@@ -375,7 +375,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             }
             catch (Exception e)
             {
-                Logger.Error(nameof(MiaoNet), $"Error when connecting: {e}");
+                Logger.Error(LT.MiaoNet, $"Error when connecting: {e}");
                 mainThreadQueue.Enqueue(() =>
                 {
                     StatusComponent.ShowStatusMessage(
@@ -481,17 +481,17 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                     SocketErrorCode: SocketError.ConnectionAborted
                         or SocketError.ConnectionReset
                 } se):
-                    Logger.Info(nameof(MiaoNet), "Connection aborted.");
+                    Logger.Info(LT.MiaoNet, "Connection aborted.");
                     isExpected = false;
                     break;
 
                 case OperationCanceledException:
-                    Logger.Info(nameof(MiaoNet), "Disconnected.");
+                    Logger.Info(LT.MiaoNet, "Disconnected.");
                     break;
 
                 default:
 
-                    Logger.Error(nameof(MiaoNet), e.ToString());
+                    Logger.Error(LT.MiaoNet, e.ToString());
                     unhandledException = e;
                     isExpected = false;
                     break;

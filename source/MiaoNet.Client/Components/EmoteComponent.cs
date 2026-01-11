@@ -86,7 +86,7 @@ public sealed class EmoteComponent : MiaoNetComponent
         else
         {
             Logger.Warn(
-                $"{nameof(MiaoNet)}/{nameof(EmoteComponent)}",
+                LT.MiaoNetEmoteComponent,
                 $"No ghost for player {player.Info} can be attached with emote {emote.Prefix}/{emote.Frames[0]}."
             );
         }
@@ -103,7 +103,7 @@ public sealed class EmoteComponent : MiaoNetComponent
         else
         {
             Logger.Warn(
-                $"{nameof(MiaoNet)}/{nameof(EmoteComponent)}",
+                LT.MiaoNetEmoteComponent,
                 $"No ghost for player {player.Info} can be attached with emote text \"{text}\"."
             );
         }
