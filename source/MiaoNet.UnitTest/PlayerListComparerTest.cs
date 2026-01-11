@@ -1,6 +1,5 @@
 #pragma warning disable CA1861
 
-using MiaoNet.Server.Primitives;
 using MiaoNet.Shared;
 
 namespace MiaoNet.UnitTest;

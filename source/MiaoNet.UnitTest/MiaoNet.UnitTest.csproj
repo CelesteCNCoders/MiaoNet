@@ -20,7 +20,7 @@
     <Compile Include="..\MiaoNet.Client\Command\CommandParser.cs" LinkBase="Command" />
     <Compile Include="..\MiaoNet.Client\Command\CommandSegmentType.cs" LinkBase="Command" />
     <Compile Include="..\MiaoNet.Client\Command\MiaoNetCommand.cs" LinkBase="Command" />
-    <Compile Include="..\MiaoNet.Client\SR.cs" LinkBase="Command" />
+    <Compile Include="..\MiaoNet.Client\Misc\SR.cs" LinkBase="Command" />
     <Compile Include="..\MiaoNet.Shared\SafeGuard.cs" LinkBase="Command" />
   </ItemGroup>
 
