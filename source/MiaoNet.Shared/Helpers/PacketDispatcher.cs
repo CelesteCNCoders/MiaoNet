@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace MiaoNet.Shared;
 
-#if MIAO_CLIENT
+#if MIAO_CLIENT || MIAO_MOCKCLIENT
 public delegate void PacketHandler<TPacket>(TPacket packet)
     where TPacket : IContextualPacket;
 #elif MIAO_SERVER
@@ -12,7 +12,7 @@ public delegate Task PacketHandler<TPacket>(Server.MiaoClientConnection connecti
     where TPacket : IContextualPacket;
 #endif
 
-#if MIAO_CLIENT
+#if MIAO_CLIENT || MIAO_MOCKCLIENT
 public sealed class PacketDispatcher
 {
     private readonly FrozenDictionary<Type, PacketHandler<IContextualPacket>> dictionary;

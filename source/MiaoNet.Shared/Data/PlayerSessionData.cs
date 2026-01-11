@@ -1,7 +1,7 @@
 #if MIAO_CLIENT
 using SessionCoreModes = Celeste.Session.CoreModes;
-#elif MIAO_SERVER
-using SessionCoreModes = System.Int32;
+#elif MIAO_SERVER || MIAO_MOCKCLIENT
+using SessionCoreModes = MiaoNet.Shared.CoreModes;
 #endif
 
 using DataEntityID = MiaoNet.Shared.PlayerSessionData.StringIntPair;

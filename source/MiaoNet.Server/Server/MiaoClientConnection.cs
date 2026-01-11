@@ -40,7 +40,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
     public PooledStringManager PooledStringManager { get; }
 
-    private readonly Channel<SerializedPacket> sendChannel;
+    private readonly Channel<(SerializedPacket?, IContextualPacket?)> sendChannel;
 
     public MiaoClientConnection(
         int id, Socket socket, SslStream sslStream,
@@ -61,7 +61,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         pendingRequests = new();
 
         UnboundedChannelOptions options = new() { SingleReader = true };
-        sendChannel = Channel.CreateUnbounded<SerializedPacket>(options);
+        sendChannel = Channel.CreateUnbounded<(SerializedPacket?, IContextualPacket?)>(options);
         PooledStringManager = new(KnownPooledStrings.All);
     }
 
@@ -92,13 +92,16 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     }
 
     public ValueTask QueuePacketAsync(IContextualPacket packet)
-        => sendChannel.Writer.WriteAsync(new SerializedPacket(ArrayPool<byte>.Shared, packet, this, 1));
+        => sendChannel.Writer.WriteAsync((null, packet));
 
     public ValueTask QueuePacketAsync(SerializedPacket packet)
-        => sendChannel.Writer.WriteAsync(packet);
+        => sendChannel.Writer.WriteAsync((packet, null));
+
+    public bool TryQueuePacket(IContextualPacket packet)
+        => sendChannel.Writer.TryWrite((null, packet));
 
     public bool TryQueuePacket(SerializedPacket packet)
-        => sendChannel.Writer.TryWrite(packet);
+        => sendChannel.Writer.TryWrite((packet, null));
 
     // TODO maybe we can add a UserParam parameter to avoid closure
     // TODO timeout
@@ -218,8 +221,9 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         var channelReader = sendChannel.Reader;
         try
         {
-            await foreach (var packet in channelReader.ReadAllAsync(token))
+            await foreach (var (s, p) in channelReader.ReadAllAsync(token))
             {
+                var packet = s is not null ? s : new SerializedPacket(ArrayPool<byte>.Shared, p!, this);
                 await sslStream.WriteAsync(packet.ArraySegment, token);
                 await sslStream.FlushAsync(token);
                 // TODO packet is not always "consumed"
@@ -244,7 +248,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
             cts.Cancel();
             // TODO currently there'll be still packets remaining after this
             while (channelReader.TryRead(out var item))
-                item.OnConsumed();
+                item.Item1?.OnConsumed();
         }
     }
 

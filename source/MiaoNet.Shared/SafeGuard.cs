@@ -1,4 +1,4 @@
-#if MIAO_SERVER || (MIAO_CLIENT && !SAFE_GUARD)
+#if MIAO_SERVER || (MIAO_CLIENT && !SAFE_GUARD) || MIAO_MOCKCLIENT
 global using SafeGuard = System.Diagnostics.Debug;
 #endif
 using System.Diagnostics;

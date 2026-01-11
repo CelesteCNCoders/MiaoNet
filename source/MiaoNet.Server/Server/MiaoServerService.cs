@@ -487,10 +487,9 @@ public sealed partial class MiaoServerService : BackgroundService
         List<Task>? bounded = null;
         foreach (var connection in connections.Where(c => predicate(c)))
         {
-            var serializedPacket = new SerializedPacket(ArrayPool<byte>.Shared, packet, connection);
-            if (!connection.TryQueuePacket(serializedPacket))
+            if (!connection.TryQueuePacket(packet))
             {
-                (bounded ??= new()).Add(connection.QueuePacketAsync(serializedPacket).AsTask());
+                (bounded ??= new()).Add(connection.QueuePacketAsync(packet).AsTask());
             }
         }
 
