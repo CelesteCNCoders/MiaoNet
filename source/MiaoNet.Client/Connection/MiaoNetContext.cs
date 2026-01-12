@@ -112,7 +112,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         components.ForEach(c => c.OnConnected());
     }
 
-    public void Disconnect()
+    public void Disconnect(bool manually = false)
     {
         cts?.Cancel();
         cts = null;
@@ -122,29 +122,39 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             connection = null;
             StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
         }
-        OnDisconnected();
+        OnDisconnected(manually);
     }
 
-    public void OnDisconnected()
+    public void OnDisconnected(bool manually = false)
     {
-        cts?.Cancel();
-        cts = null;
-        connectionThread = null;
-        // any better ways?
-        while (receiveQueue.TryDequeue(out var packet))
+        try
         {
-            if (packet is PacketDisconnected dc)
-                packetDispatcher.DispatchPacket(dc);
+            cts?.Cancel();
+            cts = null;
+            connectionThread = null;
+            // any better ways?
+            while (receiveQueue.TryDequeue(out var packet))
+            {
+                if (packet is PacketDisconnected dc)
+                    packetDispatcher.DispatchPacket(dc);
+            }
+            receiveQueue.Clear();
+            pendingRequests.Clear();
+            clientState = null;
+            PooledStringManager = null;
+            components?.ForEach(c => c.OnDisconnected());
+            if (connection is null)
+                return;
+            connection.Dispose();
+            connection = null;
         }
-        receiveQueue.Clear();
-        pendingRequests.Clear();
-        clientState = null;
-        PooledStringManager = null;
-        components?.ForEach(c => c.OnDisconnected());
-        if (connection is null)
-            return;
-        connection.Dispose();
-        connection = null;
+        finally
+        {
+            if (!manually && MiaoNetModule.Settings.AutoReconnect)
+            {
+                Task.Delay(500).ContinueWith(_ => MiaoNetModule.Instance.MiaoNetContext.Connect());
+            }
+        }
     }
 
     public void Update()

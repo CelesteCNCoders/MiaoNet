@@ -34,7 +34,7 @@ public static class MenuMiaoNetOptions
             if (v)
                 context.Connect();
             else
-                context.Disconnect();
+                context.Disconnect(true);
         });
         menu.Add(item);
 
@@ -78,15 +78,16 @@ public static class MenuMiaoNetOptions
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_connection"));
         menu.Add(item);
 
-        /*
-        item = new TextMenu.OnOff(Dialog.Get("miaonet_options_auto_reconnect"), false);
-        menu.Add(item);
-        */
-
         item = new TextMenu.OnOff(
             Dialog.Get("miaonet_options_connect_on_game_start"),
             settings.ConnectOnGameStart
         ).Change(v => settings.ConnectOnGameStart = v);
+        menu.Add(item);
+
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_auto_reconnect"),
+            settings.AutoReconnect
+        ).Change(v => settings.AutoReconnect = v);
         menu.Add(item);
 
         // -- Visuals --

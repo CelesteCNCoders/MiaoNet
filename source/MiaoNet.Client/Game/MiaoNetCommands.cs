@@ -17,6 +17,6 @@ public static class MiaoNetCommands
     [Command("dc", "Disconnect from MiaoNet.")]
     public static void Disconnect()
     {
-        Context.Disconnect();
+        Context.Disconnect(true);
     }
 }
