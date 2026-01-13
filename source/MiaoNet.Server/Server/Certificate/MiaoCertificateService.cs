@@ -34,10 +34,16 @@ public sealed class MiaoCertificateService : BackgroundService, IMiaoCertificate
     [MemberNotNull(nameof(cert))]
     private void Reload()
     {
-        logger.LogInformation("Reloading certificate...");
+        logger.LogInformation(AppEvents.Certificate, "Reloading certificate...");
         var newCert = X509Certificate2.CreateFromPemFile(certPath, keyPath);
         Interlocked.Exchange(ref cert, newCert);
-        logger.LogInformation("Reloaded, not before: {a}, not after: {b}, name: {c}.", cert.NotBefore, cert.NotAfter, cert.SubjectName.Name);
+        logger.LogInformation(
+            AppEvents.Certificate,
+            "Reloaded, not before: {a}, not after: {b}, name: {c}.",
+            cert.NotBefore, 
+            cert.NotAfter, 
+            cert.SubjectName.Name
+        );
     }
 
     public X509Certificate2 GetCertificate()
@@ -45,19 +51,19 @@ public sealed class MiaoCertificateService : BackgroundService, IMiaoCertificate
 
     private void CheckAndReload()
     {
-        logger.LogInformation("Check if certificate is reload needed...");
+        logger.LogInformation(AppEvents.Certificate, "Check if certificate is reload needed...");
         var certModifiedTime = File.GetLastWriteTimeUtc(certPath);
         var KeyModifiedTime = File.GetLastWriteTimeUtc(keyPath);
         if (lastCertModifiedTime != certModifiedTime || lastKeyModifiedTime != KeyModifiedTime)
         {
-            logger.LogInformation("Certificate modified: cert {cd}, key {kd}.", certModifiedTime, KeyModifiedTime);
+            logger.LogInformation(AppEvents.Certificate, "Certificate modified: cert {cd}, key {kd}.", certModifiedTime, KeyModifiedTime);
             lastCertModifiedTime = certModifiedTime;
             lastKeyModifiedTime = KeyModifiedTime;
             Reload();
         }
         else
         {
-            logger.LogInformation("No need to reload certificate.");
+            logger.LogInformation(AppEvents.Certificate, "No need to reload certificate.");
         }
     }
 
