@@ -7,15 +7,15 @@ namespace MiaoNet.Shared;
 // TODO this impl is ugly
 public sealed class SerializedPacket
 {
-    private int clientCount;
-    private readonly ArrayPool<byte> arrayPool;
-    private readonly ArraySegment<byte> arraySegment;
+    private static readonly ArrayPool<byte> pool = ArrayPool<byte>.Shared;
     [ThreadStatic] private static MemoryStream? memoryStream;
+
+    private int clientCount;
+    private ArraySegment<byte> arraySegment;
 
     public ArraySegment<byte> ArraySegment => arraySegment;
 
     public SerializedPacket(
-        ArrayPool<byte> arrayPool,
         IContextualPacket packet,
         IPacketSerializationContext context,
         int clientCount = 1
@@ -36,25 +36,25 @@ public sealed class SerializedPacket
         ushort size = (ushort)memoryStream.Position;
         memoryStream.Seek(0, SeekOrigin.Begin);
         writer.Write((ushort)(size - 2 * sizeof(ushort)));
-        var array = arrayPool.Rent(size);
+        var array = pool.Rent(size);
         memoryStream.GetBuffer().AsSpan()[0..size].CopyTo(array.AsSpan()[0..size]);
 
         var arraySegment = new ArraySegment<byte>(array, 0, size);
 
         this.clientCount = clientCount;
-        this.arrayPool = arrayPool;
         this.arraySegment = arraySegment;
     }
 
-    public SerializedPacket(ArrayPool<byte> arrayPool, IContextlessPacket packet, int clientCount = 1)
-        : this(arrayPool, packet, null!, clientCount) // is passing null ok...?
+    public SerializedPacket(IContextlessPacket packet, int clientCount = 1)
+        : this(packet, null!, clientCount) // is passing null ok...?
     {
     }
 
     private void Dispose(bool disposing = true)
     {
         Debug.Assert(arraySegment.Array is not null);
-        arrayPool.Return(arraySegment.Array);
+        pool.Return(arraySegment.Array);
+        arraySegment = default;
 #pragma warning disable CA1816
         if (disposing)
             GC.SuppressFinalize(this);

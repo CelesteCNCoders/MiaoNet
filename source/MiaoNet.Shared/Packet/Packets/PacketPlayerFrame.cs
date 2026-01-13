@@ -98,13 +98,12 @@ public sealed class PacketPlayerFrame : IContextualPacket<PacketPlayerFrame>
 
     public static PacketPlayerFrame Deserialize(ref RefBinaryReader reader, IPacketSerializationContext context)
     {
-        var packet = new PacketPlayerFrame(
-            position: reader.ReadVector2(),
-            animation: reader.Read<PooledString, PooledStringManager>(context.PooledStringManager),
-            animationFrame: reader.ReadUInt16(),
-            scale: reader.ReadVector2(),
-            flags: (FrameFlags)reader.ReadUInt16()
-        );
+        Vector2 position = reader.ReadVector2();
+        PooledString animation = reader.Read<PooledString, PooledStringManager>(context.PooledStringManager);
+        ushort animationFrame = reader.ReadUInt16();
+        Vector2 scale = reader.ReadVector2();
+        FrameFlags flags = (FrameFlags)reader.ReadUInt16();
+        var packet = new PacketPlayerFrame(position, animation, animationFrame, scale, flags);
         if (packet.DashesChange)
             packet.Dashes = reader.ReadByte();
         if (packet.HasHoldable)

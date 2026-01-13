@@ -455,24 +455,24 @@ public sealed partial class MiaoServerService : BackgroundService
         int connectionsCount
     )
     {
-        SerializedPacket serializedPacket = new(ArrayPool<byte>.Shared, packet, connectionsCount);
+        SerializedPacket serializedPacket = new(packet, connectionsCount);
         List<Task>? bounded = null;
         int notMeetCount = 0;
         foreach (var connection in connections)
         {
             if (predicate(connection))
             {
-                if (!connection.TryQueuePacket(serializedPacket))
-                {
+                bool tryResult = connection.TryQueuePacket(serializedPacket);
+                if (!tryResult)
                     (bounded ??= new()).Add(connection.QueuePacketAsync(serializedPacket).AsTask());
-                }
             }
             else
             {
                 notMeetCount++;
             }
         }
-        serializedPacket.OnConsumed(notMeetCount);
+        if (notMeetCount != 0)
+            serializedPacket.OnConsumed(notMeetCount);
         if (bounded is not null)
             return Task.WhenAll(bounded);
         return Task.CompletedTask;

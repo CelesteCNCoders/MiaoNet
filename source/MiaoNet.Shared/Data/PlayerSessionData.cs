@@ -1,6 +1,6 @@
 #if MIAO_CLIENT
 using SessionCoreModes = Celeste.Session.CoreModes;
-#elif MIAO_SERVER || MIAO_MOCKCLIENT
+#elif MIAO_SERVER || MIAO_MOCKCLIENT || INSPECTOR
 using SessionCoreModes = MiaoNet.Shared.CoreModes;
 #endif
 

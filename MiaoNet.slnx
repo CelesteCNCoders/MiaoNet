@@ -15,4 +15,5 @@
   <Project Path="source/MiaoNet.MockClient/MiaoNet.MockClient.csproj" />
   <Project Path="source/MiaoNet.Shared/MiaoNet.Shared.msbuildproj" Type="13b669be-bb05-4ddf-9536-439f39a36129" />
   <Project Path="source/MiaoNet.UnitTest/MiaoNet.UnitTest.csproj" />
+  <Project Path="source/PacketDumpInspector/PacketDumpInspector.csproj" Id="73ff2b1d-e4e2-4e8e-bc81-1436f8a74f35" />
 </Solution>

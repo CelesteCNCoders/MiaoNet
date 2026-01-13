@@ -223,7 +223,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         {
             await foreach (var (s, p) in channelReader.ReadAllAsync(token))
             {
-                var packet = s is not null ? s : new SerializedPacket(ArrayPool<byte>.Shared, p!, this);
+                var packet = s is not null ? s : new SerializedPacket(p!, this);
                 await sslStream.WriteAsync(packet.ArraySegment, token);
                 await sslStream.FlushAsync(token);
                 // TODO packet is not always "consumed"

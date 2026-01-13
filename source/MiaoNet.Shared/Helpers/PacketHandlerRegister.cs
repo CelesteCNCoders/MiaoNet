@@ -7,7 +7,7 @@ public interface IPacketHandlerRegister
     public void Register<TPacket>(PacketHandler<TPacket> handler) where TPacket : IContextualPacket;
 }
 
-#if MIAO_CLIENT || MIAO_MOCKCLIENT
+#if MIAO_CLIENT || MIAO_MOCKCLIENT || INSPECTOR
 public sealed class PacketHandlerRegister : IPacketHandlerRegister
 {
     public Dictionary<Type, PacketHandler<IContextualPacket>> Dictionary { get; set; } = new();
