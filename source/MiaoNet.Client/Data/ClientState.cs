@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
@@ -55,11 +56,27 @@ public sealed class ClientState
         players.Remove(playerID);
     }
 
+    public bool TryGetPlayer(int playerID, [NotNullWhen(true)] out OnlinePlayer? player)
+        => players.TryGetValue(playerID, out player);
+
     public OnlinePlayer GetPlayer(int playerID)
     {
         if (players.TryGetValue(playerID, out var player))
             return player;
         throw new KeyNotFoundException(string.Format(SR.PlayerNotFound, playerID));
+    }
+
+    public bool TryGetPlayerOrSelf(int playerID, [NotNullWhen(true)] out OnlinePlayer? player)
+    {
+        if (players.TryGetValue(playerID, out player))
+            return true;
+        if (Self.ID == playerID)
+        {
+            player = Self;
+            return true;
+        }
+        player = null;
+        return false;
     }
 
     public OnlinePlayer GetPlayerOrSelf(int playerID)

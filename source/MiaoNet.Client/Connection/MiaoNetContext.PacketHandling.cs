@@ -64,7 +64,7 @@ public partial class MiaoNetContext
     {
         EnsureState();
         // TODO frame packets sending is not locked server-side
-        if (!ClientState.Players.TryGetValue(packet.PlayerID, out OnlinePlayer? player))
+        if (!ClientState.TryGetPlayer(packet.PlayerID, out OnlinePlayer? player))
             return;
         var state = player.State;
         if (state is not null)
@@ -191,7 +191,8 @@ public partial class MiaoNetContext
     {
         EnsureState();
         foreach (var (playerID, ping) in packet.Datas)
-            ClientState.GetPlayerOrSelf(playerID).LastPing = ping;
+            if (ClientState.TryGetPlayerOrSelf(playerID, out var player))
+                player.LastPing = ping;
         PingDataReceived?.Invoke();
     }
 }
