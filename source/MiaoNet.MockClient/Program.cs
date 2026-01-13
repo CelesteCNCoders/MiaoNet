@@ -2,8 +2,10 @@
 
 namespace MiaoNet.MockClient;
 
-public sealed class Program
+public static class Program
 {
+    private static readonly List<MockInstance> instances = new();
+
     public static void Main()
     {
         Console.Write("Mock client instances count:\n> ");
@@ -13,11 +15,13 @@ public sealed class Program
         {
             string name = GenerateRandomString();
             Console.WriteLine($"Created client {name}");
-            _ = new MockInstance(name);
+            instances.Add(new MockInstance(name));
         }
 
         Console.WriteLine("Press enter to exit...");
         Console.ReadLine();
+        foreach (MockInstance instance in instances)
+            instance.Dispose();
     }
 
     private static readonly char[] Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".ToCharArray();

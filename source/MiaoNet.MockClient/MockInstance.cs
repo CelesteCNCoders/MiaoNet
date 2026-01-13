@@ -8,12 +8,12 @@ using MiaoNet.Shared;
 
 namespace MiaoNet.MockClient;
 
-public sealed class MockInstance : IPacketSerializationContext
+public sealed class MockInstance : IPacketSerializationContext, IDisposable
 {
     private Vector2 position;
 
     private ConcurrentQueue<IContextualPacket> packetQueue;
-    private SslStream sslStream = null!;
+    private TeeStream teeStream = null!;
     private readonly string name;
 
     public PooledStringManager PooledStringManager { get; }
@@ -47,8 +47,8 @@ public sealed class MockInstance : IPacketSerializationContext
 
     private async Task ProcessAsync(string name)
     {
-        await ConnectAsync("127.0.0.1", 21473);
-        await sslStream.WriteAsync(Connection.HandshakeHead);
+        await ConnectAsync("s.saplonily.top", 21478);
+        await teeStream.WriteAsync(Connection.HandshakeHead);
         await SendHandshakeAsync(new HandshakeData(new Version(0, 2, 0), 0, name, []));
         var ack = await ReceivedHandshakeAckAsync();
         Log($"Received ack.");
@@ -90,7 +90,8 @@ public sealed class MockInstance : IPacketSerializationContext
         socket.NoDelay = true;
         await socket.ConnectAsync(ep);
         NetworkStream netStream = new(socket);
-        sslStream = new(netStream, false, (_, _, _, _) => true);
+        var sslStream = new SslStream(netStream, false, (_, _, _, _) => true);
+        teeStream = new(sslStream, new FileStream($"{name}.bin", FileMode.Create, FileAccess.Write));
         await sslStream.AuthenticateAsClientAsync(host);
     }
 
@@ -103,16 +104,16 @@ public sealed class MockInstance : IPacketSerializationContext
         ushort size = (ushort)(ms.Position - 2);
         ms.Seek(0, SeekOrigin.Begin);
         writer.Write(size);
-        await sslStream.WriteAsync(ms.GetBuffer().AsMemory().Slice(0, size + 2));
+        await teeStream.WriteAsync(ms.GetBuffer().AsMemory().Slice(0, size + 2));
     }
 
     private async Task<HandshakeAckData> ReceivedHandshakeAckAsync()
     {
         byte[] head = new byte[2];
-        await sslStream.ReadAtLeastAsync(head, 2);
+        await teeStream.ReadAtLeastAsync(head, 2);
         ushort size = BinaryPrimitives.ReadUInt16LittleEndian(head);
         byte[] payload = new byte[size];
-        await sslStream.ReadAtLeastAsync(payload, size);
+        await teeStream.ReadAtLeastAsync(payload, size);
         RefBinaryReader reader = new(payload);
         HandshakeAckData data = reader.Read<HandshakeAckData>();
         return data;
@@ -133,8 +134,8 @@ public sealed class MockInstance : IPacketSerializationContext
                 ms.Seek(0, SeekOrigin.Begin);
                 writer.Write(size);
                 writer.Write(type);
-                await sslStream.WriteAsync(ms.GetBuffer().AsMemory().Slice(0, size + 4), token);
-                await sslStream.FlushAsync(token);
+                await teeStream.WriteAsync(ms.GetBuffer().AsMemory().Slice(0, size + 4), token);
+                await teeStream.FlushAsync(token);
             }
             await Task.Delay(100, token);
         }
@@ -145,11 +146,11 @@ public sealed class MockInstance : IPacketSerializationContext
         byte[] headBuffer = new byte[4];
         while (true)
         {
-            await sslStream.ReadAtLeastAsync(headBuffer, 4, true, token);
+            await teeStream.ReadAtLeastAsync(headBuffer, 4, true, token);
             ushort size = BinaryPrimitives.ReadUInt16LittleEndian(headBuffer.AsSpan()[0..2]);
             ushort type = BinaryPrimitives.ReadUInt16LittleEndian(headBuffer.AsSpan()[2..4]);
             byte[] payloadBuffer = new byte[size];
-            await sslStream.ReadAtLeastAsync(payloadBuffer, size, true, token);
+            await teeStream.ReadAtLeastAsync(payloadBuffer, size, true, token);
             RefBinaryReader reader = new(payloadBuffer);
             var readHandler = PacketRegistry.GetPacketReader(type);
             var packet = readHandler(ref reader, this);
@@ -169,5 +170,10 @@ public sealed class MockInstance : IPacketSerializationContext
     private void Log(string msg)
     {
         Console.WriteLine($"[{DateTime.Now:t}] [{name}] {msg}");
+    }
+
+    public void Dispose()
+    {
+        ((IDisposable)teeStream).Dispose();
     }
 }
