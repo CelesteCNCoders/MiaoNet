@@ -127,34 +127,24 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public void OnDisconnected(bool manually = false)
     {
-        try
+        cts?.Cancel();
+        cts = null;
+        connectionThread = null;
+        // any better ways?
+        while (receiveQueue.TryDequeue(out var packet))
         {
-            cts?.Cancel();
-            cts = null;
-            connectionThread = null;
-            // any better ways?
-            while (receiveQueue.TryDequeue(out var packet))
-            {
-                if (packet is PacketDisconnected dc)
-                    packetDispatcher.DispatchPacket(dc);
-            }
-            receiveQueue.Clear();
-            pendingRequests.Clear();
-            clientState = null;
-            PooledStringManager = null;
-            components?.ForEach(c => c.OnDisconnected());
-            if (connection is null)
-                return;
-            connection.Dispose();
-            connection = null;
+            if (packet is PacketDisconnected dc)
+                packetDispatcher.DispatchPacket(dc);
         }
-        finally
-        {
-            if (!manually && MiaoNetModule.Settings.AutoReconnect)
-            {
-                Task.Delay(500).ContinueWith(_ => MiaoNetModule.Instance.MiaoNetContext.Connect());
-            }
-        }
+        receiveQueue.Clear();
+        pendingRequests.Clear();
+        clientState = null;
+        PooledStringManager = null;
+        components?.ForEach(c => c.OnDisconnected());
+        if (connection is null)
+            return;
+        connection.Dispose();
+        connection = null;
     }
 
     public void Update()

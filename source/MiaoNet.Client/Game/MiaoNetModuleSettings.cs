@@ -32,8 +32,6 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public bool ConnectOnGameStart { get; set; }
 
-    public bool AutoReconnect { get; set; }
-
     #endregion
 
     #region Visuals

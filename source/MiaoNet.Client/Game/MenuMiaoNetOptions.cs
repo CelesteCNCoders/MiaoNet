@@ -84,12 +84,6 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.ConnectOnGameStart = v);
         menu.Add(item);
 
-        item = new TextMenu.OnOff(
-            Dialog.Get("miaonet_options_auto_reconnect"),
-            settings.AutoReconnect
-        ).Change(v => settings.AutoReconnect = v);
-        menu.Add(item);
-
         // -- Visuals --
 
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_visuals"));

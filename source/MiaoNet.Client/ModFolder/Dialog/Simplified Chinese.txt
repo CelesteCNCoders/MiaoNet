@@ -7,7 +7,6 @@ miaonet_options_logged_in_tips= 前往主菜单的 Mod 选项登录或切换账�
 miaonet_options_logged_in_tips_2= 按下进行登录或者更换账号。
 
 miaonet_options_connection= 连接
-miaonet_options_auto_reconnect= 自动重连
 miaonet_options_connect_on_game_start= 游戏启动时连接
 
 miaonet_options_visuals= 视觉
