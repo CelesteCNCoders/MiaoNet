@@ -84,6 +84,13 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.ConnectOnGameStart = v);
         menu.Add(item);
 
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_ignore_cert_revocation_status"),
+            settings.IgnoreCertRevocationStatus
+        ).Change(v => settings.IgnoreCertRevocationStatus = v);
+        menu.Add(item);
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_ignore_cert_revocation_status_tip"));
+
         // -- Visuals --
 
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_visuals"));

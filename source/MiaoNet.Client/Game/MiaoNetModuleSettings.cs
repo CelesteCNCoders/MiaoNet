@@ -32,6 +32,10 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public bool ConnectOnGameStart { get; set; }
 
+    // This should be an temporary option
+    [YamlIgnore]
+    public bool IgnoreCertRevocationStatus { get; set; }
+
     #endregion
 
     #region Visuals

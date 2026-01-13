@@ -64,7 +64,8 @@ public sealed class MiaoServerConnection : IDisposable
             return string.Equals(remote.Thumbprint, cert.Thumbprint, StringComparison.OrdinalIgnoreCase);
         });
 #endif
-        await con.sslStream.AuthenticateAsClientAsync(hostName, null, SslProtocols.Tls12 | SslProtocols.Tls13, true);
+        bool checkRevocation = !MiaoNetModule.Settings.IgnoreCertRevocationStatus;
+        await con.sslStream.AuthenticateAsClientAsync(hostName, null, SslProtocols.Tls12 | SslProtocols.Tls13, checkRevocation);
 
         await con.sslStream.WriteAsync(Connection.HandshakeHead, token);
         await con.SendHandshakeAsync(handshakeData, token);
