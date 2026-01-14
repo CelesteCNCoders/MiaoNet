@@ -1,16 +1,8 @@
 using System.Collections.Concurrent;
-using System.Collections.Frozen;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Net;
-using System.Net.Sockets;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Graphics;
-using Monocle;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -103,7 +95,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         connectionThread = new(ConnectionThread);
         connectionThread.Name = "MiaoNet Connection";
         connectionThread.Start(cts.Token);
-        StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Connecting);
+        StatusComponent.ShowStatusMessage(ConnectionStatus.Connecting, true);
     }
 
     public void OnConnected()
@@ -112,7 +104,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         components.ForEach(c => c.OnConnected());
     }
 
-    public void Disconnect(bool manually = false)
+    public void Disconnect()
     {
         cts?.Cancel();
         cts = null;
@@ -120,12 +112,12 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         {
             connection.Dispose();
             connection = null;
-            StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
+            StatusComponent.ShowStatusMessage(ConnectionStatus.Disconnected);
         }
-        OnDisconnected(manually);
+        OnDisconnected();
     }
 
-    public void OnDisconnected(bool manually = false)
+    public void OnDisconnected()
     {
         cts?.Cancel();
         cts = null;
@@ -253,282 +245,6 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     {
         response.RequestID = request.RequestID;
         QueuePacket(response);
-    }
-
-    private void ConnectionThread(object? param)
-    {
-        var connectionToken = (CancellationToken)param!;
-
-        if (connectionToken.IsCancellationRequested)
-            return;
-
-        SingleThreadedSynchronizationContext syncCtx = new();
-        SingleThreadedTaskScheduler taskScheduler = new(syncCtx);
-        SynchronizationContext.SetSynchronizationContext(syncCtx);
-
-        CancellationTokenSource threadCts = new();
-        StartConnectionAsync(this, connectionToken)
-            .ContinueWith(t => HandleStartConnectionTaskCompleted(t, threadCts), taskScheduler);
-
-        try
-        {
-            syncCtx.ProcessLoop(threadCts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-        }
-
-        return;
-
-        async Task StartConnectionAsync(IPacketSerializationContext context, CancellationToken token)
-        {
-            if (string.IsNullOrWhiteSpace(MiaoNetModule.Settings.Name))
-            {
-                mainThreadQueue.Enqueue(() =>
-                {
-                    StatusComponent.ShowStatusMessage("No name");
-                    OnDisconnected();
-                });
-                return;
-            }
-
-            string host = TargetServer;
-            int Port = TargetPort;
-
-            EndPoint ep = IPAddress.TryParse(host, out var ipa)
-                ? new IPEndPoint(ipa, Port)
-                : new DnsEndPoint(host, Port);
-
-
-            HandshakeData handshakeData = new(
-                MiaoNetModule.Instance.Metadata.Version,
-                0,
-                MiaoNetModule.Settings.Name,
-                []
-            );
-            MiaoServerConnection? connection;
-            try
-            {
-                // TODO maybe we should move these "connection stuffs" into the real
-                // MiaoServerConnection "connection" class
-
-                // this will send the full handshake, then we need to handle ack ourselves
-                (connection, var ackData) = await MiaoServerConnection.CreateAsync(ep, TargetServer, handshakeData, token);
-
-                if (ackData is null)
-                {
-                    Logger.Warn(LT.MiaoNet, $"Remote sent empty or invalid reply.");
-                    mainThreadQueue.Enqueue(() =>
-                    {
-                        StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
-                        OnDisconnected();
-                    });
-                    return;
-                }
-
-                string? reason = ackData.DeniedReason;
-                if (reason is not null)
-                {
-                    mainThreadQueue.Enqueue(() =>
-                    {
-                        StatusComponent.ShowStatusMessage(reason);
-                        OnDisconnected();
-                    });
-                    return;
-                }
-                else
-                {
-                    IContextualPacket? packetInitial = await connection!.ReceivePacketAsync(context, token);
-                    if (packetInitial is not PacketClientInitial clientInitial)
-                    {
-                        if (packetInitial is null)
-                            Logger.Warn(LT.MiaoNet, $"Remote sent empty or invalid initial reply.");
-                        else
-                            Logger.Warn(LT.MiaoNet, $"Remote sent a werid initial packet {packetInitial.GetType()}.");
-                        mainThreadQueue.Enqueue(() =>
-                        {
-                            StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
-                            OnDisconnected();
-                        });
-                        return;
-                    }
-                    else
-                    {
-                        Logger.Info(LT.MiaoNet, $"Connected to {ep}.");
-
-                        mainThreadQueue.Enqueue(() =>
-                        {
-                            clientState = new(clientInitial);
-                            this.connection = connection;
-                            ClientInitialized?.Invoke(clientState);
-                            StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Connected);
-                            OnConnected();
-                        });
-                    }
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception e)
-            {
-                Logger.Error(LT.MiaoNet, $"Error when connecting: {e}");
-                mainThreadQueue.Enqueue(() =>
-                {
-                    StatusComponent.ShowStatusMessage(
-                        MiaoNetConnectionStatus.ConnectFailedWithException,
-                        e.Message
-                    );
-                    OnDisconnected();
-                });
-                return;
-            }
-
-            CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-            Task receiveTask = ReceivePacketsLoopAsync(connection, context, cts.Token);
-            Task sendTask = connection.SendPacketsLoopAsync(context, cts.Token);
-
-            Task task = await Task.WhenAny(receiveTask, sendTask);
-            if (task.IsFaulted)
-                await task;
-            cts.Cancel();
-        }
-
-        async Task ReceivePacketsLoopAsync(
-            MiaoServerConnection connection,
-            IPacketSerializationContext context,
-            CancellationToken token
-        )
-        {
-#if PACKET_TRACING
-            System.Text.Json.JsonSerializerOptions options = new()
-            {
-                IncludeFields = true,
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All),
-                Converters = { new JsonStringEnumConverter() }
-            };
-#endif
-
-            await Task.Yield();
-            while (!token.IsCancellationRequested)
-            {
-                IContextualPacket? packet = await connection.ReceivePacketAsync(context, token);
-                if (packet is null)
-                    return;
-
-                // quickly handle ping packets
-                if (packet is PacketPing ping)
-                {
-                    // we may still don't have connection set this time
-                    connection.QueuePacket(new PacketPong() { RequestID = ping.RequestID });
-                    continue;
-                }
-#if PACKET_TRACING
-                string typeName = packet.GetType().ToString();
-                if (
-                    !typeName.Contains("Frame")
-                    && !typeName.Contains("PingData")
-                    && !typeName.Contains("UpdateOnlineStatus")
-                )
-                {
-                    var pColor = Console.ForegroundColor;
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"== Type: {packet.GetType()} ==");
-                    Console.ForegroundColor = ConsoleColor.DarkGreen;
-                    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize((object)packet, options));
-                    Console.ForegroundColor = pColor;
-                }
-#endif
-                receiveQueue.Enqueue(packet);
-            }
-        }
-
-        async Task HandleStartConnectionTaskCompleted(Task t, CancellationTokenSource threadCts)
-        {
-            threadCts.Cancel();
-            if (!t.IsFaulted)
-            {
-                if (t.IsCanceled)
-                {
-                    mainThreadQueue.Enqueue(() =>
-                    {
-                        StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Cancelled);
-                        OnDisconnected();
-                    });
-                }
-                else
-                {
-                    mainThreadQueue.Enqueue(() =>
-                    {
-                        OnDisconnected();
-                    });
-                }
-                return;
-            }
-
-            bool isExpected = true;
-            Exception? unhandledException = null;
-
-            foreach (var e in t.Exception.InnerExceptions)
-            {
-                switch (e)
-                {
-                case IOException when (e.InnerException is SocketException
-                {
-                    SocketErrorCode: SocketError.ConnectionAborted
-                        or SocketError.ConnectionReset
-                } se):
-                    Logger.Info(LT.MiaoNet, "Connection aborted.");
-                    isExpected = false;
-                    break;
-
-                case OperationCanceledException:
-                    Logger.Info(LT.MiaoNet, "Disconnected.");
-                    break;
-
-                default:
-
-                    Logger.Error(LT.MiaoNet, e.ToString());
-                    unhandledException = e;
-                    isExpected = false;
-                    break;
-                }
-            }
-
-            if (!isExpected)
-            {
-                if (unhandledException is not null)
-                {
-                    mainThreadQueue.Enqueue(() =>
-                    {
-                        StatusComponent.ShowStatusMessage(
-                            MiaoNetConnectionStatus.ConnectionAbortedWithException,
-                            unhandledException.Message
-                        );
-                        OnDisconnected();
-                    });
-                }
-                else
-                {
-                    mainThreadQueue.Enqueue(() =>
-                    {
-                        StatusComponent.ShowStatusMessage(
-                            MiaoNetConnectionStatus.ConnectionAborted
-                        );
-                        OnDisconnected();
-                    });
-                }
-            }
-            else
-            {
-                mainThreadQueue.Enqueue(() =>
-                {
-                    StatusComponent.ShowStatusMessage(MiaoNetConnectionStatus.Disconnected);
-                    OnDisconnected();
-                });
-            }
-        }
     }
 
     [MemberNotNull(nameof(connection), nameof(ClientState))]

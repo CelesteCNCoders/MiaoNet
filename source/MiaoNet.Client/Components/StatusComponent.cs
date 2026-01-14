@@ -31,18 +31,6 @@ public sealed class StatusComponent : MiaoNetComponent
         statusMessage = message;
     }
 
-    public void ShowStatusMessage(MiaoNetConnectionStatus status)
-    {
-        ShowStatusMessage(Dialog.Get($"miaonet_connection_status_{status}"), ShouldSpin(status));
-    }
-
-    public void ShowStatusMessage(MiaoNetConnectionStatus status, string arg)
-    {
-        ShowStatusMessage(
-            Dialog.Get($"miaonet_connection_status_{status}")
-            .Replace("(0)", arg)
-        );
-    }
 
     public override void Update()
     {
@@ -77,7 +65,4 @@ public sealed class StatusComponent : MiaoNetComponent
             MiaoNetFont.DrawOutline(statusMessage!, pos, Vector2.UnitY, Vector2.One, Color.White);
         }
     }
-
-    public static bool ShouldSpin(MiaoNetConnectionStatus status)
-        => status is MiaoNetConnectionStatus.Connecting or MiaoNetConnectionStatus.Disconnecting;
 }

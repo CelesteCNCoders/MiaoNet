@@ -4,12 +4,13 @@
 
 1. Handshake & Initialization
 
-> 暂时还没有做 TLS 加密层, 以后加了就是简单套一层
-
-- Client 发送 `ConnectionHead` 以及 `Handshake`, 包含客户端版本, 自己的登录信息, 安装的 mod 等信息
-- Server 根据 `Handshake` 信息决定是否同意, 同意后分配频道, 然后发送 `ClientInitial` 包含玩家列表等信息, 否则拒绝并断开连接
-	- Client 的连接被同意, 根据 `ClientInitial` 初始化联机相关内容, 开始正常互相发包
-	- Client 的连接被拒绝, 如果 `head` 都不对直接断开, 否则发送断开理由再断开.
+- Client 发起连接, 首先进行 TLS Handshake
+- Client 依次发送 `ConnectionHead`, `EarlyVersionCheck`(客户端版本), `Handshake`(自己的登录信息, 安装的 mod 等信息)
+- Server 检查 `ConnectionHead`, 不符合, 也就是不是 MiaoNet 客户端, 强制断开
+- Server 检查 `EarlyVersionCheck`, 根据版本是否一致发送 `EarlyVersionCheckAck` 并断开
+- Server 根据 `Handshake` 信息进行登录验证等, 随后分配频道, 然后发送 `HandshakeAck`
+	- Client 的连接被同意, 紧跟发送 `ClientInitial`, 包含玩家列表等信息.
+	- Client 的连接被拒绝(如验证失败), 断开连接.
 	- `ClientInitial`, 包含:
 		- 玩家自身信息：self `PlayerInfo`
 		- 频道列表: `ChannelInfo` , 包含频道 ID 和名称。 
@@ -31,5 +32,3 @@
 
 - Client 接收其他玩家的进入所在图的信息后, 创建对应的 `MiaoNetGhost` 用来显示其他玩家.
 - Client 一旦接收过相应玩家的 `GraphicsInfo`, Server 将不在下次有需要时继续发送, 除非对方发起了更新 `GraphicsInfo` 的请求.
-
-- Client 与 Server 开始互相发送帧同步包，进行实时交互。

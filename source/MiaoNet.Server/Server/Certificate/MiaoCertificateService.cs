@@ -22,9 +22,10 @@ public sealed class MiaoCertificateService : BackgroundService, IMiaoCertificate
 
     public MiaoCertificateService(ILogger<MiaoCertificateService> logger, IOptions<MiaoServerOptions> options)
     {
-        certPath = options.Value.CertificatePath;
-        keyPath = options.Value.CertificateKeyPath;
-        timer = new PeriodicTimer(TimeSpan.FromHours(1));
+        var oc = options.Value.Certificate;
+        certPath = oc.CertificatePath;
+        keyPath = oc.CertificateKeyPath;
+        timer = new PeriodicTimer(TimeSpan.FromHours(4));
         this.logger = logger;
         lastCertModifiedTime = File.GetLastWriteTimeUtc(certPath);
         lastKeyModifiedTime = File.GetLastWriteTimeUtc(keyPath);
@@ -56,7 +57,7 @@ public sealed class MiaoCertificateService : BackgroundService, IMiaoCertificate
         var KeyModifiedTime = File.GetLastWriteTimeUtc(keyPath);
         if (lastCertModifiedTime != certModifiedTime || lastKeyModifiedTime != KeyModifiedTime)
         {
-            logger.LogInformation(AppEvents.Certificate, "Certificate modified: cert {cd}, key {kd}.", certModifiedTime, KeyModifiedTime);
+            logger.LogInformation(AppEvents.Certificate, "Certificate modified: cert: {cd}, key: {kd}.", certModifiedTime, KeyModifiedTime);
             lastCertModifiedTime = certModifiedTime;
             lastKeyModifiedTime = KeyModifiedTime;
             Reload();

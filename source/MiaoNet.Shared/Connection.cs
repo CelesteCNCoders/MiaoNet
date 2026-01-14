@@ -1,3 +1,5 @@
+using System.Security.Authentication;
+
 namespace MiaoNet.Shared;
 
 public static class Connection
@@ -10,4 +12,7 @@ public static class Connection
     };
 
     public const int HandshakeHeadLength = 16;
+
+    // allows only TLS 1.2 or TLS 1.3
+    public const SslProtocols AllowedSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13;
 }

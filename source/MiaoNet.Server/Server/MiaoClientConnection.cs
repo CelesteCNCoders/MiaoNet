@@ -29,8 +29,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     private readonly ILogger<MiaoClientConnection> logger;
     private readonly MiaoServerService server;
 
-    private readonly Socket socket;
-    private readonly SslStream sslStream;
+    private readonly INetworkConnection networkConnection;
     private readonly CancellationTokenSource cts;
     private readonly Pipe pipe;
 
@@ -43,7 +42,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     private readonly Channel<(SerializedPacket?, IContextualPacket?)> sendChannel;
 
     public MiaoClientConnection(
-        int id, Socket socket, SslStream sslStream,
+        int id, INetworkConnection networkConnection,
         ServerPlayer onlinePlayer,
         ILogger<MiaoClientConnection> logger,
         MiaoServerService server
@@ -52,8 +51,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         ID = id;
         this.logger = logger;
         this.server = server;
-        this.socket = socket;
-        this.sslStream = sslStream;
+        this.networkConnection = networkConnection;
         Player = onlinePlayer;
 
         cts = new CancellationTokenSource();
@@ -78,9 +76,8 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         }
         finally
         {
-            if (socket.Connected)
-                socket.Shutdown(SocketShutdown.Both);
-            socket.Close();
+            networkConnection.Shutdown();
+            networkConnection.Dispose();
             logger.LogInformation(AppEvents.Connection, "Connection id {id} closed.", ID);
         }
     }
@@ -90,6 +87,8 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         cts.CancelAfter(server.DisconnectTimeout);
         await QueuePacketAsync(new PacketDisconnected(reason, message));
     }
+
+    #region Packet
 
     public ValueTask QueuePacketAsync(IContextualPacket packet)
         => sendChannel.Writer.WriteAsync((null, packet));
@@ -139,6 +138,8 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         return null;
     }
 
+    #endregion
+
     private async Task HandleClientReceivingAsync(CancellationToken token)
     {
         var pipeWriter = pipe.Writer;
@@ -147,7 +148,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
             while (true)
             {
                 var mem = pipeWriter.GetMemory(TcpBufferSize);
-                int received = await sslStream.ReadAsync(mem, token);
+                int received = await networkConnection.Stream.ReadAsync(mem, token);
                 if (received is 0 || token.IsCancellationRequested)
                     break;
 
@@ -224,8 +225,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
             await foreach (var (s, p) in channelReader.ReadAllAsync(token))
             {
                 var packet = s is not null ? s : new SerializedPacket(p!, this);
-                await sslStream.WriteAsync(packet.ArraySegment, token);
-                await sslStream.FlushAsync(token);
+                await networkConnection.Stream.WriteAsync(packet.ArraySegment, token);
                 // TODO packet is not always "consumed"
                 packet.OnConsumed();
             }

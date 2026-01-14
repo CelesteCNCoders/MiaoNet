@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.Net;
 using System.Runtime.CompilerServices;
 using MiaoNet.Shared;
 using Microsoft.Extensions.Configuration;
@@ -32,12 +33,21 @@ public static class Program
             .AddJsonFile("appsettings.json", false)
             .AddJsonFile($"appsettings.{builder.Environment}.json", true);
 
+        builder.Configuration.AddEnvironmentVariables("MIAONET:");
+
         builder.Logging
             .AddConfiguration(builder.Configuration.GetRequiredSection("Logging"))
             .AddSimpleConsole();
 
         if (!builder.Environment.IsDevelopment())
             builder.Logging.AddFile($"logs/{DateTime.Now:yyyy-MM-dd}.log");
+
+        builder.Services.AddSingleton<NetworkListenerFactory>(p =>
+            o => new TlsTcpListener(
+                p.GetRequiredService<IMiaoCertificateService>(), 
+                IPEndPoint.Parse(o.ListenEndPoint)
+            )
+        );
 
         builder.Services.AddSingleton<MiaoServerService>();
         builder.Services.AddHostedService(s => s.GetRequiredService<MiaoServerService>());

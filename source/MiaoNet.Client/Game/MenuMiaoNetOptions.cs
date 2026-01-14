@@ -34,7 +34,7 @@ public static class MenuMiaoNetOptions
             if (v)
                 context.Connect();
             else
-                context.Disconnect(true);
+                context.Disconnect();
         });
         menu.Add(item);
 

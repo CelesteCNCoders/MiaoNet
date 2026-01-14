@@ -2,7 +2,7 @@ using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
-public partial class MiaoNetContext
+partial class MiaoNetContext
 {
     public delegate void PacketPlayerNotificationHandler(OnlinePlayer player);
     public delegate void PacketPlayerNotificationHandler<TPacket>(OnlinePlayer player, TPacket packet);

@@ -18,6 +18,8 @@ namespace MiaoNet.Server;
 
 public sealed partial class MiaoServerService : BackgroundService
 {
+    private static readonly ArrayPool<byte> pool = ArrayPool<byte>.Shared;
+
     private readonly ILogger<MiaoServerService> logger;
     private readonly ILoggerFactory connectionLoggerFactory;
     private readonly MiaoServerOptions options;
@@ -25,8 +27,7 @@ public sealed partial class MiaoServerService : BackgroundService
 
     private readonly PacketDispatcher packetDispatcher;
 
-    private readonly IPEndPoint listenIPEndPoint;
-    private readonly Socket acceptSocket;
+    private readonly INetworkListener networkListener;
 
     private readonly PeriodicTimer pingTimer;
     private readonly Stopwatch stopwatch;
@@ -42,7 +43,8 @@ public sealed partial class MiaoServerService : BackgroundService
         ILogger<MiaoServerService> logger,
         IOptions<MiaoServerOptions> options,
         ILoggerFactory connectionLoggerFactory,
-        IMiaoCertificateService certificateService
+        IMiaoCertificateService certificateService,
+        NetworkListenerFactory networkListenerFactory
     )
     {
         serverState = new();
@@ -55,19 +57,16 @@ public sealed partial class MiaoServerService : BackgroundService
         this.connectionLoggerFactory = connectionLoggerFactory;
         this.certificateService = certificateService;
         this.options = options.Value;
+        networkListener = networkListenerFactory(this.options.Network);
         pingTimer = new(TimeSpan.FromMilliseconds(this.options.PingPeriod));
         stopwatch = Stopwatch.StartNew();
-
-        listenIPEndPoint = IPEndPoint.Parse(this.options.ListenIPEndPoint);
-        acceptSocket = new(SocketType.Stream, ProtocolType.Tcp);
     }
 
     public override Task StartAsync(CancellationToken cancellationToken)
     {
         logger.LogInformation("MiaoNet Server v{v} starting...", options.ExpectedVersion.ToString(3));
-        logger.LogInformation("Start to listen on port {ep}.", listenIPEndPoint);
-        acceptSocket.Bind(listenIPEndPoint);
-        acceptSocket.Listen();
+        logger.LogInformation("Start to listen on {ep}.", options.Network.ListenEndPoint);
+        networkListener.Listen();
         _ = HandleConnectionsHeartbeats(cancellationToken);
         return base.StartAsync(cancellationToken);
     }
@@ -76,11 +75,10 @@ public sealed partial class MiaoServerService : BackgroundService
     {
         while (true)
         {
-            Socket socket = await acceptSocket.AcceptAsync(stoppingToken);
-            socket.NoDelay = true;
-            var ep = socket.RemoteEndPoint;
-            logger.LogInformation(AppEvents.Connection, "New client try connecting: {ep}", ep);
-            _ = HandleConnectionAsync(socket, stoppingToken);
+            IPendingNetworkConnection pending = await networkListener.AcceptAsync(stoppingToken);
+            var addr = pending.RemoteAddress;
+            logger.LogInformation(AppEvents.Connection, "New client try connecting: {addr}", addr);
+            _ = HandlePendingConnectionAsync(pending, stoppingToken);
         }
     }
 
@@ -90,55 +88,234 @@ public sealed partial class MiaoServerService : BackgroundService
         pingTimer.Dispose();
     }
 
-    // TODO TODO TODO we need a refactor of this huge method
-    // or connections management will be hard
-    private async Task HandleConnectionAsync(Socket socket, CancellationToken token)
+    private async Task HandlePendingConnectionAsync(IPendingNetworkConnection pendingConnection, CancellationToken token)
     {
-        EndPoint? ep = socket.RemoteEndPoint;
+        string addr = pendingConnection.RemoteAddress;
+        INetworkConnection? networkConnection = null;
+        HandshakeResult? handshakeResult;
+
+        CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        cts.CancelAfter(options.HandshakeTimeout);
+        var localToken = cts.Token;
         try
         {
-            CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            networkConnection = await pendingConnection.CompleteAsync(localToken);
+            bool result;
 
-            var timeoutTask = Task.Delay(options.HandshakeTimeout, cts.Token);
-            var handshakeTask = HandleHandshakeAsync(socket, cts.Token);
-
-            var completedTask = await Task.WhenAny(timeoutTask, handshakeTask);
-            cts.Cancel();
-            if (completedTask == timeoutTask)
+            // we've finished TLS handshake
+            // now check if it's a MiaoNet client
+            result = await DoConnectionHeadCheckAsync(networkConnection, localToken);
+            if (!result)
             {
-                logger.LogInformation(AppEvents.Connection, "{ep} Handshake timeouted.", ep);
-                return;
-            }
-            SafeGuard.Assert(handshakeTask.IsCompleted);
-
-            var (handshakeData, sslStream) = handshakeTask.Result;
-            if (handshakeData is null || sslStream is null)
-            {
-                logger.LogInformation(AppEvents.Connection, "{ep} Handshake failed.", ep);
+                networkConnection.Dispose();
                 return;
             }
 
-            // then create the connection and the player
-            var newPlayer = serverState.CreateNewPlayer(handshakeData);
+            // now do version check
+            result = await DoVersionCheckAsync(networkConnection, localToken);
+            if (!result)
+            {
+                networkConnection.Shutdown();
+                networkConnection.Dispose();
+                return;
+            }
+
+            // version check finished, now make our own handshake
+            handshakeResult = await DoHandshakeAsync(networkConnection, localToken);
+            if (handshakeResult is null)
+            {
+                networkConnection.Shutdown();
+                networkConnection.Dispose();
+                return;
+            }
+        }
+        catch (OperationCanceledException e)
+        when (e.CancellationToken == cts.Token)
+        {
+            networkConnection?.Dispose();
+            pendingConnection.Dispose();
+            logger.LogInformation(AppEvents.Connection, "{addr} Handshake timeouted.", addr);
+            return;
+        }
+        catch (Exception e)
+        {
+            networkConnection?.Dispose();
+            pendingConnection.Dispose();
+            logger.LogError(
+                AppEvents.Connection, e,
+                "Error when completing pending connection({addr}).",
+                addr
+            );
+            return;
+        }
+        finally
+        {
+            cts.Dispose();
+        }
+
+        // now it's not "pending" for us
+        await HandleConnectionAsync(networkConnection, handshakeResult);
+
+        async Task<bool> DoConnectionHeadCheckAsync(INetworkConnection connection, CancellationToken token)
+        {
+            var stream = connection.Stream;
+
+            var buffer = pool.Rent(Connection.HandshakeHeadLength);
+            try
+            {
+                var memory = buffer.AsMemory(0, Connection.HandshakeHeadLength);
+                await stream.ReadExactlyAsync(memory, token);
+                bool equals = memory.Span.SequenceEqual(Connection.HandshakeHead.Span);
+                if (!equals)
+                {
+                    logger.LogInformation(AppEvents.Connection, "{addr} is not a MiaoNet client.", connection.RemoteAddress);
+                }
+                return equals;
+            }
+            finally
+            {
+                pool.Return(buffer);
+            }
+        }
+
+        // maybe we could improve our serialization implement...
+        // this is ugly
+        async Task<bool> DoVersionCheckAsync(INetworkConnection networkConnection, CancellationToken token)
+        {
+            var stream = networkConnection.Stream;
+
+            var version = options.ExpectedVersion;
+            ushort major = (ushort)version.Major, minor = (ushort)version.Minor, build = (ushort)version.Build;
+            ushort majorClient, minorClient, buildClient;
+
+            const int VersionLength = 3 * sizeof(ushort);
+            byte[] buffer = pool.Rent(VersionLength);
+            bool passed;
+            try
+            {
+                var memory = buffer.AsMemory(0, VersionLength);
+
+                await stream.ReadExactlyAsync(memory, token);
+                var span = memory.Span;
+                majorClient = BinaryPrimitives.ReadUInt16LittleEndian(span[0..2]);
+                minorClient = BinaryPrimitives.ReadUInt16LittleEndian(span[2..4]);
+                buildClient = BinaryPrimitives.ReadUInt16LittleEndian(span[4..6]);
+
+                passed = major == majorClient && minor == minorClient && build == buildClient;
+            }
+            finally
+            {
+                pool.Return(buffer);
+            }
+
+            buffer = pool.Rent(1 + VersionLength);
+            try
+            {
+                var memory = buffer.AsMemory(0, 1 + VersionLength);
+                var span = memory.Span;
+                if (!passed)
+                {
+                    span[0] = 0;
+                    BinaryPrimitives.WriteUInt16LittleEndian(span[1..3], major);
+                    BinaryPrimitives.WriteUInt16LittleEndian(span[3..5], minor);
+                    BinaryPrimitives.WriteUInt16LittleEndian(span[5..7], build);
+                    logger.LogInformation(
+                        AppEvents.Connection,
+                        "{addr} version {v1}.{v2}.{v3} does not match current version.",
+                        networkConnection.RemoteAddress, majorClient, minorClient, buildClient
+                    );
+                    await stream.WriteAsync(memory[0..(1 + VersionLength)], token);
+                    return false;
+                }
+                else
+                {
+                    span[0] = 1;
+                    await stream.WriteAsync(memory[0..1], token);
+                    return true;
+                }
+            }
+            finally
+            {
+                pool.Return(buffer);
+            }
+        }
+
+        async Task<HandshakeResult?> DoHandshakeAsync(INetworkConnection networkConnection, CancellationToken token)
+        {
+            var stream = networkConnection.Stream;
+            ushort size;
+
+            var buffer = pool.Rent(sizeof(ushort));
+            try
+            {
+                var memory = buffer.AsMemory(0, sizeof(ushort));
+                await stream.ReadExactlyAsync(memory, token);
+                size = BinaryPrimitives.ReadUInt16LittleEndian(memory.Span);
+            }
+            finally
+            {
+                pool.Return(buffer);
+            }
+
+            buffer = pool.Rent(size);
+            try
+            {
+                var memory = buffer.AsMemory(0, size);
+                await stream.ReadExactlyAsync(memory, token);
+                var span = memory.Span;
+                RefBinaryReader reader = new(span);
+                var data = reader.Read<HandshakeData>();
+
+                /* some auth process in the future here */
+
+                HandshakeAckData ack = new(null);
+                MemoryStream ms = new(32);
+                ms.Seek(2, SeekOrigin.Begin);
+                RefBinaryWriter writer = new(ms);
+                writer.Write(ack);
+                ushort ackSize = (ushort)(ms.Position - sizeof(ushort));
+                ms.Seek(0, SeekOrigin.Begin);
+                writer.Write(ackSize);
+                Memory<byte> memoryToSend = ms.GetBuffer().AsMemory(0, ackSize + sizeof(ushort));
+                await stream.WriteAsync(memoryToSend, token);
+
+                return new(data);
+            }
+            finally
+            {
+                pool.Return(buffer);
+            }
+        }
+    }
+
+    private async Task HandleConnectionAsync(INetworkConnection connection, HandshakeResult handshakeResult)
+    {
+        string addr = connection.RemoteAddress;
+        try
+        {
+            // create the player
+            var newPlayer = serverState.CreateNewPlayer(handshakeResult);
             logger.LogInformation(
                 AppEvents.Connection,
                 "Assign {ep}({player}) to id {id}.",
-                ep,
+                addr,
                 newPlayer.Info.Name,
                 newPlayer.ID
             );
 
+            // create the connection
             var conLogger = connectionLoggerFactory.CreateLogger<MiaoClientConnection>();
-            MiaoClientConnection newConnection = new(newPlayer.ID, socket, sslStream, newPlayer, conLogger, this);
+            MiaoClientConnection newConnection = new(newPlayer.ID, connection, newPlayer, conLogger, this);
 
             // send the new player initial data
             PlayerInfo clientPlayerInfo = newConnection.Player.Info;
 
             ValueTask sendStateTask;
-            Task knowJoinedTask;
+            Task tellOthersOneJoinedTask;
             ServerState.StateLock.EnterUpgradeableReadLock();
             try
             {
+                // fetch online players infos
                 List<ChannelInfo> channels = serverState.AllChannels.Select(c => c.Value.StateInfo).ToList();
                 var playerInfos =
                     from pair in serverState.AllPlayers
@@ -154,6 +331,8 @@ public sealed partial class MiaoServerService : BackgroundService
                     playerInfos.ToList()
                 );
                 //Thread.Sleep(Random.Shared.Next(1000, 5000));
+
+                // then send
                 sendStateTask = newConnection.QueuePacketAsync(packetClientInitial);
 
                 ServerState.StateLock.EnterWriteLock();
@@ -163,7 +342,7 @@ public sealed partial class MiaoServerService : BackgroundService
                     serverState.AddPlayer(newPlayer, newConnection);
 
                     // and then tell other clients a new player came
-                    knowJoinedTask = BroadcastOthersAsync(
+                    tellOthersOneJoinedTask = BroadcastOthersAsync(
                         new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.Info), newPlayer.ID
                     );
                 }
@@ -178,10 +357,12 @@ public sealed partial class MiaoServerService : BackgroundService
             }
 
             await sendStateTask;
-            await knowJoinedTask;
+            await tellOthersOneJoinedTask;
 
             // exchange data with this player
             await newConnection.HandleClientConnectAsync();
+
+            // TODO do not doing removing stuffs here
 
             // exchange finished, remove this player
             // this operation is lock-free
@@ -190,91 +371,11 @@ public sealed partial class MiaoServerService : BackgroundService
             // then, tell other clients this player left
             logger.LogInformation(AppEvents.Connection, "Client id {id} handle finished.", newPlayer.ID);
             await BroadcastAsync(new PacketPlayerLeft(newPlayer.ID));
-
-
-            async Task<(HandshakeData?, SslStream?)> HandleHandshakeAsync(Socket socket, CancellationToken token)
-            {
-                SslStream? sslStream = null;
-                try
-                {
-                    EndPoint remoteEndPoint = socket.RemoteEndPoint!;
-                    sslStream = new SslStream(new NetworkStream(socket));
-                    await sslStream.AuthenticateAsServerAsync(
-                        certificateService.GetCertificate(),
-                        clientCertificateRequired: false,
-                        // allows only TLS 1.2 or TLS 1.3
-                        enabledSslProtocols: SslProtocols.Tls12 | SslProtocols.Tls13,
-                        checkCertificateRevocation: true
-                    );
-
-                    var handshakeData = await ReceiveHandshakeAsync(sslStream, token);
-                    if (handshakeData is null)
-                        goto failed;
-                    logger.LogDebug(AppEvents.Connection, "{ep} Handshake succeeded.", remoteEndPoint);
-
-                    Version requiredVersion = options.ExpectedVersion;
-                    if (handshakeData.Version != requiredVersion)
-                    {
-                        await SendHandshakeAck(sslStream, $"Server requires version {requiredVersion}.", token);
-                        logger.LogInformation(
-                            AppEvents.Connection,
-                            "{ep} version {v} not match current version.",
-                            remoteEndPoint, handshakeData.Version
-                        );
-                        goto failed;
-                    }
-                    await SendHandshakeAck(sslStream, null, token);
-
-                    return (handshakeData, sslStream);
-                }
-                catch (Exception)
-                {
-                    sslStream?.Dispose();
-                    throw;
-                }
-            failed:
-                sslStream?.Dispose();
-                return (null, null);
-            }
-
-            async Task<HandshakeData?> ReceiveHandshakeAsync(SslStream sslStream, CancellationToken token)
-            {
-                const int TotalHeadSize = Connection.HandshakeHeadLength + sizeof(ushort);
-                var buffer = new byte[TotalHeadSize];
-                await sslStream.ReadExactlyAsync(buffer, token);
-
-                if (!buffer.AsSpan()[..^sizeof(ushort)].SequenceEqual(Connection.HandshakeHead.Span))
-                    return null;
-                ushort size = BinaryPrimitives.ReadUInt16LittleEndian(buffer.AsSpan()[^sizeof(ushort)..]);
-
-                buffer = new byte[size];
-                await sslStream.ReadExactlyAsync(buffer, token);
-                RefBinaryReader reader = new(buffer);
-                return reader.Read<HandshakeData>();
-            }
-
-            async Task SendHandshakeAck(SslStream sslStream, string? deniedReason, CancellationToken token)
-            {
-                MemoryStream ms = new(32);
-                ms.Seek(sizeof(ushort), SeekOrigin.Begin);
-                RefBinaryWriter writer = new(ms);
-                writer.Write(new HandshakeAckData(deniedReason));
-                ushort length = (ushort)(ms.Position - sizeof(ushort));
-                ms.Seek(0, SeekOrigin.Begin);
-                writer.Write(length);
-
-                await sslStream.WriteAsync(ms.GetBuffer().AsMemory(0, length + sizeof(ushort)), token);
-            }
         }
         catch (Exception e)
         {
-            logger.LogError(AppEvents.Connection, e, "Exception occurred for {ep}:", ep);
-        }
-        finally
-        {
-            if (socket.Connected)
-                socket.Shutdown(SocketShutdown.Both);
-            socket.Close();
+            connection.Dispose();
+            logger.LogError(AppEvents.Connection, e, "Exception occurred for {addr}:", addr);
         }
     }
 

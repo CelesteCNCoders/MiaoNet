@@ -38,6 +38,7 @@ public sealed partial class MiaoServerService
         }
 
         var state = player.State;
+        state.FacingLeft = packet.FacingLeft;
         state.Position = packet.Position;
         if (packet.DashesChange)
             state.Dashes = packet.Dashes;

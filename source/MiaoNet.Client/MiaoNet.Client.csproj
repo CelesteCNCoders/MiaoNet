@@ -17,18 +17,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="../MiaoNet.Shared/**/*.cs"
-             Exclude="../MiaoNet.Shared/Primitives/**/*.cs"
-             LinkBase="0-Shared"
-             />
-    <Compile Include="../ChatInputBox/ChatInputBox/**/*.cs" LinkBase="1-ChatInputBox" />
+    <Compile Include="../MiaoNet.Shared/**/*.cs" Exclude="../MiaoNet.Shared/Primitives/**/*.cs" LinkBase="1-Shared" />
+    <Compile Include="../ChatInputBox/ChatInputBox/**/*.cs" LinkBase="1-Shared/ChatInputBox" />
 
-    <None Include="CelesteMod.props">
-      <Visible>false</Visible>
-    </None>
-    <None Include="CelesteMod.targets">
-      <Visible>false</Visible>
-    </None>
+    <!-- idk why LinkBase doesn't work here, so let's copy its impl -->
+    <None Include="ModFolder/**" Link="0-ModFolder/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Update="ModFolder/Code/**" Visible="false" />
+    <None Include="CelesteMod*" Visible="false" />
   </ItemGroup>
 
   <ItemGroup Condition="$(UseLocalhostPfx) == 'true'">

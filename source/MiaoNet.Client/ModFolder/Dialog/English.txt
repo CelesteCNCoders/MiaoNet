@@ -8,7 +8,7 @@ miaonet_options_logged_in_tips_2= Press to login or switch logged in account.
 
 miaonet_options_connection= Connection
 miaonet_options_connect_on_game_start= Connect On Game Start
-miaonet_options_ignore_cert_revocation_status= Ignore Certificate Revocation Status
+miaonet_options_ignore_cert_revocation_status= Ignore Certificate Revocation Status Check
 miaonet_options_ignore_cert_revocation_status_tip=
 	Skip the revocation status check in connection.
 	Warning: This will make your connection insecure.
@@ -58,16 +58,18 @@ miaonet_options_new_messages_display_all= All
 
 
 miaonet_connection_status_connecting= Connecting...
+miaonet_connection_status_version_not_match= Local version (0) mismatch server version (1)
 miaonet_connection_status_connected= Connected
 miaonet_connection_status_disconnecting= Disconnecting...
 miaonet_connection_status_disconnected= Disconnected
+miaonet_connection_status_disconnected_exceptionally= Disconnected exceptionally
+miaonet_connection_status_disconnected_exceptionally_with_reason= Disconnected exceptionally. (0)
 miaonet_connection_status_cancelled= Connection cancelled
 miaonet_connection_status_kicked= Kicked from server
 miaonet_connection_status_serverclosed= Server closed
 miaonet_connection_status_noname= Please set name first
-miaonet_connection_status_connectfailedwithexception= Connect failed. (0)
-miaonet_connection_status_connectionaborted= Connection aborted
-miaonet_connection_status_connectionabortedwithexception= Connection aborted. (0)
+miaonet_connection_status_connect_failed_with_reason= Connect failed. (0)
+miaonet_connection_status_connection_aborted= Connection aborted
 
 miaonet_context_player_joined= (0) joined MiaoNet
 miaonet_context_player_left= (0) left MiaoNet
@@ -120,5 +122,3 @@ miaonet_commands_teleport_success_nosession= Teleported to (0)'s location.
 
 miaonet_chat_whisper_sent= \[whisper to (0)\] (1)
 miaonet_chat_whisper_received= \[whisper\] (0)
-
-miaonet_dev_tip= Don't scroll down now, they're all unfinished. :(

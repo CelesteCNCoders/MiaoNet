@@ -55,17 +55,19 @@ miaonet_options_new_messages_display_system_only= 仅系统消息
 miaonet_options_new_messages_display_all= 全部
 
 
-miaonet_connection_status_connecting= 连接中...
+miaonet_connection_status_connecting= 连接中…
+miaonet_connection_status_version_not_match= 本地版本 (0) 与服务器要求版本 (1) 不匹配
 miaonet_connection_status_connected= 连接成功
-miaonet_connection_status_disconnecting= 连接断开中...
+miaonet_connection_status_disconnecting= 连接断开中…
 miaonet_connection_status_disconnected= 连接断开
+miaonet_connection_status_disconnected_exceptionally= 连接异常断开
+miaonet_connection_status_disconnected_exceptionally_with_reason= 连接异常断开。(0)
 miaonet_connection_status_cancelled= 连接取消
 miaonet_connection_status_kicked= 被服务器踢出
 miaonet_connection_status_serverclosed= 服务器已关闭
 miaonet_connection_status_noname= 请先设置玩家名称
-miaonet_connection_status_connectfailedwithexception= 连接失败。(0)
-miaonet_connection_status_connectionaborted= 连接被强制断开
-miaonet_connection_status_connectionabortedwithexception= 连接强制断开。(0)
+miaonet_connection_status_connect_failed_with_reason= 连接失败。(0)
+miaonet_connection_status_connection_aborted= 连接被强制断开
 
 miaonet_context_player_joined= (0) 加入了 MiaoNet
 miaonet_context_player_left= (0) 退出了 MiaoNet
@@ -118,5 +120,3 @@ miaonet_commands_teleport_success_nosession= 已传送到 (0) 的所在位置。
 
 miaonet_chat_whisper_sent= \[私聊 (0)\] (1)
 miaonet_chat_whisper_received= \[私聊\] (0)
-
-miaonet_dev_tip= 别往下翻了下面都还没写好(x

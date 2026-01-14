@@ -2,7 +2,7 @@
 
 public sealed class MiaoServerOptions
 {
-    public string ListenIPEndPoint { get; set; } = "0.0.0.0:21473";
+    public NetworkOptions Network { get; set; } = new() { ListenEndPoint = "0.0.0.0:21473" };
 
     public int HandshakeTimeout { get; set; } = 3000;
 
@@ -12,11 +12,9 @@ public sealed class MiaoServerOptions
 
     public required Version ExpectedVersion { get; set; }
 
-    public int DisconnectTimeout { get; internal set; } = 3000;
+    public int DisconnectTimeout { get; set; } = 3000;
 
-    public required string CertificatePath { get; set; }
-    
-    public required string CertificateKeyPath { get; set; }
+    public required CertificateOptions Certificate { get; set; }
 
     public string HttpListenerPrefix { get; set; } = "http://+:8000/";
 }
