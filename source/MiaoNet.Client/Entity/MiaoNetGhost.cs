@@ -162,6 +162,7 @@ public sealed class MiaoNetGhost : Entity
     }
 
     #region state updates
+
     public void ApplyState(PlayerState state)
     {
         if (playerSprite.Mode != state.PlayerSpriteMode)
@@ -183,6 +184,7 @@ public sealed class MiaoNetGhost : Entity
         dashes = state.Dashes;
         lastDashedDashes = dashes;
         Position = state.Position;
+        UpdateFacing(state.FacingLeft);
         OnFollowerInitials(state.FollowerInfos);
     }
 
@@ -342,15 +344,20 @@ public sealed class MiaoNetGhost : Entity
         }
     }
 
-    public void UpdateSprite(string animID, ushort animFrame, bool faceLeft, Vector2 scale)
+    public void UpdateSprite(string animID, ushort animFrame, bool facingLeft, Vector2 scale)
     {
         if (animID != string.Empty && playerSprite.Has(animID))
         {
             playerSprite.Play(animID);
             playerSprite.SetAnimationFrame(animFrame);
         }
-        playerHair.Facing = facing = faceLeft ? Facings.Left : Facings.Right;
+        UpdateFacing(facingLeft);
         playerSprite.Scale = scale;
+    }
+
+    private void UpdateFacing(bool facingLeft)
+    {
+        playerHair.Facing = facing = facingLeft ? Facings.Left : Facings.Right;
     }
 
     public void UpdateNoHoldable()

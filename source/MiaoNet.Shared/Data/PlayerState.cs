@@ -9,6 +9,8 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
 {
     public Vector2 Position { get; set; }
 
+    public bool FacingLeft { get; set; }
+
     public byte Dashes { get; set; }
 
     // not serialized
@@ -36,6 +38,7 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
         writer.Write(Position);
         writer.Write(Dashes);
         writer.Write(DeltaTime);
+        writer.Write(FacingLeft);
         writer.Write((byte)PlayerSpriteMode);
         writer.Write(FollowerInfos, pooledStringManager);
     }
@@ -43,6 +46,7 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
     public static PlayerState Deserialize(ref RefBinaryReader reader, PooledStringManager pooledStringManager)
         => new(reader.ReadVector2(), reader.ReadByte(), reader.ReadSingle())
         {
+            FacingLeft = reader.ReadBoolean(),
             PlayerSpriteMode = (PlayerSpriteMode)reader.ReadByte(),
             FollowerInfos = reader.ReadArray<FollowerInfo, PooledStringManager>(pooledStringManager)
         };
