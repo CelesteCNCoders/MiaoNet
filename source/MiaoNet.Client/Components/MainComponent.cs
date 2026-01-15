@@ -43,14 +43,6 @@ public sealed class MainComponent : MiaoNetComponent
         foreach (var pair in ghosts)
             pair.Value.RemoveSelf();
         ghosts.Clear();
-
-        // FIXME unremoved ghost
-        if (Engine.Scene is not null)
-        {
-            foreach (var ghost in Engine.Scene.Tracker.GetEntities<MiaoNetGhost>())
-                ghost.RemoveSelf();
-        }
-
         selfNameTag?.RemoveSelf();
         selfNameTag = null;
     }
@@ -207,6 +199,7 @@ public sealed class MainComponent : MiaoNetComponent
         context.QueuePacket(packetFrame);
     }
 
+    #region holdable & follower info fetching
     private static HoldableInfo FetchHoldableInfo(Holdable holdable)
     {
         Entity entity = holdable.Entity;
@@ -277,6 +270,7 @@ public sealed class MainComponent : MiaoNetComponent
             );
         }
     }
+    #endregion
 
     private bool TryGetAndSendState(Level level, PlayerLocation location)
     {
@@ -314,6 +308,9 @@ public sealed class MainComponent : MiaoNetComponent
         var changeResult = ClientState.OnPlayerLocationChanged(location);
         if (changeResult is PlayerLocation.ChangeResult.All || forceFullChange)
         {
+            foreach (var pair in ghosts)
+                pair.Value.RemoveSelf();
+            ghosts.Clear();
             if (location.IsInMap)
             {
                 Scene scene = Engine.Scene;
@@ -357,12 +354,14 @@ public sealed class MainComponent : MiaoNetComponent
     {
         if (!ClientState.Self.ShouldSyncFrom(player))
             return;
+        if (Engine.Scene is not Level level)
+            return;
         if (!ghosts.Remove(player.Info.ID, out MiaoNetGhost? ghost))
         {
             Logger.Warn(LT.MiaoNet, $"Try removing a player({player.Info}) which is not exists.");
             return;
         }
-        ghost.RemoveSelf();
+        level.CompletelyRemove(ghost);
     }
 
     private void Context_PlayerFrameNotification(OnlinePlayer player, PacketPlayerFrame packet)
@@ -461,20 +460,11 @@ public sealed class MainComponent : MiaoNetComponent
 
     private void HandleLocationChanging(OnlinePlayer other, PlayerGraphicsInfo? graphicsInfo, PlayerState? initialState)
     {
-        // TODO check if there're unused ghosts?
-        // TODO do not handle ghost adding/removing here
-        if (Engine.Scene is Editor.MapEditor)
+        if (Engine.Scene is not Level level)
             return;
 
         bool needGhost = ClientState.Self.ShouldSyncFrom(other);
         Logger.Debug(LT.MiaoNet, $"needGhost of {other.Info} = {needGhost}");
-
-        Level? level = Engine.Scene as Level;
-
-        if (needGhost)
-        {
-            SafeGuard.Assert(level is not null);
-        }
 
         if (ghosts.TryGetValue(other.ID, out MiaoNetGhost? ghost))
         {
@@ -487,7 +477,7 @@ public sealed class MainComponent : MiaoNetComponent
             }
             else
             {
-                ghost.RemoveSelf();
+                level.CompletelyRemove(ghost);
                 ghosts.Remove(other.ID);
             }
         }

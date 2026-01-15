@@ -491,6 +491,8 @@ public sealed class MiaoNetGhost : Entity
 
     public override void Render()
     {
-        // do nothing like it's invisible but do not set visible to false
+        // do nothing aa if it's invisible
+        // but do not set Visible to false
+        // or its component will skip rendering
     }
 }
