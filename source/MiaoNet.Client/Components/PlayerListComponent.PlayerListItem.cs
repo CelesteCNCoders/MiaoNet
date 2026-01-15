@@ -6,10 +6,12 @@ public sealed partial class PlayerListComponent
 {
     public class PlayerListItem
     {
+        private static readonly Color DefaultColor = Color.LightGray;
+
         public OnlinePlayer Player;
         public string? MapName;
-        public Color MapNameColor = Color.LightGray;
-        public Color MapSideColor = Color.LightGray;
+        public Color MapNameColor = DefaultColor;
+        public Color MapSideColor = DefaultColor;
         public MTexture? AreaIconTexture;
         public string? AreaSideText;
         public string? PingText;
@@ -28,6 +30,7 @@ public sealed partial class PlayerListComponent
                 MapName = null;
                 AreaIconTexture = null;
                 AreaSideText = null;
+                MapNameColor = MapSideColor = DefaultColor;
             }
 
             AreaSideText = loc.SideCharacter.ToString();
@@ -51,8 +54,8 @@ public sealed partial class PlayerListComponent
                 {
                     AreaIconTexture = GFX.Gui.GetOrDefault(iconPath, null);
                 }
-                MapNameColor = Color.Lerp(areaData.TitleBaseColor, Color.LightGray, 0.5f);
-                MapSideColor = Color.Lerp(areaData.TitleAccentColor, Color.LightGray, 0.8f);
+                MapNameColor = Color.Lerp(areaData.TitleBaseColor, DefaultColor, 0.5f);
+                MapSideColor = Color.Lerp(areaData.TitleAccentColor, DefaultColor, 0.8f);
             }
 
             UpdatePing();

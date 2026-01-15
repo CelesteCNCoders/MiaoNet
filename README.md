@@ -42,3 +42,8 @@ CelesteNet 的一个重写, 以应对数以百计的蔚蓝联机玩家.
 ## 项目进度
 
 [见该 Issue](https://github.com/CelesteCNCoders/MiaoNet/issues/2)
+
+## LICENSE
+
+本项目部分借鉴了 [CelesteNet](https://github.com/0x0ade/CelesteNet)([MIT](https://github.com/0x0ade/CelesteNet/blob/e962823cf9666024fd255db9cb5d72a3a5c4d7c6/LICENSE))
+的一些实现, 约定, 以及一些其所使用的[图片资源](./source/MiaoNet.Client/ModFolder/Graphics/Atlases/Gui/miaonet).

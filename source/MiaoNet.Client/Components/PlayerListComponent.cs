@@ -7,8 +7,17 @@ namespace Celeste.Mod.MiaoNet;
 public sealed partial class PlayerListComponent : MiaoNetComponent
 {
     public bool Active { get; set; }
+
     private readonly PlayerListEntryComparer pComparer;
     private readonly List<(OnlineChannel, List<PlayerListItem>)> channelPlayerList;
+
+    private readonly MTexture texPlayerPaused;
+    private readonly MTexture texPlayerDebugMap;
+
+    // -v ~ +v
+    private const float PausedTexOffsetRange = 4f;
+    private float pausedTexFloatTimer;
+    private float pausedTexOffset;
 
     public PlayerListComponent(MiaoNetContext context)
         : base(context)
@@ -21,6 +30,9 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         context.PlayerMapChanged += (p, _) => UpdatePlayer(p);
         context.PlayerMapRoomChanged += (p, _) => UpdatePlayer(p);
         context.PingDataReceived += Context_PingDataReceived;
+
+        texPlayerDebugMap = GFX.Gui["miaonet/debug_map"];
+        texPlayerPaused = GFX.Gui["miaonet/paused"];
     }
 
     private void BuildPlayerList()
@@ -165,6 +177,10 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 Active = false;
             }
         }
+
+        pausedTexFloatTimer += Engine.RawDeltaTime * 2f;
+        pausedTexFloatTimer = Calc.WrapAngle(pausedTexFloatTimer);
+        pausedTexOffset = MathF.Sin(pausedTexFloatTimer) * PausedTexOffsetRange;
     }
 
     // TODO this method can be optimized
@@ -177,25 +193,25 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
          * 
          * #<ChannelName> <PlayerCount>/<Max?> Players                                         
          *                                                                                     
-         * // ------>      |<MiddlePadding>|                                         <------- 
-         * [Avatar] <PlayerName>       <MapRoom>: <MapSid.Dialog> <Side?> [MapIcon?] <Ping> 
-         * [Avatar] <PlayerName>       <MapRoom>: <MapSid.Dialog> <Side?> [MapIcon?] <Ping> 
-         * [Avatar] <PlayerName>       <MapRoom>: <MapSid.Dialog> <Side?> [MapIcon?] <Ping> 
+         * // ------>                        |<MiddlePadding>|                                            <------- 
+         * [Avatar] <PlayerName> <OnlineStatus>             <MapRoom>: <MapSid.Dialog> <Side?> [MapIcon?]    <Ping> 
+         * [Avatar] <PlayerName> <OnlineStatus>             <MapRoom>: <MapSid.Dialog> <Side?> [MapIcon?]    <Ping> 
+         * [Avatar] <PlayerName> <OnlineStatus>             <MapRoom>: <MapSid.Dialog> <Side?> [MapIcon?]    <Ping> 
+         *                                                                                                   
+         * #<Channel2Name> <PlayerCount>/<Max?> Players                                                      
+         *                                                                                                   
+         * [Avatar] <PlayerName> <OnlineStatus>             <MapRoom>: <MapSid.Dialog> <Side?> [MapIcon?]    <Ping> 
+         * [Avatar] <PlayerName> <OnlineStatus>             <MapRoom>: <MapSid.Dialog> <Side?> [MapIcon?]    <Ping> 
+         * [Avatar] <PlayerName> <OnlineStatus>             <MapRoom>: <MapSid.Dialog> <Side?> [MapIcon?]    <Ping> 
+         * [Avatar] <PlayerName> <OnlineStatus>             <MapRoom>: <MapSid.Dialog> <Side?> [MapIcon?]    <Ping> 
+         *                                                                                                   
+         * #!<PrivateChannelName>                                                                            
+         *                                                                                                   
+         * [Avatar] <PlayerName>                                                                             <Ping> 
+         * [Avatar] <PlayerName>                                                                             <Ping> 
          *                                                                                     
-         * #<Channel2Name> <PlayerCount>/<Max?> Players                                        
-         *                                                                                     
-         * [Avatar] <PlayerName>       <MapRoom>: <MapSid.Dialog> <Side?> [MapIcon?] <Ping> 
-         * [Avatar] <PlayerName>       <MapRoom>: <MapSid.Dialog> <Side?> [MapIcon?] <Ping> 
-         * [Avatar] <PlayerName>       <MapRoom>: <MapSid.Dialog> <Side?> [MapIcon?] <Ping> 
-         * [Avatar] <PlayerName>       <MapRoom>: <MapSid.Dialog> <Side?> [MapIcon?] <Ping> 
-         *                                                                                     
-         * #!<PrivateChannelName>                                                              
-         *                                                                                     
-         * [Avatar] <PlayerName>                                                     <Ping> 
-         * [Avatar] <PlayerName>                                                     <Ping> 
-         *                                                                                     
-         *                                                                                     
-         * <------------------------------- maxLineWidth ------------------------------------> 
+         *                                                                                                  |      |
+         * <------------------------------------------ maxLineWidth ----------------------------------->   maxPingWidth
          */
 
         float scale = MiaoNetModule.Settings.PlayerListUIScaleValue;
@@ -204,7 +220,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         const float RectYMargin = 16f;
         const float RectXPadding = 16f;
         const float RectYPadding = 16f;
-        const float MiddlePadding = 48f;
+        const float MiddlePadding = 32f;
 
         float lineHeight = MiaoNetFont.ENZhsLineHeight * scale;
 
@@ -233,38 +249,55 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
                 foreach (var item in channelPlayerList[i].Item2)
                 {
-                    float width = 0f;
+                    var player = item.Player;
 
-                    width += MiaoNetFont.Measure(item.Player.Info.Name).X * scale;
-                    width += MiddlePadding;
+                    float itemWidth = 0f;
 
-                    if (!item.Player.Location.IsEmpty)
+                    itemWidth += MiaoNetFont.Measure(player.Info.Name).X * scale;
+                    itemWidth += MiddlePadding;
+
+                    if (player.OnlineStatus == PlayerOnlineStatus.Paused)
                     {
-                        width += colonWidth;
-                        width += MiaoNetFont.Measure(item.Player.Location.MapRoom).X * scale;
+                        float texScale = lineHeight / texPlayerPaused.Height;
+                        itemWidth += texScale * texPlayerPaused.Width + 2 * PausedTexOffsetRange;
+
+                        itemWidth += spaceWidth;
+                    }
+
+                    if (!player.Location.IsEmpty)
+                    {
+                        itemWidth += colonWidth;
+                        if (!player.Location.IsInDebugMap)
+                        {
+                            itemWidth += MiaoNetFont.Measure(player.Location.MapRoom).X * scale;
+                        }
+                        else
+                        {
+                            float texScale = lineHeight / texPlayerDebugMap.Height;
+                            itemWidth += texScale * texPlayerDebugMap.Width;
+                        }
 
                         if (item.AreaIconTexture is not null)
                         {
-                            width += spaceWidth;
-                            width += lineHeight / item.AreaIconTexture.Height;
+                            itemWidth += spaceWidth;
+                            float texScale = lineHeight / item.AreaIconTexture.Height;
+                            itemWidth += texScale * item.AreaIconTexture.Width;
                         }
 
-                        width += spaceWidth;
-                        width += MiaoNetFont.Measure(item.MapName ?? item.Player.Location.MapSid).X * scale;
+                        itemWidth += spaceWidth;
+                        itemWidth += MiaoNetFont.Measure(item.MapName ?? player.Location.MapSid).X * scale;
 
-                        width += spaceWidth;
-                        width += MiaoNetFont.Measure(item.AreaSideText!).X * scale;
+                        itemWidth += spaceWidth;
+                        itemWidth += MiaoNetFont.Measure(item.AreaSideText!).X * scale;
                     }
 
                     if (item.PingText is not null)
                     {
                         float pingWidth = MiaoNetFont.Measure(item.PingText).X * scale + spaceWidth;
-                        width += spaceWidth;
-                        width += pingWidth;
                         maxPingWidth = Math.Max(maxPingWidth, pingWidth);
                     }
 
-                    maxLineWidth = Math.Max(maxLineWidth, width);
+                    maxLineWidth = Math.Max(maxLineWidth, itemWidth);
 
                     curY += lineHeight;
                 }
@@ -311,17 +344,34 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             // draw players
             foreach (var item in itemList)
             {
+                var player = item.Player;
+
+                // -- left to right drawing --
+                float x = xOffset;
                 // draw player name
+                string playerName = player.Info.Name;
                 MiaoNetFont.Draw(
-                    item.Player.Info.Name,
-                    position: new(xOffset, curY),
+                    playerName,
+                    position: new(x, curY),
                     justify: Vector2.Zero,
                     scale: Vector2.One * scale,
                     Color.White
                 );
+                x += MiaoNetFont.Measure(playerName).X * scale;
 
-                // start right to left drawing
-                float x = xOffset + totalMaxLineWidth;
+                if (player.OnlineStatus == PlayerOnlineStatus.Paused)
+                {
+                    x += PausedTexOffsetRange;
+
+                    float texScale = lineHeight / texPlayerPaused.Height;
+                    texPlayerPaused.Draw(new(x + pausedTexOffset, curY), Vector2.Zero, Color.White, Vector2.One * texScale);
+
+                    x += texScale * texPlayerPaused.Width + PausedTexOffsetRange;
+                    x += spaceWidth;
+                }
+
+                // -- right to left drawing --
+                x = xOffset + totalMaxLineWidth;
 
                 // draw ping
                 if (item.PingText is not null)
@@ -337,9 +387,9 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 x -= maxPingWidth; // align
 
                 // draw player location
-                if (!item.Player.Location.IsEmpty)
+                if (!player.Location.IsEmpty)
                 {
-                    var loc = item.Player.Location;
+                    var loc = player.Location;
 
                     var iconTex = item.AreaIconTexture;
                     if (iconTex is not null)
@@ -390,15 +440,24 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     );
                     x -= colonWidth;
 
-                    // draw room name
-                    MiaoNetFont.Draw(
-                        loc.MapRoom,
-                        position: new(x, curY),
-                        justify: Vector2.UnitX,
-                        scale: Vector2.One * scale,
-                        Color.LightGray
-                    );
-                    x -= MiaoNetFont.Measure(loc.MapRoom).X * scale;
+                    // draw room name, or debug map texture
+                    if (!loc.IsInDebugMap)
+                    {
+                        MiaoNetFont.Draw(
+                            loc.MapRoom,
+                            position: new(x, curY),
+                            justify: Vector2.UnitX,
+                            scale: Vector2.One * scale,
+                            Color.LightGray
+                        );
+                        x -= MiaoNetFont.Measure(loc.MapRoom).X * scale;
+                    }
+                    else
+                    {
+                        float texScale = lineHeight / texPlayerDebugMap.Height;
+                        texPlayerDebugMap.DrawJustified(new(x, curY), Vector2.UnitX, Color.White, Vector2.One * texScale);
+                        x -= texScale * texPlayerDebugMap.Width;
+                    }
                 }
 
                 curY += lineHeight;

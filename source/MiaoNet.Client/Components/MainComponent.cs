@@ -306,7 +306,7 @@ public sealed class MainComponent : MiaoNetComponent
     {
         if (!HasState)
             return;
-        if (location.IsEmpty && ClientState.Self.OnlineStatus != PlayerOnlineStatus.Normal)
+        if (!location.IsInMap && ClientState.Self.OnlineStatus != PlayerOnlineStatus.Normal)
         {
             ClientState.Self.OnlineStatus = PlayerOnlineStatus.Normal;
             context.QueuePacket(new PacketUpdateOnlineStatus(PlayerOnlineStatus.Normal));
