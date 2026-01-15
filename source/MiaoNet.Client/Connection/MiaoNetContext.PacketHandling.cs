@@ -195,7 +195,7 @@ partial class MiaoNetContext
     private void HandlePacket(PacketPingData packet)
     {
         EnsureState();
-        foreach (var (playerID, ping) in packet.Datas)
+        foreach (var (playerID, ping) in packet.Data)
             if (ClientState.TryGetPlayerOrSelf(playerID, out var player))
                 player.LastPing = ping;
         PingDataReceived?.Invoke();

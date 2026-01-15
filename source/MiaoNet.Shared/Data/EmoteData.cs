@@ -45,9 +45,9 @@ public readonly struct EmoteData : IRefBinarySerializable<EmoteData>
         if (text.Length == 0)
             return null;
 
-        ArraySegment<string> splited = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        ArraySegment<string> splitParts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-        ReadOnlySpan<char> part1 = splited[0].AsSpan();
+        ReadOnlySpan<char> part1 = splitParts[0].AsSpan();
         char cateChar = part1[0];
 
         if (!TryParseCategory(cateChar, out var category))
@@ -64,7 +64,7 @@ public readonly struct EmoteData : IRefBinarySerializable<EmoteData>
 
         ReadOnlySpan<char> prefix = part1[(nextColonIndex + 1)..];
 
-        ArraySegment<string> frames = splited[1..];
+        ArraySegment<string> frames = splitParts[1..];
 
         bool loop = true;
         if (frames.Count != 0)

@@ -504,9 +504,9 @@ public sealed class MiaoNetGhost : Entity
         scene.Add(nameTag);
         if (idleHover is not null)
             scene.Add(idleHover);
-        foreach (var fo in leader.Followers)
+        foreach (var follower in leader.Followers)
         {
-            Entity e = fo.Entity;
+            Entity e = follower.Entity;
             if (e.Scene is null)
                 scene.Add(e);
         }
@@ -547,7 +547,7 @@ public sealed class MiaoNetGhost : Entity
 
     public override void Render()
     {
-        // do nothing aa if it's invisible
+        // do nothing as if it's invisible
         // but do not set Visible to false
         // or its component will skip rendering
     }

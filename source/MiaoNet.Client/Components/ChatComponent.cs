@@ -111,7 +111,7 @@ public sealed class ChatComponent : MiaoNetComponent
             {
                 btn.ConsumePress();
                 if (MiaoNetContext.IsSuitableToOpenUI)
-                    Active();
+                    Activate();
             }
         }
         else
@@ -121,7 +121,7 @@ public sealed class ChatComponent : MiaoNetComponent
             if (MInput.Keyboard.Pressed(Keys.Escape))
             {
                 MInputHack.ConsumeAllInput();
-                Deactive();
+                Deactivate();
                 return;
             }
             else if (MInput.Keyboard.Pressed(Keys.Enter))
@@ -137,7 +137,7 @@ public sealed class ChatComponent : MiaoNetComponent
                     else
                         HandleCommand(trimmedText);
                 }
-                Deactive();
+                Deactivate();
                 return;
             }
             else if (MInput.Keyboard.Pressed(Keys.Up))
@@ -243,17 +243,17 @@ public sealed class ChatComponent : MiaoNetComponent
     public override void OnDisconnected()
     {
         if (active)
-            Deactive();
+            Deactivate();
         chatView.CleanUp();
         history.Clear();
         historyIndex = 0;
     }
 
-    private void Active()
+    private void Activate()
     {
         active = true;
         historyIndex = history.Count;
-        inputBox.Active();
+        inputBox.Activate();
         chatView.Active = true;
         previousCommandsEnabled = Engine.Commands.Enabled;
         Engine.Commands.Enabled = false;
@@ -264,10 +264,10 @@ public sealed class ChatComponent : MiaoNetComponent
             level.Add(dummyOverlay);
     }
 
-    private void Deactive()
+    private void Deactivate()
     {
         active = false;
-        inputBox.Deactive();
+        inputBox.Deactivate();
         lastInput = string.Empty;
         chatView.Active = false;
         targetChatViewScroll = 0f;

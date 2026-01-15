@@ -224,7 +224,7 @@ partial class MiaoNetCommand
         //     <text> : desc of param2
 
         // TODO dialog
-        // also messges scrolling
+        // also messages scrolling
         context.TipMessage(CommandHelpTitle.Replace("(0)", Commands.Count.ToString()));
         foreach (var command in Commands)
             TipCommandHelp(context, command);

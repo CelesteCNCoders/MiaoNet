@@ -92,7 +92,7 @@ partial class MiaoNetContext
                     if (packetInitial is null)
                         Logger.Warn(LT.MiaoNet, $"Remote sent empty or invalid initial reply.");
                     else
-                        Logger.Warn(LT.MiaoNet, $"Remote sent a werid initial packet {packetInitial.GetType()}.");
+                        Logger.Warn(LT.MiaoNet, $"Remote sent a weird initial packet {packetInitial.GetType()}.");
                     connection.Dispose();
                     QueueDisconnectStatus(ConnectionStatus.DisconnectedExceptionally);
                     return;
