@@ -4,12 +4,16 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using MiaoNet.Shared;
 
 namespace MiaoNet.MockClient;
 
 public sealed class MockInstance : IPacketSerializationContext, IDisposable
 {
+    private static readonly Version ClientVersion = new(0, 2, 1);
+
     private Vector2 position;
 
     private ConcurrentQueue<IContextualPacket> packetQueue;
@@ -49,8 +53,20 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
     {
         await ConnectAsync("s.saplonily.top", 21478);
         await teeStream.WriteAsync(Connection.HandshakeHead);
-        await SendHandshakeAsync(new HandshakeData(new Version(0, 2, 0), 0, name, []));
-        var ack = await ReceivedHandshakeAckAsync();
+        var serverVersion = await DoVersionCheckAsync(ClientVersion);
+        if (serverVersion is not null)
+        {
+            Log($"Version mismatch. Server requires {serverVersion.ToString(3)}");
+            return;
+        }
+
+        await SendHandshakeAsync(new HandshakeData(langCode: 0, name, []));
+        var ack = await ReceiveHandshakeAckAsync();
+        if (ack.DeniedReason is not null)
+        {
+            Log($"Handshake denied: {ack.DeniedReason}");
+            return;
+        }
         Log($"Received ack.");
 
         packetQueue.Enqueue(
@@ -92,7 +108,42 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
         NetworkStream netStream = new(socket);
         var sslStream = new SslStream(netStream, false, (_, _, _, _) => true);
         teeStream = new(sslStream, new FileStream($"{name}.bin", FileMode.Create, FileAccess.Write));
-        await sslStream.AuthenticateAsClientAsync(host);
+        SslClientAuthenticationOptions options = new()
+        {
+            TargetHost = host,
+            EnabledSslProtocols = Connection.AllowedSslProtocols,
+            CertificateRevocationCheckMode = X509RevocationMode.NoCheck
+        };
+        await sslStream.AuthenticateAsClientAsync(options);
+    }
+
+    private async Task<Version?> DoVersionCheckAsync(Version clientVersion)
+    {
+        ushort major = (ushort)clientVersion.Major;
+        ushort minor = (ushort)clientVersion.Minor;
+        ushort build = (ushort)clientVersion.Build;
+
+        const int VersionLength = 3 * sizeof(ushort);
+        byte[] buffer = new byte[VersionLength];
+        var span = buffer.AsSpan();
+        BinaryPrimitives.WriteUInt16LittleEndian(span[0..2], major);
+        BinaryPrimitives.WriteUInt16LittleEndian(span[2..4], minor);
+        BinaryPrimitives.WriteUInt16LittleEndian(span[4..6], build);
+        await teeStream.WriteAsync(buffer);
+
+        byte[] passedBuffer = new byte[1];
+        await teeStream.ReadExactlyAsync(passedBuffer);
+        bool passed = passedBuffer[0] != 0;
+        if (passed)
+            return null;
+
+        byte[] serverVersionBuffer = new byte[VersionLength];
+        await teeStream.ReadExactlyAsync(serverVersionBuffer);
+        var serverSpan = serverVersionBuffer.AsSpan();
+        ushort majorServer = BinaryPrimitives.ReadUInt16LittleEndian(serverSpan[0..2]);
+        ushort minorServer = BinaryPrimitives.ReadUInt16LittleEndian(serverSpan[2..4]);
+        ushort buildServer = BinaryPrimitives.ReadUInt16LittleEndian(serverSpan[4..6]);
+        return new Version(majorServer, minorServer, buildServer);
     }
 
     private async Task SendHandshakeAsync(HandshakeData data)
@@ -100,20 +151,20 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
         MemoryStream ms = new(128);
         ms.Seek(2, SeekOrigin.Begin);
         RefBinaryWriter writer = new(ms);
-        data.Serialize(ref writer);
+        writer.Write(data);
         ushort size = (ushort)(ms.Position - 2);
         ms.Seek(0, SeekOrigin.Begin);
         writer.Write(size);
         await teeStream.WriteAsync(ms.GetBuffer().AsMemory().Slice(0, size + 2));
     }
 
-    private async Task<HandshakeAckData> ReceivedHandshakeAckAsync()
+    private async Task<HandshakeAckData> ReceiveHandshakeAckAsync()
     {
         byte[] head = new byte[2];
-        await teeStream.ReadAtLeastAsync(head, 2);
+        await teeStream.ReadExactlyAsync(head);
         ushort size = BinaryPrimitives.ReadUInt16LittleEndian(head);
         byte[] payload = new byte[size];
-        await teeStream.ReadAtLeastAsync(payload, size);
+        await teeStream.ReadExactlyAsync(payload);
         RefBinaryReader reader = new(payload);
         HandshakeAckData data = reader.Read<HandshakeAckData>();
         return data;
