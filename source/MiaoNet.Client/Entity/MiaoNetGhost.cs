@@ -91,6 +91,10 @@ public sealed class MiaoNetGhost : Entity
         base.Update();
         UpdateLightSettings(MiaoNetModule.Settings.OtherPlayersLight);
 
+        bool updateOthers = Player.OnlineStatus == PlayerOnlineStatus.Normal;
+        if (!updateOthers)
+            return;
+
         if (starFlying)
         {
             playerHair.Color = GraphicsInfo.FeatherHairInfo.Color;
@@ -109,36 +113,33 @@ public sealed class MiaoNetGhost : Entity
         {
             playerHair.Color = GraphicsInfo.GetHairInfo(dashes).Color;
         }
-        if (Player.OnlineStatus == PlayerOnlineStatus.Normal)
+        if (!Scene.Paused && dashing && !dead)
         {
-            if (!Scene.Paused && dashing && !dead)
+            float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
+            // TODO apply graphics info
+            ParticleType type;
+            if (lastDashedDashes == 0)
             {
-                float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
-                // TODO apply graphics info
-                ParticleType type;
-                if (lastDashedDashes == 0)
-                {
-                    type = pDashA;
-                    type.Color = pDashColorBaseA.Item1 * alpha;
-                    type.Color2 = pDashColorBaseA.Item2 * alpha;
-                }
-                else
-                {
-                    type = pDashB;
-                    type.Color = pDashColorBaseB.Item1 * alpha;
-                    type.Color2 = pDashColorBaseB.Item2 * alpha;
-                }
+                type = pDashA;
+                type.Color = pDashColorBaseA.Item1 * alpha;
+                type.Color2 = pDashColorBaseA.Item2 * alpha;
+            }
+            else
+            {
+                type = pDashB;
+                type.Color = pDashColorBaseB.Item1 * alpha;
+                type.Color2 = pDashColorBaseB.Item2 * alpha;
+            }
 
-                SceneAs<Level>().ParticlesFG.Emit(
-                    type,
-                    Position + Calc.Random.Range(Vector2.One * -2f, Vector2.One * 2f),
-                    lastDashDirection
-                );
-            }
-            if (Scene.Paused)
-            {
-                playerHair.AfterUpdate();
-            }
+            SceneAs<Level>().ParticlesFG.Emit(
+                type,
+                Position + Calc.Random.Range(Vector2.One * -2f, Vector2.One * 2f),
+                lastDashDirection
+            );
+        }
+        if (Scene.Paused)
+        {
+            playerHair.AfterUpdate();
         }
     }
 
