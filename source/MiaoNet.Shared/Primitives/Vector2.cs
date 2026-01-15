@@ -5,6 +5,10 @@ namespace MiaoNet.Shared;
 [DebuggerDisplay("{DebuggerDisplay}")]
 public struct Vector2 : IEquatable<Vector2>
 {
+    public static Vector2 Zero => new(0f, 0f);
+
+    public static Vector2 One => new(1f, 1f);
+
     public float X;
     public float Y;
 

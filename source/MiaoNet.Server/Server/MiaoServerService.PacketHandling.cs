@@ -46,6 +46,8 @@ public sealed partial class MiaoServerService
             state.ApplyFollowersInitials(packet.FollowerInitials);
         else if (packet.HasFollowerDeltas)
             state.ApplyFollowersDeltas(packet.FollowerDeltas);
+        if (packet.HasWindDirection)
+            state.WindDirection = packet.WindDirection;
 
         await BroadcastContextuallyToOthersAsync(
             new PacketContextualPlayerNotification<PacketPlayerFrame>(connection.ID, packet),

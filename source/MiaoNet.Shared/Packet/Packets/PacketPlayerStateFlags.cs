@@ -1,5 +1,3 @@
-using MiaoNet.Shared;
-
 namespace MiaoNet.Shared;
 
 // used to sync sth that's not so time-sensitive
@@ -8,22 +6,18 @@ public sealed class PacketPlayerStateFlags : IContextlessPacket<PacketPlayerStat
 {
     public enum StateFlags : ushort
     {
-        // TODO we may need sync die direction
-        // so we should have a new type of packet
-        PlayerDied = 1 << 0,
-        PlayerRespawning = 1 << 1
+        PlayerDied = 1, // TODO die direction?
+        PlayerRespawning
     }
 
     public StateFlags Flags { get; }
 
-    public PacketPlayerStateFlags(StateFlags flags)
-    {
-        Flags = flags;
-    }
+    public PacketPlayerStateFlags(StateFlags flags) 
+        => Flags = flags;
 
     public void Serialize(ref RefBinaryWriter writer)
         => writer.Write((ushort)Flags);
 
-    public static PacketPlayerStateFlags Deserialize(ref RefBinaryReader reader)
-        => new((StateFlags)reader.ReadUInt16());
+    public static PacketPlayerStateFlags Deserialize(ref RefBinaryReader reader) 
+        => new PacketPlayerStateFlags((StateFlags)reader.ReadUInt16());
 }

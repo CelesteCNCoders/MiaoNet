@@ -17,7 +17,8 @@ public sealed class PacketPlayerFrame : IContextualPacket<PacketPlayerFrame>
         HasHoldable = 1 << 3,
         StarFlying = 1 << 4,
         HasFollowerInitials = 1 << 5,
-        HasFollowerDeltas = 1 << 6
+        HasFollowerDeltas = 1 << 6,
+        HasWindDirection = 1 << 7
     }
 
     #region flags
@@ -37,6 +38,8 @@ public sealed class PacketPlayerFrame : IContextualPacket<PacketPlayerFrame>
 
     [MemberNotNullWhen(true, nameof(FollowerDeltas))]
     public bool HasFollowerDeltas => Flags.HasFlag(FrameFlags.HasFollowerDeltas);
+
+    public bool HasWindDirection => Flags.HasFlag(FrameFlags.HasWindDirection);
 
     #endregion
 
@@ -62,6 +65,9 @@ public sealed class PacketPlayerFrame : IContextualPacket<PacketPlayerFrame>
     public FollowerInfo[]? FollowerInitials { get; set; }
 
     public FollowerInfoDelta[]? FollowerDeltas { get; set; }
+
+    /// <summary>Included only when <see cref="HasWindDirection"/>.</summary>
+    public Vector2 WindDirection { get; set; }
 
     public PacketPlayerFrame(
         Vector2 position,
@@ -94,6 +100,8 @@ public sealed class PacketPlayerFrame : IContextualPacket<PacketPlayerFrame>
             writer.Write(FollowerInitials, context.PooledStringManager);
         else if (HasFollowerDeltas)
             writer.Write(FollowerDeltas, context.PooledStringManager);
+        if (HasWindDirection)
+            writer.Write(WindDirection);
     }
 
     public static PacketPlayerFrame Deserialize(ref RefBinaryReader reader, IPacketSerializationContext context)
@@ -114,6 +122,8 @@ public sealed class PacketPlayerFrame : IContextualPacket<PacketPlayerFrame>
             packet.FollowerInitials = reader.ReadArray<FollowerInfo, PooledStringManager>(context.PooledStringManager);
         else if (packet.HasFollowerDeltas)
             packet.FollowerDeltas = reader.ReadArray<FollowerInfoDelta, PooledStringManager>(context.PooledStringManager);
+        if (packet.HasWindDirection)
+            packet.WindDirection = reader.ReadVector2();
         return packet;
     }
 }

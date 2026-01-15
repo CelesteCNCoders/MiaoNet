@@ -25,12 +25,15 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
 
     public FollowerInfo[] FollowerInfos { get; set; }
 
+    public Vector2 WindDirection { get; set; }
+
     public PlayerState(Vector2 position, byte dashes, float deltaTime)
     {
         Position = position;
         Dashes = dashes;
         DeltaTime = deltaTime;
         FollowerInfos = [];
+        WindDirection = Vector2.Zero;
     }
 
     public void Serialize(ref RefBinaryWriter writer, PooledStringManager pooledStringManager)
@@ -41,6 +44,7 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
         writer.Write(FacingLeft);
         writer.Write((byte)PlayerSpriteMode);
         writer.Write(FollowerInfos, pooledStringManager);
+        writer.Write(WindDirection);
     }
 
     public static PlayerState Deserialize(ref RefBinaryReader reader, PooledStringManager pooledStringManager)
@@ -48,7 +52,8 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
         {
             FacingLeft = reader.ReadBoolean(),
             PlayerSpriteMode = (PlayerSpriteMode)reader.ReadByte(),
-            FollowerInfos = reader.ReadArray<FollowerInfo, PooledStringManager>(pooledStringManager)
+            FollowerInfos = reader.ReadArray<FollowerInfo, PooledStringManager>(pooledStringManager),
+            WindDirection = reader.ReadVector2()
         };
 
     public void ApplyFollowersInitials(FollowerInfo[] followerInitials)

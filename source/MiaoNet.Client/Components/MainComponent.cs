@@ -156,7 +156,11 @@ public sealed class MainComponent : MiaoNetComponent
             flags |= FFlags.HasHoldable;
         if (player.StateMachine.State == Player.StStarFly)
             flags |= FFlags.StarFlying;
+        if (selfState.WindDirection != player.windDirection)
+            flags |= FFlags.HasWindDirection;
 
+
+        // any better ways?
         if (DynamicData.For(player.Leader).Get(MiaoNetModule.LeaderFollowersDirtyField) as bool? is not false)
         {
             flags |= FFlags.HasFollowerInitials;
@@ -167,12 +171,12 @@ public sealed class MainComponent : MiaoNetComponent
             flags |= FFlags.HasFollowerDeltas;
             followerDeltas = FetchFollowerDeltas(player.Leader);
         }
-
         DynamicData.For(player.Leader).Set(MiaoNetModule.LeaderFollowersDirtyField, false);
         SafeGuard.Assert(!(flags.HasFlag(FFlags.HasFollowerInitials) && flags.HasFlag(FFlags.HasFollowerDeltas)));
 
         selfState.Dashing = currentDashing;
         selfState.Dashes = (byte)currentDashes;
+        selfState.WindDirection = player.windDirection;
         if (followerInitials is not null)
             selfState.ApplyFollowersInitials(followerInitials);
         else if (followerDeltas is not null)
@@ -196,6 +200,8 @@ public sealed class MainComponent : MiaoNetComponent
             packetFrame.FollowerInitials = followerInitials;
         else if (packetFrame.HasFollowerDeltas)
             packetFrame.FollowerDeltas = followerDeltas;
+        if (packetFrame.HasWindDirection)
+            packetFrame.WindDirection = player.windDirection;
         context.QueuePacket(packetFrame);
     }
 
@@ -396,6 +402,9 @@ public sealed class MainComponent : MiaoNetComponent
                 ghost.OnFollowerInitials(packet.FollowerInitials);
             else if (packet.HasFollowerDeltas)
                 ghost.OnFollowerDeltas(packet.FollowerDeltas);
+
+            if (packet.HasWindDirection)
+                ghost.UpdateWind(packet.WindDirection);
 
             ghost.UpdateDashing(
                 packet.Dashing, packet.DashDirection / (float)byte.MaxValue * MathF.Tau,

@@ -27,6 +27,9 @@ public sealed class MiaoNetGhost : Entity
     private bool dead;
     private bool starFlying;
 
+    private Vector2 windDirection;
+    private float windHairTimer;
+
     private HoldableType lastHoladableType;
     private Sprite? holdableSprite;
 
@@ -67,6 +70,7 @@ public sealed class MiaoNetGhost : Entity
         UpdateLightSettings(MiaoNetModule.Settings.OtherPlayersLight);
 
         playerHair = new PlayerHair(playerSprite);
+
         playerHair.Facing = facing;
         Add(playerHair);
 
@@ -89,6 +93,7 @@ public sealed class MiaoNetGhost : Entity
     public override void Update()
     {
         base.Update();
+
         UpdateLightSettings(MiaoNetModule.Settings.OtherPlayersLight);
 
         bool updateOthers = Player.OnlineStatus == PlayerOnlineStatus.Normal;
@@ -106,38 +111,72 @@ public sealed class MiaoNetGhost : Entity
         }
         else if (flashTimer > 0f)
         {
-            flashTimer -= Engine.DeltaTime;
+            // TODO apply others' delta time
+            flashTimer -= Engine.RawDeltaTime;
             playerHair.Color = Color.White;
         }
         else
         {
             playerHair.Color = GraphicsInfo.GetHairInfo(dashes).Color;
         }
-        if (!Scene.Paused && dashing && !dead)
+        if (windDirection.X != 0f)
         {
-            float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
-            // TODO apply graphics info
-            ParticleType type;
-            if (lastDashedDashes == 0)
-            {
-                type = pDashA;
-                type.Color = pDashColorBaseA.Item1 * alpha;
-                type.Color2 = pDashColorBaseA.Item2 * alpha;
-            }
-            else
-            {
-                type = pDashB;
-                type.Color = pDashColorBaseB.Item1 * alpha;
-                type.Color2 = pDashColorBaseB.Item2 * alpha;
-            }
-
-            SceneAs<Level>().ParticlesFG.Emit(
-                type,
-                Position + Calc.Random.Range(Vector2.One * -2f, Vector2.One * 2f),
-                lastDashDirection
-            );
+            // TODO apply others' delta time
+            windHairTimer += Engine.RawDeltaTime * 8f;
+            playerHair.StepPerSegment = new Vector2(windDirection.X * 5f, MathF.Sin(windHairTimer));
+            playerHair.StepInFacingPerSegment = 0f;
+            playerHair.StepApproach = 128f;
+            playerHair.StepYSinePerSegment = 0f;
         }
-        if (Scene.Paused)
+        else if (dashes > 1)
+        {
+            // TODO apply others' delta time
+            float timeActive = Scene.RawTimeActive;
+            playerHair.StepPerSegment = new Vector2(
+                MathF.Sin(timeActive * 2f) * 0.7f - ((float)facing * 3f),
+                MathF.Sin(timeActive * 1f)
+            );
+            playerHair.StepInFacingPerSegment = 0f;
+            playerHair.StepApproach = 90f;
+            playerHair.StepYSinePerSegment = 1f;
+            playerHair.StepPerSegment.Y += windDirection.Y * 2f;
+        }
+        else
+        {
+            playerHair.StepPerSegment = new Vector2(0f, 2f);
+            playerHair.StepInFacingPerSegment = 0.5f;
+            playerHair.StepApproach = 64f;
+            playerHair.StepYSinePerSegment = 0f;
+            playerHair.StepPerSegment.Y += windDirection.Y * 0.5f;
+        }
+        if (!Scene.Paused)
+        {
+            if (dashing && !dead)
+            {
+                float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
+                // TODO apply graphics info
+                ParticleType type;
+                if (lastDashedDashes == 0)
+                {
+                    type = pDashA;
+                    type.Color = pDashColorBaseA.Item1 * alpha;
+                    type.Color2 = pDashColorBaseA.Item2 * alpha;
+                }
+                else
+                {
+                    type = pDashB;
+                    type.Color = pDashColorBaseB.Item1 * alpha;
+                    type.Color2 = pDashColorBaseB.Item2 * alpha;
+                }
+
+                SceneAs<Level>().ParticlesFG.Emit(
+                    type,
+                    Position + Calc.Random.Range(Vector2.One * -2f, Vector2.One * 2f),
+                    lastDashDirection
+                );
+            }
+        }
+        else
         {
             playerHair.AfterUpdate();
         }
@@ -185,6 +224,7 @@ public sealed class MiaoNetGhost : Entity
         dashes = state.Dashes;
         lastDashedDashes = dashes;
         Position = state.Position;
+        windDirection = state.WindDirection;
         UpdateFacing(state.FacingLeft);
         OnFollowerInitials(state.FollowerInfos);
     }
@@ -333,15 +373,25 @@ public sealed class MiaoNetGhost : Entity
         tween.UseRawDeltaTime = true;
     }
 
+    // TODO start star flying sync?
     public void NotifyStarFlying(bool starFlying)
     {
         if (this.starFlying != starFlying)
         {
             if (starFlying)
+            {
                 UpdateHairCount(GraphicsInfo.FeatherHairInfo.Length);
+                playerHair.DrawPlayerSpriteOutline = true;
+                playerHair.SimulateMotion = false;
+            }
             else
+            {
                 UpdateHairCount();
+                playerHair.DrawPlayerSpriteOutline = false;
+                playerHair.SimulateMotion = true;
+            }
             this.starFlying = starFlying;
+
         }
     }
 
@@ -387,6 +437,11 @@ public sealed class MiaoNetGhost : Entity
             holdableSprite.Scale = scale;
             holdableSprite.Rotation = rotation;
         }
+    }
+
+    public void UpdateWind(Vector2 wind)
+    {
+        this.windDirection = wind;
     }
 
     public void OnUpdateOnlineStatus(PlayerOnlineStatus status)
