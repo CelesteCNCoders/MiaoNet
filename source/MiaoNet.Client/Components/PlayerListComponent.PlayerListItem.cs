@@ -32,32 +32,42 @@ public sealed partial class PlayerListComponent
                 AreaSideText = null;
                 MapNameColor = MapSideColor = DefaultColor;
             }
-
-            AreaSideText = loc.SideCharacter.ToString();
-
-            var areaData = AreaData.Get(loc.MapSid);
-            if (areaData is not null)
+            else
             {
-                if (Dialog.Has(areaData.Name))
-                    MapName = Dialog.Get(areaData.Name);
-                string iconPath = areaData.Icon;
-                string? lobbySid;
-                AreaData? lobbyAreaData;
-                if (
-                    (lobbySid = CollabUtils2Interop.GetLobbyForMap?.Invoke(loc.MapSid)) is not null &&
-                    (lobbyAreaData = AreaData.Get(lobbySid)) is not null
-                )
+                AreaSideText = loc.SideCharacter.ToString();
+
+                var areaData = AreaData.Get(loc.MapSid);
+                if (areaData is not null)
                 {
-                    AreaIconTexture = GFX.Gui.GetOrDefault(lobbyAreaData.Icon, null);
+                    if (Dialog.Has(areaData.Name))
+                        MapName = Dialog.Get(areaData.Name);
+                    else
+                        MapName = null;
+
+                    string iconPath = areaData.Icon;
+                    string? lobbySid;
+                    AreaData? lobbyAreaData;
+                    if (
+                        (lobbySid = CollabUtils2Interop.GetLobbyForMap?.Invoke(loc.MapSid)) is not null &&
+                        (lobbyAreaData = AreaData.Get(lobbySid)) is not null
+                    )
+                    {
+                        AreaIconTexture = GFX.Gui.GetOrDefault(lobbyAreaData.Icon, null);
+                    }
+                    else
+                    {
+                        AreaIconTexture = GFX.Gui.GetOrDefault(iconPath, null);
+                    }
+                    MapNameColor = Color.Lerp(areaData.TitleBaseColor, DefaultColor, 0.5f);
+                    MapSideColor = Color.Lerp(areaData.TitleAccentColor, DefaultColor, 0.8f);
                 }
                 else
                 {
-                    AreaIconTexture = GFX.Gui.GetOrDefault(iconPath, null);
+                    MapName = null;
+                    AreaIconTexture = null;
+                    MapNameColor = MapSideColor = DefaultColor;
                 }
-                MapNameColor = Color.Lerp(areaData.TitleBaseColor, DefaultColor, 0.5f);
-                MapSideColor = Color.Lerp(areaData.TitleAccentColor, DefaultColor, 0.8f);
             }
-
             UpdatePing();
         }
 

@@ -266,10 +266,12 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
                     if (!player.Location.IsEmpty)
                     {
+                        bool liveMode = MiaoNetModule.Settings.LiveMode;
+
                         itemWidth += colonWidth;
                         if (!player.Location.IsInDebugMap)
                         {
-                            itemWidth += MiaoNetFont.Measure(player.Location.MapRoom).X * scale;
+                            itemWidth += MiaoNetFont.Measure(liveMode ? "*" : player.Location.MapRoom).X * scale;
                         }
                         else
                         {
@@ -285,7 +287,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                         }
 
                         itemWidth += spaceWidth;
-                        itemWidth += MiaoNetFont.Measure(item.MapName ?? player.Location.MapSid).X * scale;
+                        itemWidth += MiaoNetFont.Measure(item.MapName ?? (liveMode ? "*" : player.Location.MapSid)).X * scale;
 
                         itemWidth += spaceWidth;
                         itemWidth += MiaoNetFont.Measure(item.AreaSideText!).X * scale;
@@ -419,7 +421,9 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     x -= spaceWidth;
 
                     // draw name or sid
-                    string mapName = item.MapName ?? loc.MapSid;
+                    bool liveMode = MiaoNetModule.Settings.LiveMode;
+
+                    string mapName = item.MapName ?? (liveMode ? "*" : loc.MapSid);
                     MiaoNetFont.Draw(
                         mapName,
                         position: new(x, curY),
@@ -444,7 +448,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     if (!loc.IsInDebugMap)
                     {
                         MiaoNetFont.Draw(
-                            loc.MapRoom,
+                            liveMode ? "*" : loc.MapRoom,
                             position: new(x, curY),
                             justify: Vector2.UnitX,
                             scale: Vector2.One * scale,

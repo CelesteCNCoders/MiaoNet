@@ -5,6 +5,8 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class EmoteComponent : MiaoNetComponent
 {
+    private static bool IsLiveMode => MiaoNetModule.Settings.LiveMode;
+
     public EmoteComponent(MiaoNetContext context)
         : base(context)
     {
@@ -65,18 +67,24 @@ public sealed class EmoteComponent : MiaoNetComponent
 
     private void SendEmote(Player self, EmoteData emote)
     {
+        if (IsLiveMode)
+            return;
         context.QueuePacket(new PacketSendEmote(emote));
         AddGhostEmote(self, emote);
     }
 
     private void SendEmote(Player self, string emoteText)
     {
+        if (IsLiveMode)
+            return;
         context.QueuePacket(new PacketSendEmoteText(emoteText));
         AddGhostEmote(self, emoteText);
     }
 
     private void Context_EmoteReceived(OnlinePlayer player, EmoteData emote)
     {
+        if (IsLiveMode)
+            return;
         int id = player.ID;
         if (context.MainComponent.TryGetGhost(id, out var ghost))
         {
@@ -94,6 +102,8 @@ public sealed class EmoteComponent : MiaoNetComponent
 
     private void Context_EmoteTextReceived(OnlinePlayer player, string text)
     {
+        if (IsLiveMode)
+            return;
         int id = player.ID;
         if (context.MainComponent.TryGetGhost(id, out var ghost))
         {

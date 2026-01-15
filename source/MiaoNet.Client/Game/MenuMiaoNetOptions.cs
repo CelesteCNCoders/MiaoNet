@@ -157,6 +157,12 @@ public static class MenuMiaoNetOptions
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_interactions"));
         menu.Add(item);
 
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_live_mode"), settings.LiveMode
+        ).Change(v => settings.LiveMode = v);
+        menu.Add(item);
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_live_mode_tip"));
+
         item = new EnumSlider<ButtonMode>(
             Dialog.Get("miaonet_options_player_list_button_mode"),
             e => Dialog.Get($"miaonet_options_player_list_button_mode_{e}"),
@@ -210,16 +216,8 @@ public static class MenuMiaoNetOptions
 
         // -- Chat --
 
-        /*
-        item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_chat"));
-        menu.Add(item);
-
-        item = new TextMenu.Option<string>(Dialog.Get("miaonet_options_new_messages_display"))
-            .Add(Dialog.Get("miaonet_options_new_messages_display_chat_only"), null!, false)
-            .Add(Dialog.Get("miaonet_options_new_messages_display_system_only"), null!, false)
-            .Add(Dialog.Get("miaonet_options_new_messages_display_all"), null!, true);
-        menu.Add(item);
-        */
+        //item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_chat"));
+        //menu.Add(item);
     }
 
     public static void AddKeyBindingsSection(TextMenu menu, bool _)

@@ -27,11 +27,20 @@ miaonet_options_active_chat_height= Active Chat Height
 miaonet_options_player_opacity= Player Opacity
 miaonet_options_self_player_name_opacity= Self Name Opacity
 miaonet_options_player_name_opacity= Name Opacity
+
+miaonet_options_interactions= Interactions
+miaonet_options_live_mode= Live Mode
+miaonet_options_live_mode_tip=
+	This will disable chat, block all chat messages and emotes from any players,
+	and hide unknown maps in the player list.
+	This option will not be saved.
+
 miaonet_options_player_list_button_mode= Player List Showing Mode
 miaonet_options_player_list_button_mode_press= Press
 miaonet_options_player_list_button_mode_hold= Hold
-
-miaonet_options_interactions= Interactions
+miaonet_options_teleport_behaviour= Teleport Command Behaviour
+miaonet_options_teleport_behaviour_nosession= Map and room only
+miaonet_options_teleport_behaviour_withsession= Request other's session
 miaonet_options_emotes_count= Emotes Count
 miaonet_options_emotes_counts_tip= 
 	If you want to set content of emotes,
@@ -45,16 +54,9 @@ miaonet_options_open_settings_file_tip=
 	Open the settings file of this mod.
 	Select a text editor for it if needed.
 miaonet_options_reload_emote_settings= Reload Emote Settings
-miaonet_options_teleport_behaviour= Teleport Command Behaviour
-miaonet_options_teleport_behaviour_nosession= Map and room only
-miaonet_options_teleport_behaviour_withsession= Request other's session
 miaonet_options_key_bindings= Key Bindings
 
 miaonet_options_chat= Chat
-miaonet_options_new_messages_display= New Messages Display
-miaonet_options_new_messages_display_chat_only= Chat Messages Only
-miaonet_options_new_messages_display_system_only= System Messages Only
-miaonet_options_new_messages_display_all= All
 
 
 miaonet_connection_status_connecting= Connecting...
@@ -73,6 +75,8 @@ miaonet_connection_status_connection_aborted= Connection aborted
 
 miaonet_context_player_joined= (0) joined MiaoNet
 miaonet_context_player_left= (0) left MiaoNet
+
+miaonet_chat_disabled= Chat has been set to disabled
 
 miaonet_command_status_no_such_command= Command "(0)" not found
 miaonet_command_status_missing_arguments= Command "(0)" needs (1) arguments but got only (2)

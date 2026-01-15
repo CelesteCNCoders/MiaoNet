@@ -82,6 +82,9 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     #region Interactions
 
+    [YamlIgnore]
+    public bool LiveMode { get; set; }
+
     public ButtonMode PlayerListButtonMode { get; set; }
 
     public TeleportBehaviour TeleportBehaviour { get; set; }

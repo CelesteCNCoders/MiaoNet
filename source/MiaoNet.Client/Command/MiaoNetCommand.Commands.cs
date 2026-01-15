@@ -252,6 +252,9 @@ partial class MiaoNetCommand
 
     private static string? Whisper(Context context)
     {
+        if (MiaoNetModule.Settings.LiveMode)
+            return Dialog.Get("miaonet_chat_disabled");
+
         string playerName = context.Segments[0];
         string content = context.Segments[1];
 
@@ -334,9 +337,10 @@ partial class MiaoNetCommand
         if (!loc.IsInMap)
             return PlayerNotInMap.Replace("(0)", player.Info.Name);
 
+        bool liveMode = MiaoNetModule.Settings.LiveMode;
         var area = AreaData.Get(loc.MapSid);
         if (area is null || area.Mode.Length <= (int)loc.Side)
-            return PlayerMapMissing.Replace("(0)", player.Info.Name).Replace("(1)", loc.ToString());
+            return PlayerMapMissing.Replace("(0)", player.Info.Name).Replace("(1)", liveMode ? "*" : loc.ToString());
 
         otherArea = area;
         return null;

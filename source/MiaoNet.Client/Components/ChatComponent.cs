@@ -70,14 +70,24 @@ public sealed class ChatComponent : MiaoNetComponent
 
     private void Context_ChatMessageReceived(OnlinePlayer? player, PacketChatMessage packet)
     {
-        if (packet.Type == ChatMessageType.Chat)
-            chatView.AddChatMessage(MiaoNetChatText.CreatePublicChat(packet.DateTime, player!, packet.Content));
-        else if (packet.Type == ChatMessageType.Server)
+        var disableChat = MiaoNetModule.Settings.LiveMode;
+        switch (packet.Type)
+        {
+        case ChatMessageType.Chat:
+            if (!disableChat)
+                chatView.AddChatMessage(MiaoNetChatText.CreatePublicChat(packet.DateTime, player!, packet.Content));
+            break;
+        case ChatMessageType.Server:
             chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.DateTime, packet.Content));
-        else if (packet.Type == ChatMessageType.PrivateMessage)
-            chatView.AddChatMessage(MiaoNetChatText.CreatePrivateChat(packet.DateTime, player!, packet.Content));
-        else if (packet.Type == ChatMessageType.ServerChat)
+            break;
+        case ChatMessageType.PrivateMessage:
+            if (!disableChat)
+                chatView.AddChatMessage(MiaoNetChatText.CreatePrivateChat(packet.DateTime, player!, packet.Content));
+            break;
+        case ChatMessageType.ServerChat:
             chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.DateTime, packet.Content));
+            break;
+        }
     }
 
     public override void Update()
@@ -133,9 +143,16 @@ public sealed class ChatComponent : MiaoNetComponent
                 {
                     history.Add(trimmedText);
                     if (!trimmedText.StartsWith(CommandParser.CommandPrefix))
-                        SendChat(trimmedText);
+                    {
+                        if (!MiaoNetModule.Settings.LiveMode)
+                            SendChat(trimmedText);
+                        else
+                            TipErrorMessage(Dialog.Get("miaonet_chat_disabled"));
+                    }
                     else
+                    {
                         HandleCommand(trimmedText);
+                    }
                 }
                 Deactivate();
                 return;
