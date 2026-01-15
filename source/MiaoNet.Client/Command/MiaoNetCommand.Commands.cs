@@ -123,14 +123,14 @@ partial class MiaoNetCommand
         if (Engine.Scene is Level level)
         {
             // TODO tell player that this action will lose their current progress
-            level.DoScreenWipe(false, () => GotoAndTip(areaKey, loc.MapRoom, context, player.Info.Name));
+            level.DoScreenWipe(false, () => GotoAndTip(context, player.Info.Name, areaKey, loc.MapRoom));
         }
         else
         {
-            GotoAndTip(areaKey, loc.MapRoom, context, player.Info.Name);
+            GotoAndTip(context, player.Info.Name, areaKey, loc.MapRoom);
         }
 
-        static void GotoAndTip(AreaKey areaKey, string mapRoom, Context context, string playerName)
+        static void GotoAndTip(Context context, string playerName, AreaKey areaKey, string mapRoom)
         {
             SaveData.InitializeDebugMode();
             SaveData.Instance.LastArea_Safe = areaKey;
@@ -174,29 +174,31 @@ partial class MiaoNetCommand
             }
 
             var sessionData = response.Session;
-            Session session = sessionData.CreateSession(areaKey, loc.MapRoom);
             if (Engine.Scene is Level level)
             {
                 // TODO tell player that this action will lose their current progress
                 level.DoScreenWipe(false, () =>
                 {
-                    GotoAndTip(context, player.Info.Name, sessionData.Position, session);
+                    GotoAndTip(context, player.Info.Name, areaKey, loc.MapRoom, sessionData);
                 });
             }
             else
             {
-                GotoAndTip(context, player.Info.Name, sessionData.Position, session);
+                GotoAndTip(context, player.Info.Name, areaKey, loc.MapRoom, sessionData);
             }
 
-            static void GotoAndTip(Context context, string playerName, Vector2 position, Session session)
+            static void GotoAndTip(Context context, string playerName, AreaKey areaKey, string mapRoom, PlayerSessionData sessionData)
             {
                 SaveData.InitializeDebugMode();
-                SaveData.Instance.LastArea_Safe = session.Area;
+                SaveData.Instance.LastArea_Safe = areaKey;
+
+                var session = sessionData.CreateSession(areaKey, mapRoom);
+
                 Engine.Scene = new LevelLoader(session)
                 {
                     PlayerIntroTypeOverride = Player.IntroTypes.Respawn,
                 };
-                MiaoNetModule.NextPlayerSpawnPosition = position;
+                MiaoNetModule.NextPlayerSpawnPosition = sessionData.Position;
 
                 context.TipMessage(Dialog.Get("miaonet_commands_teleport_success").Replace("(0)", playerName));
             }
