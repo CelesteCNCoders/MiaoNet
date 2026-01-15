@@ -45,8 +45,11 @@ public static class SpeedrunToolCompat
         {
             var curScene = Engine.Scene;
             var entity = (Entity)obj;
-            entity.RemoveSelf();
-            curScene.Add(entity);
+            if (entity is not GhostNameTag)
+            {
+                entity.RemoveSelf();
+                curScene.Add(entity);
+            }
             return obj;
         }
         return null;
