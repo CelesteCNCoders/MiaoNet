@@ -159,8 +159,8 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
                     break;
             }
         }
-        catch (SocketException e)
-        when (e.SocketErrorCode is SocketError.ConnectionReset or SocketError.ConnectionAborted)
+        catch (IOException ioe)
+        when (ioe.InnerException is SocketException { SocketErrorCode: SocketError.ConnectionReset or SocketError.ConnectionAborted } e)
         {
             logger.LogInformation(AppEvents.Connection, "Connection aborted, id {id}.", ID);
             await pipeWriter.CompleteAsync();
