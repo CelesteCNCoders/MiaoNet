@@ -86,7 +86,18 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
 
     public void ApplyFollowersDeltas(FollowerInfoDelta[] followersDeltas)
     {
-        for (int i = 0; i < FollowerInfos.Length; i++)
+        if (followersDeltas.Length != FollowerInfos.Length)
+        {
+            throw new ArgumentException(
+                string.Format(
+                    SR.DeltasLengthMismatch,
+                    followersDeltas.Length,
+                    FollowerInfos.Length
+                ),
+                nameof(followersDeltas)
+            );
+        }
+        for (int i = 0; i < followersDeltas.Length; i++)
         {
             var fi = FollowerInfos[i];
             var d = followersDeltas[i];

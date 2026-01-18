@@ -18,4 +18,6 @@ internal static class SR
         = "Packet id {0} read finished but left {1} bytes not read.";
     public const string HasDataLeft
         = "Object {0} read finished but left {1} bytes not read.";
+    public const string DeltasLengthMismatch
+        = "Length of deltas {0} mismatched length {1}.";
 }
