@@ -20,6 +20,8 @@ partial class MiaoNetContext
     public event Action<OnlinePlayer, PacketPlayerStateFlags.StateFlags>? PlayerStateFlagsNotification;
     public event Action<OnlinePlayer, PlayerOnlineStatus>? PlayerOnlineStatusChanged;
     public event Action? PingDataReceived;
+    public event Action<OnlinePlayer, Vector2?>? PlayerGrabPlayer;
+    public event Action<OnlinePlayer>? PlayerGrabJumpOut;
 
     private void RegisterPacketHandlers(PacketHandlerRegister r)
     {
@@ -37,6 +39,8 @@ partial class MiaoNetContext
         r.Register<PacketBeTeleportedRequest>(HandlePacket);
         r.Register<PacketPingData>(HandlePacket);
         r.Register<PacketDisconnected>(HandlePacket);
+        r.Register<PacketPlayerGrabPlayer>(HandlePacket);
+        r.Register<PacketPlayerGrabJumpOut>(HandlePacket);
     }
 
     private void HandlePacket(PacketDisconnected packet)
@@ -73,6 +77,7 @@ partial class MiaoNetContext
             state.Position = p.Position;
             state.Dashing = p.Dashing;
             state.FacingLeft = p.FacingLeft;
+            state.Interactions = p.Interactions;
 
             if (p.HasFollowerInitials)
                 state.ApplyFollowersInitials(p.FollowerInitials);
@@ -199,5 +204,17 @@ partial class MiaoNetContext
             if (ClientState.TryGetPlayerOrSelf(playerID, out var player))
                 player.LastPing = ping;
         PingDataReceived?.Invoke();
+    }
+
+    private void HandlePacket(PacketPlayerGrabPlayer packet)
+    {
+        EnsureState();
+        PlayerGrabPlayer?.Invoke(ClientState.GetPlayer(packet.PlayerID), packet.IsRelease ? packet.Force : null);
+    }
+
+    private void HandlePacket(PacketPlayerGrabJumpOut packet)
+    {
+        EnsureState();
+        PlayerGrabJumpOut?.Invoke(ClientState.GetPlayer(packet.PlayerID));
     }
 }

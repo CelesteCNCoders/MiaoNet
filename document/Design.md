@@ -49,3 +49,13 @@ Server 端的并发控制相关问题尽可能会使用乐观并发控制. 在�
 > Icon 是否也需要 Report?
 
 地图的 SID -> Dialog 名字客户端可以向服务器汇报, 实际发给玩家/展示在服务器后台的会是其中最高被汇报次数的名字(可能有人自己改图名)
+
+## Player Interactions
+
+> 以下假设双方均开启了 `玩家交互` 这一选项
+
+`MiaoNetGhost` 具有 Holdable, 当 Main 检测到玩家(A)这一帧抓起了其他玩家(B)的实体后发送 `PacketPlayerGrabPlayer`(携带抓取的目标玩家(B) id),
+服务器然后告知目标玩家(B)被 A 抓取, 此后 A 会忽略 B 的位置, B 会将自己的位置设置为 A 的位置加上 A 的抓取偏移.  
+B 可以在被抓取时按下跳来跳开这个抓取, 此时会发送 `PacketPlayerGrabJumpOut`(携带抓取其的玩家的 id) 告知另一个玩家停止抓取.
+
+> 然后还有大量 edge case 和又双叒叕是 SL 的问题...

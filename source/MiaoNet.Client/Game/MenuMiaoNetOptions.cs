@@ -158,6 +158,11 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
 
         item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_player_interactions"), settings.PlayerInteractions
+        ).Change(v => settings.PlayerInteractions = v);
+        menu.Add(item);
+
+        item = new TextMenu.OnOff(
             Dialog.Get("miaonet_options_live_mode"), settings.LiveMode
         ).Change(v => settings.LiveMode = v);
         menu.Add(item);

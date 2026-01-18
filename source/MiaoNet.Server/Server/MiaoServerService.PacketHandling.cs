@@ -19,6 +19,8 @@ public sealed partial class MiaoServerService
         r.Register<PacketUpdateOnlineStatus>(HandlePacketAsync);
         r.Register<PacketTeleportRequest>(HandlePacketAsync);
         r.Register<PacketSendPrivateChatMessage>(HandlePacketAsync);
+        r.Register<PacketPlayerGrabPlayer>(HandlePacketAsync);
+        r.Register<PacketPlayerGrabJumpOut>(HandlePacketAsync);
     }
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerFrame packet)
@@ -48,6 +50,8 @@ public sealed partial class MiaoServerService
             state.ApplyFollowersDeltas(packet.FollowerDeltas);
         if (packet.HasWindDirection)
             state.WindDirection = packet.WindDirection;
+        if (packet.HasHoldable)
+            state.ApplyHoldableInfo(packet.HoldableInfo);
 
         await BroadcastContextuallyToOthersAsync(
             new PacketContextualPlayerNotification<PacketPlayerFrame>(connection.ID, packet),
@@ -311,5 +315,23 @@ public sealed partial class MiaoServerService
                 new(DateTime.UtcNow, PacketSendPrivateChatMessageResponse.SendResult.NoSuchPlayer)
             );
         }
+    }
+
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerGrabPlayer packet)
+    {
+        if (!ServerState.AllPlayers.TryGetValue(packet.PlayerID, out var p))
+            return;
+        if (p.Player.OnlineStatus != PlayerOnlineStatus.Normal)
+            return;
+        PacketPlayerGrabPlayer send = packet.IsRelease ? new(connection.ID, packet.Force) : new(connection.ID);
+        await p.Connection.QueuePacketAsync(send);
+    }
+
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerGrabJumpOut packet)
+    {
+        if (!ServerState.AllPlayers.TryGetValue(packet.PlayerID, out var p))
+            return;
+        PacketPlayerGrabJumpOut send = new(connection.ID);
+        await p.Connection.QueuePacketAsync(send);
     }
 }

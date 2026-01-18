@@ -7,7 +7,7 @@ public sealed class GhostRenderLayerEntity : Entity
     public GhostRenderLayerEntity(bool isHigh)
     {
         Tag |= Tags.Global | Tags.PauseUpdate | Tags.TransitionUpdate | Tags.FrozenUpdate | Tags.Persistent;
-        Depth = isHigh ? Depths.Top : Depths.Player + 1;
+        Depth = isHigh ? Depths.Top : Depths.Player;
         this.isHigh = isHigh;
     }
 

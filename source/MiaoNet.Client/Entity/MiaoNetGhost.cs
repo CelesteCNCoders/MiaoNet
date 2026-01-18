@@ -26,12 +26,19 @@ public sealed class MiaoNetGhost : Entity
     private float deadEase;
     private bool dead;
     private bool starFlying;
+    private bool ducking;
+    // TODO sync hitbox size?
+    private readonly Hitbox normalHitbox = new Hitbox(8f, 11f, -4f, -11f);
+    private readonly Hitbox duckHitbox = new Hitbox(8f, 6f, -4f, -6f);
+    private Hitbox hitbox;
+    private readonly Holdable selfHoldable;
 
     private Vector2 windDirection;
     private float windHairTimer;
 
     private HoldableType lastHoladableType;
     private Sprite? holdableSprite;
+    private Vector2? holdableOffset;
 
     private IdleHover? idleHover;
 
@@ -40,9 +47,21 @@ public sealed class MiaoNetGhost : Entity
     private readonly ParticleType pDashA;
     private readonly ParticleType pDashB;
 
-    public OnlinePlayer Player { get; set; }
+    public OnlinePlayer Player { get; }
 
-    public string Name { get; set; }
+    public string Name { get; }
+
+    public bool Interactions { get; private set; }
+
+    public bool BeingHeldLocally => selfHoldable.Holder is not null;
+
+    public Vector2? HoldableOffset => holdableOffset;
+
+    public Facings Facing => facing;
+
+    public bool Dead => dead;
+
+    public Vector2 LastReleaseForce { get; private set; }
 
     [AllowNull]
     public PlayerGraphicsInfo GraphicsInfo
@@ -54,7 +73,7 @@ public sealed class MiaoNetGhost : Entity
     public MiaoNetGhost(
         OnlinePlayer player,
         string name,
-        [AllowNull] PlayerGraphicsInfo playerGraphicsInfo,
+        PlayerGraphicsInfo? playerGraphicsInfo,
         PlayerState initialState
     )
     {
@@ -75,7 +94,7 @@ public sealed class MiaoNetGhost : Entity
         Add(playerHair);
 
         Add(playerSprite);
-        nameTag = new(this);
+        nameTag = new(this, name);
         playerHair.Start();
 
         ApplyState(initialState);
@@ -88,6 +107,20 @@ public sealed class MiaoNetGhost : Entity
 
         if (player.OnlineStatus != PlayerOnlineStatus.Normal)
             OnUpdateOnlineStatus(player.OnlineStatus);
+
+        selfHoldable = new(1f / 3f)
+        {
+            SlowRun = false,
+            SlowFall = false,
+            OnPickup = () => Depth = selfHoldable!.Entity.Depth + 1,
+            OnRelease = f =>
+            {
+                if (f.X != 0f)
+                    f.Y -= 0.4f;
+                LastReleaseForce = f;
+            }
+        };
+        Add(selfHoldable);
     }
 
     public override void Update()
@@ -203,6 +236,7 @@ public sealed class MiaoNetGhost : Entity
 
     #region state updates
 
+    [MemberNotNull(nameof(hitbox))]
     public void ApplyState(PlayerState state)
     {
         if (playerSprite.Mode != state.PlayerSpriteMode)
@@ -227,6 +261,8 @@ public sealed class MiaoNetGhost : Entity
         windDirection = state.WindDirection;
         UpdateFacing(state.FacingLeft);
         OnFollowerInitials(state.FollowerInfos);
+        UpdateDucking(state.Ducking);
+        UpdateWind(state.WindDirection);
     }
 
     private static PlayerSprite SafeCreatePlayerSprite(PlayerSpriteMode spriteMode)
@@ -342,6 +378,8 @@ public sealed class MiaoNetGhost : Entity
     public void OnDied()
     {
         dead = true;
+        selfHoldable.Holder?.Drop();
+        Collidable = false;
         playerSprite.Visible = playerHair.Visible = false;
         if (Scene is Level level)
         {
@@ -357,6 +395,7 @@ public sealed class MiaoNetGhost : Entity
     {
         respawning = true;
         deadEase = 1f;
+        Collidable = true;
         var tween = Tween.Set(this, Tween.TweenMode.Oneshot, 0.6f, null,
             t =>
             {
@@ -421,14 +460,24 @@ public sealed class MiaoNetGhost : Entity
         return;
     }
 
-    public void UpdateSimpleHoldable(HoldableType type)
+    public void UpdateSimpleHoldable(HoldableType type, Vector2? offset)
     {
         PrepareHoldableSprite(type);
+        if (offset is not null)
+        {
+            holdableOffset = offset;
+            holdableSprite?.Position = holdableOffset.Value;
+        }
     }
 
-    public void UpdateHoldable(HoldableType type, string? anim, ushort animFrame, Vector2 scale, float rotation)
+    public void UpdateHoldable(HoldableType type, Vector2? offset, string? anim, ushort animFrame, Vector2 scale, float rotation)
     {
         PrepareHoldableSprite(type);
+        if (offset is not null)
+        {
+            holdableOffset = offset;
+            holdableSprite?.Position = holdableOffset.Value;
+        }
 
         if (type == HoldableType.Jelly)
         {
@@ -441,7 +490,21 @@ public sealed class MiaoNetGhost : Entity
 
     public void UpdateWind(Vector2 wind)
     {
-        this.windDirection = wind;
+        windDirection = wind;
+    }
+
+    [MemberNotNull(nameof(hitbox))]
+    public void UpdateDucking(bool ducking)
+    {
+        this.ducking = ducking;
+        hitbox = ducking ? duckHitbox : normalHitbox;
+        Collider = hitbox;
+    }
+
+    public void UpdateInteractions(bool interactions)
+    {
+        Interactions = interactions;
+        UpdateCollidable();
     }
 
     public void OnUpdateOnlineStatus(PlayerOnlineStatus status)
@@ -449,15 +512,23 @@ public sealed class MiaoNetGhost : Entity
         if (status == PlayerOnlineStatus.Normal)
         {
             playerHair.Active = true;
-            idleHover?.RemoveSelf();
+            if (idleHover is not null)
+                Scene?.CompletelyRemove(idleHover);
             idleHover = null;
+            UpdateCollidable();
         }
         else
         {
             playerHair.Active = false;
             idleHover = new(this);
             Scene?.Add(idleHover);
+            UpdateCollidable();
         }
+    }
+
+    private void UpdateCollidable()
+    {
+        Collidable = Interactions && MiaoNetModule.Settings.PlayerInteractions && Player.OnlineStatus == PlayerOnlineStatus.Normal;
     }
 
     private void PrepareHoldableSprite(HoldableType type)
@@ -479,8 +550,6 @@ public sealed class MiaoNetGhost : Entity
         {
             return;
         }
-        // TODO pick-up animation
-        holdableSprite!.Position = global::Celeste.Player.CarryOffsetTarget;
         holdableSprite.Active = holdableSprite.Visible = false;
         lastHoladableType = type;
     }

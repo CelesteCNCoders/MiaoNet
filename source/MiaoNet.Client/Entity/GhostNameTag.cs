@@ -18,11 +18,12 @@ public sealed class GhostNameTag : Entity
     public GhostNameTag(Player player, string name)
         : this((Entity)player, name)
     {
+        Tag |= Tags.Persistent | Tags.TransitionUpdate | Tags.FrozenUpdate | Tags.PauseUpdate | Tags.Global;
         IsOnSelf = true;
     }
 
-    public GhostNameTag(MiaoNetGhost ghost)
-        : this(ghost, ghost.Name)
+    public GhostNameTag(MiaoNetGhost ghost, string name)
+        : this((Entity)ghost, name)
     {
         IsOnSelf = false;
     }

@@ -29,6 +29,7 @@ miaonet_options_self_player_name_opacity= Self Name Opacity
 miaonet_options_player_name_opacity= Name Opacity
 
 miaonet_options_interactions= Interactions
+miaonet_options_player_interactions= Player Interactions
 miaonet_options_live_mode= Live Mode
 miaonet_options_live_mode_tip=
 	This will disable chat, block all chat messages and emotes from any players,

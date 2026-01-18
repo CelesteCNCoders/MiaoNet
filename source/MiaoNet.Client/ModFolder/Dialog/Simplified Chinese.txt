@@ -29,6 +29,7 @@ miaonet_options_self_player_name_opacity= 自身名称透明度
 miaonet_options_player_name_opacity= 名称透明度
 
 miaonet_options_interactions= 交互
+miaonet_options_player_interactions= 玩家交互
 miaonet_options_live_mode= 直播模式
 miaonet_options_live_mode_tip= 
 	这会禁用聊天，拒收来自任何玩家的聊天信息和 Emote，

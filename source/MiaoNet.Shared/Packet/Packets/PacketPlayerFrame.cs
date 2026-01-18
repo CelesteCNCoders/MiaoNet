@@ -18,7 +18,9 @@ public sealed class PacketPlayerFrame : IContextualPacket<PacketPlayerFrame>
         StarFlying = 1 << 4,
         HasFollowerInitials = 1 << 5,
         HasFollowerDeltas = 1 << 6,
-        HasWindDirection = 1 << 7
+        HasWindDirection = 1 << 7,
+        Interactions = 1 << 8,
+        Ducking = 1 << 9
     }
 
     #region flags
@@ -40,6 +42,10 @@ public sealed class PacketPlayerFrame : IContextualPacket<PacketPlayerFrame>
     public bool HasFollowerDeltas => Flags.HasFlag(FrameFlags.HasFollowerDeltas);
 
     public bool HasWindDirection => Flags.HasFlag(FrameFlags.HasWindDirection);
+
+    public bool Interactions => Flags.HasFlag(FrameFlags.Interactions);
+
+    public bool Ducking => Flags.HasFlag(FrameFlags.Ducking);
 
     #endregion
 

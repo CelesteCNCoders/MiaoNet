@@ -24,10 +24,10 @@ public sealed class ServerPlayer
 
     public int ID => Info.ID;
 
-    public ServerPlayer(ServerChannel channel, PlayerInfo info, PlayerLocation location)
+    public ServerPlayer(ServerChannel channel, PlayerInfo info)
     {
         Channel = channel;
         Info = info;
-        Location = location;
+        Location = PlayerLocation.Empty;
     }
 }

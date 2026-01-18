@@ -44,4 +44,7 @@ using MiaoNet.Shared;
     typeof(PacketPingData),
 
     typeof(PacketDisconnected),
+
+    typeof(PacketPlayerGrabPlayer),
+    typeof(PacketPlayerGrabJumpOut)
 ])]
