@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using FMOD.Studio;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework;
 using Monocle;
@@ -388,6 +389,8 @@ public sealed class MiaoNetGhost : Entity
             Add(new DeathEffect(playerHair.Color * alpha));
         }
         Depth = Depths.Top;
+        if (MiaoNetModule.Settings.SyncAudio)
+            PlayAudio(SFX.char_mad_death);
     }
 
     // TODO the respawned timing is not that accurate
@@ -410,6 +413,8 @@ public sealed class MiaoNetGhost : Entity
             }
         );
         tween.UseRawDeltaTime = true;
+        if (MiaoNetModule.Settings.SyncAudio)
+            PlayAudio(SFX.char_mad_revive);
     }
 
     // TODO start star flying sync?
@@ -587,6 +592,43 @@ public sealed class MiaoNetGhost : Entity
         scene.Remove(nameTag);
         idleHover?.RemoveSelf();
         CleanUpFollowers();
+    }
+
+    public void PlayAudio(string @event)
+        => PlayAudio(@event, null, 0f);
+
+    public void PlayAudio(string @event, string? param, float paramValue)
+    {
+        if (Scene is not Level level)
+            return;
+
+        float baseValue = MiaoNetModule.Settings.OtherPlayersAudioVolumeValue;
+
+        EventDescription eventDescription = Audio.GetEventDescription(@event);
+        if (eventDescription is null)
+            return;
+
+        eventDescription.createInstance(out var instance);
+
+        if (instance is null)
+            return;
+
+        eventDescription.is3D(out var is3D);
+
+        // TODO prevent this earlier server-side
+        if (!level.InsideCamera(Center, is3D ? 128f : 64f))
+            return;
+
+        if (is3D)
+            Audio.Position(instance, Center);
+
+        instance.setVolume(baseValue);
+
+        if (param is not null)
+            instance.setParameterValue(param, paramValue);
+
+        instance.start();
+        instance.release();
     }
 
     public void GhostRender()

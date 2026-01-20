@@ -80,6 +80,16 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     #endregion
 
+    #region Audio
+
+    public bool SyncAudio { get; set; } = true;
+
+    public int OtherPlayersAudioVolume { get; set; } = 5;
+
+    [YamlIgnore] public float OtherPlayersAudioVolumeValue => OtherPlayersAudioVolume / 10f;
+
+    #endregion
+
     #region Interactions
 
     public bool PlayerInteractions { get; set; }

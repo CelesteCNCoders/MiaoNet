@@ -26,10 +26,12 @@ public sealed partial class MainComponent : MiaoNetComponent
         context.PlayerMapChangeResponded += Context_PlayerMapChangeResponded;
         context.PlayerStateFlagsNotification += Context_PlayerStateFlagsNotification;
         context.PlayerOnlineStatusChanged += Context_PlayerOnlineStatusChanged;
+        context.PlayerAudioPlayed += Context_PlayerAudioPlayed;
         context.PlayerGrabPlayer += Context_PlayerGrabPlayer;
         context.PlayerGrabJumpOut += Context_PlayerGrabJumpOut;
 
         MiaoNetModule.PlayerLocationChanged += MiaoNetModule_OnPlayerLocationChanged;
+        MiaoNetModule.PlayerSoundPlayed += MiaoNetModule_PlayerSoundPlayed;
         Everest.Events.Player.OnDie += Player_OnDie;
         Everest.Events.Player.OnSpawn += Player_OnSpawn;
     }
@@ -83,6 +85,22 @@ public sealed partial class MainComponent : MiaoNetComponent
             PacketPlayerStateFlags packet = new(PacketPlayerStateFlags.StateFlags.PlayerRespawning);
             context.QueuePacket(packet);
         }
+    }
+
+    private void Context_PlayerAudioPlayed(OnlinePlayer player, PlayerPlayedAudio audio)
+    {
+        // TODO check this packet is sent "legally" server-side
+        // TODO and also, we need to introduce player global settings
+        if (!ghosts.TryGetValue(player.ID, out var ghost))
+        {
+            Logger.Warn(LT.MiaoNet, $"Received player {player.Info} played audio {audio.Event} but no ghost found.");
+            return;
+        }
+
+        if (audio.HasParam)
+            ghost.PlayAudio(audio.Event, audio.Param, audio.ParamValue);
+        else
+            ghost.PlayAudio(audio.Event);
     }
 
     public override void Update()
@@ -390,6 +408,13 @@ public sealed partial class MainComponent : MiaoNetComponent
             PacketPlayerMapRoomChanged p = new(location.MapRoom);
             context.QueuePacket(p);
         }
+    }
+
+    private void MiaoNetModule_PlayerSoundPlayed(string sound, string? param, float value)
+    {
+        if (!HasState)
+            return;
+        context.QueuePacket(new PacketPlayerPlayedAudio(new(sound, param, value)));
     }
 
     private void Context_PlayerLeft(OnlinePlayer player)

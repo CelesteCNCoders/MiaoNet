@@ -19,6 +19,7 @@ public sealed partial class MiaoServerService
         r.Register<PacketUpdateOnlineStatus>(HandlePacketAsync);
         r.Register<PacketTeleportRequest>(HandlePacketAsync);
         r.Register<PacketSendPrivateChatMessage>(HandlePacketAsync);
+        r.Register<PacketPlayerPlayedAudio>(HandlePacketAsync);
         r.Register<PacketPlayerGrabPlayer>(HandlePacketAsync);
         r.Register<PacketPlayerGrabJumpOut>(HandlePacketAsync);
     }
@@ -333,5 +334,11 @@ public sealed partial class MiaoServerService
             return;
         PacketPlayerGrabJumpOut send = new(connection.ID);
         await p.Connection.QueuePacketAsync(send);
+    }
+
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerPlayedAudio packet)
+    {
+        var p = new PacketContextualPlayerNotification<PacketPlayerPlayedAudio>(connection.ID, packet);
+        await BroadcastContextuallyToOthersAsync(p, c => c.PlayerShouldSyncFrom(connection), connection.ID);
     }
 }

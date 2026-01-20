@@ -39,6 +39,14 @@ miaonet_options_live_mode_tip=
 miaonet_options_player_list_button_mode= Player List Showing Mode
 miaonet_options_player_list_button_mode_press= Press
 miaonet_options_player_list_button_mode_hold= Hold
+
+miaonet_options_audio= Audio
+miaonet_options_sync_audio= Sync Audio
+miaonet_options_sync_audio_tip= 
+	This sends locally played audio to other players
+	and also plays audio received from other players.
+
+miaonet_options_interactions= Interactions
 miaonet_options_teleport_behaviour= Teleport Command Behaviour
 miaonet_options_teleport_behaviour_nosession= Map and room only
 miaonet_options_teleport_behaviour_withsession= Request other's session

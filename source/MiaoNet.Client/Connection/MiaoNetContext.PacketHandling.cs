@@ -20,6 +20,7 @@ partial class MiaoNetContext
     public event Action<OnlinePlayer, PacketPlayerStateFlags.StateFlags>? PlayerStateFlagsNotification;
     public event Action<OnlinePlayer, PlayerOnlineStatus>? PlayerOnlineStatusChanged;
     public event Action? PingDataReceived;
+    public event Action<OnlinePlayer, PlayerPlayedAudio>? PlayerAudioPlayed;
     public event Action<OnlinePlayer, Vector2?>? PlayerGrabPlayer;
     public event Action<OnlinePlayer>? PlayerGrabJumpOut;
 
@@ -41,6 +42,7 @@ partial class MiaoNetContext
         r.Register<PacketDisconnected>(HandlePacket);
         r.Register<PacketPlayerGrabPlayer>(HandlePacket);
         r.Register<PacketPlayerGrabJumpOut>(HandlePacket);
+        r.Register<PacketContextualPlayerNotification<PacketPlayerPlayedAudio>>(HandlePacket);
     }
 
     private void HandlePacket(PacketDisconnected packet)
@@ -216,5 +218,11 @@ partial class MiaoNetContext
     {
         EnsureState();
         PlayerGrabJumpOut?.Invoke(ClientState.GetPlayer(packet.PlayerID));
+    }
+
+    private void HandlePacket(PacketContextualPlayerNotification<PacketPlayerPlayedAudio> packet)
+    {
+        EnsureState();
+        PlayerAudioPlayed?.Invoke(ClientState.GetPlayer(packet.PlayerID), packet.Packet.PlayerPlayedAudio);
     }
 }

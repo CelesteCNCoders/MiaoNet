@@ -152,6 +152,17 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.NameOpacity = v);
         menu.Add(item);
 
+        // -- Audio --
+
+        item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_audio"));
+        menu.Add(item);
+
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_sync_audio"), settings.SyncAudio
+        ).Change(v => settings.SyncAudio = v);
+        menu.Add(item);
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_sync_audio_tip"));
+
         // -- Interactions --
 
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_interactions"));

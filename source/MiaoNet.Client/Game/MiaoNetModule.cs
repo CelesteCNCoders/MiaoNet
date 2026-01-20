@@ -37,6 +37,9 @@ public sealed class MiaoNetModule : EverestModule
     public delegate void PlayerLocationChangedHandler(PlayerLocation location, bool forceFullChange);
     public static event PlayerLocationChangedHandler? PlayerLocationChanged;
 
+    public delegate void PlayerSoundPlayedHandler(string sound, string? param, float value);
+    public static event PlayerSoundPlayedHandler? PlayerSoundPlayed;
+
     public MiaoNetModule()
     {
     }
@@ -59,6 +62,7 @@ public sealed class MiaoNetModule : EverestModule
             On.Celeste.Overworld.Begin += Overworld_Begin;
             On.Celeste.Player.Added += Player_Added;
             Everest.Events.LevelLoader.OnLoadingThread += LevelLoader_OnLoadingThread;
+            On.Celeste.Player.Play += Player_Play;
         }
         using (new DetourConfigContext(RootBeforeAllConfig).Use())
         {
@@ -91,6 +95,7 @@ public sealed class MiaoNetModule : EverestModule
         On.Celeste.Overworld.Begin -= Overworld_Begin;
         On.Celeste.Player.Added -= Player_Added;
         Everest.Events.LevelLoader.OnLoadingThread -= LevelLoader_OnLoadingThread;
+        On.Celeste.Player.Play -= Player_Play;
 
         On.Celeste.PlayerSprite.ctor -= PlayerSprite_ctor;
 
@@ -138,6 +143,12 @@ public sealed class MiaoNetModule : EverestModule
             self.Position = NextPlayerSpawnPosition.Value;
             NextPlayerSpawnPosition = null;
         }
+    }
+
+    private static EventInstance Player_Play(On.Celeste.Player.orig_Play orig, Player self, string sound, string? param, float value)
+    {
+        PlayerSoundPlayed?.Invoke(sound, param, value);
+        return orig(self, sound, param, value);
     }
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot)
