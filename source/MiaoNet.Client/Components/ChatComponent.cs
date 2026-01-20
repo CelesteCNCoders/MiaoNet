@@ -25,7 +25,6 @@ public sealed class ChatComponent : MiaoNetComponent
 
     private float lastMouseScrollWheelValue;
 
-    private bool previousCommandsEnabled = false;
     private bool previousScenePaused = false;
     private readonly PauseUpdateOverlay dummyOverlay;
 
@@ -276,7 +275,6 @@ public sealed class ChatComponent : MiaoNetComponent
         inputBox.Activate();
         chatView.Active = true;
         previousCommandsEnabled = Engine.Commands.Enabled;
-        Engine.Commands.Enabled = false;
         previousScenePaused = Engine.Scene.Paused;
         Engine.Scene.Paused = true;
 
@@ -292,7 +290,6 @@ public sealed class ChatComponent : MiaoNetComponent
         chatView.Active = false;
         targetChatViewScroll = 0f;
         chatView.Scroll = 0f;
-        Engine.Commands.Enabled = previousCommandsEnabled;
         Engine.Scene.Paused = previousScenePaused;
 
         if (Engine.Scene is Level level)
