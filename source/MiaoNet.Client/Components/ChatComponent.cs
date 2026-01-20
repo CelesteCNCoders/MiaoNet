@@ -127,7 +127,8 @@ public sealed class ChatComponent : MiaoNetComponent
         else
         {
             Engine.Scene.Paused = true;
-            // force close console each frame to prevent conflicts with mods like ImGuiHelper
+            // force close console every frame to prevent conflicts with mods like ImGuiHelper
+            // (as they enable the console every frame)
             Engine.Commands.Open = false;
 
             if (MInput.Keyboard.Pressed(Keys.Escape))
