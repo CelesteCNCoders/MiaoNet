@@ -19,7 +19,7 @@ partial class MainComponent
     private static void OnHeldByPlayerFrame(Level level, MiaoNetGhost ghost)
     {
         var player = level.Tracker.GetEntity<Player>();
-        player?.Position = ghost.Position + ghost.HoldableOffset!.Value;
+        player?.Position = Calc.Round(ghost.Position + ghost.HoldableOffset!.Value);
     }
 
     private static void OnHeldBy(Player? player)
