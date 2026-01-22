@@ -390,7 +390,7 @@ public sealed class MiaoNetGhost : Entity
         }
         Depth = Depths.Top;
         if (MiaoNetModule.Settings.SyncAudio)
-            PlayAudio(SFX.char_mad_death);
+            OnPlayAudio(SFX.char_mad_death);
     }
 
     // TODO the respawned timing is not that accurate
@@ -414,7 +414,7 @@ public sealed class MiaoNetGhost : Entity
         );
         tween.UseRawDeltaTime = true;
         if (MiaoNetModule.Settings.SyncAudio)
-            PlayAudio(SFX.char_mad_revive);
+            OnPlayAudio(SFX.char_mad_revive);
     }
 
     // TODO start star flying sync?
@@ -594,12 +594,12 @@ public sealed class MiaoNetGhost : Entity
         CleanUpFollowers();
     }
 
-    public void PlayAudio(string @event)
-        => PlayAudio(@event, null, 0f);
+    public void OnPlayAudio(string @event)
+        => OnPlayAudio(@event, null, 0f);
 
-    public void PlayAudio(string @event, string? param, float paramValue)
+    public void OnPlayAudio(string @event, string? param, float paramValue)
     {
-        if (Scene is not Level level)
+        if (Scene is not Level level || level.Paused)
             return;
 
         float baseValue = MiaoNetModule.Settings.OtherPlayersAudioVolumeValue;

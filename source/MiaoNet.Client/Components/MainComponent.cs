@@ -97,9 +97,9 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
 
         if (audio.HasParam)
-            ghost.PlayAudio(audio.Event, audio.Param, audio.ParamValue);
+            ghost.OnPlayAudio(audio.Event, audio.Param, audio.ParamValue);
         else
-            ghost.PlayAudio(audio.Event);
+            ghost.OnPlayAudio(audio.Event);
     }
 
     public override void Update()
