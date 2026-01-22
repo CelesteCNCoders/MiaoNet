@@ -274,7 +274,6 @@ public sealed class ChatComponent : MiaoNetComponent
         historyIndex = history.Count;
         inputBox.Activate();
         chatView.Active = true;
-        previousCommandsEnabled = Engine.Commands.Enabled;
         previousScenePaused = Engine.Scene.Paused;
         Engine.Scene.Paused = true;
 
