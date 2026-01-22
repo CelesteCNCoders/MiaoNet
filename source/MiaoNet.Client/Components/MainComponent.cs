@@ -56,7 +56,6 @@ public sealed partial class MainComponent : MiaoNetComponent
     {
         if (!HasState)
             return;
-        CleanUpHeldBy(player, null);
         CleanUpInteractions();
         var state = ClientState.SelfState!;
         if (!state.Dead)

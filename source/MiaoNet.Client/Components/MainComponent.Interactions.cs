@@ -4,13 +4,15 @@ namespace Celeste.Mod.MiaoNet;
 
 partial class MainComponent
 {
-    private MiaoNetGhost? heldPlayerGhost;
+    private MiaoNetGhost? holdingPlayerGhost;
     private MiaoNetGhost? heldByPlayerGhost;
 
     private void CleanUpInteractions()
     {
-        CleanUpHeldBy(Engine.Scene.Tracker.GetEntity<Player>(), null);
-        heldPlayerGhost = null;
+        Player? player = Engine.Scene.Tracker.GetEntity<Player>();
+        if (player?.Holding?.Entity is MiaoNetGhost)
+            CleanUpHeldBy(player, null);
+        holdingPlayerGhost = null;
         heldByPlayerGhost = null;
     }
 
@@ -32,16 +34,13 @@ partial class MainComponent
         player.Sprite.Play("idle", true);
     }
 
-    private void CleanUpHeldBy(Player? player, Vector2? force)
+    private void CleanUpHeldBy(Player player, Vector2? force)
     {
-        if (player is not null)
-        {
-            player.StateMachine.State = Player.StNormal;
-            if (force is not null)
-                player.Speed = force.Value * 296f;
-            player.Collidable = true;
-        }
         heldByPlayerGhost = null;
+        player.StateMachine.State = Player.StNormal;
+        if (force is not null)
+            player.Speed = force.Value * 296f;
+        player.Collidable = true;
     }
 
     private void UpdateInteractions(Level level, Player player)
@@ -54,9 +53,10 @@ partial class MainComponent
         MiaoNetGhost? holdingGhost = null;
         if (player.Holding?.Entity is MiaoNetGhost ghost)
         {
-            if (heldByPlayerGhost == ghost)
+            if (heldByPlayerGhost == ghost || level.Paused)
             {
                 // we're holding the one who were holding us, don't do this
+                // or it's paused now, force drop too
                 player.Drop();
             }
             else
@@ -69,26 +69,22 @@ partial class MainComponent
             }
         }
 
-        // we're paused, don't be held by or hold someone
-        if (level.Paused)
-        {
-            player.Drop();
-            CleanUpHeldBy(player, null);
-        }
-
-        // we're being held
+        // if we're being held
         if (heldByPlayerGhost is not null)
         {
-            // other player is dead or went to another map or disconnected or paused
+            // other player is (dead) or (went to another map) or (disconnected) or (paused)
+            // or the level is paused
             if (heldByPlayerGhost is { Dead: true }
                 or { Scene: null }
                 or not { Player.OnlineStatus: PlayerOnlineStatus.Normal }
+                || level.Paused
             )
             {
                 CleanUpHeldBy(player, null);
             }
             else if (!level.Paused && Input.Jump.Pressed)
             {
+                // level is not paused and we pressed jump
                 // jump out
                 Input.Jump.ConsumePress();
                 context.QueuePacket(new PacketPlayerGrabJumpOut(heldByPlayerGhost.Player.ID));
@@ -101,14 +97,14 @@ partial class MainComponent
         MiaoNetGhost? curHeldPlayerGhost = null;
         if (holdingGhost is not null)
             curHeldPlayerGhost = holdingGhost;
-        if (curHeldPlayerGhost != heldPlayerGhost)
+        if (curHeldPlayerGhost != holdingPlayerGhost)
         {
-            SafeGuard.Assert(curHeldPlayerGhost is not null || heldPlayerGhost is not null);
+            SafeGuard.Assert(curHeldPlayerGhost is not null || holdingPlayerGhost is not null);
             if (curHeldPlayerGhost is not null)
                 context.QueuePacket(new PacketPlayerGrabPlayer(curHeldPlayerGhost.Player.ID)); // grab
-            else if (heldPlayerGhost is not null)
-                context.QueuePacket(new PacketPlayerGrabPlayer(heldPlayerGhost.Player.ID, heldPlayerGhost.LastReleaseForce)); // release
-            heldPlayerGhost = curHeldPlayerGhost;
+            else if (holdingPlayerGhost is not null)
+                context.QueuePacket(new PacketPlayerGrabPlayer(holdingPlayerGhost.Player.ID, holdingPlayerGhost.LastReleaseForce)); // release
+            holdingPlayerGhost = curHeldPlayerGhost;
         }
     }
 
@@ -140,7 +136,9 @@ partial class MainComponent
             // someone released us
             if (heldByPlayerGhost is not null && heldByPlayerGhost.Player.ID == player.ID)
             {
-                CleanUpHeldBy(level.Tracker.GetEntity<Player>(), force);
+                Player? playerEntity = level.Tracker.GetEntity<Player>();
+                if (playerEntity is not null)
+                    CleanUpHeldBy(playerEntity, force);
             }
         }
     }
@@ -151,7 +149,7 @@ partial class MainComponent
             return;
 
         // someone jumped out of our holding
-        if (player.ID == heldPlayerGhost?.Player.ID)
+        if (player.ID == holdingPlayerGhost?.Player.ID)
             level.Tracker.GetEntity<Player>()?.Drop();
     }
 
@@ -159,7 +157,7 @@ partial class MainComponent
     public override void Render()
     {
         MiaoNetFont.DrawOutline(
-            $"curHeld: {heldPlayerGhost?.Player.Info}\n" +
+            $"curHeld: {holdingPlayerGhost?.Player.Info}\n" +
             $"curHeldBy: {heldByPlayerGhost?.Player.Info}",
             new(0f, 150f),
             Vector2.Zero,
