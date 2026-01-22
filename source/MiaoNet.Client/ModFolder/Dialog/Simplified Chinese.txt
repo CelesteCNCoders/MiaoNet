@@ -48,6 +48,7 @@ miaonet_options_sync_audio= 同步音频
 miaonet_options_sync_audio_tip= 
 	这会将本地播放的音频发送给其他玩家，
 	同时也会播放来自其他玩家的音频
+miaonet_options_other_players_audio_volume= 其他玩家音频音量
 
 miaonet_options_interactions= 交互
 miaonet_options_emotes_count= Emote 数量

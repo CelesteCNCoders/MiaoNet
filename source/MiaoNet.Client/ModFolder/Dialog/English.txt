@@ -45,6 +45,7 @@ miaonet_options_sync_audio= Sync Audio
 miaonet_options_sync_audio_tip= 
 	This sends locally played audio to other players
 	and also plays audio received from other players.
+miaonet_options_other_players_audio_volume= Other Players Audio volume
 
 miaonet_options_interactions= Interactions
 miaonet_options_teleport_behaviour= Teleport Command Behaviour

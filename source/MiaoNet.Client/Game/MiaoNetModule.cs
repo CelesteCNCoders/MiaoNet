@@ -152,11 +152,8 @@ public sealed class MiaoNetModule : EverestModule
     }
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot)
-    {
-        MenuMiaoNetOptions.BuildMenu(menu, inGame);
-        MenuMiaoNetOptions.AddKeyBindingsSection(menu, inGame);
-    }
-
+        => MenuMiaoNetOptions.BuildMenu(menu, inGame);
+    
     private static void Engine_Update(ILContext il)
     {
         ILCursor cur = new(il);
@@ -234,17 +231,16 @@ public sealed class MiaoNetModule : EverestModule
             TextMenu options = new TextMenu();
             MenuMiaoNetOptions.BuildHeader(options);
             MenuMiaoNetOptions.BuildMenu(options, true);
-            const string ButtonBackAudio = SFX.ui_main_button_back;
             options.OnESC = (options.OnCancel = () =>
             {
-                Audio.Play(ButtonBackAudio);
+                Audio.Play(SFX.ui_main_button_back);
                 level.AllowHudHide = oldAllowHudHide;
                 level.Pause(returnIndex, minimal);
                 options.Close();
             });
             options.OnPause = () =>
             {
-                Audio.Play(ButtonBackAudio);
+                Audio.Play(SFX.ui_main_button_back);
                 level.AllowHudHide = oldAllowHudHide;
                 level.Paused = false;
                 options.Close();

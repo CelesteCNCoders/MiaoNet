@@ -32,7 +32,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public bool ConnectOnGameStart { get; set; }
 
-    // This should be an temporary option
+    // This should be a temporary option
     [YamlIgnore]
     public bool IgnoreCertRevocationStatus { get; set; }
 
@@ -45,6 +45,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     public bool OtherPlayersLight { get; set; } = false;
 
     #region UI
+
     public int PlayerListUIScale { get; set; } = 4;
 
     public int ChatUIScale { get; set; } = 4;
@@ -56,6 +57,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     public int IdleChatHeight { get; set; } = 4;
 
     public int ActiveChatHeight { get; set; } = 8;
+
     #endregion
 
     public int PlayerOpacity { get; set; } = 8;
@@ -63,6 +65,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     public int SelfNameOpacity { get; set; } = 8;
 
     public int NameOpacity { get; set; } = 8;
+
+    #region Calculated
 
     [YamlIgnore] public float PlayerListUIScaleValue => GetScaleValue(PlayerListUIScale);
 
@@ -77,6 +81,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     [YamlIgnore] public float ChatBackgroundOpacityValue => ChatBackgroundOpacity / 10f;
 
     [YamlIgnore] public float ChatTextOpacityValue => ChatTextOpacity / 10f;
+
+    #endregion
 
     #endregion
 
@@ -101,6 +107,12 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public TeleportBehaviour TeleportBehaviour { get; set; }
 
+    public int EmotesCount { get; set; } = 8;
+
+    public List<ButtonBinding> EmoteButtons { get; set; }
+
+    public List<string> Emotes { get; set; }
+
     #endregion
 
     #region Button Bindings
@@ -108,12 +120,6 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     public ButtonBinding ChatButton { get; set; }
 
     public ButtonBinding PlayerListButton { get; set; }
-
-    public int EmotesCount { get; set; } = 8;
-
-    public List<ButtonBinding> EmoteButtons { get; set; }
-
-    public List<string> Emotes { get; set; }
 
     #endregion
 

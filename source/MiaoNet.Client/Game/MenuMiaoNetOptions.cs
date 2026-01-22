@@ -171,6 +171,11 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
         item.AddDescription(menu, Dialog.Clean("miaonet_options_sync_audio_tip"));
 
+        item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_other_players_audio_volume"), 1, 10, settings.OtherPlayersAudioVolume
+        ).Change(v => settings.OtherPlayersAudioVolume = v);
+        menu.Add(item);
+
         #endregion
 
         #region Interactions
@@ -246,6 +251,8 @@ public static class MenuMiaoNetOptions
 
         //item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_chat"));
         //menu.Add(item);
+
+        AddKeyBindingsSection(menu, inGame);
     }
 
     public static void AddKeyBindingsSection(TextMenu menu, bool _)
