@@ -46,7 +46,7 @@ using MiaoNet.Shared;
     typeof(PacketDisconnected),
 
     typeof(PacketPlayerPlayedAudio),
-    typeof(PacketContextualPlayerNotification<PacketPlayerPlayedAudio>)
+    typeof(PacketContextualPlayerNotification<PacketPlayerPlayedAudio>),
 
     typeof(PacketPlayerGrabPlayer),
     typeof(PacketPlayerGrabJumpOut)
