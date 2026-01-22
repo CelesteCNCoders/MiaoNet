@@ -36,7 +36,7 @@ public partial class MiaoHttpService
         catch (Exception e)
         {
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-            logger.LogError(e, "Error when handling request \"{url}\" from {ep}", context.Request.RawUrl, context.Request.RemoteEndPoint);
+            logger.LogError(AppEvents.Http, e, "Error when handling request \"{url}\" from {ep}", context.Request.RawUrl, context.Request.RemoteEndPoint);
         }
     }
     private async Task PlayerDisconnect(NameValueCollection query, HttpListenerContext context)
