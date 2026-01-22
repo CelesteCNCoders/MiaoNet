@@ -70,7 +70,7 @@ miaonet_options_chat= Chat
 
 
 miaonet_connection_status_connecting= Connecting...
-miaonet_connection_status_version_not_match= Local version (0) mismatch server version (1)
+miaonet_connection_status_version_not_match= Local version (0) mismatches server version (1)
 miaonet_connection_status_connected= Connected
 miaonet_connection_status_disconnecting= Disconnecting...
 miaonet_connection_status_disconnected= Disconnected
