@@ -25,7 +25,6 @@ public sealed class ChatComponent : MiaoNetComponent
 
     private float lastMouseScrollWheelValue;
 
-    private bool previousCommandsEnabled = false;
     private bool previousScenePaused = false;
     private readonly PauseUpdateOverlay dummyOverlay;
 
@@ -127,6 +126,9 @@ public sealed class ChatComponent : MiaoNetComponent
         else
         {
             Engine.Scene.Paused = true;
+            // force close console every frame to prevent conflicts with mods like ImGuiHelper
+            // (as they enable the console every frame)
+            Engine.Commands.Open = false;
 
             if (MInput.Keyboard.Pressed(Keys.Escape))
             {
@@ -272,8 +274,6 @@ public sealed class ChatComponent : MiaoNetComponent
         historyIndex = history.Count;
         inputBox.Activate();
         chatView.Active = true;
-        previousCommandsEnabled = Engine.Commands.Enabled;
-        Engine.Commands.Enabled = false;
         previousScenePaused = Engine.Scene.Paused;
         Engine.Scene.Paused = true;
 
@@ -289,7 +289,6 @@ public sealed class ChatComponent : MiaoNetComponent
         chatView.Active = false;
         targetChatViewScroll = 0f;
         chatView.Scroll = 0f;
-        Engine.Commands.Enabled = previousCommandsEnabled;
         Engine.Scene.Paused = previousScenePaused;
 
         if (Engine.Scene is Level level)
