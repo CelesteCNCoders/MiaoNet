@@ -38,9 +38,9 @@ public static class MenuMiaoNetOptions
         });
         menu.Add(item);
 
-        // -- Login State --
+        #region Login State
 
-        item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_login_state"));
+        item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_login_state"), false);
         menu.Add(item);
 
         string loggedInText = Dialog.Get("miaonet_options_logged_in") + settings.Name;
@@ -73,9 +73,11 @@ public static class MenuMiaoNetOptions
             item.AddDescription(menu, Dialog.Get("miaonet_options_logged_in_tips_2"));
         }
 
-        // -- Connection --
+        #endregion
 
-        item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_connection"));
+        #region Connection
+
+        item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_connection"), false);
         menu.Add(item);
 
         item = new TextMenu.OnOff(
@@ -91,9 +93,11 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
         item.AddDescription(menu, Dialog.Clean("miaonet_options_ignore_cert_revocation_status_tip"));
 
-        // -- Visuals --
+        #endregion
 
-        item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_visuals"));
+        #region Visuals
+
+        item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_visuals"), false);
         menu.Add(item);
 
         item = new TextMenu.OnOff(
@@ -107,6 +111,7 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
 
         #region UI
+
         var uiSubMenu = new TextMenuExt.SubMenu(Dialog.Get("miaonet_options_ui"), false);
 
         item = new TextMenuExt.IntSlider(
@@ -135,6 +140,7 @@ public static class MenuMiaoNetOptions
         uiSubMenu.Add(item);
 
         menu.Add(uiSubMenu);
+
         #endregion
 
         item = new TextMenuExt.IntSlider(
@@ -152,9 +158,11 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.NameOpacity = v);
         menu.Add(item);
 
-        // -- Audio --
+        #endregion
 
-        item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_audio"));
+        #region Audio
+
+        item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_audio"), false);
         menu.Add(item);
 
         item = new TextMenu.OnOff(
@@ -163,9 +171,11 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
         item.AddDescription(menu, Dialog.Clean("miaonet_options_sync_audio_tip"));
 
-        // -- Interactions --
+        #endregion
 
-        item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_interactions"));
+        #region Interactions
+
+        item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_interactions"), false);
         menu.Add(item);
 
         item = new TextMenu.OnOff(
@@ -230,6 +240,8 @@ public static class MenuMiaoNetOptions
         });
         menu.Add(item);
 
+        #endregion
+
         // -- Chat --
 
         //item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_chat"));
@@ -238,7 +250,7 @@ public static class MenuMiaoNetOptions
 
     public static void AddKeyBindingsSection(TextMenu menu, bool _)
     {
-        menu.Add(new TextMenu.SubHeader(Dialog.Get("miaonet_options_key_bindings")));
+        menu.Add(new TextMenu.SubHeader(Dialog.Get("miaonet_options_key_bindings"), false));
         // partially copied from everest 
         menu.Add(new TextMenu.Button(Dialog.Clean("options_keyconfig")).Pressed(delegate
         {
