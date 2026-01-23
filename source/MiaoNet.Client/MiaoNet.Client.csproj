@@ -20,9 +20,6 @@
     <Compile Include="../MiaoNet.Shared/**/*.cs" Exclude="../MiaoNet.Shared/Primitives/**/*.cs" LinkBase="1-Shared" />
     <Compile Include="../ChatInputBox/ChatInputBox/**/*.cs" LinkBase="1-Shared/ChatInputBox" />
 
-    <!-- idk why LinkBase doesn't work here, so let's copy its impl -->
-    <None Include="ModFolder/**" Link="0-ModFolder/%(RecursiveDir)%(Filename)%(Extension)" />
-    <None Update="ModFolder/Code/**" Visible="false" />
     <None Include="CelesteMod*" Visible="false" />
   </ItemGroup>
 

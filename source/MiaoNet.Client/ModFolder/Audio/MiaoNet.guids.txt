@@ -1,0 +1,5 @@
+{4a40c500-554b-4af6-9d0a-6334753c5a2c} event:/MiaoNet/player/death
+{c62e26e4-7262-4b52-8a2b-d0fee03aa6e2} event:/MiaoNet/player/death_golden
+{76d6b35e-1b97-4b8e-9e7b-ecd24e60ac1c} event:/MiaoNet/player/predeath
+{50547092-0463-4835-a8b1-ad8ee925c1f0} event:/MiaoNet/player/revive
+{d445cf92-6ffd-4db0-a4bf-1b49e7942ff3} bank:/MiaoNet

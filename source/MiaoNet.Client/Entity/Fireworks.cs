@@ -8,12 +8,15 @@ public sealed class Fireworks : Entity
     public Fireworks(Vector2 position, Color color, float initialSpeed)
         : base(position)
     {
-        Add(effect = new DeathEffect(color)
+        Tag = Tags.PauseUpdate | Tags.FrozenUpdate | Tags.Persistent | Tags.Global | Tags.TransitionUpdate;
+
+        float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
+        Add(effect = new DeathEffect(color * alpha)
         {
             OnEnd = new Action(RemoveSelf),
             Active = false
         });
-        Depth = Depths.Player - 1;
+        Depth = Depths.Top;
 
         speed = initialSpeed;
     }
@@ -21,7 +24,8 @@ public sealed class Fireworks : Entity
     public override void Added(Scene scene)
     {
         base.Added(scene);
-        Audio.Play(SFX.char_mad_predeath);
+        var ins = Audio.Play(MiaoNetSFX.PlayerPreDeath, Position);
+        ins?.setVolume(MiaoNetModule.Settings.OtherPlayersAudioVolumeValue);
     }
 
     public override void Update()
@@ -35,7 +39,11 @@ public sealed class Fireworks : Entity
             if (speed < -96f)
             {
                 effect.Active = true;
-                Audio.Play(SFX.char_mad_death);
+                if (!Scene.Paused)
+                {
+                    var ins = Audio.Play(MiaoNetSFX.PlayerDeath, Position);
+                    ins?.setVolume(MiaoNetModule.Settings.OtherPlayersAudioVolumeValue);
+                }
             }
         }
     }

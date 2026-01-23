@@ -390,7 +390,7 @@ public sealed class MiaoNetGhost : Entity
         }
         Depth = Depths.Top;
         if (MiaoNetModule.Settings.SyncAudio)
-            OnPlayAudio(SFX.char_mad_death);
+            OnPlayAudio(MiaoNetSFX.PlayerDeath);
     }
 
     // TODO the respawned timing is not that accurate
@@ -413,8 +413,6 @@ public sealed class MiaoNetGhost : Entity
             }
         );
         tween.UseRawDeltaTime = true;
-        if (MiaoNetModule.Settings.SyncAudio)
-            OnPlayAudio(SFX.char_mad_revive);
     }
 
     // TODO start star flying sync?

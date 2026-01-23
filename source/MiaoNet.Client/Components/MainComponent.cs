@@ -437,6 +437,8 @@ public sealed partial class MainComponent : MiaoNetComponent
     {
         if (!HasState)
             return;
+        if (sound is SFX.char_mad_revive)
+            sound = MiaoNetSFX.PlayerRevive;
         context.QueuePacket(new PacketPlayerPlayedAudio(new(sound, param, value)));
     }
 
