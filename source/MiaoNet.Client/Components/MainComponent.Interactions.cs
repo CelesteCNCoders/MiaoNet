@@ -33,7 +33,7 @@ partial class MainComponent
         player.Speed = Vector2.Zero;
         player.DummyGravity = false;
         player.ForceCameraUpdate = true;
-        player.Sprite.Play("idle", true);
+        player.Sprite.Play("idle");
     }
 
     private void CleanUpHeldBy(Player player, Vector2? force)
@@ -47,8 +47,12 @@ partial class MainComponent
     private void UpdateInteractions(Level level, Player player)
     {
         // ensure screen transitions
+        // also see MiaoNetModule On.Celeste.Player.TransitionTo Hook
         if (heldByPlayerGhost is not null)
+        {
             level.EnforceBounds(player);
+            OnHeldBy(player);
+        }
 
         // if we're holding other player
         MiaoNetGhost? holdingGhost = null;

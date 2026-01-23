@@ -71,6 +71,7 @@ public sealed class MiaoNetModule : EverestModule
             On.Celeste.Player.Play += Player_Play;
             On.Celeste.Player.Die += Player_Die;
             On.Celeste.PlayerCollider.Check += PlayerCollider_Check;
+            On.Celeste.Player.TransitionTo += Player_TransitionTo;
         }
         using (new DetourConfigContext(RootBeforeAllConfig).Use())
         {
@@ -106,6 +107,7 @@ public sealed class MiaoNetModule : EverestModule
         On.Celeste.Player.Play -= Player_Play;
         On.Celeste.Player.Die -= Player_Die;
         On.Celeste.PlayerCollider.Check -= PlayerCollider_Check;
+        On.Celeste.Player.TransitionTo -= Player_TransitionTo;
 
         On.Celeste.PlayerSprite.ctor -= PlayerSprite_ctor;
 
@@ -168,6 +170,13 @@ public sealed class MiaoNetModule : EverestModule
         if (Instance.miaoNetContext?.MainComponent.HeldByOthers == true)
             return false;
         return orig(self, player);
+    }
+
+    private static bool Player_TransitionTo(On.Celeste.Player.orig_TransitionTo orig, Player self, Vector2 target, Vector2 direction)
+    {
+        if (Instance.miaoNetContext?.MainComponent.HeldByOthers == true)
+            return true;
+        return orig(self, target, direction);
     }
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot)
