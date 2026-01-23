@@ -234,7 +234,7 @@ partial class MiaoNetCommand
     private static string? HelpCommand(Context context)
     {
         string name = context.Segments[0];
-        MiaoNetCommand? command = UniqueMatchBy(
+        MiaoNetCommand? command = UniqueMatcher.MatchBy(
             Commands,
             c => c.Aliases is null
                 ? [c.Name]
@@ -319,7 +319,7 @@ partial class MiaoNetCommand
         player = null;
         var clientState = context.MiaoNetContext.ClientState!;
         var allPlayers = from pair in clientState.SelfChannel.Players select pair.Value;
-        var matchedPlayer = UniqueMatchBy(allPlayers.Append(clientState.Self), p => p.Info.Name, playerName);
+        var matchedPlayer = UniqueMatcher.MatchBy(allPlayers.Append(clientState.Self), p => p.Info.Name, playerName);
         if (matchedPlayer is null)
             return PlayerNotFound.Replace("(0)", playerName);
         if (matchedPlayer == clientState.Self)
@@ -344,51 +344,5 @@ partial class MiaoNetCommand
 
         otherArea = area;
         return null;
-    }
-
-    /// <summary>
-    /// Case-insensitively match a <typeparamref name="T"/> which contains <paramref name="value"/>.
-    /// </summary>
-    /// <returns>
-    /// Matched <typeparamref name="T"/>, or <see langword="null"/> if there're multiple matches or no matches.
-    /// </returns>
-    private static T? UniqueMatchBy<T>(IEnumerable<T> items, Func<T, string> selector, string value)
-        where T : class
-    {
-        T? curMatched = null;
-        foreach (var item in items)
-        {
-            if (selector(item).Contains(value, StringComparison.OrdinalIgnoreCase))
-            {
-                if (curMatched is null)
-                    curMatched = item;
-                else
-                    return null;
-            }
-        }
-        return curMatched;
-    }
-
-    /// <summary>
-    /// Case-insensitively match a <typeparamref name="T"/> which contains <paramref name="value"/>.
-    /// </summary>
-    /// <returns>
-    /// Matched <typeparamref name="T"/>, or <see langword="null"/> if there're multiple matches or no matches.
-    /// </returns>
-    private static T? UniqueMatchBy<T>(IEnumerable<T> items, Func<T, IEnumerable<string>> selector, string value)
-        where T : class
-    {
-        T? curMatched = null;
-        foreach (var item in items)
-        {
-            if (selector(item).Any(s => s.Contains(value, StringComparison.OrdinalIgnoreCase)))
-            {
-                if (curMatched is null)
-                    curMatched = item;
-                else
-                    return null;
-            }
-        }
-        return curMatched;
     }
 }
