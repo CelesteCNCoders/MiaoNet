@@ -43,7 +43,7 @@ public sealed class MiaoNetModule : EverestModule
     public delegate void PlayerDiedHandler(Player player, Vector2 direction);
     public static event PlayerDiedHandler? PlayerDied;
 
-    public delegate void PreviewPlayerRespawnHandler(Player player);
+    public delegate void PreviewPlayerRespawnHandler(Player player, Level level);
     public static event PreviewPlayerRespawnHandler? PreviewPlayerRespawn;
 
     public MiaoNetModule()
@@ -146,7 +146,7 @@ public sealed class MiaoNetModule : EverestModule
 
     private static void Player_Added(On.Celeste.Player.orig_Added orig, Player self, Scene scene)
     {
-        PreviewPlayerRespawn?.Invoke(self);
+        PreviewPlayerRespawn?.Invoke(self, (Level)scene);
         orig(self, scene);
         if (NextPlayerSpawnPosition.HasValue)
         {

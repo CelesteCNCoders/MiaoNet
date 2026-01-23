@@ -70,14 +70,13 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
-    private void MiaoNetModule_PreviewPlayerRespawn(Player player)
+    private void MiaoNetModule_PreviewPlayerRespawn(Player player, Level level)
     {
         if (!HasState)
             return;
         var state = ClientState.SelfState;
         if (state is null)
         {
-            Level level = player.SceneAs<Level>();
             SafeGuard.Assert(TryGetAndSendState(level, PlayerLocation.FetchFrom(level.Session)));
             state = ClientState.SelfState;
             SafeGuard.Assert(state is not null);
