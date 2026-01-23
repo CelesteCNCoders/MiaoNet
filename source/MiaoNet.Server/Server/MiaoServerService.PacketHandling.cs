@@ -15,7 +15,7 @@ public sealed partial class MiaoServerService
         r.Register<PacketSendChatMessage>(HandlePacketAsync);
         r.Register<PacketSendEmote>(HandlePacketAsync);
         r.Register<PacketSendEmoteText>(HandlePacketAsync);
-        r.Register<PacketPlayerStateFlags>(HandlePacketAsync);
+        r.Register<PacketPlayerLiveState>(HandlePacketAsync);
         r.Register<PacketUpdateOnlineStatus>(HandlePacketAsync);
         r.Register<PacketTeleportRequest>(HandlePacketAsync);
         r.Register<PacketSendPrivateChatMessage>(HandlePacketAsync);
@@ -226,10 +226,10 @@ public sealed partial class MiaoServerService
         );
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerStateFlags packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerLiveState packet)
     {
         await BroadcastToOthersAsync(
-            new PacketPlayerNotification<PacketPlayerStateFlags>(connection.ID, packet),
+            new PacketPlayerNotification<PacketPlayerLiveState>(connection.ID, packet),
             con => con.PlayerShouldSyncFrom(connection),
             connection.ID
         );

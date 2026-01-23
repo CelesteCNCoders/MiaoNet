@@ -194,6 +194,7 @@ partial class MiaoNetContext
                     !typeName.Contains("Frame")
                     && !typeName.Contains("PingData")
                     && !typeName.Contains("UpdateOnlineStatus")
+                    && !typeName.Contains("PlayedAudio")
                 )
                 {
                     var pColor = Console.ForegroundColor;

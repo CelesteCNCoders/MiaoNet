@@ -7,8 +7,8 @@ using MiaoNet.Shared;
 
     typeof(PacketPlayerFrame),
     typeof(PacketContextualPlayerNotification<PacketPlayerFrame>),
-    typeof(PacketPlayerStateFlags),
-    typeof(PacketPlayerNotification<PacketPlayerStateFlags>),
+    typeof(PacketPlayerLiveState),
+    typeof(PacketPlayerNotification<PacketPlayerLiveState>),
 
     typeof(PacketPlayerMapChanged),
     typeof(PacketPlayerMapChangedNotification),

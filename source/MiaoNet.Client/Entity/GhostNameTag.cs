@@ -10,7 +10,7 @@ public sealed class GhostNameTag : Entity
 
     private GhostNameTag(Entity entity, string text)
     {
-        Tag = TagsExt.SubHUD | entity.Tag;
+        Tag = MiaoNetTag.Tag | TagsExt.SubHUD;
         Entity = entity;
         Text = text;
     }
@@ -18,7 +18,6 @@ public sealed class GhostNameTag : Entity
     public GhostNameTag(Player player, string name)
         : this((Entity)player, name)
     {
-        Tag |= Tags.Persistent | Tags.TransitionUpdate | Tags.FrozenUpdate | Tags.PauseUpdate | Tags.Global;
         IsOnSelf = true;
     }
 

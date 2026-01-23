@@ -6,7 +6,7 @@ public sealed class GhostRenderLayerEntity : Entity
 
     public GhostRenderLayerEntity(bool isHigh)
     {
-        Tag |= Tags.Global | Tags.PauseUpdate | Tags.TransitionUpdate | Tags.FrozenUpdate | Tags.Persistent;
+        Tag = MiaoNetTag.Tag;
         Depth = isHigh ? Depths.Top : Depths.Player;
         this.isHigh = isHigh;
     }
@@ -27,6 +27,11 @@ public sealed class GhostRenderLayerEntity : Entity
             {
                 if (isHigh ? follower.Depth <= Depth : follower.Depth >= Depth)
                     follower.GhostRender();
+            }
+            foreach(GhostDeadBody body in level.Tracker.GetEntities<GhostDeadBody>().Cast<GhostDeadBody>())
+            {
+                if (isHigh ? body.Depth <= Depth : body.Depth >= Depth)
+                    body.GhostRender();
             }
             foreach (MiaoNetGhost ghost in level.Tracker.GetEntities<MiaoNetGhost>().Cast<MiaoNetGhost>())
             {

@@ -27,7 +27,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         context.PlayerMapChanged += Context_PlayerMapChanged;
         context.PlayerMapRoomChanged += Context_PlayerMapRoomChanged;
         context.PlayerMapChangeResponded += Context_PlayerMapChangeResponded;
-        context.PlayerStateFlagsNotification += Context_PlayerStateFlagsNotification;
+        context.PlayerLiveStateNotification += Context_PlayerLiveStateNotification;
         context.PlayerOnlineStatusChanged += Context_PlayerOnlineStatusChanged;
         context.PlayerCreatedFireworks += Context_PlayerCreatedFireworks;
         context.PlayerAudioPlayed += Context_PlayerAudioPlayed;
@@ -36,8 +36,8 @@ public sealed partial class MainComponent : MiaoNetComponent
 
         MiaoNetModule.PlayerLocationChanged += MiaoNetModule_OnPlayerLocationChanged;
         MiaoNetModule.PlayerSoundPlayed += MiaoNetModule_PlayerSoundPlayed;
-        Everest.Events.Player.OnDie += Player_OnDie;
-        Everest.Events.Player.OnSpawn += Player_OnSpawn;
+        MiaoNetModule.PlayerDied += MiaoNetModule_PlayerDied;
+        MiaoNetModule.PreviewPlayerRespawn += MiaoNetModule_PreviewPlayerRespawn;
     }
 
     public override void OnConnected()
@@ -56,7 +56,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         CleanUpInteractions();
     }
 
-    private void Player_OnDie(Player player)
+    private void MiaoNetModule_PlayerDied(Player player, Vector2 direction)
     {
         if (!HasState)
             return;
@@ -65,12 +65,12 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (!state.Dead)
         {
             state.Dead = true;
-            PacketPlayerStateFlags packet = new(PacketPlayerStateFlags.StateFlags.PlayerDied);
+            PacketPlayerLiveState packet = new(true, direction);
             context.QueuePacket(packet);
         }
     }
 
-    private void Player_OnSpawn(Player player)
+    private void MiaoNetModule_PreviewPlayerRespawn(Player player)
     {
         if (!HasState)
             return;
@@ -85,7 +85,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (state.Dead)
         {
             state.Dead = false;
-            PacketPlayerStateFlags packet = new(PacketPlayerStateFlags.StateFlags.PlayerRespawning);
+            PacketPlayerLiveState packet = new(false, player.Position);
             context.QueuePacket(packet);
         }
     }
@@ -129,7 +129,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         //    errCount = Math.Max(0, errCount - 1);
 
         Player player = level.Tracker.GetEntity<Player>();
-        if (player is null)
+        if (player is null || player.Dead)
             return;
 
         if (MiaoNetModule.Settings.ShowOwnName)
@@ -515,18 +515,18 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
-    private void Context_PlayerStateFlagsNotification(OnlinePlayer player, PacketPlayerStateFlags.StateFlags flags)
+    private void Context_PlayerLiveStateNotification(OnlinePlayer player, bool isDie, Vector2 vector2)
     {
         if (ghosts.TryGetValue(player.Info.ID, out var ghost))
         {
-            if (flags.HasFlag(PacketPlayerStateFlags.StateFlags.PlayerDied))
-                ghost.OnDied();
-            if (flags.HasFlag(PacketPlayerStateFlags.StateFlags.PlayerRespawning))
-                ghost.OnRespawning();
+            if (isDie)
+                ghost.OnDied(vector2);
+            else
+                ghost.OnRespawning(vector2);
         }
         else
         {
-            Logger.Warn(LT.MiaoNet, $"Flgas notified but ghost does not exists for {player.Info}");
+            Logger.Warn(LT.MiaoNet, $"Live state notified but ghost does not exists for {player.Info}");
         }
     }
 

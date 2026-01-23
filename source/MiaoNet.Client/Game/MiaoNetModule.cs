@@ -40,6 +40,12 @@ public sealed class MiaoNetModule : EverestModule
     public delegate void PlayerSoundPlayedHandler(string sound, string? param, float value);
     public static event PlayerSoundPlayedHandler? PlayerSoundPlayed;
 
+    public delegate void PlayerDiedHandler(Player player, Vector2 direction);
+    public static event PlayerDiedHandler? PlayerDied;
+
+    public delegate void PreviewPlayerRespawnHandler(Player player);
+    public static event PreviewPlayerRespawnHandler? PreviewPlayerRespawn;
+
     public MiaoNetModule()
     {
     }
@@ -63,6 +69,7 @@ public sealed class MiaoNetModule : EverestModule
             On.Celeste.Player.Added += Player_Added;
             Everest.Events.LevelLoader.OnLoadingThread += LevelLoader_OnLoadingThread;
             On.Celeste.Player.Play += Player_Play;
+            On.Celeste.Player.Die += Player_Die;
         }
         using (new DetourConfigContext(RootBeforeAllConfig).Use())
         {
@@ -96,6 +103,7 @@ public sealed class MiaoNetModule : EverestModule
         On.Celeste.Player.Added -= Player_Added;
         Everest.Events.LevelLoader.OnLoadingThread -= LevelLoader_OnLoadingThread;
         On.Celeste.Player.Play -= Player_Play;
+        On.Celeste.Player.Die -= Player_Die;
 
         On.Celeste.PlayerSprite.ctor -= PlayerSprite_ctor;
 
@@ -138,6 +146,7 @@ public sealed class MiaoNetModule : EverestModule
 
     private static void Player_Added(On.Celeste.Player.orig_Added orig, Player self, Scene scene)
     {
+        PreviewPlayerRespawn?.Invoke(self);
         orig(self, scene);
         if (NextPlayerSpawnPosition.HasValue)
         {
@@ -154,7 +163,7 @@ public sealed class MiaoNetModule : EverestModule
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot)
         => MenuMiaoNetOptions.BuildMenu(menu, inGame);
-    
+
     private static void Engine_Update(ILContext il)
     {
         ILCursor cur = new(il);
@@ -216,6 +225,16 @@ public sealed class MiaoNetModule : EverestModule
 
     private static void Level_OnExit(Level level, LevelExit exit, LevelExit.Mode mode, Session session, HiresSnow snow)
         => PlayerLocationChanged?.Invoke(PlayerLocation.Empty, true);
+
+    private static PlayerDeadBody? Player_Die(On.Celeste.Player.orig_Die orig, Player self, Vector2 direction, bool evenIfInvincible, bool registerDeathInStats)
+    {
+        var body = orig(self, direction, evenIfInvincible, registerDeathInStats);
+        if (body is not null)
+        {
+            PlayerDied?.Invoke(self, direction);
+        }
+        return body;
+    }
 
     private static void Level_OnCreatePauseMenuButtons(Level level, TextMenu menu, bool minimal)
     {

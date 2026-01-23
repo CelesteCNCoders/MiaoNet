@@ -15,7 +15,7 @@ public sealed class MiaoNetGhost : Entity
     private readonly GhostNameTag nameTag;
     private readonly Leader leader;
 
-    private VertexLight? light;
+    private VertexLight? vertexLight;
 
     private Facings facing;
     private int dashes;
@@ -78,7 +78,7 @@ public sealed class MiaoNetGhost : Entity
         PlayerState initialState
     )
     {
-        Tag = Tags.Persistent | Tags.TransitionUpdate | Tags.FrozenUpdate | Tags.PauseUpdate | Tags.Global;
+        Tag = MiaoNetTag.Tag;
         Depth = Depths.Player + 1;
         Player = player;
         Name = name;
@@ -132,6 +132,9 @@ public sealed class MiaoNetGhost : Entity
 
         bool updateOthers = Player.OnlineStatus == PlayerOnlineStatus.Normal;
         if (!updateOthers)
+            return;
+
+        if (dead)
             return;
 
         if (starFlying)
@@ -220,18 +223,18 @@ public sealed class MiaoNetGhost : Entity
     {
         if (enabled)
         {
-            if (light is null)
+            if (vertexLight is null)
             {
                 // TODO player duck light offset
-                light = new VertexLight(new Vector2(0f, -8f), Color.White with { A = 233 }, 1f, 32, 64);
-                Add(light);
+                vertexLight = new VertexLight(new Vector2(0f, -8f), Color.White with { A = 233 }, 1f, 32, 64);
+                Add(vertexLight);
             }
-            light.Visible = true;
+            vertexLight.Visible = true;
         }
         else
         {
             // remove it will lead to a vanilla crash...
-            light?.Visible = false;
+            vertexLight?.Visible = false;
         }
     }
 
@@ -360,7 +363,7 @@ public sealed class MiaoNetGhost : Entity
     private void CleanUpFollowers()
     {
         foreach (var follower in leader.Followers)
-            follower.Entity.RemoveSelf();
+            Scene.CompletelyRemove(follower.Entity);
         leader.Followers.Clear();
     }
 
@@ -376,26 +379,29 @@ public sealed class MiaoNetGhost : Entity
         snap.Tag |= Tag;
     }
 
-    public void OnDied()
+    public void OnDied(Vector2 direction)
     {
         dead = true;
         selfHoldable.Holder?.Drop();
         Collidable = false;
-        playerSprite.Visible = playerHair.Visible = false;
+        Visible = false;
         if (Scene is Level level)
         {
-            level.Displacement.AddBurst(Position, 0.3f, 0f, 80f);
-            float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
-            Add(new DeathEffect(playerHair.Color * alpha));
+            Remove(playerHair);
+            Remove(playerSprite);
+            if (vertexLight is not null)
+                Remove(vertexLight);
+            GhostDeadBody body = new(Position, facing, playerHair, playerSprite, vertexLight, direction);
+            level.Add(body);
         }
         Depth = Depths.Top;
-        if (MiaoNetModule.Settings.SyncAudio)
-            OnPlayAudio(MiaoNetSFX.PlayerDeath);
     }
 
     // TODO the respawned timing is not that accurate
-    public void OnRespawning()
+    public void OnRespawning(Vector2 position)
     {
+        Position = position;
+
         respawning = true;
         deadEase = 1f;
         Collidable = true;
@@ -408,8 +414,12 @@ public sealed class MiaoNetGhost : Entity
             {
                 respawning = false;
                 dead = false;
-                playerSprite.Visible = playerHair.Visible = true;
+                Visible = true;
                 Depth = Depths.Player + 1;
+                Add(playerHair);
+                Add(playerSprite);
+                if (vertexLight is not null)
+                    Add(vertexLight);
             }
         );
         tween.UseRawDeltaTime = true;

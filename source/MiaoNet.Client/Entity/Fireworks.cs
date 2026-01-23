@@ -8,7 +8,7 @@ public sealed class Fireworks : Entity
     public Fireworks(Vector2 position, Color color, float initialSpeed)
         : base(position)
     {
-        Tag = Tags.PauseUpdate | Tags.FrozenUpdate | Tags.Persistent | Tags.Global | Tags.TransitionUpdate;
+        Tag = MiaoNetTag.Tag;
 
         float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
         Add(effect = new DeathEffect(color * alpha)

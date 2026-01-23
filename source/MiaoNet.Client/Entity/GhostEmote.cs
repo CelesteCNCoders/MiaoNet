@@ -17,7 +17,7 @@ public sealed class GhostEmote : Entity
 
     private GhostEmote(Entity target)
     {
-        Tag |= Tags.FrozenUpdate | TagsExt.SubHUD | Tags.PauseUpdate | Tags.Persistent | Tags.TransitionUpdate;
+        Tag = MiaoNetTag.Tag |TagsExt.SubHUD;
         this.target = target;
         Add(new Coroutine(Routine()));
     }

@@ -17,7 +17,7 @@ partial class MiaoNetContext
     public event Action<OnlinePlayer?, PacketChatMessage>? ChatMessageReceived;
     public event Action<OnlinePlayer, EmoteData>? EmoteReceived;
     public event Action<OnlinePlayer, string>? EmoteTextReceived;
-    public event Action<OnlinePlayer, PacketPlayerStateFlags.StateFlags>? PlayerStateFlagsNotification;
+    public event Action<OnlinePlayer, bool, Vector2>? PlayerLiveStateNotification;
     public event Action<OnlinePlayer, PlayerOnlineStatus>? PlayerOnlineStatusChanged;
     public event Action<OnlinePlayer, Color, float>? PlayerCreatedFireworks;
     public event Action? PingDataReceived;
@@ -36,7 +36,7 @@ partial class MiaoNetContext
         r.Register<PacketChatMessage>(HandlePacket);
         r.Register<PacketEmote>(HandlePacket);
         r.Register<PacketEmoteText>(HandlePacket);
-        r.Register<PacketPlayerNotification<PacketPlayerStateFlags>>(HandlePacket);
+        r.Register<PacketPlayerNotification<PacketPlayerLiveState>>(HandlePacket);
         r.Register<PacketPlayerNotification<PacketUpdateOnlineStatus>>(HandlePacket);
         r.Register<PacketBeTeleportedRequest>(HandlePacket);
         r.Register<PacketPingData>(HandlePacket);
@@ -156,11 +156,24 @@ partial class MiaoNetContext
         EmoteTextReceived?.Invoke(player, packet.Text);
     }
 
-    private void HandlePacket(PacketPlayerNotification<PacketPlayerStateFlags> packet)
+    private void HandlePacket(PacketPlayerNotification<PacketPlayerLiveState> packet)
     {
         EnsureState();
+        var p = packet.Packet;
         var player = ClientState.GetPlayer(packet.PlayerID);
-        PlayerStateFlagsNotification?.Invoke(player, packet.Packet.Flags);
+        if (!p.IsDie)
+        {
+            var state = player.State;
+            if (state is not null)
+            {
+                state.Position = p.Vector2;
+            }
+            else
+            {
+                Logger.Warn(nameof(MiaoNetContext), $"No initial state but received live state notification for {player.Info}!");
+            }
+        }
+        PlayerLiveStateNotification?.Invoke(player, packet.Packet.IsDie, packet.Packet.Vector2);
     }
 
     private void HandlePacket(PacketPlayerNotification<PacketUpdateOnlineStatus> packet)
