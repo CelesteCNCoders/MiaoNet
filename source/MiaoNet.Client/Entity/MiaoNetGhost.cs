@@ -109,7 +109,7 @@ public sealed class MiaoNetGhost : FreezeUpdateEntity
         if (player.OnlineStatus != PlayerOnlineStatus.Normal)
             OnUpdateOnlineStatus(player.OnlineStatus);
 
-        selfHoldable = new(1f / 3f)
+        selfHoldable = new(1f / 5f)
         {
             SlowRun = false,
             SlowFall = false,
