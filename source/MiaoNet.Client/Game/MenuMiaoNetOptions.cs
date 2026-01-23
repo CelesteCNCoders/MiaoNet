@@ -338,16 +338,19 @@ public static class MenuMiaoNetOptions
             Add(new Header(Dialog.Clean("KEY_CONFIG_TITLE")));
             Add(new InputMappingInfo(false));
 
-            AddMapForceLabel("Chat", settings.ChatButton.Binding);
-            AddMapForceLabel("Player List", settings.PlayerListButton.Binding);
-            AddMapForceLabel("Create Fireworks", settings.CreateFireworksButton.Binding);
+            AddMapForceLabel(Dialog.Get("miaonet_options_button_chat"), settings.ChatButton.Binding);
+            AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list"), settings.PlayerListButton.Binding);
+            AddMapForceLabel(Dialog.Get("miaonet_options_button_create_fireworks"), settings.CreateFireworksButton.Binding);
 
             while (settings.EmoteButtons.Count < settings.EmotesCount)
                 settings.EmoteButtons.Add(new());
 
-            Add(new SubHeader("Emotes"));
+            Add(new SubHeader(Dialog.Get("miaonet_options_emotes")));
             for (int i = 0; i < settings.EmotesCount; i++)
-                AddMapForceLabel($"Emote {i + 1}", settings.EmoteButtons[i].Binding);
+                AddMapForceLabel(
+                    Dialog.Get("miaonet_options_emote_i").Replace("(0)", (i + 1).ToString()),
+                    settings.EmoteButtons[i].Binding
+                );
 
             Add(new SubHeader(string.Empty));
             Add(new Button(Dialog.Clean("KEY_CONFIG_RESET"))
@@ -408,15 +411,19 @@ public static class MenuMiaoNetOptions
             Add(new Header(Dialog.Clean("BTN_CONFIG_TITLE")));
             Add(new InputMappingInfo(false));
 
-            AddMapForceLabel("Chat Button", settings.ChatButton.Binding);
-            AddMapForceLabel("Player List Button", settings.PlayerListButton.Binding);
+            AddMapForceLabel(Dialog.Get("miaonet_options_button_chat"), settings.ChatButton.Binding);
+            AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list"), settings.PlayerListButton.Binding);
+            AddMapForceLabel(Dialog.Get("miaonet_options_button_create_fireworks"), settings.CreateFireworksButton.Binding);
 
             while (settings.EmoteButtons.Count < settings.EmotesCount)
                 settings.EmoteButtons.Add(new());
 
-            Add(new SubHeader("Emotes"));
+            Add(new SubHeader(Dialog.Get("miaonet_options_emotes")));
             for (int i = 0; i < settings.EmotesCount; i++)
-                AddMapForceLabel($"Emote {i + 1}", settings.EmoteButtons[i].Binding);
+                AddMapForceLabel(
+                    Dialog.Get("miaonet_options_emote_i").Replace("(0)", (i + 1).ToString()),
+                    settings.EmoteButtons[i].Binding
+                );
 
             Add(new SubHeader(string.Empty));
             Add(new Button(Dialog.Clean("KEY_CONFIG_RESET"))

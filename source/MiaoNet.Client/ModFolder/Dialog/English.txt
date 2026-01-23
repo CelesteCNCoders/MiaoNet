@@ -12,6 +12,7 @@ miaonet_options_ignore_cert_revocation_status= Ignore Certificate Revocation Sta
 miaonet_options_ignore_cert_revocation_status_tip=
 	Skip the revocation status check in connection.
 	Warning: This will make your connection insecure.
+	This option will not be saved.
 
 miaonet_options_visuals= Visuals
 miaonet_options_show_own_name= Show Own Name
@@ -28,18 +29,6 @@ miaonet_options_player_opacity= Player Opacity
 miaonet_options_self_player_name_opacity= Self Name Opacity
 miaonet_options_player_name_opacity= Name Opacity
 
-miaonet_options_interactions= Interactions
-miaonet_options_player_interactions= Player Interactions
-miaonet_options_live_mode= Live Mode
-miaonet_options_live_mode_tip=
-	This will disable chat, block all chat messages and emotes from any players,
-	and hide unknown maps in the player list.
-	This option will not be saved.
-
-miaonet_options_player_list_button_mode= Player List Showing Mode
-miaonet_options_player_list_button_mode_press= Press
-miaonet_options_player_list_button_mode_hold= Hold
-
 miaonet_options_audio= Audio
 miaonet_options_sync_audio= Sync Audio
 miaonet_options_sync_audio_tip= 
@@ -48,6 +37,16 @@ miaonet_options_sync_audio_tip=
 miaonet_options_other_players_audio_volume= Other Players Audio volume
 
 miaonet_options_interactions= Interactions
+miaonet_options_player_interactions= Player Interactions
+miaonet_options_live_mode= Live Mode
+miaonet_options_live_mode_tip=
+	This will disable chat, block all chat messages 
+	and emotes from any players,
+	and hide unknown maps in the player list.
+	This option will not be saved.
+miaonet_options_player_list_button_mode= Player List Showing Mode
+miaonet_options_player_list_button_mode_press= Press
+miaonet_options_player_list_button_mode_hold= Hold
 miaonet_options_teleport_behaviour= Teleport Command Behaviour
 miaonet_options_teleport_behaviour_nosession= Map and room only
 miaonet_options_teleport_behaviour_withsession= Request other's session
@@ -68,6 +67,11 @@ miaonet_options_key_bindings= Key Bindings
 
 miaonet_options_chat= Chat
 
+miaonet_options_button_chat= Open Chat
+miaonet_options_button_player_list= Open Player List
+miaonet_options_button_create_fireworks= Create Fireworks
+miaonet_options_emotes= Emotes
+miaonet_options_emote_i= Send Emote (0)
 
 miaonet_connection_status_connecting= Connecting...
 miaonet_connection_status_version_not_match= Local version (0) mismatches server version (1)

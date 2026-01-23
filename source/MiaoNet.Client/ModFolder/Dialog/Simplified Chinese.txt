@@ -12,6 +12,7 @@ miaonet_options_ignore_cert_revocation_status= 忽略证书吊销状态检查
 miaonet_options_ignore_cert_revocation_status_tip=
 	跳过证书吊销状态检查。
 	警告：这可能会使你的连接变得不安全。
+	此选项不会被保存。
 
 miaonet_options_visuals= 视觉
 miaonet_options_show_own_name= 显示自己的名称
@@ -28,21 +29,6 @@ miaonet_options_player_opacity= 玩家不透明度
 miaonet_options_self_player_name_opacity= 自身名称不透明度
 miaonet_options_player_name_opacity= 名称不透明度
 
-miaonet_options_interactions= 交互
-miaonet_options_player_interactions= 玩家交互
-miaonet_options_live_mode= 直播模式
-miaonet_options_live_mode_tip= 
-	这会禁用聊天，拒收来自任何玩家的聊天信息和 Emote，
-	以及隐藏玩家列表中未知的地图。
-	此选项不会被保存。
-
-miaonet_options_player_list_button_mode= 玩家列表展示模式
-miaonet_options_player_list_button_mode_press= 按下
-miaonet_options_player_list_button_mode_hold= 按住
-miaonet_options_teleport_behaviour= Teleport 指令行为
-miaonet_options_teleport_behaviour_nosession= 仅地图和房间
-miaonet_options_teleport_behaviour_withsession= 请求部分存档信息
-
 miaonet_options_audio= 音频
 miaonet_options_sync_audio= 同步音频
 miaonet_options_sync_audio_tip= 
@@ -51,6 +37,18 @@ miaonet_options_sync_audio_tip=
 miaonet_options_other_players_audio_volume= 其他玩家音频音量
 
 miaonet_options_interactions= 交互
+miaonet_options_player_interactions= 玩家交互
+miaonet_options_live_mode= 直播模式
+miaonet_options_live_mode_tip= 
+	这会禁用聊天，拒收来自任何玩家的聊天信息和 Emote，
+	以及隐藏玩家列表中未知的地图。
+	此选项不会被保存。
+miaonet_options_player_list_button_mode= 玩家列表展示模式
+miaonet_options_player_list_button_mode_press= 按下
+miaonet_options_player_list_button_mode_hold= 按住
+miaonet_options_teleport_behaviour= Teleport 指令行为
+miaonet_options_teleport_behaviour_nosession= 仅地图和房间
+miaonet_options_teleport_behaviour_withsession= 请求部分存档信息
 miaonet_options_emotes_count= Emote 数量
 miaonet_options_emotes_counts_tip= 
 	如果要设置具体 Emote 的内容，
@@ -60,12 +58,18 @@ miaonet_options_emotes_counts_tip=
 miaonet_options_open_settings_file= 打开设置文件
 miaonet_options_open_settings_file_tip= 
 	使用默认打开方式打开本 Mod 的设置文件，
-	有需要时请选择文本编辑器作为打开方式
+	有需要时请选择文本编辑器作为打开方式。
+	该功能在非 Windows 系统上可能不会起效。
 miaonet_options_reload_emote_settings= 重载 Emote 设置
 miaonet_options_key_bindings= 按键设置
 
 miaonet_options_chat= 聊天
 
+miaonet_options_button_chat= 打开聊天栏
+miaonet_options_button_player_list= 打开玩家列表
+miaonet_options_button_create_fireworks= 生成烟花
+miaonet_options_emotes= Emotes
+miaonet_options_emote_i= 发送 Emote (0)
 
 miaonet_connection_status_connecting= 连接中…
 miaonet_connection_status_version_not_match= 本地版本 (0) 与服务器要求版本 (1) 不匹配
