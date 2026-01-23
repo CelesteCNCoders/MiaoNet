@@ -3,7 +3,7 @@
 namespace Celeste.Mod.MiaoNet;
 
 [Tracked]
-public sealed class GhostDeadBody : Entity
+public sealed class GhostDeadBody : FreezeUpdateEntity
 {
     private readonly PlayerHair hair;
     private readonly PlayerSprite sprite;

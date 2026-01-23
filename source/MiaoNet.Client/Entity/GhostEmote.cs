@@ -3,7 +3,7 @@ using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
-public sealed class GhostEmote : Entity
+public sealed class GhostEmote : FreezeUpdateEntity
 {
     public const float FixedSize = 128f;
 

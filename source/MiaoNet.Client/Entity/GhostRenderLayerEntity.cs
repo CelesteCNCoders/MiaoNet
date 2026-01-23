@@ -1,6 +1,6 @@
 ﻿namespace Celeste.Mod.MiaoNet;
 
-public sealed class GhostRenderLayerEntity : Entity
+public sealed class GhostRenderLayerEntity : FreezeUpdateEntity
 {
     private readonly bool isHigh;
 

@@ -168,6 +168,19 @@ public sealed class MiaoNetModule : EverestModule
     {
         ILCursor cur = new(il);
         cur.EmitDelegate(static () => Instance.miaoNetContext?.Update());
+
+        cur.GotoNext(MoveType.After, ins => ins.MatchStsfld<Engine>("FreezeTimer"));
+        cur.EmitLdarg0();
+        cur.EmitDelegate(static (Engine engine) =>
+        {
+            if (engine.scene is null)
+                return;
+            foreach (var entity in engine.scene.Tracker.GetEntities<FreezeUpdateEntity>())
+                entity.Update();
+            foreach (var hair in engine.scene.Tracker.GetComponents<PlayerHair>())
+                if (hair.Entity is MiaoNetGhost or GhostDeadBody)
+                    ((PlayerHair)hair).AfterUpdate();
+        });
     }
 
     private static void Engine_RenderCore(ILContext il)

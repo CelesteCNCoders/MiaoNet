@@ -8,7 +8,7 @@ using Monocle;
 namespace Celeste.Mod.MiaoNet;
 
 [Tracked]
-public sealed class MiaoNetGhost : Entity
+public sealed class MiaoNetGhost : FreezeUpdateEntity
 {
     private PlayerSprite playerSprite;
     private readonly PlayerHair playerHair;
@@ -137,6 +137,7 @@ public sealed class MiaoNetGhost : Entity
         if (dead)
             return;
 
+        // simulate hair color
         if (starFlying)
         {
             playerHair.Color = GraphicsInfo.FeatherHairInfo.Color;
@@ -156,6 +157,8 @@ public sealed class MiaoNetGhost : Entity
         {
             playerHair.Color = GraphicsInfo.GetHairInfo(dashes).Color;
         }
+
+        // simulate hair waving
         if (windDirection.X != 0f)
         {
             // TODO apply others' delta time

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Celeste.Mod.MiaoNet;
 
-public sealed class IdleHover : Entity
+public sealed class IdleHover : FreezeUpdateEntity
 {
     private readonly Entity parentEntity;
     private readonly MTexture hoverTexture;
