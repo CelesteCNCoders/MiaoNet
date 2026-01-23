@@ -70,6 +70,7 @@ public sealed class MiaoNetModule : EverestModule
             Everest.Events.LevelLoader.OnLoadingThread += LevelLoader_OnLoadingThread;
             On.Celeste.Player.Play += Player_Play;
             On.Celeste.Player.Die += Player_Die;
+            On.Celeste.PlayerCollider.Check += PlayerCollider_Check;
         }
         using (new DetourConfigContext(RootBeforeAllConfig).Use())
         {
@@ -104,6 +105,7 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.LevelLoader.OnLoadingThread -= LevelLoader_OnLoadingThread;
         On.Celeste.Player.Play -= Player_Play;
         On.Celeste.Player.Die -= Player_Die;
+        On.Celeste.PlayerCollider.Check -= PlayerCollider_Check;
 
         On.Celeste.PlayerSprite.ctor -= PlayerSprite_ctor;
 
@@ -159,6 +161,13 @@ public sealed class MiaoNetModule : EverestModule
     {
         PlayerSoundPlayed?.Invoke(sound, param, value);
         return orig(self, sound, param, value);
+    }
+
+    private static bool PlayerCollider_Check(On.Celeste.PlayerCollider.orig_Check orig, PlayerCollider self, Player player)
+    {
+        if (Instance.miaoNetContext?.MainComponent.HeldByOthers == true)
+            return false;
+        return orig(self, player);
     }
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot)

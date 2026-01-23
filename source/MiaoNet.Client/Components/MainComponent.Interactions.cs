@@ -7,6 +7,9 @@ partial class MainComponent
     private MiaoNetGhost? holdingPlayerGhost;
     private MiaoNetGhost? heldByPlayerGhost;
 
+    public bool HoldingOthers => holdingPlayerGhost is not null;
+    public bool HeldByOthers => heldByPlayerGhost is not null;
+
     private void CleanUpInteractions()
     {
         Player? player = Engine.Scene.Tracker.GetEntity<Player>();
@@ -27,7 +30,6 @@ partial class MainComponent
         if (player is null)
             return;
         player.StateMachine.State = Player.StFrozen;
-        player.Collidable = false;
         player.Speed = Vector2.Zero;
         player.DummyGravity = false;
         player.ForceCameraUpdate = true;
@@ -40,7 +42,6 @@ partial class MainComponent
         player.StateMachine.State = Player.StNormal;
         if (force is not null)
             player.Speed = force.Value * 296f;
-        player.Collidable = true;
     }
 
     private void UpdateInteractions(Level level, Player player)
@@ -157,8 +158,8 @@ partial class MainComponent
     public override void Render()
     {
         MiaoNetFont.DrawOutline(
-            $"curHeld: {holdingPlayerGhost?.Player.Info}\n" +
-            $"curHeldBy: {heldByPlayerGhost?.Player.Info}",
+            $"holding: {holdingPlayerGhost?.Player.Info}\n" +
+            $"heldBy: {heldByPlayerGhost?.Player.Info}",
             new(0f, 150f),
             Vector2.Zero,
             Vector2.One,
