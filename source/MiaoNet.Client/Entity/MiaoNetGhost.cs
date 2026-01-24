@@ -414,7 +414,7 @@ public sealed class MiaoNetGhost : MiaoNetEntity
             Vector2.One, GraphicsInfo.GetHairInfo(dashes).Color * alpha,
             Depth + 1, useRawDeltaTime: true
         );
-        snap.Tag |= Tag;
+        snap?.Tag |= Tag;
     }
 
     public void OnDied(Vector2 direction)
