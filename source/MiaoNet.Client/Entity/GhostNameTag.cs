@@ -1,6 +1,6 @@
 namespace Celeste.Mod.MiaoNet;
 
-public sealed class GhostNameTag : FreezeUpdateEntity
+public sealed class GhostNameTag : MiaoNetEntity
 {
     public bool IsOnSelf { get; }
 

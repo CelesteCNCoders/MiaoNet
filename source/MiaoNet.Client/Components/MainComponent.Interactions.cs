@@ -10,10 +10,10 @@ partial class MainComponent
     public bool HoldingOthers => holdingPlayerGhost is not null;
     public bool HeldByOthers => heldByPlayerGhost is not null;
 
-    private void CleanUpInteractions()
+    private void CleanUpInteractions(Level? level)
     {
-        Player? player = Engine.Scene.Tracker.GetEntity<Player>();
-        if (player?.Holding?.Entity is MiaoNetGhost)
+        Player? player = level?.Tracker.GetEntity<Player>();
+        if (player is not null && heldByPlayerGhost is not null)
             CleanUpHeldBy(player, null);
         holdingPlayerGhost = null;
         heldByPlayerGhost = null;

@@ -43,7 +43,7 @@ public sealed class MiaoNetModule : EverestModule
     public delegate void PlayerDiedHandler(Player player, Vector2 direction);
     public static event PlayerDiedHandler? PlayerDied;
 
-    public delegate void PreviewPlayerRespawnHandler(Player player, Level level);
+    public delegate void PreviewPlayerRespawnHandler(Player player, Level level, bool fromSL);
     public static event PreviewPlayerRespawnHandler? PreviewPlayerRespawn;
 
     public MiaoNetModule()
@@ -150,7 +150,7 @@ public sealed class MiaoNetModule : EverestModule
 
     private static void Player_Added(On.Celeste.Player.orig_Added orig, Player self, Scene scene)
     {
-        PreviewPlayerRespawn?.Invoke(self, (Level)scene);
+        PreviewPlayerRespawn?.Invoke(self, (Level)scene, false);
         orig(self, scene);
         if (NextPlayerSpawnPosition.HasValue)
         {
@@ -193,7 +193,7 @@ public sealed class MiaoNetModule : EverestModule
         {
             if (engine.scene is null)
                 return;
-            foreach (var entity in engine.scene.Tracker.GetEntities<FreezeUpdateEntity>())
+            foreach (var entity in engine.scene.Tracker.GetEntities<MiaoNetEntity>())
                 entity.Update();
             foreach (var hair in engine.scene.Tracker.GetComponents<PlayerHair>())
                 if (hair.Entity is MiaoNetGhost or GhostDeadBody)
@@ -265,6 +265,11 @@ public sealed class MiaoNetModule : EverestModule
             PlayerDied?.Invoke(self, direction);
         }
         return body;
+    }
+
+    public static void OnLoadState(Level level)
+    {
+        PreviewPlayerRespawn?.Invoke(level.Tracker.GetEntity<Player>(), level, true);
     }
 
     private static void Level_OnCreatePauseMenuButtons(Level level, TextMenu menu, bool minimal)

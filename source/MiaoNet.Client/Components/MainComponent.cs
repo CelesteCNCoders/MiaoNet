@@ -53,24 +53,24 @@ public sealed partial class MainComponent : MiaoNetComponent
         ghosts.Clear();
         selfNameTag?.RemoveSelf();
         selfNameTag = null;
-        CleanUpInteractions();
+        CleanUpInteractions(Engine.Scene as Level);
     }
 
     private void MiaoNetModule_PlayerDied(Player player, Vector2 direction)
     {
         if (!HasState)
             return;
-        CleanUpInteractions();
+        CleanUpInteractions(player.SceneAs<Level>());
         var state = ClientState.SelfState!;
         if (!state.Dead)
         {
             state.Dead = true;
-            PacketPlayerLiveState packet = new(true, direction);
+            PacketPlayerLiveState packet = new(LiveStateType.Die, direction);
             context.QueuePacket(packet);
         }
     }
 
-    private void MiaoNetModule_PreviewPlayerRespawn(Player player, Level level)
+    private void MiaoNetModule_PreviewPlayerRespawn(Player player, Level level, bool fromSL)
     {
         if (!HasState)
             return;
@@ -84,7 +84,8 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (state.Dead)
         {
             state.Dead = false;
-            PacketPlayerLiveState packet = new(false, player.Position);
+            var type = fromSL ? LiveStateType.RespawnFromSL : LiveStateType.Respawn;
+            PacketPlayerLiveState packet = new(type, player.Position);
             context.QueuePacket(packet);
         }
     }
@@ -391,7 +392,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             foreach (var pair in ghosts)
                 pair.Value.RemoveSelf();
             ghosts.Clear();
-            CleanUpInteractions();
+            CleanUpInteractions(Engine.Scene as Level);
 
             if (location.IsInMap)
             {
@@ -514,14 +515,14 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
-    private void Context_PlayerLiveStateNotification(OnlinePlayer player, bool isDie, Vector2 vector2)
+    private void Context_PlayerLiveStateNotification(OnlinePlayer player, LiveStateType flag, Vector2 vector2)
     {
         if (ghosts.TryGetValue(player.Info.ID, out var ghost))
         {
-            if (isDie)
+            if (flag == LiveStateType.Die)
                 ghost.OnDied(vector2);
             else
-                ghost.OnRespawning(vector2);
+                ghost.OnRespawning(vector2, flag == LiveStateType.RespawnFromSL);
         }
         else
         {

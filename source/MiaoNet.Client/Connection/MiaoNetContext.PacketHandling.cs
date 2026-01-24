@@ -17,7 +17,7 @@ partial class MiaoNetContext
     public event Action<OnlinePlayer?, PacketChatMessage>? ChatMessageReceived;
     public event Action<OnlinePlayer, EmoteData>? EmoteReceived;
     public event Action<OnlinePlayer, string>? EmoteTextReceived;
-    public event Action<OnlinePlayer, bool, Vector2>? PlayerLiveStateNotification;
+    public event Action<OnlinePlayer, LiveStateType, Vector2>? PlayerLiveStateNotification;
     public event Action<OnlinePlayer, PlayerOnlineStatus>? PlayerOnlineStatusChanged;
     public event Action<OnlinePlayer, Color, float>? PlayerCreatedFireworks;
     public event Action? PingDataReceived;
@@ -161,7 +161,7 @@ partial class MiaoNetContext
         EnsureState();
         var p = packet.Packet;
         var player = ClientState.GetPlayer(packet.PlayerID);
-        if (!p.IsDie)
+        if (p.Type is not LiveStateType.Die)
         {
             var state = player.State;
             if (state is not null)
@@ -173,7 +173,7 @@ partial class MiaoNetContext
                 Logger.Warn(nameof(MiaoNetContext), $"No initial state but received live state notification for {player.Info}!");
             }
         }
-        PlayerLiveStateNotification?.Invoke(player, packet.Packet.IsDie, packet.Packet.Vector2);
+        PlayerLiveStateNotification?.Invoke(player, packet.Packet.Type, packet.Packet.Vector2);
     }
 
     private void HandlePacket(PacketPlayerNotification<PacketUpdateOnlineStatus> packet)

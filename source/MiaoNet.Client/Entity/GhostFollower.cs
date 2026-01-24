@@ -3,7 +3,7 @@
 namespace Celeste.Mod.MiaoNet;
 
 [Tracked]
-public sealed class GhostFollower : FreezeUpdateEntity
+public sealed class GhostFollower : MiaoNetEntity
 {
     private readonly bool spriteFallbacked;
     private readonly Sprite sprite;

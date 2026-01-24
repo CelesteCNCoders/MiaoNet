@@ -8,7 +8,7 @@ using Monocle;
 namespace Celeste.Mod.MiaoNet;
 
 [Tracked]
-public sealed class MiaoNetGhost : FreezeUpdateEntity
+public sealed class MiaoNetGhost : MiaoNetEntity
 {
     private PlayerSprite playerSprite;
     private readonly PlayerHair playerHair;
@@ -47,6 +47,8 @@ public sealed class MiaoNetGhost : FreezeUpdateEntity
     private (Color, Color) pDashColorBaseB;
     private readonly ParticleType pDashA;
     private readonly ParticleType pDashB;
+
+    private GhostDeadBody? lastBody;
 
     public OnlinePlayer Player { get; }
 
@@ -127,6 +129,10 @@ public sealed class MiaoNetGhost : FreezeUpdateEntity
     public override void Update()
     {
         base.Update();
+
+        // Save Load issue
+        if (selfHoldable.Holder?.Holding != selfHoldable)
+            selfHoldable.Holder = null;
 
         UpdateLightSettings(MiaoNetModule.Settings.OtherPlayersLight);
 
@@ -395,37 +401,55 @@ public sealed class MiaoNetGhost : FreezeUpdateEntity
             if (vertexLight is not null)
                 Remove(vertexLight);
             GhostDeadBody body = new(Position, facing, playerHair, playerSprite, vertexLight, direction);
+            lastBody = body;
             level.Add(body);
         }
         Depth = Depths.Top;
     }
 
     // TODO the respawned timing is not that accurate
-    public void OnRespawning(Vector2 position)
+    public void OnRespawning(Vector2 position, bool fromSL)
     {
         Position = position;
 
-        respawning = true;
-        deadEase = 1f;
-        Collidable = true;
-        var tween = Tween.Set(this, Tween.TweenMode.Oneshot, 0.6f, null,
-            t =>
-            {
-                deadEase = 1f - t.Eased;
-            },
-            t =>
-            {
-                respawning = false;
-                dead = false;
-                Visible = true;
-                Depth = Depths.Player + 1;
-                Add(playerHair);
-                Add(playerSprite);
-                if (vertexLight is not null)
-                    Add(vertexLight);
-            }
-        );
-        tween.UseRawDeltaTime = true;
+        if (!fromSL)
+        {
+            respawning = true;
+            deadEase = 1f;
+            Collidable = true;
+            var tween = Tween.Set(this, Tween.TweenMode.Oneshot, 0.6f, null,
+                t =>
+                {
+                    deadEase = 1f - t.Eased;
+                },
+                t =>
+                {
+                    respawning = false;
+                    dead = false;
+                    Visible = true;
+                    Depth = Depths.Player + 1;
+                    Add(playerHair);
+                    Add(playerSprite);
+                    if (vertexLight is not null)
+                        Add(vertexLight);
+                    lastBody = null;
+                }
+            );
+            tween.UseRawDeltaTime = true;
+        }
+        else
+        {
+            Collidable = true;
+            respawning = false;
+            dead = false;
+            Visible = true;
+            Depth = Depths.Player + 1;
+            Add(playerHair);
+            Add(playerSprite);
+            if (vertexLight is not null)
+                Add(vertexLight);
+            lastBody?.RemoveSelf();
+        }
     }
 
     // TODO start star flying sync?

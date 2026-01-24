@@ -1,5 +1,6 @@
 ﻿#pragma warning disable CA2211
 
+using System.Diagnostics.CodeAnalysis;
 using MonoMod.ModInterop;
 
 namespace Celeste.Mod.MiaoNet;
@@ -10,48 +11,48 @@ public static class SpeedrunToolInterop
     public static Action<Func<Type, bool>>? AddReturnSameObjectProcessor;
     public static Action<Func<Type, bool>>? RemoveReturnSameObjectProcessor;
 
-    public static Action<Func<object, object?>>? AddCustomDeepCloneProcessor;
-    public static Action<Func<object, object?>>? RemoveCustomDeepCloneProcessor;
+    public delegate object RegisterSaveLoadActionHandler(
+        Action<Dictionary<Type, Dictionary<string, object>>, Level>? saveState,
+        Action<Dictionary<Type, Dictionary<string, object>>, Level>? loadState,
+        Action? clearState,
+        Action<Level>? beforeSaveState,
+        Action<Level>? beforeLoadState,
+        Action? preCloneEntities
+    );
+
+    public static RegisterSaveLoadActionHandler? RegisterSaveLoadAction;
+    public static Action<object>? Unregister;
+
+    public static Action<Entity, bool>? IgnoreSaveState;
 }
 
 public static class SpeedrunToolCompat
 {
+    private static object? saveLoadAction;
+
     public static void Load()
     {
         typeof(SpeedrunToolInterop).ModInterop();
-        if (SpeedrunToolInterop.AddReturnSameObjectProcessor is null)
+        if (SpeedrunToolInterop.IgnoreSaveState is null)
             return;
 
         SpeedrunToolInterop.AddReturnSameObjectProcessor!(CanReturnSameObject);
-        SpeedrunToolInterop.AddCustomDeepCloneProcessor!(CustomDeepClone);
+        saveLoadAction = SpeedrunToolInterop.RegisterSaveLoadAction!(
+            null,
+            (_, level) => MiaoNetModule.OnLoadState(level),
+            null, null, null, null
+        );
     }
 
     public static void Unload()
     {
-        if (SpeedrunToolInterop.AddReturnSameObjectProcessor is null)
+        if (SpeedrunToolInterop.IgnoreSaveState is null)
             return;
 
         SpeedrunToolInterop.RemoveReturnSameObjectProcessor!(CanReturnSameObject);
-        SpeedrunToolInterop.RemoveCustomDeepCloneProcessor!(CustomDeepClone);
+        SpeedrunToolInterop.Unregister!(saveLoadAction!);
     }
 
     private static bool CanReturnSameObject(Type type)
-        => type.Assembly == typeof(MiaoNetContext).Assembly && !type.IsSubclassOf(typeof(Entity));
-
-    private static object? CustomDeepClone(object obj)
-    {
-        Type type = obj.GetType();
-        if (type.Assembly == typeof(MiaoNetContext).Assembly && type.IsSubclassOf(typeof(Entity)))
-        {
-            var curScene = Engine.Scene;
-            var entity = (Entity)obj;
-            if (entity is not GhostNameTag)
-            {
-                entity.RemoveSelf();
-                curScene.Add(entity);
-            }
-            return obj;
-        }
-        return null;
-    }
+        => type.Assembly == typeof(MiaoNetContext).Assembly;
 }

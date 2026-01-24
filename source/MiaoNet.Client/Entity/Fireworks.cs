@@ -1,6 +1,6 @@
 ﻿namespace Celeste.Mod.MiaoNet;
 
-public sealed class Fireworks : FreezeUpdateEntity
+public sealed class Fireworks : MiaoNetEntity
 {
     private readonly DeathEffect effect;
     private float speed;

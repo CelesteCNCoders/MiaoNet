@@ -1,24 +1,27 @@
 namespace MiaoNet.Shared;
 
+public enum LiveStateType { Die, Respawn, RespawnFromSL }
+
 public sealed class PacketPlayerLiveState : IContextlessPacket<PacketPlayerLiveState>
 {
-    public bool IsDie { get; }
+
+    public LiveStateType Type { get; }
 
     /// <summary>Die direction when <see cref="IsDie"/>, or respawn position.</summary>
     public Vector2 Vector2 { get; }
 
-    public PacketPlayerLiveState(bool isDie, Vector2 vector2)
+    public PacketPlayerLiveState(LiveStateType type, Vector2 vector2)
     {
-        IsDie = isDie;
+        Type = type;
         Vector2 = vector2;
     }
 
     public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(IsDie);
+        writer.Write((byte)Type);
         writer.Write(Vector2);
     }
 
     public static PacketPlayerLiveState Deserialize(ref RefBinaryReader reader)
-        => new PacketPlayerLiveState(reader.ReadBoolean(), reader.ReadVector2());
+        => new PacketPlayerLiveState((LiveStateType)reader.ReadByte(), reader.ReadVector2());
 }
