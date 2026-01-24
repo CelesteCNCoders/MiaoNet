@@ -483,7 +483,7 @@ public sealed partial class MainComponent : MiaoNetComponent
                 else
                     ghost.UpdateSimpleHoldable(hi.Type, hi.Offset);
 
-                if (player.ID == heldByPlayerGhost?.Player.ID)
+                if (player.ID == heldByPlayerGhost?.OnlinePlayer.ID)
                     OnHeldByPlayerFrame(level, ghost);
             }
             else

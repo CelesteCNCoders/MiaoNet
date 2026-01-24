@@ -29,7 +29,7 @@ public sealed class MiaoNetGhost : MiaoNetEntity
     private bool starFlying;
     private bool ducking;
     // TODO sync hitbox size?
-    private readonly Hitbox normalHitbox = new Hitbox(8f, 11f, -4f, -11f);
+    private readonly Hitbox normalHitbox = new Hitbox(8f, 16f, -4f, -16f);
     private readonly Hitbox duckHitbox = new Hitbox(8f, 6f, -4f, -6f);
     private Hitbox hitbox;
     private readonly Holdable selfHoldable;
@@ -50,7 +50,7 @@ public sealed class MiaoNetGhost : MiaoNetEntity
 
     private GhostDeadBody? lastBody;
 
-    public OnlinePlayer Player { get; }
+    public OnlinePlayer OnlinePlayer { get; }
 
     public string Name { get; }
 
@@ -82,7 +82,7 @@ public sealed class MiaoNetGhost : MiaoNetEntity
     {
         Tag = MiaoNetTag.Tag;
         Depth = Depths.Player + 1;
-        Player = player;
+        OnlinePlayer = player;
         Name = name;
         GraphicsInfo = playerGraphicsInfo;
         facing = Facings.Right;
@@ -103,8 +103,8 @@ public sealed class MiaoNetGhost : MiaoNetEntity
         ApplyState(initialState);
         UpdateHairCount();
 
-        pDashA = new(global::Celeste.Player.P_DashA);
-        pDashB = new(global::Celeste.Player.P_DashB);
+        pDashA = new(Player.P_DashA);
+        pDashB = new(Player.P_DashB);
         pDashColorBaseA = (pDashA.Color, pDashA.Color2);
         pDashColorBaseB = (pDashB.Color, pDashB.Color2);
 
@@ -124,6 +124,9 @@ public sealed class MiaoNetGhost : MiaoNetEntity
             }
         };
         Add(selfHoldable);
+
+        var playerCollider = new PlayerCollider(OnPlayer);
+        Add(playerCollider);
     }
 
     public override void Update()
@@ -136,7 +139,7 @@ public sealed class MiaoNetGhost : MiaoNetEntity
 
         UpdateLightSettings(MiaoNetModule.Settings.OtherPlayersLight);
 
-        bool updateOthers = Player.OnlineStatus == PlayerOnlineStatus.Normal;
+        bool updateOthers = OnlinePlayer.OnlineStatus == PlayerOnlineStatus.Normal;
         if (!updateOthers)
             return;
 
@@ -225,6 +228,32 @@ public sealed class MiaoNetGhost : MiaoNetEntity
         else
         {
             playerHair.AfterUpdate();
+        }
+    }
+
+    private void OnPlayer(Player player)
+    {
+        if (selfHoldable.cannotHoldTimer > 0f || dashing)
+            return;
+
+        var m = player.StateMachine;
+        if (
+            m.State is Player.StNormal &&
+            player.Speed.Y > 0f && player.Bottom <= Top + 3f
+        )
+        {
+            Dust.Burst(player.BottomCenter, -MathF.PI / 2f, 8);
+            (Scene as Level)?.DirectionalShake(Vector2.UnitY, 0.05f);
+            Input.Rumble(RumbleStrength.Light, RumbleLength.Medium);
+            player.Bounce(Top + 2f);
+            player.Play(SFX.game_gen_thing_booped);
+        }
+        else if (
+            m.State is not Player.StDash and not Player.StRedDash and not Player.StDreamDash and not Player.StBirdDashTutorial &&
+            player.Speed.Y <= 0f && Bottom <= player.Top + 5f
+        )
+        {
+            player.Speed.Y = Math.Max(player.Speed.Y, 16f);
         }
     }
 
@@ -568,7 +597,7 @@ public sealed class MiaoNetGhost : MiaoNetEntity
 
     private void UpdateCollidable()
     {
-        Collidable = Interactions && MiaoNetModule.Settings.PlayerInteractions && Player.OnlineStatus == PlayerOnlineStatus.Normal;
+        Collidable = Interactions && MiaoNetModule.Settings.PlayerInteractions && OnlinePlayer.OnlineStatus == PlayerOnlineStatus.Normal;
     }
 
     private void PrepareHoldableSprite(HoldableType type)

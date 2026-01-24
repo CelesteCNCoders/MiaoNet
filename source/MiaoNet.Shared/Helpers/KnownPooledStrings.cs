@@ -42,7 +42,8 @@ public static partial class KnownPooledStrings
         "mirrortemple_big_landing", "crystaltheo_lift", "crystaltheo_throw", "theo_collapse", "summit_flytonext",
         "summit_areastart", "summit_sit", "idle_scratch", "idle_sneeze", "idle_crackknuckles", "backpack_drop", "water_in",
         "water_out", "water_dash_in", "water_dash_out", "water_dash_gen", "water_move_shallow", "water_move_general",
-        "energy_out_loop", "energy_recharged", "/game/general/assist_screenbottom", "/MiaoNet/player/revive"
+        "energy_out_loop", "energy_recharged", "/game/general/assist_screenbottom", "/MiaoNet/player/revive",
+        "/game/general/thing_booped"
     ];
 
     private const string PlayerSoundParamName = "surface_index";
