@@ -138,3 +138,14 @@ miaonet_commands_teleport_success_nosession= 已传送到 (0) 的所在位置。
 
 miaonet_chat_whisper_sent= \[私聊 (0)\] (1)
 miaonet_chat_whisper_received= \[私聊\] (0)
+
+miaonet_oui_conflict_title= MiaoNet Mod 冲突
+miaonet_oui_conflict_description= 
+	看起来你在安装 MiaoNet 时同时安装了 CelesteNet（或 Miao.CelesteNet）。
+
+	MiaoNet 版本：v(0)
+	CelesteNet 版本：v(1)
+
+	不幸的是它们之间会发生冲突，
+	你可以在退出游戏后禁用任一 Mod 避免冲突的发生。
+miaonet_oui_conflict_exit_game= 退出游戏

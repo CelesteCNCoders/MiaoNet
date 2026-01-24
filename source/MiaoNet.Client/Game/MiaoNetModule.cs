@@ -244,13 +244,23 @@ public sealed class MiaoNetModule : EverestModule
         orig(self);
         if (!seenOverworld)
         {
+            seenOverworld = true;
+            EverestModule? cnet = Everest.Modules.FirstOrDefault(m => m.Metadata.Name == "CelesteNet.Client");
+            EverestModule? mnet = Everest.Modules.FirstOrDefault(m => m.Metadata.Name == "Miao.CelesteNet.Client");
+            if (cnet is not null || mnet is not null)
+            {
+                var u = self.GetUI<OuiConflict>();
+                u.VersionMiaoNet = Instance.Metadata.VersionString;
+                u.VersionCelesteNet = (mnet ?? cnet)!.Metadata.VersionString;
+                self.Goto<OuiConflict>();
+                return;
+            }
             if (Settings.ConnectOnGameStart)
             {
                 Entity entity = new();
                 Alarm.Set(entity, 4f, () => { Instance.MiaoNetContext.Connect(); entity.RemoveSelf(); });
                 self.Add(entity);
             }
-            seenOverworld = true;
         }
     }
 

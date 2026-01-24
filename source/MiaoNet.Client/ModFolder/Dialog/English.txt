@@ -140,3 +140,14 @@ miaonet_commands_teleport_success_nosession= Teleported to (0)'s location.
 
 miaonet_chat_whisper_sent= \[whisper to (0)\] (1)
 miaonet_chat_whisper_received= \[whisper\] (0)
+
+miaonet_oui_conflict_title= MiaoNet Mod Conflict
+miaonet_oui_conflict_description=
+	It appears that you have installed both MiaoNet and CelesteNet simultaneously.
+
+	MiaoNet version: v(0)
+	CelesteNet version: v(1)
+
+	Unfortunately, these mods conflict with each other.
+	You can avoid this issue by disabling either mod after exiting the game.
+miaonet_oui_conflict_exit_game= Exit Game
