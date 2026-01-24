@@ -25,10 +25,8 @@ partial class MainComponent
         player?.Position = Calc.Round(ghost.Position + ghost.HoldableOffset!.Value);
     }
 
-    private static void OnHeldBy(Player? player)
+    private static void OnHeldBy(Player player)
     {
-        if (player is null)
-            return;
         player.StateMachine.State = Player.StFrozen;
         player.Speed = Vector2.Zero;
         player.DummyGravity = false;
@@ -130,10 +128,22 @@ partial class MainComponent
             }
             else
             {
-                // let them hold us
-
-                heldByPlayerGhost = ghosts[player.ID];
-                OnHeldBy(level.Tracker.GetEntity<Player>());
+                var playerEntity = level.Tracker.GetEntity<Player>();
+                if (playerEntity is not null)
+                {
+                    if (playerEntity.InControl)
+                    {
+                        // let them hold us
+                        heldByPlayerGhost = ghosts[player.ID];
+                        OnHeldBy(playerEntity);
+                    }
+                    else
+                    {
+                        // not now
+                        context.QueuePacket(new PacketPlayerGrabJumpOut(player.ID));
+                    }
+                }
+                // should we tell the other that no player locally found?
             }
         }
         else
