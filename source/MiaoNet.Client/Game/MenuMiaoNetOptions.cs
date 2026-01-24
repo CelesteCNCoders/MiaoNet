@@ -63,6 +63,7 @@ public static class MenuMiaoNetOptions
                         settings.Name,
                         v =>
                         {
+                            v = v.Trim();
                             settings.Name = v;
                             thisButton.Label = Dialog.Get("miaonet_options_logged_in") + v;
                         }

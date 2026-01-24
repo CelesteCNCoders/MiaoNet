@@ -50,7 +50,7 @@ partial class MiaoNetContext
         {
             if (string.IsNullOrWhiteSpace(MiaoNetModule.Settings.Name))
             {
-                QueueDisconnectStatus("Please set your name first");
+                QueueDisconnectStatus(Dialog.Get("miaonet_connection_status_noname"));
                 return;
             }
 
