@@ -39,6 +39,8 @@ CelesteNet 的一个重写, 以应对数以百计的蔚蓝联机玩家.
 有关的更详细的但是是 AI 生成并稍微人工调整的勉强还能看的文档可以在 [`document/AIGC`](./document/AIGC) 中找到.  
 **注意这部分文档可以预见的是会经常过时, 建议还是以阅读代码为主.**
 
+~~目前服务器端的设计非常糟糕, 在阅读时注意好血压(x), 在思考如何设计使得不会有太多多线程问题~~
+
 ## 项目进度
 
 [见该 Issue](https://github.com/CelesteCNCoders/MiaoNet/issues/2)
