@@ -157,6 +157,9 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
         ];
     }
 
+    public IEnumerable<ButtonBinding> GetButtonBindings()
+        => [ChatButton, PlayerListButton, .. EmoteButtons, CreateFireworksButton];
+
     private static float GetScaleValue(int scale) => scale switch
     {
         1 => 4f,

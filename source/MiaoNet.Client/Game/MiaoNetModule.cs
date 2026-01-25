@@ -116,11 +116,8 @@ public sealed class MiaoNetModule : EverestModule
 
     public override void OnInputInitialize()
     {
-        InitializeButton(Settings.ChatButton);
-        InitializeButton(Settings.PlayerListButton);
-        foreach (var item in Settings.EmoteButtons)
+        foreach (var item in Settings.GetButtonBindings())
             InitializeButton(item);
-        InitializeButton(Settings.CreateFireworksButton);
     }
 
     public static void InitializeButton(ButtonBinding buttonBinding)
