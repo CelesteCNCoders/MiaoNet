@@ -40,6 +40,35 @@ partial class MainComponent
         player.StateMachine.State = Player.StNormal;
         if (force is not null)
             player.Speed = force.Value * 296f;
+
+        if (!player.CollideCheck<Solid>())
+            return;
+
+        // we're in wall...
+        if (force is not null && force.Value.X != 0f)
+        {
+            // copied from Holdable.Release
+            int forceXDir = Math.Sign(force.Value.X);
+            bool inSolid = true;
+
+            int tryTimes = 0;
+            while (inSolid && tryTimes++ < 10)
+            {
+                Vector2 tryPosition = player.Position + forceXDir * tryTimes * Vector2.UnitX;
+                if (!player.CollideCheck<Solid>(tryPosition))
+                    inSolid = false;
+            }
+            if (!inSolid)
+            {
+                player.X += forceXDir * tryTimes;
+                return;
+            }
+        }
+        while (player.CollideCheck<Solid>())
+        {
+            player.Position += Vector2.UnitY;
+        }
+
     }
 
     private void UpdateInteractions(Level level, Player player)
