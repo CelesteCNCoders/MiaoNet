@@ -3,8 +3,8 @@ miaonet_options_title= MiaoNet 选项
 miaonet_options_connected= 连接
 miaonet_options_login_state= 登录状态
 miaonet_options_logged_in= 登录为： 
-miaonet_options_logged_in_tips= 前往主菜单的 Mod 选项登录或切换账号。
-miaonet_options_logged_in_tips_2= 按下进行登录或者更换账号。
+miaonet_options_logged_in_tip= 前往主菜单的 Mod 选项登录或切换账号。
+miaonet_options_logged_in_tip_2= 按下进行登录或者更换账号。
 
 miaonet_options_connection= 连接
 miaonet_options_connect_on_game_start= 游戏启动时连接
@@ -16,7 +16,7 @@ miaonet_options_ignore_cert_revocation_status_tip=
 
 miaonet_options_visuals= 视觉
 miaonet_options_show_own_name= 显示自己的名称
-miaonet_options_other_players_light= 为其他玩家添加光照
+miaonet_options_player_light= 为其他玩家添加光照
 miaonet_options_ui= 界面
 miaonet_options_player_list_ui_scale= 玩家列表界面大小
 miaonet_options_chat_ui_scale= 聊天界面大小
@@ -26,15 +26,15 @@ miaonet_options_chat_background_width= 聊天背景宽度
 miaonet_options_idle_chat_height= 聊天高度
 miaonet_options_active_chat_height= 聚焦聊天高度
 miaonet_options_player_opacity= 玩家不透明度
-miaonet_options_self_player_name_opacity= 自身名称不透明度
+miaonet_options_self_name_opactiy= 自身名称不透明度
 miaonet_options_player_name_opacity= 名称不透明度
 
 miaonet_options_audio= 音频
-miaonet_options_sync_audio= 同步音频
-miaonet_options_sync_audio_tip= 
+miaonet_options_player_audio= 玩家音频
+miaonet_options_player_audio_tip= 
 	这会将本地播放的音频发送给其他玩家，
 	同时也会播放来自其他玩家的音频
-miaonet_options_other_players_audio_volume= 其他玩家音频音量
+miaonet_options_player_audio_volume= 玩家音频音量
 
 miaonet_options_interactions= 交互
 miaonet_options_player_interactions= 玩家交互
@@ -50,7 +50,7 @@ miaonet_options_teleport_behaviour= Teleport 指令行为
 miaonet_options_teleport_behaviour_nosession= 仅地图和房间
 miaonet_options_teleport_behaviour_withsession= 请求部分存档信息
 miaonet_options_emotes_count= Emote 数量
-miaonet_options_emotes_counts_tip= 
+miaonet_options_emotes_count_tip= 
 	如果要设置具体 Emote 的内容，
 	你需要手动打开设置文件然后编辑并重载设置
 	警告：减少该值会使你失去超出范围的 Emote 设置

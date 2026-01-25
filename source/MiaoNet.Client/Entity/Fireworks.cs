@@ -25,7 +25,7 @@ public sealed class Fireworks : MiaoNetEntity
     {
         base.Added(scene);
         var ins = Audio.Play(MiaoNetSFX.PlayerPreDeath, Position);
-        ins?.setVolume(MiaoNetModule.Settings.OtherPlayersAudioVolumeValue);
+        ins?.setVolume(MiaoNetModule.Settings.PlayerAudioVolumeValue);
     }
 
     public override void Update()
@@ -42,7 +42,7 @@ public sealed class Fireworks : MiaoNetEntity
                 if (!Scene.Paused)
                 {
                     var ins = Audio.Play(MiaoNetSFX.PlayerDeath, Position);
-                    ins?.setVolume(MiaoNetModule.Settings.OtherPlayersAudioVolumeValue);
+                    ins?.setVolume(MiaoNetModule.Settings.PlayerAudioVolumeValue);
                 }
             }
         }

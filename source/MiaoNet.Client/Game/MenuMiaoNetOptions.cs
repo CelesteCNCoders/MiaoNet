@@ -48,7 +48,7 @@ public static class MenuMiaoNetOptions
         {
             item = new TextMenu.Button(loggedInText);
             menu.Add(item);
-            item.AddDescription(menu, Dialog.Get("miaonet_options_logged_in_tips"));
+            item.AddDescription(menu, Dialog.Get("miaonet_options_logged_in_tip"));
         }
         else
         {
@@ -71,7 +71,7 @@ public static class MenuMiaoNetOptions
             });
             item = thisButton;
             menu.Add(item);
-            item.AddDescription(menu, Dialog.Get("miaonet_options_logged_in_tips_2"));
+            item.AddDescription(menu, Dialog.Get("miaonet_options_logged_in_tip_2"));
         }
 
         #endregion
@@ -107,8 +107,8 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
 
         item = new TextMenu.OnOff(
-            Dialog.Get("miaonet_options_other_players_light"), settings.OtherPlayersLight
-        ).Change(v => settings.OtherPlayersLight = v);
+            Dialog.Get("miaonet_options_player_light"), settings.PlayerLight
+        ).Change(v => settings.PlayerLight = v);
         menu.Add(item);
 
         #region UI
@@ -150,13 +150,13 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_self_player_name_opacity"), 1, 10, settings.SelfNameOpacity
+            Dialog.Get("miaonet_options_self_name_opactiy"), 1, 10, settings.SelfNameOpacity
         ).Change(v => settings.SelfNameOpacity = v);
         menu.Add(item);
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_player_name_opacity"), 1, 10, settings.NameOpacity
-        ).Change(v => settings.NameOpacity = v);
+            Dialog.Get("miaonet_options_player_name_opacity"), 1, 10, settings.PlayerNameOpacity
+        ).Change(v => settings.PlayerNameOpacity = v);
         menu.Add(item);
 
         #endregion
@@ -167,14 +167,14 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
 
         item = new TextMenu.OnOff(
-            Dialog.Get("miaonet_options_sync_audio"), settings.SyncAudio
-        ).Change(v => settings.SyncAudio = v);
+            Dialog.Get("miaonet_options_player_audio"), settings.PlayerAudio
+        ).Change(v => settings.PlayerAudio = v);
         menu.Add(item);
-        item.AddDescription(menu, Dialog.Clean("miaonet_options_sync_audio_tip"));
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_player_audio_tip"));
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_other_players_audio_volume"), 1, 10, settings.OtherPlayersAudioVolume
-        ).Change(v => settings.OtherPlayersAudioVolume = v);
+            Dialog.Get("miaonet_options_player_audio_volume"), 1, 10, settings.PlayerAudioVolume
+        ).Change(v => settings.PlayerAudioVolume = v);
         menu.Add(item);
 
         #endregion
@@ -213,7 +213,7 @@ public static class MenuMiaoNetOptions
             Dialog.Get("miaonet_options_emotes_count"), 8, 32, settings.EmotesCount
         ).Change(v => settings.EmotesCount = v);
         menu.Add(item);
-        item.AddDescription(menu, Dialog.Clean("miaonet_options_emotes_counts_tip"));
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_emotes_count_tip"));
 
         item = new TextMenu.Button(
             Dialog.Get("miaonet_options_open_settings_file")

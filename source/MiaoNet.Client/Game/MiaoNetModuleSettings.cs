@@ -42,7 +42,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public bool ShowOwnName { get; set; } = true;
 
-    public bool OtherPlayersLight { get; set; } = false;
+    public bool PlayerLight { get; set; } = false;
 
     #region UI
 
@@ -62,9 +62,9 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public int PlayerOpacity { get; set; } = 8;
 
-    public int SelfNameOpacity { get; set; } = 8;
+    public int PlayerNameOpacity { get; set; } = 8;
 
-    public int NameOpacity { get; set; } = 8;
+    public int SelfNameOpacity { get; set; } = 8;
 
     #region Calculated
 
@@ -76,7 +76,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     [YamlIgnore] public float SelfNameOpacityValue => SelfNameOpacity / 10f;
 
-    [YamlIgnore] public float NameOpacityValue => NameOpacity / 10f;
+    [YamlIgnore] public float PlayerNameOpacityValue => PlayerNameOpacity / 10f;
 
     [YamlIgnore] public float ChatBackgroundOpacityValue => ChatBackgroundOpacity / 10f;
 
@@ -88,11 +88,11 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     #region Audio
 
-    public bool SyncAudio { get; set; } = true;
+    public bool PlayerAudio { get; set; } = true;
 
-    public int OtherPlayersAudioVolume { get; set; } = 5;
+    public int PlayerAudioVolume { get; set; } = 5;
 
-    [YamlIgnore] public float OtherPlayersAudioVolumeValue => OtherPlayersAudioVolume / 10f;
+    [YamlIgnore] public float PlayerAudioVolumeValue => PlayerAudioVolume / 10f;
 
     #endregion
 

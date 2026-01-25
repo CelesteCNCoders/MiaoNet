@@ -3,8 +3,8 @@ miaonet_options_title= MiaoNet Options
 miaonet_options_connected= Connected
 miaonet_options_login_state= Login State
 miaonet_options_logged_in= Logged in: 
-miaonet_options_logged_in_tips= Goto mod options in main menu to login or switch logged in account.
-miaonet_options_logged_in_tips_2= Press to login or switch logged in account.
+miaonet_options_logged_in_tip= Goto mod options in main menu to login or switch logged in account.
+miaonet_options_logged_in_tip_2= Press to login or switch logged in account.
 
 miaonet_options_connection= Connection
 miaonet_options_connect_on_game_start= Connect On Game Start
@@ -16,7 +16,7 @@ miaonet_options_ignore_cert_revocation_status_tip=
 
 miaonet_options_visuals= Visuals
 miaonet_options_show_own_name= Show Own Name
-miaonet_options_other_players_light= Add light to other players
+miaonet_options_player_light= Add lights to other players
 miaonet_options_ui= UI
 miaonet_options_player_list_ui_scale= Player List UI Scale
 miaonet_options_chat_ui_scale= Chat UI Scale
@@ -26,15 +26,15 @@ miaonet_options_chat_background_width= Chat Background Width
 miaonet_options_idle_chat_height= Chat Height
 miaonet_options_active_chat_height= Active Chat Height
 miaonet_options_player_opacity= Player Opacity
-miaonet_options_self_player_name_opacity= Self Name Opacity
+miaonet_options_self_name_opactiy= Self Name Opacity
 miaonet_options_player_name_opacity= Name Opacity
 
 miaonet_options_audio= Audio
-miaonet_options_sync_audio= Sync Audio
-miaonet_options_sync_audio_tip= 
+miaonet_options_player_audio= Sync Audio
+miaonet_options_player_audio_tip= 
 	This sends locally played audio to other players
 	and also plays audio received from other players.
-miaonet_options_other_players_audio_volume= Other Players Audio volume
+miaonet_options_player_audio_volume= Other Players Audio volume
 
 miaonet_options_interactions= Interactions
 miaonet_options_player_interactions= Player Interactions
@@ -51,7 +51,7 @@ miaonet_options_teleport_behaviour= Teleport Command Behaviour
 miaonet_options_teleport_behaviour_nosession= Map and room only
 miaonet_options_teleport_behaviour_withsession= Request other's session
 miaonet_options_emotes_count= Emotes Count
-miaonet_options_emotes_counts_tip= 
+miaonet_options_emotes_count_tip= 
 	If you want to set content of emotes,
 	open settings file, edit it 
 	manually and reload settings.

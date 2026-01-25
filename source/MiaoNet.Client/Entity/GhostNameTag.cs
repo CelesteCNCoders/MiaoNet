@@ -35,7 +35,7 @@ public sealed class GhostNameTag : MiaoNetEntity
         worldPosition.Y -= 16f;
         float alpha = IsOnSelf
             ? MiaoNetModule.Settings.SelfNameOpacityValue
-            : MiaoNetModule.Settings.NameOpacityValue;
+            : MiaoNetModule.Settings.PlayerNameOpacityValue;
         const float Scale = 1f / 2f;
         const float Margin = 8f;
 

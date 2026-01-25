@@ -89,7 +89,7 @@ public sealed class MiaoNetGhost : MiaoNetEntity
         playerSprite = SafeCreatePlayerSprite(initialState.PlayerSpriteMode);
         Add(leader = new Leader(new Vector2(0f, -8f)));
         Add(new MirrorReflection());
-        UpdateLightSettings(MiaoNetModule.Settings.OtherPlayersLight);
+        UpdateLightSettings(MiaoNetModule.Settings.PlayerLight);
 
         playerHair = new PlayerHair(playerSprite);
 
@@ -137,7 +137,7 @@ public sealed class MiaoNetGhost : MiaoNetEntity
         if (selfHoldable.Holder?.Holding != selfHoldable)
             selfHoldable.Holder = null;
 
-        UpdateLightSettings(MiaoNetModule.Settings.OtherPlayersLight);
+        UpdateLightSettings(MiaoNetModule.Settings.PlayerLight);
 
         bool updateOthers = OnlinePlayer.OnlineStatus == PlayerOnlineStatus.Normal;
         if (!updateOthers)
@@ -666,7 +666,7 @@ public sealed class MiaoNetGhost : MiaoNetEntity
         if (Scene is not Level level || level.Paused)
             return;
 
-        float baseValue = MiaoNetModule.Settings.OtherPlayersAudioVolumeValue;
+        float baseValue = MiaoNetModule.Settings.PlayerAudioVolumeValue;
 
         EventDescription eventDescription = Audio.GetEventDescription(@event);
         if (eventDescription is null)
