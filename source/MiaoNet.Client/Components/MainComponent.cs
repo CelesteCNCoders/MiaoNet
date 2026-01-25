@@ -10,7 +10,7 @@ namespace Celeste.Mod.MiaoNet;
 /// </summary>
 public sealed partial class MainComponent : MiaoNetComponent
 {
-    private const float SendFireworksCooldown = 1f;
+    private const float SendFireworksCooldown = 0.5f;
     private float sendFireworksCooldown;
 
     private bool pendingMapChanged;
