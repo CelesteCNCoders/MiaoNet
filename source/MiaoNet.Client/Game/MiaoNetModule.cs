@@ -294,19 +294,21 @@ public sealed class MiaoNetModule : EverestModule
             TextMenu options = new TextMenu();
             MenuMiaoNetOptions.BuildHeader(options);
             MenuMiaoNetOptions.BuildMenu(options, true);
-            options.OnESC = (options.OnCancel = () =>
+            options.OnESC = options.OnCancel = () =>
             {
                 Audio.Play(SFX.ui_main_button_back);
                 level.AllowHudHide = oldAllowHudHide;
                 level.Pause(returnIndex, minimal);
                 options.Close();
-            });
+                Instance.SaveSettings();
+            };
             options.OnPause = () =>
             {
                 Audio.Play(SFX.ui_main_button_back);
                 level.AllowHudHide = oldAllowHudHide;
                 level.Paused = false;
                 options.Close();
+                Instance.SaveSettings();
             };
             level.Add(options);
         });
