@@ -24,27 +24,32 @@ public sealed class Fireworks : MiaoNetEntity
     public override void Added(Scene scene)
     {
         base.Added(scene);
+        var settings = MiaoNetModule.Settings;
+        if (!settings.PlayerAudio || scene.Paused)
+            return;
         var ins = Audio.Play(MiaoNetSFX.PlayerPreDeath, Position);
-        ins?.setVolume(MiaoNetModule.Settings.PlayerAudioVolumeValue);
+        ins?.setVolume(settings.PlayerAudioVolumeValue);
     }
 
     public override void Update()
     {
         base.Update();
-        if (!effect.Active)
-        {
-            Position -= new Vector2(0f, speed) * Engine.RawDeltaTime;
-            speed -= 512f * Engine.RawDeltaTime;
+        if (effect.Active)
+            return;
 
-            if (speed < -96f)
-            {
-                effect.Active = true;
-                if (!Scene.Paused)
-                {
-                    var ins = Audio.Play(MiaoNetSFX.PlayerDeath, Position);
-                    ins?.setVolume(MiaoNetModule.Settings.PlayerAudioVolumeValue);
-                }
-            }
-        }
+        Position -= new Vector2(0f, speed) * Engine.RawDeltaTime;
+        speed -= 512f * Engine.RawDeltaTime;
+
+        if (speed >= -96f)
+            return;
+
+        effect.Active = true;
+
+        var settings = MiaoNetModule.Settings;
+        if (!settings.PlayerAudio || Scene.Paused)
+            return;
+
+        var ins = Audio.Play(MiaoNetSFX.PlayerDeath, Position);
+        ins?.setVolume(settings.PlayerAudioVolumeValue);
     }
 }

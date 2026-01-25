@@ -171,7 +171,7 @@ public sealed partial class MainComponent : MiaoNetComponent
                 if (button.Pressed && !level.Paused)
                 {
                     button.ConsumePress();
-                    float initialSpeed = 288f + Random.Shared.NextFloat(96f) - 32f;
+                    float initialSpeed = 248f + Random.Shared.NextFloat(148f) - 74f;
                     Color color = player.Hair.Color;
                     level.Add(new Fireworks(player.Position, color, initialSpeed));
                     context.QueuePacket(new PacketCreateFireworks(color, initialSpeed));

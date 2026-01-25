@@ -697,8 +697,7 @@ public sealed class MiaoNetGhost : MiaoNetEntity
 
     public void OnCreatedFireworks(Color color, float initialSpeed)
     {
-        // TODO do not early quit when paused
-        if (Scene is not Level level || level.Paused)
+        if (Scene is not Level level)
             return;
 
         if (!level.InsideCamera(Center, 128f))
