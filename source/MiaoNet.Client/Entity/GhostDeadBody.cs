@@ -63,7 +63,8 @@ public sealed class GhostDeadBody : MiaoNetEntity
         Level level = SceneAs<Level>();
         if (bounce != Vector2.Zero)
         {
-            if (!level.Paused)
+            var settings = MiaoNetModule.Settings;
+            if (!level.Paused && settings.PlayerAudio)
                 Audio.Play(MiaoNetSFX.PlayerPreDeath, Position);
             yield return 0.05f; // freeze frames
             const float StartScale = 1.5f;
@@ -87,9 +88,11 @@ public sealed class GhostDeadBody : MiaoNetEntity
         Position += Vector2.UnitY * -5f;
         if (!level.Paused)
         {
-            float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
+            var settings = MiaoNetModule.Settings;
+            float alpha = settings.PlayerOpacityValue;
             level.Displacement.AddBurst(Position, 0.3f, 0f, 80f, alpha: alpha);
-            Audio.Play(MiaoNetSFX.PlayerDeath, Position);
+            if (settings.PlayerAudio)
+                Audio.Play(MiaoNetSFX.PlayerDeath, Position);
         }
         deathEffect = new DeathEffect(initialHairColor, Center - Position);
         if (vertexLight is not null)
