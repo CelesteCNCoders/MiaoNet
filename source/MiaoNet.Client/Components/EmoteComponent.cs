@@ -86,10 +86,10 @@ public sealed class EmoteComponent : MiaoNetComponent
         if (IsLiveMode)
             return;
         int id = player.ID;
-        if (context.MainComponent.TryGetGhost(id, out var ghost))
+        if (context.MainComponent.TryGetGhostTarget(id, out var entity))
         {
-            if (ghost.Scene is not null)
-                AddGhostEmote(ghost, emote);
+            if (entity.Scene is not null)
+                AddGhostEmote(entity, emote);
         }
         else
         {
@@ -105,10 +105,10 @@ public sealed class EmoteComponent : MiaoNetComponent
         if (IsLiveMode)
             return;
         int id = player.ID;
-        if (context.MainComponent.TryGetGhost(id, out var ghost))
+        if (context.MainComponent.TryGetGhostTarget(id, out var entity))
         {
-            if (ghost.Scene is not null)
-                AddGhostEmote(ghost, text);
+            if (entity.Scene is not null)
+                AddGhostEmote(entity, text);
         }
         else
         {

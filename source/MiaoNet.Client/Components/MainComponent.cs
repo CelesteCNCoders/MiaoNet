@@ -609,7 +609,17 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
-    // should we expose the ghost entity...?
-    public bool TryGetGhost(int playerID, [NotNullWhen(true)] out MiaoNetGhost? ghost)
-        => ghosts.TryGetValue(playerID, out ghost);
+    public bool TryGetGhostTarget(int playerID, [NotNullWhen(true)] out Entity? entity)
+    {
+        if (ghosts.TryGetValue(playerID, out MiaoNetGhost? ghost))
+        {
+            entity = ghost;
+            return true;
+        }
+        else
+        {
+            entity = null;
+            return false;
+        }
+    }
 }
