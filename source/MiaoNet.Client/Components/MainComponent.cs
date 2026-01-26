@@ -11,7 +11,7 @@ namespace Celeste.Mod.MiaoNet;
 public sealed partial class MainComponent : MiaoNetComponent
 {
     private const float SendFireworksCooldown = 0.5f;
-    private float sendFireworksCooldown;
+    private float sendFireworksTimer;
 
     private bool pendingMapChanged;
     private readonly Dictionary<int, MiaoNetGhost> ghosts;
@@ -115,22 +115,25 @@ public sealed partial class MainComponent : MiaoNetComponent
         SendPlayerFrame(player, selfState);
 
         {
-            if (sendFireworksCooldown <= 0f)
+            if (sendFireworksTimer <= 0f)
             {
                 var button = MiaoNetModule.Settings.CreateFireworksButton;
                 if (button.Pressed && !level.Paused)
                 {
                     button.ConsumePress();
-                    float initialSpeed = 248f + Random.Shared.NextFloat(148f) - 74f;
+                    const float Radius = 74f;
+                    const float VMin = 248f - Radius, VSMin = VMin * VMin;
+                    const float VMax = 248f + Radius, VSMax = VMax * VMax;
+                    float initialSpeed = MathF.Sqrt(VSMin + (VSMax - VSMin) * Random.Shared.NextSingle());
                     Color color = player.Hair.Color;
                     level.Add(new Fireworks(player.Position, color, initialSpeed));
                     context.QueuePacket(new PacketCreateFireworks(color, initialSpeed));
-                    sendFireworksCooldown = SendFireworksCooldown;
+                    sendFireworksTimer = SendFireworksCooldown;
                 }
             }
             else
             {
-                sendFireworksCooldown -= Engine.RawDeltaTime;
+                sendFireworksTimer -= Engine.RawDeltaTime;
             }
         }
     }
