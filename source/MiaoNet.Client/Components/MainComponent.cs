@@ -56,56 +56,6 @@ public sealed partial class MainComponent : MiaoNetComponent
         CleanUpInteractions(Engine.Scene as Level);
     }
 
-    private void MiaoNetModule_PlayerDied(Player player, Vector2 direction)
-    {
-        if (!HasState)
-            return;
-        CleanUpInteractions(player.SceneAs<Level>());
-        var state = ClientState.SelfState!;
-        if (!state.Dead)
-        {
-            state.Dead = true;
-            PacketPlayerLiveState packet = new(LiveStateType.Die, direction);
-            context.QueuePacket(packet);
-        }
-    }
-
-    private void MiaoNetModule_PreviewPlayerRespawn(Player player, Level level, bool fromSL)
-    {
-        if (!HasState)
-            return;
-        var state = ClientState.SelfState;
-        if (state is null)
-        {
-            SafeGuard.Assert(TryGetAndSendState(level, PlayerLocation.FetchFrom(level.Session)));
-            state = ClientState.SelfState;
-            SafeGuard.Assert(state is not null);
-        }
-        if (state.Dead)
-        {
-            state.Dead = false;
-            var type = fromSL ? LiveStateType.RespawnFromSL : LiveStateType.Respawn;
-            PacketPlayerLiveState packet = new(type, player.Position);
-            context.QueuePacket(packet);
-        }
-    }
-
-    private void Context_PlayerAudioPlayed(OnlinePlayer player, PlayerPlayedAudio audio)
-    {
-        // TODO check this packet is sent "legally" server-side
-        // TODO and also, we need to introduce player global settings
-        if (!ghosts.TryGetValue(player.ID, out var ghost))
-        {
-            Logger.Warn(LT.MiaoNet, $"Received player {player.Info} played audio {audio.Event} but no ghost found.");
-            return;
-        }
-
-        if (audio.HasParam)
-            ghost.OnPlayAudio(audio.Event, audio.Param, audio.ParamValue);
-        else
-            ghost.OnPlayAudio(audio.Event);
-    }
-
     public override void Update()
     {
         base.Update();
@@ -433,27 +383,26 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
-    private void MiaoNetModule_PlayerSoundPlayed(string sound, string? param, float value)
+    private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotification packet)
     {
-        if (!HasState)
-            return;
-        if (sound is SFX.char_mad_revive)
-            sound = MiaoNetSFX.PlayerRevive;
-        context.QueuePacket(new PacketPlayerPlayedAudio(new(sound, param, value)));
+        Logger.Debug(LT.MiaoNet, $"Player map changed: {player}, state: {packet.InitialState}.");
+        HandleLocationChanging(player, packet.GraphicsInfo, packet.InitialState);
     }
 
-    private void Context_PlayerLeft(OnlinePlayer player)
+    private void Context_PlayerMapRoomChanged(OnlinePlayer player, string room)
     {
-        if (Engine.Scene is not Level level)
-            return;
-        if (!ClientState.Self.ShouldSyncFrom(player))
-            return;
-        if (!ghosts.Remove(player.Info.ID, out MiaoNetGhost? ghost))
+        Logger.Debug(LT.MiaoNet, $"Player map room changed: {player}.");
+        HandleLocationChanging(player, null, null);
+    }
+
+    private void Context_PlayerMapChangeResponded(PacketPlayerMapChangedResponse packet)
+    {
+        Logger.Debug(LT.MiaoNet, $"Map changed responded, players count: {packet.PlayersInMap.Length}");
+        foreach (var item in packet.PlayersInMap)
         {
-            Logger.Warn(LT.MiaoNet, $"Try removing the ghost of player({player.Info}) but it doesn't exist.");
-            return;
+            OnlinePlayer player = ClientState.GetPlayer(item.PlayerID);
+            HandleLocationChanging(player, player.GraphicsInfo, player.State);
         }
-        level.CompletelyRemove(ghost);
     }
 
     private void Context_PlayerFrameNotification(OnlinePlayer player, PacketPlayerFrame packet)
@@ -515,6 +464,54 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
+    private void Context_PlayerLeft(OnlinePlayer player)
+    {
+        if (Engine.Scene is not Level level)
+            return;
+        if (!ClientState.Self.ShouldSyncFrom(player))
+            return;
+        if (!ghosts.Remove(player.Info.ID, out MiaoNetGhost? ghost))
+        {
+            Logger.Warn(LT.MiaoNet, $"Try removing the ghost of player({player.Info}) but it doesn't exist.");
+            return;
+        }
+        level.CompletelyRemove(ghost);
+    }
+
+    private void MiaoNetModule_PreviewPlayerRespawn(Player player, Level level, bool fromSL)
+    {
+        if (!HasState)
+            return;
+        var state = ClientState.SelfState;
+        if (state is null)
+        {
+            SafeGuard.Assert(TryGetAndSendState(level, PlayerLocation.FetchFrom(level.Session)));
+            state = ClientState.SelfState;
+            SafeGuard.Assert(state is not null);
+        }
+        if (state.Dead)
+        {
+            state.Dead = false;
+            var type = fromSL ? LiveStateType.RespawnFromSL : LiveStateType.Respawn;
+            PacketPlayerLiveState packet = new(type, player.Position);
+            context.QueuePacket(packet);
+        }
+    }
+
+    private void MiaoNetModule_PlayerDied(Player player, Vector2 direction)
+    {
+        if (!HasState)
+            return;
+        CleanUpInteractions(player.SceneAs<Level>());
+        var state = ClientState.SelfState!;
+        if (!state.Dead)
+        {
+            state.Dead = true;
+            PacketPlayerLiveState packet = new(LiveStateType.Die, direction);
+            context.QueuePacket(packet);
+        }
+    }
+
     private void Context_PlayerLiveStateNotification(OnlinePlayer player, LiveStateType flag, Vector2 vector2)
     {
         if (ghosts.TryGetValue(player.Info.ID, out var ghost))
@@ -530,35 +527,46 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
-    private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotification packet)
-    {
-        Logger.Debug(LT.MiaoNet, $"Player map changed: {player}, state: {packet.InitialState}.");
-        HandleLocationChanging(player, packet.GraphicsInfo, packet.InitialState);
-    }
-
-    private void Context_PlayerMapRoomChanged(OnlinePlayer player, string room)
-    {
-        Logger.Debug(LT.MiaoNet, $"Player map room changed: {player}.");
-        HandleLocationChanging(player, null, null);
-    }
-
-    private void Context_PlayerMapChangeResponded(PacketPlayerMapChangedResponse packet)
-    {
-        Logger.Debug(LT.MiaoNet, $"Map changed responded, players count: {packet.PlayersInMap.Length}");
-        foreach (var item in packet.PlayersInMap)
-        {
-            OnlinePlayer player = ClientState.GetPlayer(item.PlayerID);
-            HandleLocationChanging(player, player.GraphicsInfo, player.State);
-        }
-    }
-
     private void Context_PlayerOnlineStatusChanged(OnlinePlayer player, PlayerOnlineStatus previousStatus)
     {
-        if (ghosts.TryGetValue(player.ID, out var ghost))
-        {
-            ghost.OnUpdateOnlineStatus(player.OnlineStatus);
-        }
+        if (!ghosts.TryGetValue(player.ID, out var ghost))
+            return;
+        ghost.OnUpdateOnlineStatus(player.OnlineStatus);
     }
+
+    private void Context_PlayerCreatedFireworks(OnlinePlayer player, Color color, float initialSpeed)
+    {
+        if (!ghosts.TryGetValue(player.ID, out var ghost))
+            return;
+        ghost.OnCreatedFireworks(color, initialSpeed);
+    }
+
+    private void MiaoNetModule_PlayerSoundPlayed(string sound, string? param, float value)
+    {
+        if (!HasState)
+            return;
+        if (sound is SFX.char_mad_revive)
+            sound = MiaoNetSFX.PlayerRevive;
+        context.QueuePacket(new PacketPlayerPlayedAudio(new(sound, param, value)));
+    }
+
+    private void Context_PlayerAudioPlayed(OnlinePlayer player, PlayerPlayedAudio audio)
+    {
+        // TODO check this packet is sent "legally" server-side
+        // TODO and also, we need to introduce player global settings
+        if (!ghosts.TryGetValue(player.ID, out var ghost))
+        {
+            Logger.Warn(LT.MiaoNet, $"Received player {player.Info} played audio {audio.Event} but no ghost found.");
+            return;
+        }
+
+        if (audio.HasParam)
+            ghost.OnPlayAudio(audio.Event, audio.Param, audio.ParamValue);
+        else
+            ghost.OnPlayAudio(audio.Event);
+    }
+
+    #endregion
 
     private void HandleLocationChanging(OnlinePlayer other, PlayerGraphicsInfo? graphicsInfo, PlayerState? initialState)
     {
@@ -600,15 +608,6 @@ public sealed partial class MainComponent : MiaoNetComponent
             }
         }
     }
-
-    private void Context_PlayerCreatedFireworks(OnlinePlayer player, Color color, float initialSpeed)
-    {
-        if (!ghosts.TryGetValue(player.ID, out var ghost))
-            return;
-        ghost.OnCreatedFireworks(color, initialSpeed);
-    }
-
-    #endregion
 
     // should we expose the ghost entity...?
     public bool TryGetGhost(int playerID, [NotNullWhen(true)] out MiaoNetGhost? ghost)
