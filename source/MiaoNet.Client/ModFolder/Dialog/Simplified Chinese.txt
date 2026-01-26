@@ -8,9 +8,8 @@ miaonet_options_logged_in_tip_2= 按下进行登录或者更换账号。
 
 miaonet_options_connection= 连接
 miaonet_options_connect_on_game_start= 游戏启动时连接
-miaonet_options_ignore_cert_revocation_status= 忽略证书吊销状态检查
+miaonet_options_ignore_cert_revocation_status= 跳过证书吊销检查
 miaonet_options_ignore_cert_revocation_status_tip=
-	跳过证书吊销状态检查。
 	警告：这可能会使你的连接变得不安全。
 	此选项不会被保存。
 

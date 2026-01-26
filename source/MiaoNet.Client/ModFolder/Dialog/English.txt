@@ -8,15 +8,14 @@ miaonet_options_logged_in_tip_2= Press to login or switch logged in account.
 
 miaonet_options_connection= Connection
 miaonet_options_connect_on_game_start= Connect On Game Start
-miaonet_options_ignore_cert_revocation_status= Ignore Certificate Revocation Status Check
+miaonet_options_ignore_cert_revocation_status= Skip Certificate Revocation Check
 miaonet_options_ignore_cert_revocation_status_tip=
-	Skip the revocation status check in connection.
 	Warning: This will make your connection insecure.
 	This option will not be saved.
 
 miaonet_options_visuals= Visuals
 miaonet_options_show_own_name= Show Own Name
-miaonet_options_player_light= Add lights to other players
+miaonet_options_player_light= Add Lights To Other Players
 miaonet_options_ui= UI
 miaonet_options_player_list_ui_scale= Player List UI Scale
 miaonet_options_chat_ui_scale= Chat UI Scale
