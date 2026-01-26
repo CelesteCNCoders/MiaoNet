@@ -131,6 +131,11 @@ public static class MenuMiaoNetOptions
         uiSubMenu.Add(item);
 
         item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_chat_display_duration"), 1, 12, settings.ChatDisplayDuration
+        ).Change(v => settings.ChatDisplayDuration = v);
+        uiSubMenu.Add(item);
+
+        item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_idle_chat_height"), 1, 10, settings.IdleChatHeight
         ).Change(v => settings.IdleChatHeight = v);
         uiSubMenu.Add(item);

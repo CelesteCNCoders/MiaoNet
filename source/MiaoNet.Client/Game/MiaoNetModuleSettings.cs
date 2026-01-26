@@ -54,6 +54,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public int ChatTextOpacity { get; set; } = 10;
 
+    public int ChatDisplayDuration { get; set; } = 8;
+
     public int IdleChatHeight { get; set; } = 4;
 
     public int ActiveChatHeight { get; set; } = 8;

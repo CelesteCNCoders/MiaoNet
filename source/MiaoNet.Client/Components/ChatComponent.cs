@@ -105,6 +105,7 @@ public sealed class ChatComponent : MiaoNetComponent
         {
             chatView.BackgroundOpacity = settings.ChatBackgroundOpacityValue;
             chatView.TextOpacity = settings.ChatTextOpacityValue;
+            chatView.ShowDuration = settings.ChatDisplayDuration;
             // TODO explain this factor
             float factor = 32f / 10f / (settings.ChatUIScaleValue * 24f / 10f);
             chatView.IdleMaxCount = (int)(factor * settings.IdleChatHeight);
