@@ -44,6 +44,10 @@ miaonet_options_live_mode_tip=
 miaonet_options_player_list_button_mode= 玩家列表展示模式
 miaonet_options_player_list_button_mode_press= 按下
 miaonet_options_player_list_button_mode_hold= 按住
+miaonet_options_teleport_temp_save= Teleport 指令临时存档
+miaonet_options_teleport_temp_save_tip= 
+	开启后会在执行 Teleport 指令时
+	前往临时存档而不是保持在当前所在存档
 miaonet_options_teleport_behaviour= Teleport 指令行为
 miaonet_options_teleport_behaviour_nosession= 仅地图和房间
 miaonet_options_teleport_behaviour_withsession= 请求部分存档信息
@@ -126,13 +130,22 @@ miaonet_commands_teleport_description= 传送到另一个玩家。
 miaonet_commands_teleport_s0_name= 玩家名称
 miaonet_commands_teleport_s0_description= 要传送到的玩家。
 miaonet_commands_clear_description= 清除聊天记录。
+miaonet_commands_back_description= 返回到上次传送时所在的位置。
 
+miaonet_commands_teleport_notice= 
+	使用 Teleport 指令默认会保存你的当前游戏进度并将存档切换至一个临时存档。
+	你可以在选项中找到 "Teleport 指令临时存档" 项更改这个行为。
+	使用 "/back" 指令重新回到你的存档，或者之后手动退出并选择你自己的存档。
+	再次执行该指令以继续。
 miaonet_commands_teleport_tip= 正在传送到 (0)...
-miaonet_commands_teleport_failed_tip= 传送失败，(0)。
+miaonet_commands_teleport_failed_tip= 传送失败，(0)
 miaonet_commands_teleport_failed_nosuchplayer= 对方玩家不存在
 miaonet_commands_teleport_failed_otherdenied= 对方拒绝了传送
-miaonet_commands_teleport_success= 已传送到 (0)。
-miaonet_commands_teleport_success_nosession= 已传送到 (0) 的所在位置。
+miaonet_commands_teleport_success= 已传送到 (0)
+miaonet_commands_teleport_success_nosession= 已传送到 (0) 的所在位置
+miaonet_commands_teleport_back_notice= 正在使用临时存档，输入 "/back" 返回你的存档
+miaonet_commands_back_no_back= 没有可返回的位置
+miaonet_commands_back_backed= 已返回到之前的位置
 
 miaonet_chat_whisper_sent= \[私聊 (0)\] (1)
 miaonet_chat_whisper_received= \[私聊\] (0)

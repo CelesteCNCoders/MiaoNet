@@ -18,6 +18,8 @@ public sealed partial class MainComponent : MiaoNetComponent
 
     private GhostNameTag? selfNameTag;
 
+    public (Session? session, SaveData? saveData, int slot) LastLocationBeforeTeleport;
+
     public MainComponent(MiaoNetContext context) : base(context)
     {
         ghosts = new();

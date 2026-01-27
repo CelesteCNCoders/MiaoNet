@@ -107,6 +107,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public ButtonMode PlayerListButtonMode { get; set; }
 
+    public bool TeleportTempSave { get; set; } = true;
+
     public TeleportBehaviour TeleportBehaviour { get; set; }
 
     public int EmotesCount { get; set; } = 8;
@@ -124,6 +126,12 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     public ButtonBinding PlayerListButton { get; set; }
 
     public ButtonBinding CreateFireworksButton { get; set; }
+
+    #endregion
+
+    #region 
+
+    [YamlIgnore] public bool TippedTeleport { get; set; }
 
     #endregion
 

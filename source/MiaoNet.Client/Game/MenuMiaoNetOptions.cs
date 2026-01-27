@@ -207,6 +207,12 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.PlayerListButtonMode = v);
         menu.Add(item);
 
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_teleport_temp_save"), settings.TeleportTempSave
+        ).Change(v => settings.TeleportTempSave = v);
+        menu.Add(item);
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_teleport_temp_save_tip"));
+
         item = new EnumSlider<TeleportBehaviour>(
             Dialog.Get("miaonet_options_teleport_behaviour"),
             e => Dialog.Get($"miaonet_options_teleport_behaviour_{e}"),

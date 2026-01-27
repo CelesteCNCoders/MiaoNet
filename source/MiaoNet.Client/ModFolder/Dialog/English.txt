@@ -45,6 +45,11 @@ miaonet_options_live_mode_tip=
 miaonet_options_player_list_button_mode= Player List Showing Mode
 miaonet_options_player_list_button_mode_press= Press
 miaonet_options_player_list_button_mode_hold= Hold
+miaonet_options_teleport_temp_save= Teleport Command Temporary Save
+miaonet_options_teleport_temp_save_tip= 
+	When enabled, using the Teleport command 
+	will switch to a temporary save file
+	instead of staying in your current save.
 miaonet_options_teleport_behaviour= Teleport Command Behaviour
 miaonet_options_teleport_behaviour_nosession= Map and room only
 miaonet_options_teleport_behaviour_withsession= Request other's session
@@ -128,13 +133,22 @@ miaonet_commands_teleport_description= Teleport to a player.
 miaonet_commands_teleport_s0_name= Player
 miaonet_commands_teleport_s0_description= The player that teleported to.
 miaonet_commands_clear_description= Clear chat history.
+miaonet_commands_back_description= Back to where you teleported.
 
+miaonet_commands_teleport_notice=
+	By default, using the Teleport command saves your current progress and switches to a temporary save file.
+	You can change this behavior in the settings under "Teleport Command Temporary Save".
+	Use the "/back" command to return to your original save, or exit manually later and select your own save file.
+	Run the command again to continue.
 miaonet_commands_teleport_tip= Teleporting to (0)...
-miaonet_commands_teleport_failed_tip= Teleport failed, (0).
+miaonet_commands_teleport_failed_tip= Teleport failed, (0)
 miaonet_commands_teleport_failed_nosuchplayer= no such player
 miaonet_commands_teleport_failed_otherdenied= the other denied
-miaonet_commands_teleport_success= Teleported to (0).
-miaonet_commands_teleport_success_nosession= Teleported to (0)'s location.
+miaonet_commands_teleport_success= Teleported to (0)
+miaonet_commands_teleport_success_nosession= Teleported to (0)'s location
+miaonet_commands_teleport_back_notice= You're currently using a temporary save. Type "/back" to return to your original save.
+miaonet_commands_back_no_back= No previous location to return to.
+miaonet_commands_back_backed= Returned to previous location.
 
 miaonet_chat_whisper_sent= \[whisper to (0)\] (1)
 miaonet_chat_whisper_received= \[whisper\] (0)

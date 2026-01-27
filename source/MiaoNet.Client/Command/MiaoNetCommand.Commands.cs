@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using MiaoNet.Shared;
@@ -73,6 +74,13 @@ partial class MiaoNetCommand
                 segments: [],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(Clear)
+            ),
+            new MiaoNetCommand(
+                name: "back",
+                aliases: null,
+                segments: [],
+                captureRestSegments: false,
+                onExecute: new ExecuteHandler(Back)
             )
         ];
     }
@@ -106,8 +114,23 @@ partial class MiaoNetCommand
         return null;
     }
 
+    #region Teleport
+    private static void NotifyTeleportBehaviour(Context context)
+    {
+        foreach (var item in Dialog.Clean("miaonet_commands_teleport_notice").EnumerateLines())
+            context.TipMessage(item.ToString());
+    }
+
     private static string? TeleportNoSession(Context context)
     {
+        if (!MiaoNetModule.Settings.TippedTeleport)
+        {
+            MiaoNetModule.Settings.TippedTeleport = true;
+            MiaoNetModule.Instance.SaveSettings();
+            NotifyTeleportBehaviour(context);
+            return null;
+        }
+
         string? error;
 
         error = MatchNotSelfPlayer(context, context.Segments[0], out var player);
@@ -120,31 +143,25 @@ partial class MiaoNetCommand
 
         PlayerLocation loc = player!.Location;
         AreaKey areaKey = new(area!.ID, loc.Side);
-        if (Engine.Scene is Level level)
-        {
-            // TODO tell player that this action will lose their current progress
-            level.DoScreenWipe(false, () => GotoAndTip(context, player.Info.Name, areaKey, loc.MapRoom));
-        }
-        else
-        {
-            GotoAndTip(context, player.Info.Name, areaKey, loc.MapRoom);
-        }
+        bool moveToDebugSave = MiaoNetModule.Settings.TeleportTempSave;
+        StartTeleportRoutine(
+            context, moveToDebugSave, null, areaKey, loc.MapRoom,
+            () => NoticeTeleportFinished(context, moveToDebugSave, true, player.Info.Name)
+        );
 
-        static void GotoAndTip(Context context, string playerName, AreaKey areaKey, string mapRoom)
-        {
-            SaveData.InitializeDebugMode();
-            SaveData.Instance.LastArea_Safe = areaKey;
-            Session session = new Session(areaKey);
-            session.Level = mapRoom;
-            Engine.Scene = new LevelLoader(session) { PlayerIntroTypeOverride = Player.IntroTypes.Respawn };
-
-            context.TipMessage(Dialog.Get("miaonet_commands_teleport_success_nosession").Replace("(0)", playerName));
-        }
         return null;
     }
 
     private static string? TeleportWithSession(Context context)
     {
+        if (!MiaoNetModule.Settings.TippedTeleport)
+        {
+            MiaoNetModule.Settings.TippedTeleport = true;
+            MiaoNetModule.Instance.SaveSettings();
+            NotifyTeleportBehaviour(context);
+            return null;
+        }
+
         string? error;
 
         error = MatchNotSelfPlayer(context, context.Segments[0], out var player);
@@ -173,36 +190,105 @@ partial class MiaoNetCommand
                 return;
             }
 
+            bool moveToDebugSave = MiaoNetModule.Settings.TeleportTempSave;
             var sessionData = response.Session;
-            if (Engine.Scene is Level level)
+            StartTeleportRoutine(
+                context, moveToDebugSave, sessionData, areaKey, loc.MapRoom,
+                () => NoticeTeleportFinished(context, moveToDebugSave, false, player.Info.Name)
+            );
+        }
+
+        return null;
+    }
+
+    private static void StartTeleportRoutine(Context context, bool moveToDebugSave, PlayerSessionData? sessionData, AreaKey areaKey, string mapRoom, Action onFinished)
+    {
+        Entity e = new();
+        e.Add(new Coroutine(MoveToRoutine(context, moveToDebugSave, sessionData, areaKey, mapRoom, onFinished)));
+        Engine.Scene.Add(e);
+
+        static IEnumerator MoveToRoutine(Context context, bool moveToDebugSave, PlayerSessionData? sessionData, AreaKey areaKey, string mapRoom, Action onFinished)
+        {
+            Level? level = Engine.Scene as Level;
+            if (moveToDebugSave)
             {
-                // TODO tell player that this action will lose their current progress
-                level.DoScreenWipe(false, () =>
+                if (level is not null && SaveData.Instance.FileSlot != -1)
                 {
-                    GotoAndTip(context, player.Info.Name, areaKey, loc.MapRoom, sessionData);
-                });
+                    context.MiaoNetContext.MainComponent.LastLocationBeforeTeleport = (level.Session, SaveData.Instance, SaveData.Instance.FileSlot);
+                    // save data first
+                    UserIO.SaveHandler(true, true);
+                    // once saved, the routine will be null
+                    while (Celeste.SaveRoutine is not null)
+                        yield return null;
+                    if (UserIO.SavingResult == false)
+                        yield return null;
+                }
+
+                // switch to debug save
+                SaveData.InitializeDebugMode();
             }
             else
             {
-                GotoAndTip(context, player.Info.Name, areaKey, loc.MapRoom, sessionData);
+                // ensure at least there's a save
+                if (SaveData.Instance is null)
+                    SaveData.InitializeDebugMode();
             }
 
-            static void GotoAndTip(Context context, string playerName, AreaKey areaKey, string mapRoom, PlayerSessionData sessionData)
+            ScreenWipe wipe;
+            if (level is not null)
             {
-                SaveData.InitializeDebugMode();
-                SaveData.Instance.LastArea_Safe = areaKey;
-
-                var session = sessionData.CreateSession(areaKey, mapRoom);
-
-                Engine.Scene = new LevelLoader(session)
-                {
-                    PlayerIntroTypeOverride = Player.IntroTypes.Respawn,
-                };
-                MiaoNetModule.NextPlayerSpawnPosition = sessionData.Position;
-
-                context.TipMessage(Dialog.Get("miaonet_commands_teleport_success").Replace("(0)", playerName));
+                level.DoScreenWipe(false);
+                wipe = level.Wipe;
             }
+            else
+            {
+                wipe = new WindWipe(Engine.Scene, false);
+            }
+
+            while (!wipe.Completed)
+                yield return null;
+
+            // create the session (it relies static SaveData instance)
+            Session session;
+            if (sessionData is not null)
+                session = sessionData.CreateSession(areaKey, mapRoom);
+            else
+                session = new Session(areaKey, mapRoom);
+
+            // then goto the level
+            if (sessionData is not null)
+                MiaoNetModule.NextPlayerSpawnPosition = sessionData.Position;
+            Engine.Scene = new LevelLoader(session)
+            {
+                PlayerIntroTypeOverride = Player.IntroTypes.Respawn,
+            };
+            onFinished();
+
+            yield break;
         }
+    }
+
+    private static void NoticeTeleportFinished(Context context, bool moveToDebugSave, bool noSession, string playerName)
+    {
+        context.TipMessage(
+            Dialog.Get(noSession ? "miaonet_commands_teleport_success_nosession" : "miaonet_commands_teleport_success")
+                  .Replace("(0)", playerName)
+        );
+        if (moveToDebugSave)
+            context.TipMessage(Dialog.Get("miaonet_commands_teleport_back_notice"));
+    }
+
+    private static string? Back(Context context)
+    {
+        var mc = context.MiaoNetContext.MainComponent;
+        var lt = mc.LastLocationBeforeTeleport;
+        if (lt.session is null)
+            return Dialog.Get("miaonet_commands_back_no_back");
+
+        SaveData.Start(lt.saveData, lt.slot);
+        LevelEnter.Go(lt.session, true);
+        context.TipMessage(Dialog.Get("miaonet_commands_back_backed"));
+        mc.LastLocationBeforeTeleport = (null, null, 0);
 
         return null;
     }
@@ -214,6 +300,7 @@ partial class MiaoNetCommand
             TeleportBehaviour.WithSession => TeleportWithSession(context),
             _ => null,
         };
+    #endregion
 
     private static string? Help(Context context)
     {
@@ -223,8 +310,6 @@ partial class MiaoNetCommand
         //     <player> : desc of param1
         //     <text> : desc of param2
 
-        // TODO dialog
-        // also messages scrolling
         context.TipMessage(CommandHelpTitle.Replace("(0)", Commands.Count.ToString()));
         foreach (var command in Commands)
             TipCommandHelp(context, command);
