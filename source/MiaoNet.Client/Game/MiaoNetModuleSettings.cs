@@ -131,7 +131,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     #region 
 
-    [YamlIgnore] public bool TippedTeleport { get; set; }
+    public bool TippedTeleport { get; set; }
 
     #endregion
 
