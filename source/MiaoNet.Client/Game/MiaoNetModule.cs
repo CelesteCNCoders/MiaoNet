@@ -239,10 +239,17 @@ public sealed class MiaoNetModule : EverestModule
     private static void Overworld_Begin(On.Celeste.Overworld.orig_Begin orig, Overworld self)
     {
         orig(self);
-        // critical screen may bring us back to here
-        PlayerLocationChanged?.Invoke(PlayerLocation.Empty, true);
-        // also reset last teleported location
-        Instance.MiaoNetContext.MainComponent.LastLocationBeforeTeleport = (null, null, 0);
+        // TODO any other places to do these?
+        {
+            // Collab Utils2 will begin an overworld in level
+            if (self.Current.GetType().Assembly.GetName().Name == "CollabUtils2")
+                return;
+
+            // critical screen may bring us back to here
+            PlayerLocationChanged?.Invoke(PlayerLocation.Empty, true);
+            // also reset last teleported location
+            Instance.MiaoNetContext.MainComponent.LastLocationBeforeTeleport = (null, null, 0);
+        }
         if (!seenOverworld)
         {
             seenOverworld = true;
