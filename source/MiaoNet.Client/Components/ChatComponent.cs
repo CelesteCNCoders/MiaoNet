@@ -95,8 +95,14 @@ public sealed class ChatComponent : MiaoNetComponent
         // this seems an fna bug...
         // we need to manually call `MouseState.Get()`
         float currentScrollWheelValue = Mouse.GetState().ScrollWheelValue;
-        float deltaScrollWheelValue = currentScrollWheelValue - lastMouseScrollWheelValue;
+        float scrollDelta = currentScrollWheelValue - lastMouseScrollWheelValue;
         lastMouseScrollWheelValue = currentScrollWheelValue;
+
+        const float KeyboardScrollSpeed = 1024f;
+        if (MInput.Keyboard.Check(Keys.PageUp))
+            scrollDelta += KeyboardScrollSpeed * Engine.RawDeltaTime;
+        else if (MInput.Keyboard.Check(Keys.PageDown))
+            scrollDelta -= KeyboardScrollSpeed * Engine.RawDeltaTime;
 
         var settings = MiaoNetModule.Settings;
 
@@ -187,14 +193,10 @@ public sealed class ChatComponent : MiaoNetComponent
                 }
             }
 
-            targetChatViewScroll += deltaScrollWheelValue;
+            targetChatViewScroll += scrollDelta;
             targetChatViewScroll = chatView.ClampScrollValue(targetChatViewScroll);
-            chatView.Scroll = Calc.Approach(
-                chatView.Scroll,
-                targetChatViewScroll,
-                Math.Max(Math.Abs(targetChatViewScroll - chatView.Scroll), 24f) * 8f * Engine.RawDeltaTime
-            );
-
+            float maxMove = Math.Max(Math.Abs(targetChatViewScroll - chatView.Scroll), 8f) * 8f * Engine.RawDeltaTime;
+            chatView.Scroll = Calc.Approach(chatView.Scroll, targetChatViewScroll, maxMove);
 
             inputBox.Update();
         }
