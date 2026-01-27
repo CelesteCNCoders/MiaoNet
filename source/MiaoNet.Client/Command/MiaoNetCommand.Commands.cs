@@ -302,6 +302,7 @@ partial class MiaoNetCommand
         };
     #endregion
 
+    #region Help
     private static string? Help(Context context)
     {
         // == MiaoNet Command Help (2) ==
@@ -334,6 +335,28 @@ partial class MiaoNetCommand
 
         return null;
     }
+
+    private static void TipCommandHelp(Context context, MiaoNetCommand command)
+    {
+        string commandNameKey = command.Name.Replace('-', '_');
+        string commandDescriptionKey = $"miaonet_commands_{commandNameKey}_description";
+        context.TipMessage(
+                $"/{command.Name} : {Dialog.Get(commandDescriptionKey)}" +
+                $"{(command.Aliases is not null ? $" ({string.Join(", ", command.Aliases)})" : null)}"
+            );
+        if (command.Segments.Count != 0)
+        {
+            int i = 0;
+            foreach (var segment in command.Segments)
+            {
+                string nameKey = $"miaonet_commands_{commandNameKey}_s{i}_name";
+                string description = $"miaonet_commands_{commandNameKey}_s{i}_description";
+                context.TipMessage($"    <{Dialog.Get(nameKey)}> : {Dialog.Get(description)}");
+                i++;
+            }
+        }
+    }
+    #endregion
 
     private static string? Whisper(Context context)
     {
@@ -374,32 +397,7 @@ partial class MiaoNetCommand
         return null;
     }
 
-    private static void TipCommandHelp(Context context, MiaoNetCommand command)
-    {
-        string commandNameKey = command.Name.Replace('-', '_');
-        string commandDescriptionKey = $"miaonet_commands_{commandNameKey}_description";
-        context.TipMessage(
-                $"/{command.Name} : {Dialog.Get(commandDescriptionKey)}" +
-                $"{(command.Aliases is not null ? $" ({string.Join(", ", command.Aliases)})" : null)}"
-            );
-        if (command.Segments.Count != 0)
-        {
-            int i = 0;
-            foreach (var segment in command.Segments)
-            {
-                string nameKey = $"miaonet_commands_{commandNameKey}_s{i}_name";
-                string description = $"miaonet_commands_{commandNameKey}_s{i}_description";
-                context.TipMessage($"    <{Dialog.Get(nameKey)}> : {Dialog.Get(description)}");
-                i++;
-            }
-        }
-    }
-
-    private static string? MatchNotSelfPlayer(
-        Context context,
-        string playerName,
-        out OnlinePlayer? player
-    )
+    private static string? MatchNotSelfPlayer(Context context, string playerName, out OnlinePlayer? player)
     {
         player = null;
         var clientState = context.MiaoNetContext.ClientState!;
