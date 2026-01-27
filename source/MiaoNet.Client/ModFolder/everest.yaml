@@ -1,5 +1,5 @@
 - Name: MiaoNet
-  Version: 0.3.3-dev5
+  Version: 0.3.3-dev6
   DLL: Code/MiaoNet.dll
   Dependencies:
     - Name: EverestCore
