@@ -183,7 +183,6 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         pausedTexOffset = MathF.Sin(pausedTexFloatTimer) * PausedTexOffsetRange;
     }
 
-    // TODO this method can be optimized
     public override void Render()
     {
         if (!Active)

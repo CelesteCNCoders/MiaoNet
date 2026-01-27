@@ -9,7 +9,6 @@ using System.Diagnostics;
 
 namespace MiaoNet.Shared;
 
-// TODO maybe client don't need concurrent
 [DebuggerDisplay("LocalCount = {LocalCount}, RemoteCount = {RemoteCount}")]
 public sealed class PooledStringManager
 {
