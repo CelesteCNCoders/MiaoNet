@@ -66,7 +66,7 @@ public static class MenuMiaoNetOptions
                             v = v.Trim();
                             settings.Name = v;
                             thisButton.Label = Dialog.Get("miaonet_options_logged_in") + v;
-                        }
+                        }, 36, 2
                     );
             });
             item = thisButton;
