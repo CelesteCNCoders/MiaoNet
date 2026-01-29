@@ -10,6 +10,7 @@ public sealed class GroupPhotoPlatform : JumpthruPlatform
     public GroupPhotoPlatform()
         : base(Vector2.Zero, PlatformWidth, "dream")
     {
+        Depth = Depths.Top;
     }
 
     public override void Added(Scene scene)
