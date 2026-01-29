@@ -133,6 +133,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public bool TippedTeleport { get; set; }
 
+    [YamlIgnore] public bool GroupPhotoMode { get; set; }
+
     #endregion
 
     public MiaoNetModuleSettings()

@@ -81,6 +81,13 @@ partial class MiaoNetCommand
                 segments: [],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(Back)
+            ),
+            new MiaoNetCommand(
+                name: "group-photo-mode",
+                aliases: [ "gpm", "HeYing", "hy" ],
+                segments: [],
+                captureRestSegments: false,
+                onExecute: new ExecuteHandler(GroupPhotoMode)
             )
         ];
     }
@@ -394,6 +401,16 @@ partial class MiaoNetCommand
     private static string? Clear(Context context)
     {
         context.MiaoNetContext.ChatComponent.ClearChat();
+        return null;
+    }
+
+    private static string? GroupPhotoMode(Context context)
+    {
+        var settings = MiaoNetModule.Settings;
+        bool p = settings.GroupPhotoMode;
+        settings.GroupPhotoMode = !p;
+        string key = p ? "miaonet_commands_group_photo_mode_off" : "miaonet_commands_group_photo_mode_on";
+        context.TipMessage(Dialog.Get(key));
         return null;
     }
 

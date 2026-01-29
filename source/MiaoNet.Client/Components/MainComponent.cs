@@ -56,6 +56,9 @@ public sealed partial class MainComponent : MiaoNetComponent
         selfNameTag?.RemoveSelf();
         selfNameTag = null;
         CleanUpInteractions(Engine.Scene as Level);
+        MiaoNetModule.Settings.GroupPhotoMode = false;
+        var pf = Engine.Scene.Tracker.GetEntity<GroupPhotoPlatform>();
+        pf?.RemoveSelf();
     }
 
     public override void Update()
@@ -65,12 +68,14 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (Engine.Scene is not Level level)
             return;
 
+        // online status update
         var self = ClientState.Self;
         var p = self.OnlineStatus;
         self.OnlineStatus = level.Paused ? PlayerOnlineStatus.Paused : PlayerOnlineStatus.Normal;
         if (p != self.OnlineStatus)
             context.QueuePacket(new PacketUpdateOnlineStatus(self.OnlineStatus));
 
+        // location update
         if (pendingMapChanged)
         {
             SafeGuard.Assert(TryGetAndSendState(level, PlayerLocation.FetchFrom(level.Session)));
@@ -84,6 +89,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (player is null || player.Dead)
             return;
 
+        // show or remove own name
         if (MiaoNetModule.Settings.ShowOwnName)
         {
             if (selfNameTag is null)
@@ -104,6 +110,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             selfNameTag = null;
         }
 
+        // player interactions
         UpdateInteractions(level, player);
 
         // do not send frames when paused
@@ -114,8 +121,11 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (selfState is null)
             return;
 
-        SendPlayerFrame(player, selfState);
+        // player frame
+        if (!MiaoNetModule.Settings.GroupPhotoMode || level.OnInterval(1f / 2f))
+            SendPlayerFrame(player, selfState);
 
+        // fireworks
         {
             if (sendFireworksTimer <= 0f)
             {
@@ -136,6 +146,20 @@ public sealed partial class MainComponent : MiaoNetComponent
             else
             {
                 sendFireworksTimer -= Engine.RawDeltaTime;
+            }
+        }
+
+        // group photo platform
+        {
+            var pf = level.Tracker.GetEntity<GroupPhotoPlatform>();
+            if (MiaoNetModule.Settings.GroupPhotoMode)
+            {
+                if (pf is null)
+                    level.Add(new GroupPhotoPlatform());
+            }
+            else
+            {
+                pf?.RemoveSelf();
             }
         }
     }

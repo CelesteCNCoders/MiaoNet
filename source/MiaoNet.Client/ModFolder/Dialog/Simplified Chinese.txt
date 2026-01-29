@@ -131,6 +131,7 @@ miaonet_commands_teleport_s0_name= 玩家名称
 miaonet_commands_teleport_s0_description= 要传送到的玩家。
 miaonet_commands_clear_description= 清除聊天记录。
 miaonet_commands_back_description= 返回到上次传送时所在的位置。
+miaonet_commands_group_photo_mode_description= 切换合影模式。这会降低你的网络更新频率。
 
 miaonet_commands_teleport_notice= 
 	使用 Teleport 指令默认会保存你的当前游戏进度并将存档切换至一个临时存档。
@@ -146,6 +147,8 @@ miaonet_commands_teleport_success_nosession= 已传送到 (0) 的所在位置
 miaonet_commands_teleport_back_notice= 正在使用临时存档，输入 "/back" 返回你的存档
 miaonet_commands_back_no_back= 没有可返回的位置
 miaonet_commands_back_backed= 已返回到之前的位置
+miaonet_commands_group_photo_mode_on= 已切换至合影模式
+miaonet_commands_group_photo_mode_off= 已关闭合影模式
 
 miaonet_chat_whisper_sent= \[私聊 (0)\] (1)
 miaonet_chat_whisper_received= \[私聊\] (0)
