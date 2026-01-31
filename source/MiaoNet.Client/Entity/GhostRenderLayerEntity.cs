@@ -22,23 +22,13 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
         gd.Clear(Color.Transparent);
 
         GameplayRenderer.Begin();
+
+        foreach (MiaoNetGhostEntity entity in level.Tracker.GetEntities<MiaoNetGhostEntity>().Cast<MiaoNetGhostEntity>())
         {
-            foreach (GhostFollower follower in level.Tracker.GetEntities<GhostFollower>().Cast<GhostFollower>())
-            {
-                if (isHigh ? follower.Depth <= Depth : follower.Depth >= Depth)
-                    follower.GhostRender();
-            }
-            foreach(GhostDeadBody body in level.Tracker.GetEntities<GhostDeadBody>().Cast<GhostDeadBody>())
-            {
-                if (isHigh ? body.Depth <= Depth : body.Depth >= Depth)
-                    body.GhostRender();
-            }
-            foreach (MiaoNetGhost ghost in level.Tracker.GetEntities<MiaoNetGhost>().Cast<MiaoNetGhost>())
-            {
-                if (isHigh ? ghost.Depth <= Depth : ghost.Depth >= Depth)
-                    ghost.GhostRender();
-            }
+            if (isHigh ? entity.Depth <= Depth : entity.Depth >= Depth)
+                entity.GhostRender();
         }
+
         GameplayRenderer.End();
 
         gd.SetRenderTarget(GameplayBuffers.Gameplay);

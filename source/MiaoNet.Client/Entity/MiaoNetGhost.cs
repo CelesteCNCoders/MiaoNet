@@ -1,14 +1,9 @@
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using FMOD.Studio;
 using MiaoNet.Shared;
-using Microsoft.Xna.Framework;
-using Monocle;
 
 namespace Celeste.Mod.MiaoNet;
 
-[Tracked]
-public sealed class MiaoNetGhost : MiaoNetEntity
+public sealed class MiaoNetGhost : MiaoNetGhostEntity
 {
     private PlayerSprite playerSprite;
     private readonly PlayerHair playerHair;
@@ -658,43 +653,6 @@ public sealed class MiaoNetGhost : MiaoNetEntity
         CleanUpFollowers();
     }
 
-    public void OnPlayAudio(string @event)
-        => OnPlayAudio(@event, null, 0f);
-
-    public void OnPlayAudio(string @event, string? param, float paramValue)
-    {
-        if (Scene is not Level level || level.Paused)
-            return;
-
-        float baseValue = MiaoNetModule.Settings.PlayerAudioVolumeValue;
-
-        EventDescription eventDescription = Audio.GetEventDescription(@event);
-        if (eventDescription is null)
-            return;
-
-        eventDescription.createInstance(out var instance);
-
-        if (instance is null)
-            return;
-
-        eventDescription.is3D(out var is3D);
-
-        // TODO prevent this earlier server-side
-        if (!level.InsideCamera(Center, is3D ? 128f : 64f))
-            return;
-
-        if (is3D)
-            Audio.Position(instance, Center);
-
-        instance.setVolume(baseValue);
-
-        if (param is not null)
-            instance.setParameterValue(param, paramValue);
-
-        instance.start();
-        instance.release();
-    }
-
     public void OnCreatedFireworks(Color color, float initialSpeed)
     {
         if (Scene is not Level level)
@@ -706,7 +664,7 @@ public sealed class MiaoNetGhost : MiaoNetEntity
         level.Add(new Fireworks(Position, color, initialSpeed));
     }
 
-    public void GhostRender()
+    public override void GhostRender()
     {
         if (lastHoladableType == HoldableType.Theo)
         {
@@ -715,7 +673,7 @@ public sealed class MiaoNetGhost : MiaoNetEntity
 
         {
             playerSprite.Scale.X *= (float)facing;
-            base.Render();
+            BaseRender();
             playerSprite.Scale.X *= (float)facing;
         }
 
@@ -729,12 +687,5 @@ public sealed class MiaoNetGhost : MiaoNetEntity
         {
             DeathEffect.Draw(Position, playerHair.Color, deadEase);
         }
-    }
-
-    public override void Render()
-    {
-        // do nothing as if it's invisible
-        // but do not set Visible to false
-        // or its component will skip rendering
     }
 }

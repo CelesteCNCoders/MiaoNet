@@ -2,8 +2,7 @@
 
 namespace Celeste.Mod.MiaoNet;
 
-[Tracked]
-public sealed class GhostDeadBody : MiaoNetEntity
+public sealed class GhostDeadBody : MiaoNetGhostEntity
 {
     private readonly PlayerHair hair;
     private readonly PlayerSprite sprite;
@@ -63,9 +62,7 @@ public sealed class GhostDeadBody : MiaoNetEntity
         Level level = SceneAs<Level>();
         if (bounce != Vector2.Zero)
         {
-            var settings = MiaoNetModule.Settings;
-            if (!level.Paused && settings.PlayerAudio)
-                Audio.Play(MiaoNetSFX.PlayerPreDeath, Position);
+            OnPlayAudio(MiaoNetSFX.PlayerPreDeath);
             yield return 0.05f; // freeze frames
             const float StartScale = 1.5f;
             scale = StartScale;
@@ -88,12 +85,10 @@ public sealed class GhostDeadBody : MiaoNetEntity
         Position += Vector2.UnitY * -5f;
         if (!level.Paused)
         {
-            var settings = MiaoNetModule.Settings;
-            float alpha = settings.PlayerOpacityValue;
+            float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
             level.Displacement.AddBurst(Position, 0.3f, 0f, 80f, alpha: alpha);
-            if (settings.PlayerAudio)
-                Audio.Play(MiaoNetSFX.PlayerDeath, Position);
         }
+        OnPlayAudio(MiaoNetSFX.PlayerDeath);
         deathEffect = new DeathEffect(initialHairColor, Center - Position);
         if (vertexLight is not null)
             deathEffect.OnUpdate = f => vertexLight.Alpha = 1f - f;
@@ -109,23 +104,18 @@ public sealed class GhostDeadBody : MiaoNetEntity
         hair.Color = sprite.CurrentAnimationFrame == 0 ? Color.White : initialHairColor;
     }
 
-    public void GhostRender()
+    public override void GhostRender()
     {
         if (deathEffect == null)
         {
             sprite.Scale.X = (float)facing * scale;
             sprite.Scale.Y = scale;
             hair.Facing = facing;
-            base.Render();
+            BaseRender();
         }
         else
         {
             deathEffect.Render();
         }
-    }
-
-    public override void Render()
-    {
-        // see MiaoNetGhost.Render
     }
 }

@@ -3,7 +3,7 @@
 namespace Celeste.Mod.MiaoNet;
 
 [Tracked]
-public sealed class GhostFollower : MiaoNetEntity
+public sealed class GhostFollower : MiaoNetGhostEntity
 {
     private readonly bool spriteFallbacked;
     private readonly Sprite sprite;
@@ -63,13 +63,6 @@ public sealed class GhostFollower : MiaoNetEntity
         }
     }
 
-    public void GhostRender()
-    {
-        base.Render();
-    }
-
-    public override void Render()
-    {
-        // see MiaoNetGhost.Render
-    }
+    public override void GhostRender()
+        => BaseRender();
 }
