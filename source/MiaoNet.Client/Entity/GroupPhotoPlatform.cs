@@ -35,7 +35,13 @@ public sealed class GroupPhotoPlatform : JumpthruPlatform
             if (MInput.Mouse.PressedLeftButton)
             {
                 confirmed = true;
-                SceneAs<Level>().Tracker.GetEntity<Player>()?.Position = Position + Vector2.UnitX * PlatformWidth / 2f;
+                var player = SceneAs<Level>().Tracker.GetEntity<Player>();
+                if (player is not null)
+                {
+                    player.Position = Position + Vector2.UnitX * PlatformWidth / 2f;
+                    player.Speed = Vector2.Zero;
+                    player.StateMachine.State = Player.StNormal;
+                }
             }
         }
     }
