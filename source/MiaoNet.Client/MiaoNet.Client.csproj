@@ -17,8 +17,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="../MiaoNet.Shared/**/*.cs" Exclude="../MiaoNet.Shared/Primitives/**/*.cs" LinkBase="1-Shared" />
-    <Compile Include="../ChatInputBox/ChatInputBox/**/*.cs" LinkBase="1-Shared/ChatInputBox" />
+    <Compile Include="../MiaoNet.Shared/**/*.cs" Exclude="../MiaoNet.Shared/Primitives/**/*.cs" LinkBase="0-Shared" />
+    <Compile Include="../ChatInputBox/ChatInputBox/**/*.cs" LinkBase="0-Shared/ChatInputBox" />
 
     <None Include="CelesteMod*" Visible="false" />
   </ItemGroup>

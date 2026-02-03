@@ -17,12 +17,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\MiaoNet.Client\Command\CommandParser.cs" LinkBase="Command" />
-    <Compile Include="..\MiaoNet.Client\Command\CommandSegmentType.cs" LinkBase="Command" />
-    <Compile Include="..\MiaoNet.Client\Command\MiaoNetCommand.cs" LinkBase="Command" />
-    <Compile Include="..\MiaoNet.Client\Command\UniqueMatcher.cs" LinkBase="Command" />
-    <Compile Include="..\MiaoNet.Client\Misc\SR.cs" LinkBase="Command" />
-    <Compile Include="..\MiaoNet.Shared\SafeGuard.cs" LinkBase="Command" />
+    <Compile Include="..\MiaoNet.Client\Command\CommandParser.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\MiaoNet.Client\Command\CommandSegmentType.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\MiaoNet.Client\Command\MiaoNetCommand.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\MiaoNet.Client\Command\UniqueMatcher.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\MiaoNet.Client\Misc\SR.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\MiaoNet.Shared\SafeGuard.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\ChatInputBox\ChatInputBox\ChatText*.cs" LinkBase="0-Shared/ChatInputBox" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,0 +1,71 @@
+<Project>
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <ModAssetsFolderName>ModFolder</ModAssetsFolderName>
+    <ModAssetsCopyType>copy</ModAssetsCopyType>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitCelesteReference>true</ImplicitCelesteReference>
+    <!--To copy dependencies file into the output-->
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <!--Everest won't read these files (yet for now)-->
+    <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <UseCelesteAnalyzer>true</UseCelesteAnalyzer>
+    <UseCelestePublicizer>true</UseCelestePublicizer>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(ImplicitUsings)' == 'true' Or '$(ImplicitUsings)' == 'enable'">
+    <Using Include="Microsoft.Xna.Framework" />
+    <Using Include="Monocle" />
+    <Using Include="Celeste" />
+    <Using Include="Celeste.Mod" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseCelesteAnalyzer)' == 'true'">
+    <PackageReference Include="CelesteAnalyzer" Version="1.0.3.1" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(ImplicitCelesteReference)' == 'true'">
+    <Reference Include="Celeste" Condition="'$(UseCelestePublicizer)' == 'false'">
+      <HintPath>$(CelesteRootPath)/Celeste.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <PackageReference Include="CelesteMod.Publicizer"
+                      Condition="'$(UseCelestePublicizer)' == 'true'"
+                      Version="1.1.2"
+                      CelesteAssembly="$(CelesteRootPath)/Celeste.dll"
+                      PrivateAssets="all"
+                      ExcludeAssets="runtime"
+                      />
+    <Reference Include="FNA">
+      <HintPath>$(CelesteRootPath)/FNA.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MMHOOK_Celeste">
+      <HintPath>$(CelesteRootPath)/MMHOOK_Celeste.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="YamlDotNet">
+      <HintPath>$(CelesteRootPath)/YamlDotNet.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MonoMod.Utils">
+      <HintPath>$(CelesteRootPath)/MonoMod.Utils.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Mono.Cecil">
+      <HintPath>$(CelesteRootPath)/Mono.Cecil.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MonoMod.RuntimeDetour">
+      <HintPath>$(CelesteRootPath)/MonoMod.RuntimeDetour.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MonoMod.Patcher">
+      <HintPath>$(CelesteRootPath)/MonoMod.Patcher.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,6 @@
+- Name: ChatInputBoxExample
+  Version: 0.1.0
+  DLL: Code/ChatInputBoxExample.dll
+  Dependencies:
+    - Name: EverestCore
+      Version: 1.5577.0

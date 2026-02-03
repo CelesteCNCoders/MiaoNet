@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="CelesteMod.props" />
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <CelesteRootPath>C:/Program Files (x86)/Steam/steamapps/common/Celeste</CelesteRootPath>
+    <RootNamespace>Celeste.Mod.ChatInputBoxExample</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseCelesteAnalyzer>false</UseCelesteAnalyzer>
+    <UseCelestePublicizer>true</UseCelestePublicizer>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../ChatInputBox/**/*.cs" LinkBase="0-ChatInputBox" />
+
+    <None Include="CelesteMod.props">
+      <Visible>false</Visible>
+    </None>
+    <None Include="CelesteMod.targets">
+      <Visible>false</Visible>
+    </None>
+  </ItemGroup>
+
+  <Import Project="CelesteMod.targets" />
+</Project>
