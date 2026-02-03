@@ -31,7 +31,6 @@ public sealed class StatusComponent : MiaoNetComponent
         statusMessage = message;
     }
 
-
     public override void Update()
     {
         if (statusMessageTimer > 0f && !spinning)

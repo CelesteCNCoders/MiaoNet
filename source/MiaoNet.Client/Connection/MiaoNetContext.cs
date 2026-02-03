@@ -27,6 +27,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     private readonly ConcurrentQueue<Action> mainThreadQueue;
 
     private readonly List<MiaoNetComponent> components;
+    private readonly List<MiaoNetComponent> renderableComponents;
     private MiaoServerConnection? connection;
     private readonly PacketDispatcher packetDispatcher;
 
@@ -73,13 +74,13 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         pendingRequests = new();
         mainThreadQueue = new();
 
-        components = [
-            MainComponent = new MainComponent(this),
-            new PlayerListComponent(this),
-            ChatComponent = new ChatComponent(this),
-            new DebugMapComponent(this),
-            EmoteComponent = new EmoteComponent(this)
-        ];
+        var main = MainComponent = new MainComponent(this);
+        var pl = new PlayerListComponent(this);
+        var chat = ChatComponent = new ChatComponent(this);
+        var dm = new DebugMapComponent(this);
+        var em = EmoteComponent = new EmoteComponent(this);
+        components = [main, pl, chat, dm, em];
+        renderableComponents = [dm, chat, pl];
 
         StatusComponent = new(this);
         PacketHandlerRegister r = new();
@@ -191,7 +192,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     {
         BeginRender();
         if (HasConnection)
-            components.ForEach(c => c.Render());
+            renderableComponents.ForEach(c => c.Render());
         StatusComponent.Render();
         EndRender();
     }
