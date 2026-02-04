@@ -203,7 +203,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             SpriteSortMode.Deferred,
             BlendState.NonPremultiplied,
             SamplerState.LinearClamp,
-            DepthStencilState.Default,
+            DepthStencilState.None,
             RasterizerState.CullNone,
             null,
             Engine.ScreenMatrix
