@@ -149,6 +149,8 @@ miaonet_commands_back_no_back= 没有可返回的位置
 miaonet_commands_back_backed= 已返回到之前的位置
 miaonet_commands_group_photo_mode_on= 已切换至合影模式
 miaonet_commands_group_photo_mode_off= 已关闭合影模式
+miaonet_commands_player_interactions_on= 已开启玩家交互
+miaonet_commands_player_interactions_off= 已关闭玩家交互
 
 miaonet_chat_whisper_sent= \[私聊 (0)\] (1)
 miaonet_chat_whisper_received= \[私聊\] (0)

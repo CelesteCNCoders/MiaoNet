@@ -150,6 +150,10 @@ miaonet_commands_teleport_success_nosession= Teleported to (0)'s location
 miaonet_commands_teleport_back_notice= You're currently using a temporary save. Type "/back" to return to your original save.
 miaonet_commands_back_no_back= No previous location to return to.
 miaonet_commands_back_backed= Returned to previous location.
+miaonet_commands_group_photo_mode_on= Group photo mode is on
+miaonet_commands_group_photo_mode_off= Group photo mode is off
+miaonet_commands_player_interactions_on= Player interactions is on
+miaonet_commands_player_interactions_off= Player interactions is off
 
 miaonet_chat_whisper_sent= \[whisper to (0)\] (1)
 miaonet_chat_whisper_received= \[whisper\] (0)

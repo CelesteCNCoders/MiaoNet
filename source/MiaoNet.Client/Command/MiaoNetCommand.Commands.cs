@@ -84,11 +84,18 @@ partial class MiaoNetCommand
             ),
             new MiaoNetCommand(
                 name: "group-photo-mode",
-                aliases: [ "gpm", "HeYing", "hy" ],
+                aliases: ["gpm", "HeYing", "hy"],
                 segments: [],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(GroupPhotoMode)
-            )
+            ),
+            new MiaoNetCommand(
+                name: "interactions",
+                aliases: ["int"],
+                segments: [],
+                captureRestSegments: false,
+                onExecute: new ExecuteHandler(Interactions)
+            ),
         ];
     }
 
@@ -410,6 +417,16 @@ partial class MiaoNetCommand
         bool p = settings.GroupPhotoMode;
         settings.GroupPhotoMode = !p;
         string key = p ? "miaonet_commands_group_photo_mode_off" : "miaonet_commands_group_photo_mode_on";
+        context.TipMessage(Dialog.Get(key));
+        return null;
+    }
+
+    private static string? Interactions(Context context)
+    {
+        var settings = MiaoNetModule.Settings;
+        bool p = settings.PlayerInteractions;
+        settings.PlayerInteractions = !p;
+        string key = p ? "miaonet_commands_player_interactions_off" : "miaonet_commands_player_interactions_on";
         context.TipMessage(Dialog.Get(key));
         return null;
     }
