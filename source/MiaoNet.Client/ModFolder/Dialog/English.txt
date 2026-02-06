@@ -42,6 +42,12 @@ miaonet_options_live_mode_tip=
 	and emotes from any players,
 	and hide unknown maps in the player list.
 	This option will not be saved.
+miaonet_options_fireworks= Fireworks
+miaonet_options_fireworks_tip=
+	Enables fireworks functionality.
+	When enabled, you can send fireworks 
+	and receive them from other players.
+	This option will not be saved.
 miaonet_options_player_list_button_mode= Player List Showing Mode
 miaonet_options_player_list_button_mode_press= Press
 miaonet_options_player_list_button_mode_hold= Hold

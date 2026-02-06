@@ -105,6 +105,9 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     [YamlIgnore]
     public bool LiveMode { get; set; }
 
+    [YamlIgnore]
+    public bool Fireworks { get; set; } = true;
+
     public ButtonMode PlayerListButtonMode { get; set; }
 
     public bool TeleportTempSave { get; set; } = true;

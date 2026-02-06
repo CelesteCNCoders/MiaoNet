@@ -200,6 +200,12 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
         item.AddDescription(menu, Dialog.Clean("miaonet_options_live_mode_tip"));
 
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_fireworks"), settings.Fireworks
+        ).Change(v => settings.Fireworks = v);
+        menu.Add(item);
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_fireworks_tip"));
+
         item = new EnumSlider<ButtonMode>(
             Dialog.Get("miaonet_options_player_list_button_mode"),
             e => Dialog.Get($"miaonet_options_player_list_button_mode_{e}"),

@@ -41,6 +41,11 @@ miaonet_options_live_mode_tip=
 	这会禁用聊天，拒收来自任何玩家的聊天信息和 Emote，
 	以及隐藏玩家列表中未知的地图。
 	此选项不会被保存。
+miaonet_options_fireworks= 烟花
+miaonet_options_fireworks_tip=
+	是否开启烟花功能。
+	开启后可以发送烟花以及接收来自其他玩家的烟花。
+	此选项不会被保存。
 miaonet_options_player_list_button_mode= 玩家列表展示模式
 miaonet_options_player_list_button_mode_press= 按下
 miaonet_options_player_list_button_mode_hold= 按住

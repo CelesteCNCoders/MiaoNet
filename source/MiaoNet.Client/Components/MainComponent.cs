@@ -142,6 +142,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             SendPlayerFrame(player, selfState);
 
         // fireworks
+        if (MiaoNetModule.Settings.Fireworks)
         {
             if (sendFireworksTimer <= 0f)
             {
@@ -576,6 +577,9 @@ public sealed partial class MainComponent : MiaoNetComponent
 
     private void Context_PlayerCreatedFireworks(OnlinePlayer player, Color color, float initialSpeed)
     {
+        // TODO prevent this server-side
+        if (!MiaoNetModule.Settings.Fireworks)
+            return;
         if (!ghosts.TryGetValue(player.ID, out var ghost))
             return;
         ghost.OnCreatedFireworks(color, initialSpeed);
