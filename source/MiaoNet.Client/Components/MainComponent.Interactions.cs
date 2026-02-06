@@ -73,6 +73,8 @@ partial class MainComponent
 
     private void UpdateInteractions(Level level, Player player)
     {
+        bool interactionsOn = MiaoNetModule.Settings.PlayerInteractions;
+
         // ensure screen transitions
         // also see MiaoNetModule On.Celeste.Player.TransitionTo Hook
         if (heldByPlayerGhost is not null)
@@ -85,10 +87,8 @@ partial class MainComponent
         MiaoNetGhost? holdingGhost = null;
         if (player.Holding?.Entity is MiaoNetGhost ghost)
         {
-            if (heldByPlayerGhost == ghost || level.Paused)
+            if (heldByPlayerGhost == ghost || level.Paused || !interactionsOn)
             {
-                // we're holding the one who were holding us, don't do this
-                // or it's paused now, force drop too
                 player.Drop();
             }
             else
@@ -96,7 +96,7 @@ partial class MainComponent
                 holdingGhost = ghost;
 
                 // we are holding someone that is dead or paused
-                if (ghost is { Dead: true } or not { OnlinePlayer.OnlineStatus: PlayerOnlineStatus.Normal })
+                if (ghost is { Dead: true } or { OnlinePlayer.IsPaused: true })
                     player.Drop();
             }
         }
@@ -104,12 +104,11 @@ partial class MainComponent
         // if we're being held
         if (heldByPlayerGhost is not null)
         {
-            // other player is (dead) or (went to another map) or (disconnected) or (paused)
-            // or the level is paused
             if (heldByPlayerGhost is { Dead: true }
                 or { Scene: null }
-                or not { OnlinePlayer.OnlineStatus: PlayerOnlineStatus.Normal }
+                or { OnlinePlayer.IsPaused: true }
                 || level.Paused
+                || !interactionsOn
             )
             {
                 CleanUpHeldBy(player, null);

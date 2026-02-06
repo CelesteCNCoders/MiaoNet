@@ -6,8 +6,6 @@ public sealed class PacketPlayerJoined : IContextlessPacket<PacketPlayerJoined>
 
     public PlayerInfo PlayerInfo { get; }
 
-    public PlayerOnlineStatus OnlineStatus { get; }
-
     public PacketPlayerJoined(int channelID, PlayerInfo playerInfo)
     {
         ChannelID = channelID;

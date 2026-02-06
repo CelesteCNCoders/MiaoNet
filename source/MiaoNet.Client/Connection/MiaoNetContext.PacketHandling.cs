@@ -18,7 +18,7 @@ partial class MiaoNetContext
     public event Action<OnlinePlayer, EmoteData>? EmoteReceived;
     public event Action<OnlinePlayer, string>? EmoteTextReceived;
     public event Action<OnlinePlayer, LiveStateType, Vector2>? PlayerLiveStateNotification;
-    public event Action<OnlinePlayer, PlayerOnlineStatus>? PlayerOnlineStatusChanged;
+    public event Action<OnlinePlayer, PlayerGlobalFlags>? PlayerGlobalFlagsChanged;
     public event Action<OnlinePlayer, Color, float>? PlayerCreatedFireworks;
     public event Action? PingDataReceived;
     public event Action<OnlinePlayer, PlayerPlayedAudio>? PlayerAudioPlayed;
@@ -37,7 +37,7 @@ partial class MiaoNetContext
         r.Register<PacketEmote>(HandlePacket);
         r.Register<PacketEmoteText>(HandlePacket);
         r.Register<PacketPlayerNotification<PacketPlayerLiveState>>(HandlePacket);
-        r.Register<PacketPlayerNotification<PacketUpdateOnlineStatus>>(HandlePacket);
+        r.Register<PacketPlayerNotification<PacketUpdateGlobalFlag>>(HandlePacket);
         r.Register<PacketBeTeleportedRequest>(HandlePacket);
         r.Register<PacketPingData>(HandlePacket);
         r.Register<PacketPlayerNotification<PacketCreateFireworks>>(HandlePacket);
@@ -56,7 +56,7 @@ partial class MiaoNetContext
     private void HandlePacket(PacketPlayerJoined packet)
     {
         EnsureState();
-        var player = ClientState.OnNewPlayerJoined(packet.ChannelID, packet.PlayerInfo, packet.OnlineStatus);
+        var player = ClientState.OnNewPlayerJoined(packet.ChannelID, packet.PlayerInfo, PlayerGlobalFlags.None);
         PlayerJoined?.Invoke(player);
     }
 
@@ -176,13 +176,13 @@ partial class MiaoNetContext
         PlayerLiveStateNotification?.Invoke(player, packet.Packet.Type, packet.Packet.Vector2);
     }
 
-    private void HandlePacket(PacketPlayerNotification<PacketUpdateOnlineStatus> packet)
+    private void HandlePacket(PacketPlayerNotification<PacketUpdateGlobalFlag> packet)
     {
         EnsureState();
         var player = ClientState.GetPlayer(packet.PlayerID);
-        var p = player.OnlineStatus;
-        player.OnlineStatus = packet.Packet.Status;
-        PlayerOnlineStatusChanged?.Invoke(player, p);
+        var p = player.GlobalFlags;
+        player.GlobalFlags = packet.Packet.Flags;
+        PlayerGlobalFlagsChanged?.Invoke(player, p);
     }
 
     private void HandlePacket(PacketBeTeleportedRequest request)

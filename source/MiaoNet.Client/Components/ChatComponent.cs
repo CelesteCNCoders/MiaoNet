@@ -41,6 +41,8 @@ public sealed class ChatComponent : MiaoNetComponent
     private readonly List<string> history;
     private int historyIndex;
 
+    public bool Active => active;
+
     public ChatComponent(MiaoNetContext context)
         : base(context)
     {

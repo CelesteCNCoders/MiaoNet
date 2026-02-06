@@ -18,7 +18,7 @@ public sealed class ServerPlayer
 
     public PlayerGraphicsInfo? GraphicsInfo { get; set; }
 
-    public PlayerOnlineStatus OnlineStatus { get; set; }
+    public PlayerGlobalFlags GlobalFlags { get; set; }
 
     public float LastPing { get; set; }
 

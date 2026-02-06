@@ -28,8 +28,8 @@ using MiaoNet.Shared;
     typeof(PacketEmoteText),
     typeof(PacketSendEmoteText),
 
-    typeof(PacketUpdateOnlineStatus),
-    typeof(PacketPlayerNotification<PacketUpdateOnlineStatus>),
+    typeof(PacketUpdateGlobalFlag),
+    typeof(PacketPlayerNotification<PacketUpdateGlobalFlag>),
 
     typeof(PacketTeleportRequest),
     typeof(PacketTeleportResponse),

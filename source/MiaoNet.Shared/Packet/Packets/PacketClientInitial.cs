@@ -10,18 +10,18 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
 
         public PlayerLocation Location { get; }
 
-        public PlayerOnlineStatus OnlineStatus { get; }
+        public PlayerGlobalFlags GlobalFlags { get; }
 
         public Player(
             int channelID,
             PlayerInfo playerInfo, PlayerLocation location,
-            PlayerOnlineStatus onlineStatus
+            PlayerGlobalFlags globalFlags
         )
         {
             ChannelID = channelID;
             PlayerInfo = playerInfo;
             Location = location;
-            OnlineStatus = onlineStatus;
+            GlobalFlags = globalFlags;
         }
 
         public static Player Deserialize(ref RefBinaryReader reader)
@@ -29,7 +29,7 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
             return new(
                 reader.ReadInt32(),
                 reader.Read<PlayerInfo>(), reader.Read<PlayerLocation>(),
-                (PlayerOnlineStatus)reader.ReadByte()
+                (PlayerGlobalFlags)reader.ReadUInt16()
             );
         }
 
@@ -38,7 +38,7 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
             writer.Write(ChannelID);
             writer.Write(PlayerInfo);
             writer.Write(Location);
-            writer.Write((byte)OnlineStatus);
+            writer.Write((ushort)GlobalFlags);
         }
     }
 

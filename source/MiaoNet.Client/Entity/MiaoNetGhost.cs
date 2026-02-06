@@ -103,8 +103,8 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         pDashColorBaseA = (pDashA.Color, pDashA.Color2);
         pDashColorBaseB = (pDashB.Color, pDashB.Color2);
 
-        if (player.OnlineStatus != PlayerOnlineStatus.Normal)
-            OnUpdateOnlineStatus(player.OnlineStatus);
+        if (player.IsPaused)
+            OnUpdatePaused(true);
 
         selfHoldable = new(1f / 5f)
         {
@@ -134,8 +134,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
         UpdateLightSettings(MiaoNetModule.Settings.PlayerLight);
 
-        bool updateOthers = OnlinePlayer.OnlineStatus == PlayerOnlineStatus.Normal;
-        if (!updateOthers)
+        if (OnlinePlayer.IsPaused)
             return;
 
         if (dead)
@@ -571,9 +570,19 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         UpdateCollidable();
     }
 
-    public void OnUpdateOnlineStatus(PlayerOnlineStatus status)
+    public void OnUpdatePaused(bool paused)
     {
-        if (status == PlayerOnlineStatus.Normal)
+        if (paused)
+        {
+            if (idleHover is null)
+            {
+                playerHair.Active = false;
+                idleHover = new(this);
+                Scene?.Add(idleHover);
+                UpdateCollidable();
+            }
+        }
+        else
         {
             playerHair.Active = true;
             if (idleHover is not null)
@@ -581,18 +590,11 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             idleHover = null;
             UpdateCollidable();
         }
-        else
-        {
-            playerHair.Active = false;
-            idleHover = new(this);
-            Scene?.Add(idleHover);
-            UpdateCollidable();
-        }
     }
 
     private void UpdateCollidable()
     {
-        Collidable = Interactions && MiaoNetModule.Settings.PlayerInteractions && OnlinePlayer.OnlineStatus == PlayerOnlineStatus.Normal;
+        Collidable = Interactions && MiaoNetModule.Settings.PlayerInteractions && !OnlinePlayer.IsPaused;
     }
 
     private void PrepareHoldableSprite(HoldableType type)

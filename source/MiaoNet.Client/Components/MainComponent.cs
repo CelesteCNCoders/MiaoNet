@@ -30,7 +30,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         context.PlayerMapRoomChanged += Context_PlayerMapRoomChanged;
         context.PlayerMapChangeResponded += Context_PlayerMapChangeResponded;
         context.PlayerLiveStateNotification += Context_PlayerLiveStateNotification;
-        context.PlayerOnlineStatusChanged += Context_PlayerOnlineStatusChanged;
+        context.PlayerGlobalFlagsChanged += Context_PlayerGlobalFlagsChanged;
         context.PlayerCreatedFireworks += Context_PlayerCreatedFireworks;
         context.PlayerAudioPlayed += Context_PlayerAudioPlayed;
         context.PlayerGrabPlayer += Context_PlayerGrabPlayer;
@@ -64,16 +64,33 @@ public sealed partial class MainComponent : MiaoNetComponent
     public override void Update()
     {
         base.Update();
+        Level? level = Engine.Scene as Level;
+        Player? player = level?.Tracker.GetEntity<Player>();
 
-        if (Engine.Scene is not Level level)
+        OnlinePlayer self = ClientState.Self;
+        {
+            // online status update
+            var previousGlobalFlags = self.GlobalFlags;
+            var globalFlags = previousGlobalFlags;
+            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Paused, Engine.Scene.Paused);
+            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Typing, context.ChatComponent.Active);
+            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.LiveMode, MiaoNetModule.Settings.LiveMode);
+            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Interactions, MiaoNetModule.Settings.PlayerInteractions);
+            // can this be optimized?
+            bool hasGolden = player?.Leader.Followers.Any(f => f.Entity is Strawberry { Golden: true }) == true;
+            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.TakingGolden, hasGolden);
+            if (previousGlobalFlags != globalFlags)
+            {
+                self.GlobalFlags = globalFlags;
+                context.QueuePacket(new PacketUpdateGlobalFlag(globalFlags));
+            }
+
+            static PlayerGlobalFlags WithFlag(PlayerGlobalFlags current, PlayerGlobalFlags flag, bool value)
+                => value ? (current | flag) : (current & ~flag);
+        }
+
+        if (level is null)
             return;
-
-        // online status update
-        var self = ClientState.Self;
-        var p = self.OnlineStatus;
-        self.OnlineStatus = level.Paused ? PlayerOnlineStatus.Paused : PlayerOnlineStatus.Normal;
-        if (p != self.OnlineStatus)
-            context.QueuePacket(new PacketUpdateOnlineStatus(self.OnlineStatus));
 
         // location update
         if (pendingMapChanged)
@@ -85,7 +102,6 @@ public sealed partial class MainComponent : MiaoNetComponent
         //if (level.OnRawInterval(1f))
         //    errCount = Math.Max(0, errCount - 1);
 
-        Player player = level.Tracker.GetEntity<Player>();
         if (player is null || player.Dead)
             return;
 
@@ -360,11 +376,6 @@ public sealed partial class MainComponent : MiaoNetComponent
     {
         if (!HasState)
             return;
-        if (!location.IsInMap && ClientState.Self.OnlineStatus != PlayerOnlineStatus.Normal)
-        {
-            ClientState.Self.OnlineStatus = PlayerOnlineStatus.Normal;
-            context.QueuePacket(new PacketUpdateOnlineStatus(PlayerOnlineStatus.Normal));
-        }
         var changeResult = ClientState.OnPlayerLocationChanged(location);
         if (changeResult is PlayerLocation.ChangeResult.All || forceFullChange)
         {
@@ -556,11 +567,11 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
-    private void Context_PlayerOnlineStatusChanged(OnlinePlayer player, PlayerOnlineStatus previousStatus)
+    private void Context_PlayerGlobalFlagsChanged(OnlinePlayer player, PlayerGlobalFlags previousFlag)
     {
         if (!ghosts.TryGetValue(player.ID, out var ghost))
             return;
-        ghost.OnUpdateOnlineStatus(player.OnlineStatus);
+        ghost.OnUpdatePaused(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Paused));
     }
 
     private void Context_PlayerCreatedFireworks(OnlinePlayer player, Color color, float initialSpeed)

@@ -18,17 +18,19 @@ public sealed class OnlinePlayer : IPlayerListEntry
 
     public PlayerGraphicsInfo? GraphicsInfo { get; set; }
 
-    public PlayerOnlineStatus OnlineStatus { get; set; }
+    public PlayerGlobalFlags GlobalFlags { get; set; }
+
+    public bool IsPaused => GlobalFlags.HasFlag(PlayerGlobalFlags.Paused);
 
     /// <summary><c>-1</c> No record.</summary>
     public int LastPing { get; set; }
 
-    public OnlinePlayer(OnlineChannel channel, PlayerInfo info, PlayerOnlineStatus onlineStatus)
+    public OnlinePlayer(OnlineChannel channel, PlayerInfo info, PlayerGlobalFlags globalFlags)
     {
         Channel = channel;
         Info = info;
         location = PlayerLocation.Empty;
-        OnlineStatus = onlineStatus;
+        GlobalFlags = globalFlags;
         LastPing = -1;
     }
 

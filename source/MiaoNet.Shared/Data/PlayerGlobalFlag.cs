@@ -1,0 +1,13 @@
+namespace MiaoNet.Shared;
+
+[Flags]
+public enum PlayerGlobalFlags : ushort
+{
+    None,
+    Paused = 1 << 0,
+    Typing = 1 << 1,
+    LiveMode = 1 << 2,
+    Interactions = 1 << 3,
+    BlockFireworks = 1 << 4,
+    TakingGolden = 1 << 5
+}

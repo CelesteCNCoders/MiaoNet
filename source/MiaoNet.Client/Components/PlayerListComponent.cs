@@ -13,6 +13,9 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
     private readonly MTexture texPlayerPaused;
     private readonly MTexture texPlayerDebugMap;
+    private readonly MTexture texPlayerInteractions;
+    private readonly MTexture texLiveMode;
+    private readonly MTexture texTakingGolden;
 
     // -v ~ +v
     private const float PausedTexOffsetRange = 4f;
@@ -33,6 +36,9 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
         texPlayerDebugMap = GFX.Gui["miaonet/debug_map"];
         texPlayerPaused = GFX.Gui["miaonet/paused"];
+        texPlayerInteractions = GFX.Gui["miaonet/interactions"];
+        texLiveMode = GFX.Gui["miaonet/live_mode"];
+        texTakingGolden = GFX.Gui["miaonet/taking_golden"];
     }
 
     private void BuildPlayerList()
@@ -81,7 +87,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
         PlayerListItem CreateTestPlayer(OnlineChannel channel, string name, string sid, string room)
         {
-            return new PlayerListItem(new OnlinePlayer(channel, new(id++, name), PlayerOnlineStatus.Normal)
+            return new PlayerListItem(new OnlinePlayer(channel, new(id++, name), PlayerGlobalFlags.None)
             {
                 Location = new PlayerLocation(sid, AreaMode.Normal, room),
                 LastPing = Random.Shared.Next(20, Random.Shared.Next(20, Random.Shared.Next(20, 2000)))
@@ -255,12 +261,28 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     itemWidth += MiaoNetFont.Measure(player.Info.Name).X * scale;
                     itemWidth += MiddlePadding;
 
-                    if (player.OnlineStatus == PlayerOnlineStatus.Paused)
+                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Paused))
                     {
                         float texScale = lineHeight / texPlayerPaused.Height;
                         itemWidth += texScale * texPlayerPaused.Width + 2 * PausedTexOffsetRange;
+                    }
 
-                        itemWidth += spaceWidth;
+                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Interactions))
+                    {
+                        float texScale = lineHeight / texPlayerInteractions.Height;
+                        itemWidth += texScale * texPlayerInteractions.Width;
+                    }
+
+                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.LiveMode))
+                    {
+                        float texScale = lineHeight / texLiveMode.Height;
+                        itemWidth += texScale * texLiveMode.Width;
+                    }
+
+                    if(player.GlobalFlags.HasFlag(PlayerGlobalFlags.TakingGolden))
+                    {
+                        float texScale = lineHeight / texTakingGolden.Height;
+                        itemWidth += texScale * texTakingGolden.Width;
                     }
 
                     if (!player.Location.IsEmpty)
@@ -360,7 +382,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 );
                 x += MiaoNetFont.Measure(playerName).X * scale;
 
-                if (player.OnlineStatus == PlayerOnlineStatus.Paused)
+                if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Paused))
                 {
                     x += PausedTexOffsetRange;
 
@@ -368,7 +390,30 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     texPlayerPaused.Draw(new(x + pausedTexOffset, curY), Vector2.Zero, Color.White, Vector2.One * texScale);
 
                     x += texScale * texPlayerPaused.Width + PausedTexOffsetRange;
-                    x += spaceWidth;
+                }
+
+                if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Interactions))
+                {
+                    float texScale = lineHeight / texPlayerInteractions.Height;
+                    texPlayerInteractions.Draw(new(x, curY), Vector2.Zero, Color.White, Vector2.One * texScale);
+
+                    x += texScale * texPlayerPaused.Width;
+                }
+
+                if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.LiveMode))
+                {
+                    float texScale = lineHeight / texLiveMode.Height;
+                    texLiveMode.Draw(new(x, curY), Vector2.Zero, Color.White, Vector2.One * texScale);
+
+                    x += texScale * texLiveMode.Width;
+                }
+
+                if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.TakingGolden))
+                {
+                    float texScale = lineHeight / texTakingGolden.Height;
+                    texTakingGolden.Draw(new(x, curY), Vector2.Zero, Color.White, Vector2.One * texScale);
+
+                    x += texScale * texTakingGolden.Width;
                 }
 
                 // -- right to left drawing --

@@ -16,7 +16,7 @@ public sealed partial class MiaoServerService
         r.Register<PacketSendEmote>(HandlePacketAsync);
         r.Register<PacketSendEmoteText>(HandlePacketAsync);
         r.Register<PacketPlayerLiveState>(HandlePacketAsync);
-        r.Register<PacketUpdateOnlineStatus>(HandlePacketAsync);
+        r.Register<PacketUpdateGlobalFlag>(HandlePacketAsync);
         r.Register<PacketTeleportRequest>(HandlePacketAsync);
         r.Register<PacketSendPrivateChatMessage>(HandlePacketAsync);
         r.Register<PacketPlayerPlayedAudio>(HandlePacketAsync);
@@ -235,11 +235,11 @@ public sealed partial class MiaoServerService
         );
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketUpdateOnlineStatus packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketUpdateGlobalFlag packet)
     {
-        connection.Player.OnlineStatus = packet.Status;
+        connection.Player.GlobalFlags = packet.Flags;
         await BroadcastOthersAsync(
-            new PacketPlayerNotification<PacketUpdateOnlineStatus>(connection.ID, packet),
+            new PacketPlayerNotification<PacketUpdateGlobalFlag>(connection.ID, packet),
             connection.ID
         );
     }
@@ -323,8 +323,7 @@ public sealed partial class MiaoServerService
     {
         if (!ServerState.AllPlayers.TryGetValue(packet.PlayerID, out var p))
             return;
-        if (p.Player.OnlineStatus != PlayerOnlineStatus.Normal)
-            return;
+        // TODO verify this action server-side
         PacketPlayerGrabPlayer send = packet.IsRelease ? new(connection.ID, packet.Force) : new(connection.ID);
         await p.Connection.QueuePacketAsync(send);
     }
