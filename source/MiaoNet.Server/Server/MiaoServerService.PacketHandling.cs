@@ -344,7 +344,15 @@ public sealed partial class MiaoServerService
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketCreateFireworks packet)
     {
-        PacketPlayerNotification<PacketCreateFireworks> notification = new(connection.ID, packet);
-        await BroadcastToOthersAsync(notification, c => c.PlayerShouldSyncFrom(connection), connection.ID);
+        if (connection.Player.TryConsumeFireworksToken())
+        {
+            PacketPlayerNotification<PacketCreateFireworks> notification = new(connection.ID, packet);
+            await BroadcastToOthersAsync(notification, c => c.PlayerShouldSyncFrom(connection), connection.ID);
+        }
+        else
+        {
+            // TODO localization
+            await connection.DisconnectAsync(DisconnectReason.Kicked, "Too many fireworks.");
+        }
     }
 }
