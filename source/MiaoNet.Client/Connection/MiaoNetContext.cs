@@ -19,7 +19,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     public string TargetServer { get; set; } = "s.saplonily.top";
 #endif
 
-    public int TargetPort { get; set; } = 21474;
+    public int TargetPort { get; set; } = 21473;
 
     private CancellationTokenSource? cts;
     private Thread? connectionThread;
