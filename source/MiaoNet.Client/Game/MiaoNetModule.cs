@@ -62,6 +62,7 @@ public sealed class MiaoNetModule : EverestModule
             Everest.Events.Level.OnLoadLevel += Level_OnLoadLevel;
             IL.Celeste.Level.Update += Level_Update;
             SpriteIDTracker.Load();
+            IL.Celeste.Leader.GainFollower += Leader_GainFollower;
             IL.Celeste.Leader.GainFollower += ILHook_LeaderFollowersMarkDirty;
             IL.Celeste.Leader.LoseFollower += ILHook_LeaderFollowersMarkDirty;
             IL.Celeste.Leader.LoseFollowers += ILHook_LeaderFollowersMarkDirty;
@@ -98,6 +99,7 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.Level.OnLoadLevel -= Level_OnLoadLevel;
         IL.Celeste.Level.Update -= Level_Update;
         SpriteIDTracker.Unload();
+        IL.Celeste.Leader.GainFollower -= Leader_GainFollower;
         IL.Celeste.Leader.GainFollower -= ILHook_LeaderFollowersMarkDirty;
         IL.Celeste.Leader.LoseFollower -= ILHook_LeaderFollowersMarkDirty;
         IL.Celeste.Leader.LoseFollowers -= ILHook_LeaderFollowersMarkDirty;
@@ -136,6 +138,25 @@ public sealed class MiaoNetModule : EverestModule
             if (leader.Entity is not Player)
                 return;
             DynamicData.For(leader).Set(LeaderFollowersDirtyField, true);
+        });
+    }
+
+    private static void Leader_GainFollower(ILContext il)
+    {
+        ILCursor cur = new(il);
+        cur.EmitLdarg0();
+        cur.EmitLdarg1();
+        cur.EmitDelegate(static (Leader leader, Follower follower) =>
+        {
+            if (leader.Entity is Player && follower.Entity is Strawberry { Golden: true })
+            {
+                var ctx = Instance.miaoNetContext;
+                if (ctx is not null && ctx.HasConnection && Settings.PlayerInteractions)
+                {
+                    ctx.ChatComponent.TipMessage(Dialog.Get("miaonet_interactions_off_on_collecting_golden"));
+                    Settings.PlayerInteractions = false;
+                }
+            }
         });
     }
 
@@ -260,7 +281,7 @@ public sealed class MiaoNetModule : EverestModule
             // critical screen may bring us back to here
             PlayerLocationChanged?.Invoke(PlayerLocation.Empty, true);
             // also reset last teleported location
-            Instance.MiaoNetContext.MainComponent.LastLocationBeforeTeleport = (null, null, 0);
+            Instance.miaoNetContext?.MainComponent.LastLocationBeforeTeleport = (null, null, 0);
         }
         if (!seenOverworld)
         {

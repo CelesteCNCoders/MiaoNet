@@ -2,21 +2,21 @@ namespace Celeste.Mod.MiaoNet;
 
 public static class MiaoNetCommands
 {
-    private static MiaoNetContext Context => MiaoNetModule.Instance.MiaoNetContext;
-
     [Command("con", "Connect to MiaoNet.")]
     public static void Connect(string? server = null, string? port = null)
     {
+        var ctx = MiaoNetModule.Instance.MiaoNetContext;
         if (server is not null)
-            Context.TargetServer = server;
+           ctx.TargetServer = server;
         if (port is not null && int.TryParse(port, out var num))
-            Context.TargetPort = num;
-        Context.Connect();
+            ctx.TargetPort = num;
+        ctx.Connect();
     }
 
     [Command("dc", "Disconnect from MiaoNet.")]
     public static void Disconnect()
     {
-        Context.Disconnect();
+        var ctx = MiaoNetModule.Instance.MiaoNetContext;
+        ctx.Disconnect();
     }
 }

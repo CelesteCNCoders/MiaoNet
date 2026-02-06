@@ -174,3 +174,5 @@ miaonet_oui_conflict_description=
 	Unfortunately, these mods conflict with each other.
 	You can avoid this issue by disabling either mod after exiting the game.
 miaonet_oui_conflict_exit_game= Exit Game
+
+miaonet_interactions_off_on_collecting_golden= Player interactions disabled due to picking up a golden berry.

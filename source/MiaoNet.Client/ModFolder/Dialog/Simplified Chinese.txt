@@ -170,3 +170,5 @@ miaonet_oui_conflict_description=
 	不幸的是它们之间会发生冲突，
 	你可以在退出游戏后禁用任一 Mod 避免冲突的发生。
 miaonet_oui_conflict_exit_game= 退出游戏
+
+miaonet_interactions_off_on_collecting_golden= 玩家交互已因捡起金草莓而关闭。
