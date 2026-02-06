@@ -141,6 +141,7 @@ miaonet_commands_teleport_s0_description= The player that teleported to.
 miaonet_commands_clear_description= Clear chat history.
 miaonet_commands_back_description= Back to where you teleported.
 miaonet_commands_group_photo_mode_description= Toggle group photo mode. This reduces your network update frequency.
+miaonet_commands_interactions_description= Toggle player interactions.
 
 miaonet_commands_teleport_notice=
 	By default, using the Teleport command saves your current progress and switches to a temporary save file.

@@ -137,6 +137,7 @@ miaonet_commands_teleport_s0_description= 要传送到的玩家。
 miaonet_commands_clear_description= 清除聊天记录。
 miaonet_commands_back_description= 返回到上次传送时所在的位置。
 miaonet_commands_group_photo_mode_description= 切换合影模式。这会降低你的网络更新频率。
+miaonet_commands_interactions_description= 切换玩家交互开关。
 
 miaonet_commands_teleport_notice= 
 	使用 Teleport 指令默认会保存你的当前游戏进度并将存档切换至一个临时存档。
