@@ -397,7 +397,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     float texScale = lineHeight / texPlayerInteractions.Height;
                     texPlayerInteractions.Draw(new(x, curY), Vector2.Zero, Color.White, Vector2.One * texScale);
 
-                    x += texScale * texPlayerPaused.Width;
+                    x += texScale * texPlayerInteractions.Width;
                 }
 
                 if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.LiveMode))
