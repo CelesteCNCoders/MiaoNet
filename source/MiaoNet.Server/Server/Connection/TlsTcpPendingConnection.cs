@@ -28,7 +28,8 @@ public sealed class TlsTcpPendingConnection : IPendingNetworkConnection
             {
                 ServerCertificate = certificateService.GetCertificate(),
                 EnabledSslProtocols = Connection.AllowedSslProtocols,
-                CertificateRevocationCheckMode = X509RevocationMode.Online
+                // no need to check server-side
+                CertificateRevocationCheckMode = X509RevocationMode.NoCheck
             };
             await sslStream.AuthenticateAsServerAsync(options, token);
 
