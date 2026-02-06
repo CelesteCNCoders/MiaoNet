@@ -139,13 +139,13 @@ public sealed class ChatComponent : MiaoNetComponent
 
             if (MInput.Keyboard.Pressed(Keys.Escape))
             {
-                MInputHack.ConsumeAllInput();
+                MInputHack.ConsumeAllInputs();
                 Deactivate();
                 return;
             }
             else if (MInput.Keyboard.Pressed(Keys.Enter))
             {
-                MInputHack.ConsumeAllInput();
+                MInputHack.ConsumeAllInputs();
                 string text = inputBox.Text;
                 string trimmedText = text.Trim();
                 if (trimmedText != string.Empty)

@@ -149,7 +149,7 @@ public sealed partial class MainComponent : MiaoNetComponent
                 var button = MiaoNetModule.Settings.CreateFireworksButton;
                 if (button.Pressed && !level.Paused)
                 {
-                    button.ConsumePress();
+                    MInputHack.ConsumeAllInputs();
                     const float Radius = 74f;
                     const float VMin = 248f - Radius, VSMin = VMin * VMin;
                     const float VMax = 248f + Radius, VSMax = VMax * VMax;

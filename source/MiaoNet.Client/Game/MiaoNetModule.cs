@@ -182,6 +182,8 @@ public sealed class MiaoNetModule : EverestModule
     private static void Engine_Update(ILContext il)
     {
         ILCursor cur = new(il);
+
+        cur.GotoNext(MoveType.After, ins => ins.MatchCall("Monocle.MInput", "Update"));
         cur.EmitDelegate(static () => Instance.miaoNetContext?.Update());
 
         cur.GotoNext(MoveType.After, ins => ins.MatchStsfld<Engine>("FreezeTimer"));

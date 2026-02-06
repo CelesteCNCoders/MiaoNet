@@ -3,7 +3,7 @@ namespace Celeste.Mod.MiaoNet;
 // hmmm, just hack
 internal static class MInputHack
 {
-    public static void ConsumeAllInput()
+    public static void ConsumeAllInputs()
     {
         foreach(var input in MInput.VirtualInputs)
         {
