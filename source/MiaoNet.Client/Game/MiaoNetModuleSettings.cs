@@ -100,7 +100,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     #region Interactions
 
-    public bool PlayerInteractions { get; set; }
+    public bool PlayerInteractions { get; set; } = true;
 
     [YamlIgnore]
     public bool LiveMode { get; set; }
