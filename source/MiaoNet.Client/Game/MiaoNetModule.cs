@@ -183,9 +183,11 @@ public sealed class MiaoNetModule : EverestModule
     {
         ILCursor cur = new(il);
 
+        // update components
         cur.GotoNext(MoveType.After, ins => ins.MatchCall("Monocle.MInput", "Update"));
         cur.EmitDelegate(static () => Instance.miaoNetContext?.Update());
 
+        // update entities even in freeze frames
         cur.GotoNext(MoveType.After, ins => ins.MatchStsfld<Engine>("FreezeTimer"));
         cur.EmitLdarg0();
         cur.EmitDelegate(static (Engine engine) =>
@@ -197,6 +199,14 @@ public sealed class MiaoNetModule : EverestModule
             foreach (var hair in engine.scene.Tracker.GetComponents<PlayerHair>())
                 if (hair.Entity is MiaoNetGhost or GhostDeadBody)
                     ((PlayerHair)hair).AfterUpdate();
+        });
+
+        cur.GotoNext(MoveType.After, ins => ins.MatchCall<Game>("Update"));
+        cur.EmitDelegate(static () =>
+        {
+            var ctx = Instance.miaoNetContext;
+            if (ctx is not null && ctx.ChatComponent.Active)
+                Engine.Commands.Open = false;
         });
     }
 
