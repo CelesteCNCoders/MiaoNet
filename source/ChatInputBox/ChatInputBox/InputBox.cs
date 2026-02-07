@@ -1,3 +1,5 @@
+#nullable enable
+
 using Microsoft.Xna.Framework.Input;
 
 namespace Celeste.Mod.ChatInputBox;
@@ -13,6 +15,10 @@ public sealed class InputBox
 
     private static readonly VirtualButton leftButton;
     private static readonly VirtualButton rightButton;
+
+    private string? imeEditingText = null;
+    private int imeEditingStart = 0;
+    private int imeEditingLength = 0;
 
     public string Text => buffer.Text;
 
@@ -33,11 +39,13 @@ public sealed class InputBox
     public void Activate()
     {
         TextInput.OnInput += OnCharInput;
+        TextInputEXT.TextEditing += TextInputEXT_TextEditing;
     }
 
     public void Deactivate()
     {
         TextInput.OnInput -= OnCharInput;
+        TextInputEXT.TextEditing -= TextInputEXT_TextEditing;
         buffer.Clear();
     }
 
@@ -112,6 +120,13 @@ public sealed class InputBox
             SetAlwaysShowCaretTimer();
     }
 
+    private void TextInputEXT_TextEditing(string? text, int start, int length)
+    {
+        imeEditingText = text;
+        imeEditingStart = start;
+        imeEditingLength = length;
+    }
+
     private void SetAlwaysShowCaretTimer()
     {
         showCaret = true;
@@ -134,22 +149,42 @@ public sealed class InputBox
             color: Color.Black with { A = 100 }
         );
 
-        textRenderer.Draw(
-            buffer.Text,
-            textBaseLoc,
-            justify: new Vector2(0f, 1f),
-            color: Color.White
-        );
+        // unluckly we need to substring here since there's no ReadOnlySpan<char> overload...
+        // should we cache the sliced string?
+        string strBeforeCaret = buffer.Text.Substring(0, buffer.CaretPosition);
+        string strAfterCaret = buffer.Text.Substring(buffer.CaretPosition);
+
+        Vector2 pos = textBaseLoc;
+        Vector2 sizeBeforeCaret = textRenderer.Measure(strBeforeCaret);
+        Vector2 sizeAfterCaret = textRenderer.Measure(strAfterCaret);
+        textRenderer.Draw(strBeforeCaret, pos, justify: new Vector2(0f, 1f), color: Color.White);
+        pos.X += sizeBeforeCaret.X;
+        if (imeEditingText is not null)
+        {
+            Vector2 sizeImeEditing = textRenderer.Measure(imeEditingText);
+            textRenderer.Draw(imeEditingText, pos, justify: new Vector2(0f, 1f), color: Color.Gray);
+            pos.X += sizeImeEditing.X;
+        }
+        textRenderer.Draw(strAfterCaret, pos, justify: new Vector2(0f, 1f), color: Color.White);
+        pos.X += sizeAfterCaret.X;
 
         if (showCaret)
         {
-            Vector2 beforeCaret = textRenderer.Measure(buffer.Text.Substring(0, buffer.CaretPosition));
-            float width = beforeCaret.X;
+            float width = sizeBeforeCaret.X;
+            if (imeEditingText is not null)
+            {
+                Vector2 sizeBeforeImeStart = textRenderer.Measure(imeEditingText.Substring(0, imeEditingStart));
+                width += sizeBeforeImeStart.X;
+            }
 
             Vector2 fromLoc = textBaseLoc + new Vector2(width, 0);
             Vector2 toLoc = fromLoc - new Vector2(0f, textRenderer.LineHeight);
 
             Draw.Line(fromLoc, toLoc, Color.White, 2f);
         }
+        Vector2 view = new(Engine.ViewWidth, Engine.ViewHeight);
+        Vector2 viewPos = new(pos.X / Engine.Width * view.X, pos.Y / Engine.Height * view.Y);
+        // TODO set the value correctly
+        TextInputEXT.SetInputRectangle(new Rectangle((int)viewPos.X + Engine.ViewPadding + 72, (int)viewPos.Y + Engine.ViewPadding, 1, 0));
     }
 }
