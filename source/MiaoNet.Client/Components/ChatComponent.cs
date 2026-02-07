@@ -62,11 +62,15 @@ public sealed class ChatComponent : MiaoNetComponent
 
     private void Context_PlayerJoined(OnlinePlayer player)
     {
+        if (!MiaoNetModule.Settings.PlayerPresenceMessages)
+            return;
         OnNotifyMessage(Dialog.Clean("miaonet_context_player_joined").Replace("(0)", player.Info.Name));
     }
 
     private void Context_PlayerLeft(OnlinePlayer player)
     {
+        if (!MiaoNetModule.Settings.PlayerPresenceMessages)
+            return;
         OnNotifyMessage(Dialog.Clean("miaonet_context_player_left").Replace("(0)", player.Info.Name));
     }
 

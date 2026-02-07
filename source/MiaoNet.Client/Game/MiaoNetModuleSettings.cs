@@ -110,17 +110,23 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     [YamlIgnore]
     public bool Fireworks { get; set; } = true;
 
+    public int EmotesCount { get; set; } = 8;
+
+    public List<ButtonBinding> EmoteButtons { get; set; }
+
+    public List<string> Emotes { get; set; }
+
+    #endregion
+
+    #region Behaviours
+
     public ButtonMode PlayerListButtonMode { get; set; }
 
     public bool TeleportTempSave { get; set; } = true;
 
     public TeleportBehaviour TeleportBehaviour { get; set; } = TeleportBehaviour.WithSession;
 
-    public int EmotesCount { get; set; } = 8;
-
-    public List<ButtonBinding> EmoteButtons { get; set; }
-
-    public List<string> Emotes { get; set; }
+    public bool PlayerPresenceMessages { get; set; } = true;
 
     #endregion
 

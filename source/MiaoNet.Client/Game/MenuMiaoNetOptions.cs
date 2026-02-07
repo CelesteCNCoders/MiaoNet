@@ -212,26 +212,6 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
         item.AddDescription(menu, Dialog.Clean("miaonet_options_fireworks_tip"));
 
-        item = new EnumSlider<ButtonMode>(
-            Dialog.Get("miaonet_options_player_list_button_mode"),
-            e => Dialog.Get($"miaonet_options_player_list_button_mode_{e}"),
-            settings.PlayerListButtonMode
-        ).Change(v => settings.PlayerListButtonMode = v);
-        menu.Add(item);
-
-        item = new TextMenu.OnOff(
-            Dialog.Get("miaonet_options_teleport_temp_save"), settings.TeleportTempSave
-        ).Change(v => settings.TeleportTempSave = v);
-        menu.Add(item);
-        item.AddDescription(menu, Dialog.Clean("miaonet_options_teleport_temp_save_tip"));
-
-        item = new EnumSlider<TeleportBehaviour>(
-            Dialog.Get("miaonet_options_teleport_behaviour"),
-            e => Dialog.Get($"miaonet_options_teleport_behaviour_{e}"),
-            settings.TeleportBehaviour
-        ).Change(v => settings.TeleportBehaviour = v);
-        menu.Add(item);
-
         item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_emotes_count"), 8, 32, settings.EmotesCount
         ).Change(v => settings.EmotesCount = v);
@@ -271,10 +251,38 @@ public static class MenuMiaoNetOptions
 
         #endregion
 
-        // -- Chat --
+        #region Behaviours
 
-        //item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_chat"));
-        //menu.Add(item);
+        item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_behaviours"), false);
+        menu.Add(item);
+
+        item = new EnumSlider<ButtonMode>(
+            Dialog.Get("miaonet_options_player_list_button_mode"),
+            e => Dialog.Get($"miaonet_options_player_list_button_mode_{e}"),
+            settings.PlayerListButtonMode
+        ).Change(v => settings.PlayerListButtonMode = v);
+        menu.Add(item);
+
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_teleport_temp_save"), settings.TeleportTempSave
+        ).Change(v => settings.TeleportTempSave = v);
+        menu.Add(item);
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_teleport_temp_save_tip"));
+
+        item = new EnumSlider<TeleportBehaviour>(
+            Dialog.Get("miaonet_options_teleport_behaviour"),
+            e => Dialog.Get($"miaonet_options_teleport_behaviour_{e}"),
+            settings.TeleportBehaviour
+        ).Change(v => settings.TeleportBehaviour = v);
+        menu.Add(item);
+
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_player_presence_message"),
+            settings.PlayerPresenceMessages
+        ).Change(v => settings.PlayerPresenceMessages = v);
+        menu.Add(item);
+
+        #endregion
 
         AddKeyBindingsSection(menu, inGame);
     }
@@ -369,10 +377,10 @@ public static class MenuMiaoNetOptions
             while (settings.EmoteButtons.Count < settings.EmotesCount)
                 settings.EmoteButtons.Add(new());
 
-            Add(new SubHeader(Dialog.Get("miaonet_options_emotes")));
+            Add(new SubHeader(Dialog.Get("miaonet_options_button_emotes")));
             for (int i = 0; i < settings.EmotesCount; i++)
                 AddMapForceLabel(
-                    Dialog.Get("miaonet_options_emote_i").Replace("(0)", (i + 1).ToString()),
+                    Dialog.Get("miaonet_options_button_emote_i").Replace("(0)", (i + 1).ToString()),
                     settings.EmoteButtons[i].Binding
                 );
 
@@ -442,10 +450,10 @@ public static class MenuMiaoNetOptions
             while (settings.EmoteButtons.Count < settings.EmotesCount)
                 settings.EmoteButtons.Add(new());
 
-            Add(new SubHeader(Dialog.Get("miaonet_options_emotes")));
+            Add(new SubHeader(Dialog.Get("miaonet_options_button_emotes")));
             for (int i = 0; i < settings.EmotesCount; i++)
                 AddMapForceLabel(
-                    Dialog.Get("miaonet_options_emote_i").Replace("(0)", (i + 1).ToString()),
+                    Dialog.Get("miaonet_options_button_emote_i").Replace("(0)", (i + 1).ToString()),
                     settings.EmoteButtons[i].Binding
                 );
 
