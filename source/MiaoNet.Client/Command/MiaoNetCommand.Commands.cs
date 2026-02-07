@@ -240,6 +240,11 @@ partial class MiaoNetCommand
 
                 // switch to debug save
                 SaveData.InitializeDebugMode();
+                var ins = SaveData.Instance;
+                SafeGuard.Assert(ins.DebugMode);
+                ins.VariantMode = true;
+                ins.AssistMode = true;
+                ins.CheatMode = true;
             }
             else
             {
