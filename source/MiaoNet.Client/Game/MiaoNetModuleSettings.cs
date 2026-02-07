@@ -112,7 +112,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public bool TeleportTempSave { get; set; } = true;
 
-    public TeleportBehaviour TeleportBehaviour { get; set; }
+    public TeleportBehaviour TeleportBehaviour { get; set; } = TeleportBehaviour.WithSession;
 
     public int EmotesCount { get; set; } = 8;
 
