@@ -39,4 +39,42 @@ public sealed partial class PlayerSessionData
             return new(reader.ReadString(), reader.ReadInt32());
         }
     }
+
+    public readonly struct PlayerInventory : IRefBinarySerializable<PlayerInventory>
+    {
+        public int Dashes { get; }
+
+        public bool DreamDash { get; }
+
+        public bool Backpack { get; }
+
+        public bool NoRefills { get; }
+
+        public PlayerInventory(int dashes, bool dreamDash, bool backpack, bool noRefills)
+        {
+            Dashes = dashes;
+            DreamDash = dreamDash;
+            Backpack = backpack;
+            NoRefills = noRefills;
+        }
+
+#if MIAO_CLIENT
+        public static implicit operator Celeste.PlayerInventory(PlayerInventory inv)
+            => new(inv.Dashes, inv.DreamDash, inv.Backpack, inv.NoRefills);
+
+        public static implicit operator PlayerInventory(Celeste.PlayerInventory inv)
+            => new(inv.Dashes, inv.DreamDash, inv.Backpack, inv.NoRefills);
+#endif
+
+        public void Serialize(ref RefBinaryWriter writer)
+        {
+            writer.Write(Dashes);
+            writer.Write(DreamDash);
+            writer.Write(Backpack);
+            writer.Write(NoRefills);
+        }
+
+        public static PlayerInventory Deserialize(ref RefBinaryReader reader)
+            => new(reader.ReadInt32(), reader.ReadBoolean(), reader.ReadBoolean(), reader.ReadBoolean());
+    }
 }

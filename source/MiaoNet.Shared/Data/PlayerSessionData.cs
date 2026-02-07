@@ -46,6 +46,8 @@ public sealed partial class PlayerSessionData : IRefBinarySerializable<PlayerSes
 
     public Vector2? RespawnPoint { get; }
 
+    public PlayerInventory Inventory { get; }
+
     public IReadOnlyCollection<string> StringFlags { get; }
 
     public IReadOnlyCollection<string> LevelStringFlags { get; }
@@ -79,6 +81,7 @@ public sealed partial class PlayerSessionData : IRefBinarySerializable<PlayerSes
     public PlayerSessionData(
         Vector2 position,
         Vector2? respawnPoint,
+        PlayerInventory inventory,
         IReadOnlyCollection<string> stringFlags,
         IReadOnlyCollection<string> levelStringFlags,
         IReadOnlyCollection<DataEntityID> strawberries,
@@ -98,6 +101,7 @@ public sealed partial class PlayerSessionData : IRefBinarySerializable<PlayerSes
     {
         Position = position;
         RespawnPoint = respawnPoint;
+        Inventory = inventory;
         StringFlags = stringFlags;
         LevelStringFlags = levelStringFlags;
         Strawberries = strawberries;
@@ -131,6 +135,7 @@ public sealed partial class PlayerSessionData : IRefBinarySerializable<PlayerSes
         session.HitCheckpoint = Flags.HasFlag(SessionFlags.HitCheckpoint);
 
         session.RespawnPoint = RespawnPoint;
+        session.Inventory = Inventory;
         session.Flags = StringFlags.ToHashSet();
         session.LevelFlags = LevelStringFlags.ToHashSet();
         session.Strawberries = Strawberries.Select<DataEntityID, EntityID>(p => p).ToHashSet();
@@ -180,6 +185,7 @@ public sealed partial class PlayerSessionData : IRefBinarySerializable<PlayerSes
         return new PlayerSessionData(
             position,
             respawnPoint: session.RespawnPoint,
+            inventory: session.Inventory,
             stringFlags: session.Flags,
             levelStringFlags: session.LevelFlags,
             strawberries: session.Strawberries.Select<EntityID, DataEntityID>(id => id).ToList(),
@@ -216,6 +222,7 @@ public sealed partial class PlayerSessionData : IRefBinarySerializable<PlayerSes
         writer.Write((ushort)Flags);
 
         writer.Write(Position);
+        writer.Write(Inventory);
 
         writer.Write(SummitGems);
         writer.Write(LightingAlphaAdd);
@@ -241,6 +248,7 @@ public sealed partial class PlayerSessionData : IRefBinarySerializable<PlayerSes
         var flags = (SessionFlags)reader.ReadUInt16();
 
         Vector2 position = reader.ReadVector2();
+        PlayerInventory inventory = reader.Read<PlayerInventory>();
 
         var summitGems = reader.ReadUInt16();
         var lightingAlphaAdd = reader.ReadSingle();
@@ -286,8 +294,9 @@ public sealed partial class PlayerSessionData : IRefBinarySerializable<PlayerSes
             : null;
 
         return new PlayerSessionData(
-            position,
+            position: position,
             respawnPoint: respawnPoint,
+            inventory: inventory,
             stringFlags: stringFlags,
             levelStringFlags: levelStringFlags,
             strawberries: strawberries,
