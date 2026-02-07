@@ -68,6 +68,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public int SelfNameOpacity { get; set; } = 8;
 
+    public JumpthruType GroupPhotoPlatformType { get; set; } = JumpthruType.Dream;
+
     #region Calculated
 
     [YamlIgnore] public float PlayerListUIScaleValue => GetScaleValue(PlayerListUIScale);

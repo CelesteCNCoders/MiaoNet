@@ -164,6 +164,12 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.PlayerNameOpacity = v);
         menu.Add(item);
 
+        item = new EnumSlider<JumpthruType>(
+            Dialog.Get("miaonet_options_group_photo_platform_type"),
+            t => t.ToString(), settings.GroupPhotoPlatformType
+        ).Change(v => settings.GroupPhotoPlatformType = v);
+        menu.Add(item);
+
         #endregion
 
         #region Audio

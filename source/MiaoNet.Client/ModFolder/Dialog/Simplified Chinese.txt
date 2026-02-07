@@ -26,6 +26,7 @@ miaonet_options_active_chat_height= 聚焦聊天高度
 miaonet_options_player_opacity= 玩家不透明度
 miaonet_options_self_name_opactiy= 自身名称不透明度
 miaonet_options_player_name_opacity= 名称不透明度
+miaonet_options_group_photo_platform_type= 合影平台类型
 
 miaonet_options_audio= 音频
 miaonet_options_player_audio= 玩家音频
