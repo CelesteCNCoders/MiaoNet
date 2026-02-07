@@ -134,6 +134,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public ButtonBinding ChatButton { get; set; }
 
+    public ButtonBinding ChatCommandButton { get; set; }
+
     public ButtonBinding PlayerListButton { get; set; }
 
     public ButtonBinding CreateFireworksButton { get; set; }
@@ -157,6 +159,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     public void ResetKeyBindings()
     {
         ChatButton = new(0, Keys.T);
+        ChatCommandButton = new(0, 0);
         PlayerListButton = new(0, Keys.Tab);
         List<ButtonBinding> bindings = new();
         for (int i = 0; i < EmotesCount; i++)
@@ -181,7 +184,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     }
 
     public IEnumerable<ButtonBinding> GetButtonBindings()
-        => [ChatButton, PlayerListButton, .. EmoteButtons, CreateFireworksButton];
+        => [ChatButton, ChatCommandButton, PlayerListButton, .. EmoteButtons, CreateFireworksButton];
 
     private static float GetScaleValue(int scale) => scale switch
     {

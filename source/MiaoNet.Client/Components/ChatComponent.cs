@@ -130,11 +130,21 @@ public sealed class ChatComponent : MiaoNetComponent
         if (!active)
         {
             var btn = settings.ChatButton;
+            var btnCmd = settings.ChatCommandButton;
             if (btn.Pressed)
             {
                 btn.ConsumePress();
                 if (MiaoNetContext.IsSuitableToOpenUI)
                     Activate();
+            }
+            else if (btnCmd.Pressed)
+            {
+                btnCmd.ConsumePress();
+                if (MiaoNetContext.IsSuitableToOpenUI)
+                {
+                    Activate();
+                    inputBox.SetText(CommandParser.CommandPrefix);
+                }
             }
         }
         else

@@ -371,6 +371,7 @@ public static class MenuMiaoNetOptions
             Add(new InputMappingInfo(false));
 
             AddMapForceLabel(Dialog.Get("miaonet_options_button_chat"), settings.ChatButton.Binding);
+            AddMapForceLabel(Dialog.Get("miaonet_options_button_chat_command"), settings.ChatCommandButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list"), settings.PlayerListButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_create_fireworks"), settings.CreateFireworksButton.Binding);
 
@@ -444,6 +445,7 @@ public static class MenuMiaoNetOptions
             Add(new InputMappingInfo(false));
 
             AddMapForceLabel(Dialog.Get("miaonet_options_button_chat"), settings.ChatButton.Binding);
+            AddMapForceLabel(Dialog.Get("miaonet_options_button_chat_command"), settings.ChatCommandButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list"), settings.PlayerListButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_create_fireworks"), settings.CreateFireworksButton.Binding);
 
