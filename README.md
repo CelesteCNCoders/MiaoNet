@@ -52,4 +52,4 @@ CelesteNet 的一个重写, 以应对数以百计的蔚蓝联机玩家.
 
 ## Credits
 
-- sky scale: 绘制了直播模式的图标 ([live_mode.png](./source/MiaoNet.Client/ModFolder/Graphics/Atlases/Gui/miaonet/live_mode.png))
+- sky scale: 绘制了直播模式以及合影模式的图标(`live_mode.png`, `group_photo_mode.png`)

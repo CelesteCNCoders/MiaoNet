@@ -16,6 +16,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     private readonly MTexture texPlayerInteractions;
     private readonly MTexture texLiveMode;
     private readonly MTexture texTakingGolden;
+    private readonly MTexture texGroupPhotoMode;
 
     // -v ~ +v
     private const float PausedTexOffsetRange = 4f;
@@ -39,6 +40,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         texPlayerInteractions = GFX.Gui["miaonet/interactions"];
         texLiveMode = GFX.Gui["miaonet/live_mode"];
         texTakingGolden = GFX.Gui["miaonet/taking_golden"];
+        texGroupPhotoMode = GFX.Gui["miaonet/group_photo_mode"];
     }
 
     private void BuildPlayerList()
@@ -279,10 +281,16 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                         itemWidth += texScale * texLiveMode.Width;
                     }
 
-                    if(player.GlobalFlags.HasFlag(PlayerGlobalFlags.TakingGolden))
+                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.TakingGolden))
                     {
                         float texScale = lineHeight / texTakingGolden.Height;
                         itemWidth += texScale * texTakingGolden.Width;
+                    }
+
+                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.GroupPhotoMode))
+                    {
+                        float texScale = lineHeight / texGroupPhotoMode.Height;
+                        itemWidth += texScale * texGroupPhotoMode.Width;
                     }
 
                     if (!player.Location.IsEmpty)
@@ -414,6 +422,14 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     texTakingGolden.Draw(new(x, curY), Vector2.Zero, Color.White, Vector2.One * texScale);
 
                     x += texScale * texTakingGolden.Width;
+                }
+
+                if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.GroupPhotoMode))
+                {
+                    float texScale = lineHeight / texGroupPhotoMode.Height;
+                    texGroupPhotoMode.Draw(new(x, curY), Vector2.Zero, Color.White, Vector2.One * texScale);
+
+                    x += texScale * texGroupPhotoMode.Width;
                 }
 
                 // -- right to left drawing --

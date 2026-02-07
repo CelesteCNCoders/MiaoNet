@@ -76,6 +76,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Typing, context.ChatComponent.Active);
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.LiveMode, MiaoNetModule.Settings.LiveMode);
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Interactions, MiaoNetModule.Settings.PlayerInteractions);
+            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.GroupPhotoMode, MiaoNetModule.Settings.GroupPhotoMode);
             // can this be optimized?
             bool hasGolden = player?.Leader.Followers.Any(f => f.Entity is Strawberry { Golden: true }) == true;
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.TakingGolden, hasGolden);
