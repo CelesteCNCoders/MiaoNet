@@ -188,6 +188,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         }
         catch (Exception e)
         {
+            Logger.Error(LT.MiaoNet, "Exception occurred during updating!");
             Logger.LogDetailed(e, LT.MiaoNet);
             Disconnect();
         }
@@ -196,10 +197,22 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     public void Render()
     {
         BeginRender();
-        if (HasConnection)
-            renderableComponents.ForEach(c => c.Render());
-        StatusComponent.Render();
-        EndRender();
+        try
+        {
+            if (HasConnection)
+                renderableComponents.ForEach(c => c.Render());
+            StatusComponent.Render();
+        }
+        catch (Exception e)
+        {
+            Logger.Error(LT.MiaoNet, "Exception occurred during rendering!");
+            Logger.LogDetailed(e, LT.MiaoNet);
+            Disconnect();
+        }
+        finally
+        {
+            EndRender();
+        }
     }
 
     public static void BeginRender()
