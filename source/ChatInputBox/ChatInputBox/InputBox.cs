@@ -173,7 +173,7 @@ public sealed class InputBox
             float width = sizeBeforeCaret.X;
             if (imeEditingText is not null)
             {
-                Vector2 sizeBeforeImeStart = textRenderer.Measure(imeEditingText.Substring(0, imeEditingStart));
+                Vector2 sizeBeforeImeStart = textRenderer.Measure(imeEditingText.Substring(0, Math.Min(imeEditingStart, imeEditingText.Length)));
                 width += sizeBeforeImeStart.X;
             }
 
