@@ -34,6 +34,8 @@ public struct Color
         set => packedValue = value;
     }
 
+    public static Color White => new Color(255, 255, 255);
+
     public Color(int r, int g, int b)
     {
         packedValue = 0u;

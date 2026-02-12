@@ -57,6 +57,10 @@ public sealed partial class MainComponent : MiaoNetComponent
         selfNameTag = null;
         CleanUpInteractions(Engine.Scene as Level);
         MiaoNetModule.Settings.GroupPhotoMode = false;
+#if DEBUG
+        if (!Engine.Scene.Tracker.IsEntityTracked<GroupPhotoPlatform>())
+            return;
+#endif
         var pf = Engine.Scene.Tracker.GetEntity<GroupPhotoPlatform>();
         pf?.RemoveSelf();
     }
@@ -111,7 +115,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         {
             if (selfNameTag is null)
             {
-                selfNameTag = new(player, ClientState.Self.Info.Name);
+                selfNameTag = new(player, ClientState.Self.Info);
                 player.Scene.Add(selfNameTag);
             }
             else if (selfNameTag.Scene != player.Scene)
@@ -452,7 +456,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (Engine.Scene is not Level level)
             return;
 
-        if (ghosts.TryGetValue(player.Info.ID, out var ghost))
+        if (ghosts.TryGetValue(player.ID, out var ghost))
         {
             if (!ghost.BeingHeldLocally)
                 ghost.Position = packet.Position;
@@ -512,7 +516,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             return;
         if (!ClientState.Self.ShouldSyncFrom(player))
             return;
-        if (!ghosts.Remove(player.Info.ID, out MiaoNetGhost? ghost))
+        if (!ghosts.Remove(player.ID, out MiaoNetGhost? ghost))
         {
             Logger.Warn(LT.MiaoNet, $"Try removing the ghost of player({player.Info}) but it doesn't exist.");
             return;
@@ -556,7 +560,7 @@ public sealed partial class MainComponent : MiaoNetComponent
 
     private void Context_PlayerLiveStateNotification(OnlinePlayer player, LiveStateType flag, Vector2 vector2)
     {
-        if (ghosts.TryGetValue(player.Info.ID, out var ghost))
+        if (ghosts.TryGetValue(player.ID, out var ghost))
         {
             if (flag == LiveStateType.Die)
                 ghost.OnDied(vector2);
@@ -647,7 +651,7 @@ public sealed partial class MainComponent : MiaoNetComponent
                     // TODO make local state changes wait for server to confirm
                     return;
                 }
-                ghosts[other.ID] = ghost = new(other, other.Info.Name, graphicsInfo, initialState!);
+                ghosts[other.ID] = ghost = new(other, graphicsInfo, initialState!);
                 level!.Add(ghost);
                 Logger.Debug(LT.MiaoNet, $"added ghost for {other.Info}!");
             }

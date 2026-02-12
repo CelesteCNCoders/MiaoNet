@@ -24,7 +24,30 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 {
     #region Login State
 
-    public string Name { get; set; }
+    // encrypted using the user's environment string so that 
+    // someone can't just leak it by taking a screenshot of the settings file.
+    [YamlIgnore]
+    public byte[]? TokenData { get; set; }
+
+    // This is for Serializer
+    // but we can't make it private...
+    public string? TokenDataEncrypted
+    {
+        get => TokenData is null ? null : TokenDataUtils.Encrypt(TokenData);
+        set
+        {
+            if (value is null)
+            {
+                TokenData = null;
+                return;
+            }
+            TokenData = TokenDataUtils.TryDecrypt(value, out byte[]? tokenData)
+                ? tokenData
+                : null;
+        }
+    }
+
+    public string? LastName { get; set; }
 
     #endregion
 

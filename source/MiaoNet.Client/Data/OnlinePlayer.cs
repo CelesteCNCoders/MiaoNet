@@ -6,7 +6,7 @@ public sealed class OnlinePlayer : IPlayerListEntry
 {
     private PlayerLocation location;
 
-    public int ID => Info.ID;
+    public int ID { get; }
 
     public OnlineChannel Channel { get; set; }
 
@@ -25,9 +25,10 @@ public sealed class OnlinePlayer : IPlayerListEntry
     /// <summary><c>-1</c> No record.</summary>
     public int LastPing { get; set; }
 
-    public OnlinePlayer(OnlineChannel channel, PlayerInfo info, PlayerGlobalFlags globalFlags)
+    public OnlinePlayer(OnlineChannel channel, int id, PlayerInfo info, PlayerGlobalFlags globalFlags)
     {
         Channel = channel;
+        ID = id;
         Info = info;
         location = PlayerLocation.Empty;
         GlobalFlags = globalFlags;

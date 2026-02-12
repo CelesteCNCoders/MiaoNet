@@ -260,7 +260,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
                     float itemWidth = 0f;
 
-                    itemWidth += MiaoNetFont.Measure(player.Info.Name).X * scale;
+                    itemWidth += MiaoNetFont.Measure(item.DisplayName).X * scale;
                     itemWidth += MiddlePadding;
 
                     if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Paused))
@@ -380,13 +380,13 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 // -- left to right drawing --
                 float x = xOffset;
                 // draw player name
-                string playerName = player.Info.Name;
+                string playerName = item.DisplayName;
                 MiaoNetFont.Draw(
                     playerName,
                     position: new(x, curY),
                     justify: Vector2.Zero,
                     scale: Vector2.One * scale,
-                    Color.White
+                    player.Info.Color
                 );
                 x += MiaoNetFont.Measure(playerName).X * scale;
 

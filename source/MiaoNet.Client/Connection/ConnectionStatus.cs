@@ -11,6 +11,8 @@ public static class ConnectionStatus
             .Replace("(0)", local.ToString(3))
             .Replace("(1)", remote.ToString(3));
 
+    public static string Authenticating => Dialog.Get(string.Format(Base, "authenticating"));
+
     public static string DisconnectedExceptionally => Dialog.Get(string.Format(Base, "disconnected_exceptionally"));
 
     public static string Connected => Dialog.Get(string.Format(Base, "connected"));

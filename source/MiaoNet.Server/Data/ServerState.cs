@@ -33,11 +33,11 @@ public sealed class ServerState
         currentPlayerID = currentChannelID = 0;
     }
 
-    public ServerPlayer CreateNewPlayer(HandshakeResult handshakeResult)
+    public ServerPlayer CreateNewPlayer(PlayerInfo playerInfo)
     {
         int id = Interlocked.Increment(ref currentPlayerID);
         ServerChannel channel = AllChannels[0];
-        ServerPlayer player = new(channel, new(id, handshakeResult.HandshakeData.Name));
+        ServerPlayer player = new(channel, id, playerInfo);
         return player;
     }
 

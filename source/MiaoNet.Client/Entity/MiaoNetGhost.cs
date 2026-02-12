@@ -47,8 +47,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
     public OnlinePlayer OnlinePlayer { get; }
 
-    public string Name { get; }
-
     public bool Interactions { get; private set; }
 
     public bool BeingHeldLocally => selfHoldable.Holder is not null;
@@ -70,7 +68,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
     public MiaoNetGhost(
         OnlinePlayer player,
-        string name,
         PlayerGraphicsInfo? playerGraphicsInfo,
         PlayerState initialState
     )
@@ -78,7 +75,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         Tag = MiaoNetTag.Tag;
         Depth = Depths.Player + 1;
         OnlinePlayer = player;
-        Name = name;
         GraphicsInfo = playerGraphicsInfo;
         facing = Facings.Right;
         playerSprite = SafeCreatePlayerSprite(initialState.PlayerSpriteMode);
@@ -92,7 +88,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         Add(playerHair);
 
         Add(playerSprite);
-        nameTag = new(this, name);
+        nameTag = new(this, player.Info);
         playerHair.Start();
 
         ApplyState(initialState);

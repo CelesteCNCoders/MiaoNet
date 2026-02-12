@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net;
 using Celeste.Mod.UI;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Input;
@@ -43,35 +44,28 @@ public static class MenuMiaoNetOptions
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_login_state"), false);
         menu.Add(item);
 
-        string loggedInText = Dialog.Get("miaonet_options_logged_in") + settings.Name;
-        if (inGame)
+        item = new TextMenu.Button(Dialog.Get("miaonet_options_login"))
         {
+            OnPressed = () =>
+            {
+                ClientRC.Start();
+
+                string url = "https://bbs.celemiao.com/oauth/authorize?" +
+                    "client_id=bN8BOz8IjLk981LFLckBq3XzA6fsDC0d" +
+                    "&response_type=code" +
+                    "&redirect_uri=http://localhost:21472/auth" +
+                    "&scope=celeste.read";
+                SDL2.SDL.SDL_OpenURL(url);
+            }
+        };
+        menu.Add(item);
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_login_tip"));
+
+        if (settings.LastName is not null)
+        {
+            string loggedInText = Dialog.Get("miaonet_options_last_logged_in_name") + settings.LastName;
             item = new TextMenu.Button(loggedInText);
             menu.Add(item);
-            item.AddDescription(menu, Dialog.Get("miaonet_options_logged_in_tip"));
-        }
-        else
-        {
-            TextMenu.Button thisButton =
-            thisButton = new TextMenu.Button(loggedInText);
-            thisButton.Pressed(() =>
-            {
-                Audio.Play("event:/ui/main/savefile_rename_start");
-                menu.SceneAs<Overworld>()
-                    .Goto<OuiModOptionString>()
-                    .Init<OuiModOptions>(
-                        settings.Name,
-                        v =>
-                        {
-                            v = v.Trim();
-                            settings.Name = v;
-                            thisButton.Label = Dialog.Get("miaonet_options_logged_in") + v;
-                        }, 36, 2
-                    );
-            });
-            item = thisButton;
-            menu.Add(item);
-            item.AddDescription(menu, Dialog.Get("miaonet_options_logged_in_tip_2"));
         }
 
         #endregion
@@ -93,6 +87,14 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.IgnoreCertRevocationStatus = v);
         menu.Add(item);
         item.AddDescription(menu, Dialog.Clean("miaonet_options_ignore_cert_revocation_status_tip"));
+
+        /*
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_use_sync_refresh"), false
+        );
+        menu.Add(item);
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_use_sync_refresh_tip"));
+        */
 
         #endregion
 

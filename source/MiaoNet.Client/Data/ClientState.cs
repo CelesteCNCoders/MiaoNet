@@ -30,19 +30,19 @@ public sealed class ClientState
             channels.Add(channel.ID, new OnlineChannel(channel.ID, channel.Name));
         foreach (var player in clientInitial.Players)
         {
-            var p = AddNewPlayer(player.ChannelID, player.PlayerInfo, player.GlobalFlags);
+            var p = AddNewPlayer(player.ChannelID, player.PlayerID, player.PlayerInfo, player.GlobalFlags);
             p.Location = player.Location;
         }
-        Self = new(channels[clientInitial.ChannelID], clientInitial.SelfPlayerInfo, PlayerGlobalFlags.None);
+        Self = new(channels[clientInitial.ChannelID], clientInitial.PlayerID, clientInitial.SelfPlayerInfo, PlayerGlobalFlags.None);
     }
 
-    public OnlinePlayer OnNewPlayerJoined(int channelID, PlayerInfo playerInfo, PlayerGlobalFlags globalFlags)
-        => AddNewPlayer(channelID, playerInfo, globalFlags);
+    public OnlinePlayer OnNewPlayerJoined(int channelID, int playerID, PlayerInfo playerInfo, PlayerGlobalFlags globalFlags)
+        => AddNewPlayer(channelID, playerID, playerInfo, globalFlags);
 
-    private OnlinePlayer AddNewPlayer(int channelID, PlayerInfo playerInfo, PlayerGlobalFlags globalFlags)
+    private OnlinePlayer AddNewPlayer(int channelID, int playerID, PlayerInfo playerInfo, PlayerGlobalFlags globalFlags)
     {
         var channel = channels[channelID];
-        var player = new OnlinePlayer(channel, playerInfo, globalFlags);
+        var player = new OnlinePlayer(channel, playerID, playerInfo, globalFlags);
         players.Add(player.ID, player);
         channel.Players.Add(player.ID, player);
         return player;

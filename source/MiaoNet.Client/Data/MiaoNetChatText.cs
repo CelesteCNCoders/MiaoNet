@@ -9,7 +9,7 @@ public static class MiaoNetChatText
     public static ChatText CreatePublicChat(DateTime dateTime, OnlinePlayer sender, string text)
         => new ChatText([
             new(ChatTextStyle.None, Color.DimGray, FormatDateTime(dateTime)),
-            new(ChatTextStyle.None, Color.Yellow, sender.Info.Name),
+            new(ChatTextStyle.None, sender.Info.Color, sender.Info.DisplayName),
             new(ChatTextStyle.None, Color.White, ": "),
             ..ChatText.Parse(text, Color.White)
         ]);

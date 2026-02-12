@@ -12,6 +12,8 @@ public sealed class ServerPlayer
 
     public ServerChannel Channel { get; }
 
+    public int ID { get; }
+
     public PlayerInfo Info { get; set; }
 
     public ref PlayerLocation Location => ref location;
@@ -22,13 +24,12 @@ public sealed class ServerPlayer
 
     public PlayerGlobalFlags GlobalFlags { get; set; }
 
-    public int ID => Info.ID;
-
-    public ServerPlayer(ServerChannel channel, PlayerInfo info)
+    public ServerPlayer(ServerChannel channel, int id, PlayerInfo info)
     {
         fireworksTokenBucket = new(500, 500 * 3);
 
         Channel = channel;
+        ID = id;
         Info = info;
         Location = PlayerLocation.Empty;
     }

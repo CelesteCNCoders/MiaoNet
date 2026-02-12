@@ -23,7 +23,7 @@ public sealed partial class MiaoServerService : BackgroundService
     private readonly ILogger<MiaoServerService> logger;
     private readonly ILoggerFactory connectionLoggerFactory;
     private readonly MiaoServerOptions options;
-    private readonly IMiaoCertificateService certificateService;
+    private readonly IMiaoAuthenticator authenticator;
 
     private readonly PacketDispatcher packetDispatcher;
 
@@ -43,8 +43,8 @@ public sealed partial class MiaoServerService : BackgroundService
         ILogger<MiaoServerService> logger,
         IOptions<MiaoServerOptions> options,
         ILoggerFactory connectionLoggerFactory,
-        IMiaoCertificateService certificateService,
-        NetworkListenerFactory networkListenerFactory
+        NetworkListenerFactory networkListenerFactory,
+        IMiaoAuthenticator authenticator
     )
     {
         serverState = new();
@@ -55,7 +55,7 @@ public sealed partial class MiaoServerService : BackgroundService
 
         this.logger = logger;
         this.connectionLoggerFactory = connectionLoggerFactory;
-        this.certificateService = certificateService;
+        this.authenticator = authenticator;
         this.options = options.Value;
         networkListener = networkListenerFactory(this.options.Network);
         pingTimer = new(TimeSpan.FromMilliseconds(this.options.PingPeriod));
@@ -257,6 +257,7 @@ public sealed partial class MiaoServerService : BackgroundService
                 pool.Return(buffer);
             }
 
+            HandshakeData handshakeData;
             buffer = pool.Rent(size);
             try
             {
@@ -264,27 +265,32 @@ public sealed partial class MiaoServerService : BackgroundService
                 await stream.ReadExactlyAsync(memory, token);
                 var span = memory.Span;
                 RefBinaryReader reader = new(span);
-                var data = reader.Read<HandshakeData>();
-
-                /* some auth process in the future here */
-
-                HandshakeAckData ack = new(null);
-                MemoryStream ms = new(32);
-                ms.Seek(2, SeekOrigin.Begin);
-                RefBinaryWriter writer = new(ms);
-                writer.Write(ack);
-                ushort ackSize = (ushort)(ms.Position - sizeof(ushort));
-                ms.Seek(0, SeekOrigin.Begin);
-                writer.Write(ackSize);
-                Memory<byte> memoryToSend = ms.GetBuffer().AsMemory(0, ackSize + sizeof(ushort));
-                await stream.WriteAsync(memoryToSend, token);
-
-                return new(data);
+                handshakeData = reader.Read<HandshakeData>();
             }
             finally
             {
                 pool.Return(buffer);
             }
+
+            var authResult = await authenticator.AuthenticateAsync(
+                handshakeData.AuthenticationData,
+                handshakeData.Type,
+                token
+            );
+
+            HandshakeAckData ack = new(authResult.Type, authResult.TokenData, authResult.IsFailed ? "Authentication failed." : null);
+
+            MemoryStream ms = new(32);
+            ms.Seek(2, SeekOrigin.Begin);
+            RefBinaryWriter writer = new(ms);
+            writer.Write(ack);
+            ushort ackSize = (ushort)(ms.Position - sizeof(ushort));
+            ms.Seek(0, SeekOrigin.Begin);
+            writer.Write(ackSize);
+            Memory<byte> memoryToSend = ms.GetBuffer().AsMemory(0, ackSize + sizeof(ushort));
+            await stream.WriteAsync(memoryToSend, token);
+
+            return authResult.IsFailed ? null : new HandshakeResult(authResult.PlayerInfo, handshakeData, ack);
         }
     }
 
@@ -294,7 +300,7 @@ public sealed partial class MiaoServerService : BackgroundService
         try
         {
             // create the player
-            var newPlayer = serverState.CreateNewPlayer(handshakeResult);
+            var newPlayer = serverState.CreateNewPlayer(handshakeResult.PlayerInfo);
             logger.LogInformation(
                 AppEvents.Connection,
                 "Assign {ep}({player}) to id {id}.",
@@ -312,7 +318,7 @@ public sealed partial class MiaoServerService : BackgroundService
 
             ValueTask sendStateTask;
             Task tellOthersOneJoinedTask;
-            ServerState.StateLock.EnterUpgradeableReadLock();
+            ServerState.StateLock.EnterWriteLock();
             try
             {
                 // fetch online players infos
@@ -321,39 +327,31 @@ public sealed partial class MiaoServerService : BackgroundService
                     from pair in serverState.AllPlayers
                     let p = pair.Value.Player
                     select new PacketClientInitial.Player(
-                        p.Channel.ID, p.Info, p.Location, p.GlobalFlags
+                        p.Channel.ID, p.ID, p.Info, p.Location, p.GlobalFlags
                     );
 
                 PacketClientInitial packetClientInitial = new PacketClientInitial(
                     newPlayer.Channel.ID,
+                    newPlayer.ID,
                     clientPlayerInfo,
                     channels,
                     playerInfos.ToList()
                 );
-                //Thread.Sleep(Random.Shared.Next(1000, 5000));
 
                 // then send
                 sendStateTask = newConnection.QueuePacketAsync(packetClientInitial);
 
-                ServerState.StateLock.EnterWriteLock();
-                try
-                {
-                    // other connections can see this player now
-                    serverState.AddPlayer(newPlayer, newConnection);
+                // other connections can see this player now
+                serverState.AddPlayer(newPlayer, newConnection);
 
-                    // and then tell other clients a new player came
-                    tellOthersOneJoinedTask = BroadcastOthersAsync(
-                        new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.Info), newPlayer.ID
-                    );
-                }
-                finally
-                {
-                    ServerState.StateLock.ExitWriteLock();
-                }
+                // and then tell other clients a new player came
+                tellOthersOneJoinedTask = BroadcastOthersAsync(
+                    new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.ID, newPlayer.Info), newPlayer.ID
+                );
             }
             finally
             {
-                ServerState.StateLock.ExitUpgradeableReadLock();
+                ServerState.StateLock.ExitWriteLock();
             }
 
             await sendStateTask;
@@ -362,7 +360,7 @@ public sealed partial class MiaoServerService : BackgroundService
             // exchange data with this player
             await newConnection.HandleClientConnectAsync();
 
-            // TODO do not doing removing stuffs here
+            // TODO don't do removing stuffs here
 
             // exchange finished, remove this player
             // this operation is lock-free

@@ -9,7 +9,6 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CETCompat>false</CETCompat>
     <DefineConstants>$(DefineConstants);MIAO_SERVER</DefineConstants>
-    <DefineConstants Condition="$(UseLocalhostPfx) == 'true'">$(DefineConstants);USE_LOCALHOST_PFX</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="$(Configuration) == 'Release'">

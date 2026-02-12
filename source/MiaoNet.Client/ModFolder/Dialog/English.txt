@@ -2,9 +2,11 @@ miaonet_options_title= MiaoNet Options
 
 miaonet_options_connected= Connected
 miaonet_options_login_state= Login State
-miaonet_options_logged_in= Logged in: 
-miaonet_options_logged_in_tip= Goto mod options in main menu to login or switch logged in account.
-miaonet_options_logged_in_tip_2= Press to login or switch logged in account.
+miaonet_options_login= Login
+miaonet_options_login_tip=
+	This will open your browser to
+	log in to the MiaoNet forum.
+miaonet_options_last_logged_in_name= Last Logged In As:
 
 miaonet_options_connection= Connection
 miaonet_options_connect_on_game_start= Connect On Game Start
@@ -12,6 +14,10 @@ miaonet_options_ignore_cert_revocation_status= Skip Certificate Revocation Check
 miaonet_options_ignore_cert_revocation_status_tip=
 	Warning: This will make your connection insecure.
 	This option will not be saved.
+miaonet_options_use_sync_refresh= Refresh Login Info  
+miaonet_options_use_sync_refresh_tip= 
+	This will sync your latest forum profile data
+	such as nickname and prefix on your next login.
 
 miaonet_options_visuals= Visuals
 miaonet_options_show_own_name= Show Own Name
@@ -86,6 +92,7 @@ miaonet_options_button_emotes= Emotes
 miaonet_options_button_emote_i= Send Emote (0)
 
 miaonet_connection_status_connecting= Connecting...
+miaonet_connection_status_authenticating= Authenticating...
 miaonet_connection_status_version_not_match= Local version (0) mismatches server version (1)
 miaonet_connection_status_connected= Connected
 miaonet_connection_status_disconnecting= Disconnecting...
@@ -95,7 +102,7 @@ miaonet_connection_status_disconnected_exceptionally_with_reason= Disconnected e
 miaonet_connection_status_cancelled= Connection cancelled
 miaonet_connection_status_kicked= Kicked from server
 miaonet_connection_status_serverclosed= Server closed
-miaonet_connection_status_noname= Please set name first
+miaonet_connection_status_no_token= Please login first
 miaonet_connection_status_connect_failed_with_reason= Connect failed. (0)
 miaonet_connection_status_connection_aborted= Connection aborted
 

@@ -56,7 +56,7 @@ partial class MiaoNetContext
     private void HandlePacket(PacketPlayerJoined packet)
     {
         EnsureState();
-        var player = ClientState.OnNewPlayerJoined(packet.ChannelID, packet.PlayerInfo, PlayerGlobalFlags.None);
+        var player = ClientState.OnNewPlayerJoined(packet.ChannelID, packet.PlayerID, packet.PlayerInfo, PlayerGlobalFlags.None);
         PlayerJoined?.Invoke(player);
     }
 

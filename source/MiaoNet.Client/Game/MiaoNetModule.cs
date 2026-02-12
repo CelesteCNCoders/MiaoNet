@@ -92,6 +92,7 @@ public sealed class MiaoNetModule : EverestModule
     public override void Unload()
     {
         miaoNetContext?.Disconnect();
+        ClientRC.Stop();
         Everest.Events.Level.OnCreatePauseMenuButtons -= Level_OnCreatePauseMenuButtons;
         IL.Monocle.Engine.Update -= Engine_Update;
         IL.Monocle.Engine.RenderCore -= Engine_RenderCore;

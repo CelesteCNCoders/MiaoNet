@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
@@ -48,11 +49,15 @@ partial class MiaoNetContext
 
         async Task StartConnectionAsync(IPacketSerializationContext context, CancellationToken token)
         {
-            if (string.IsNullOrWhiteSpace(MiaoNetModule.Settings.Name))
+#if USE_CELEMIAO_AUTH
+            if (MiaoNetModule.Settings.TokenData is null or { Length: 0 } && ClientRC.AuthenticationCode is null)
             {
-                QueueDisconnectStatus(Dialog.Get("miaonet_connection_status_noname"));
+                QueueDisconnectStatus(Dialog.Get("miaonet_connection_status_no_token"));
                 return;
             }
+#else
+            MiaoNetModule.Settings.TokenData ??= [];
+#endif
 
             string host = TargetServer;
             int Port = TargetPort;
@@ -61,7 +66,23 @@ partial class MiaoNetContext
                 ? new IPEndPoint(ipa, Port)
                 : new DnsEndPoint(host, Port);
 
-            HandshakeData handshakeData = new(0, MiaoNetModule.Settings.Name, []);
+            byte langCode = 0;
+            HandshakeData.NetMod[] netMods = [];
+
+            HandshakeData handshakeData;
+            if (ClientRC.AuthenticationCode is null)
+            {
+                Logger.Info(LT.MiaoNetConnection, "Using AuthType QuickLogin to log in.");
+                handshakeData = new HandshakeData(langCode, AuthenticationType.QuickLogin, MiaoNetModule.Settings.TokenData!, netMods);
+            }
+            else
+            {
+                Logger.Info(LT.MiaoNetConnection, "Auth code is not null, using AuthType Authorize to log in.");
+                handshakeData = new HandshakeData(langCode, AuthenticationType.Authorize, Encoding.UTF8.GetBytes(ClientRC.AuthenticationCode), netMods);
+            }
+
+            ClientRC.AuthenticationCode = null;
+
             MiaoServerConnection? connection = null;
             try
             {
@@ -75,6 +96,10 @@ partial class MiaoNetContext
                     QueueDisconnectStatus(ConnectionStatus.VersionNotMatch(localVersion, version));
                     return;
                 }
+                else
+                {
+                    QueueStatus(ConnectionStatus.Authenticating);
+                }
 
                 HandshakeAckData handshakeAck = await connection.MakeHandshakeAsync(handshakeData, token);
 
@@ -86,23 +111,30 @@ partial class MiaoNetContext
                     return;
                 }
 
+                if (handshakeAck.AuthenticationData is not null)
+                {
+                    MiaoNetModule.Settings.TokenData = handshakeAck.AuthenticationData;
+                    Logger.Info(LT.MiaoNetConnection, "Server sent new auth data, accepted.");
+                }
+
                 IContextualPacket? packetInitial = await connection!.ReceivePacketAsync(context, token);
                 if (packetInitial is not PacketClientInitial clientInitial)
                 {
                     if (packetInitial is null)
-                        Logger.Warn(LT.MiaoNet, $"Remote sent empty or invalid initial reply.");
+                        Logger.Warn(LT.MiaoNetConnection, $"Remote sent empty or invalid initial reply.");
                     else
-                        Logger.Warn(LT.MiaoNet, $"Remote sent a weird initial packet {packetInitial.GetType()}.");
+                        Logger.Warn(LT.MiaoNetConnection, $"Remote sent a weird initial packet {packetInitial.GetType()}.");
                     connection.Dispose();
                     QueueDisconnectStatus(ConnectionStatus.DisconnectedExceptionally);
                     return;
                 }
                 else
                 {
-                    Logger.Info(LT.MiaoNet, $"Connected to {ep}.");
+                    Logger.Info(LT.MiaoNetConnection, $"Connected to {ep}.");
 
                     mainThreadQueue.Enqueue(() =>
                     {
+                        MiaoNetModule.Settings.LastName = clientInitial.SelfPlayerInfo.Name;
                         clientState = new(clientInitial);
                         this.connection = connection;
                         ClientInitialized?.Invoke(clientState);
@@ -123,7 +155,7 @@ partial class MiaoNetContext
             catch (Exception e)
             {
                 connection?.Dispose();
-                Logger.Error(LT.MiaoNet, $"Error when connecting: {e}");
+                Logger.Error(LT.MiaoNetConnection, $"Error when connecting: {e}");
                 QueueDisconnectStatus(ConnectionStatus.ConnectFailedWithReason(e.Message));
                 return;
             }
@@ -150,7 +182,7 @@ partial class MiaoNetContext
             }
             catch (Exception e)
             {
-                Logger.Error(LT.MiaoNet, $"Error during connection: {e}");
+                Logger.Error(LT.MiaoNetConnection, $"Error during connection: {e}");
                 if (e is IOException && e.InnerException is SocketException se)
                     e = se;
                 QueueDisconnectStatus(ConnectionStatus.DisconnectedWithReason(e.Message));
@@ -217,5 +249,8 @@ partial class MiaoNetContext
                 OnDisconnected();
             });
         }
+
+        void QueueStatus(string statusMessage)
+            => mainThreadQueue.Enqueue(() => StatusComponent.ShowStatusMessage(statusMessage, true));
     }
 }

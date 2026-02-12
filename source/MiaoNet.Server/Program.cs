@@ -44,7 +44,7 @@ public static class Program
 
         builder.Services.AddSingleton<NetworkListenerFactory>(p =>
             o => new TlsTcpListener(
-                p.GetRequiredService<IMiaoCertificateService>(), 
+                p.GetRequiredService<IMiaoCertificateService>(),
                 IPEndPoint.Parse(o.ListenEndPoint)
             )
         );
@@ -57,6 +57,11 @@ public static class Program
         builder.Services.AddSingleton<IMiaoCertificateService, MiaoCertificateService>();
         // hm...?
         builder.Services.AddHostedService(s => (MiaoCertificateService)s.GetRequiredService<IMiaoCertificateService>());
+#endif
+#if USE_CELEMIAO_AUTH
+        builder.Services.AddSingleton<IMiaoAuthenticator, CeleMiaoAuthenticator>();
+#else
+        builder.Services.AddSingleton<IMiaoAuthenticator, TestAuthenticator>();
 #endif
         builder.Services.Configure<MiaoServerOptions>(builder.Configuration.GetRequiredSection("MiaoServer"));
 

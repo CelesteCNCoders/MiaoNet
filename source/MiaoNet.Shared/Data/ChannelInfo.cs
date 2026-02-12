@@ -13,7 +13,7 @@ public struct ChannelInfo : IRefBinarySerializable<ChannelInfo>
     }
 
     public readonly override string ToString()
-        => $"C{ID}-{Name}";
+        => $"{Name}:{ID}";
 
     public readonly void Serialize(ref RefBinaryWriter writer)
     {

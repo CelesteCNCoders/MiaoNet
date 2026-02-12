@@ -2,7 +2,7 @@
 
 public sealed class CertificateOptions
 {
-    public required string CertificatePath { get; set; }
+    public string? CertificatePath { get; set; }
 
-    public required string CertificateKeyPath { get; set; }
+    public string? CertificateKeyPath { get; set; }
 }

@@ -9,6 +9,7 @@ public sealed partial class PlayerListComponent
         private static readonly Color DefaultColor = Color.LightGray;
 
         public OnlinePlayer Player;
+        public string DisplayName;
         public string? MapName;
         public Color MapNameColor = DefaultColor;
         public Color MapSideColor = DefaultColor;
@@ -19,6 +20,7 @@ public sealed partial class PlayerListComponent
         public PlayerListItem(OnlinePlayer player)
         {
             Player = player;
+            DisplayName = player.Info.DisplayName;
             Update();
         }
 

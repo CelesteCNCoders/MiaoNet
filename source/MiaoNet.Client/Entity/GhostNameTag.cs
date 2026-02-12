@@ -1,3 +1,5 @@
+using MiaoNet.Shared;
+
 namespace Celeste.Mod.MiaoNet;
 
 public sealed class GhostNameTag : MiaoNetEntity
@@ -8,21 +10,30 @@ public sealed class GhostNameTag : MiaoNetEntity
 
     public string Text { get; }
 
-    private GhostNameTag(Entity entity, string text)
+    public Color Color { get; }
+
+    private GhostNameTag(Entity entity, string text, Color color)
     {
         Tag = MiaoNetTag.Tag | TagsExt.SubHUD;
         Entity = entity;
         Text = text;
+        Color = color;
     }
 
-    public GhostNameTag(Player player, string name)
-        : this((Entity)player, name)
+    private GhostNameTag(Entity entity, PlayerInfo playerInfo)
+        : this(entity, playerInfo.DisplayName, playerInfo.Color)
+    {
+
+    }
+
+    public GhostNameTag(Player player, PlayerInfo playerInfo)
+        : this((Entity)player, playerInfo)
     {
         IsOnSelf = true;
     }
 
-    public GhostNameTag(MiaoNetGhost ghost, string name)
-        : this((Entity)ghost, name)
+    public GhostNameTag(MiaoNetGhost ghost, PlayerInfo playerInfo)
+        : this((Entity)ghost, playerInfo)
     {
         IsOnSelf = false;
     }
@@ -50,7 +61,7 @@ public sealed class GhostNameTag : MiaoNetEntity
             Text,
             position,
             Vector2.One * Scale,
-            Color.White * alpha
+            Color * alpha
         );
     }
 }

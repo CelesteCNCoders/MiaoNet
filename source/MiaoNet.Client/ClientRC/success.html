@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="txt-title">_</title>
+    <style>
+        :root {
+            --primary: #667c99;
+            --primary-light: #eef2f6;
+            --text-main: #34495e;
+            --text-muted: #7f8c8d;
+            --success-green: #a8dadc;
+        }
+
+        body {
+            margin: 0;
+            background: #f8f9fa;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: var(--text-main);
+        }
+
+        .container {
+            background: #ffffff;
+            padding: 48px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(102, 124, 153, 0.1);
+            width: 100%;
+            max-width: 440px;
+            text-align: center;
+            border-top: 6px solid var(--primary);
+        }
+
+        .icon-box {
+            width: 64px;
+            height: 64px;
+            background: var(--primary-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+
+            .icon-box svg {
+                width: 32px;
+                height: 32px;
+                color: var(--primary);
+            }
+
+        h1 {
+            font-size: 1.6rem;
+            margin: 0 0 16px 0;
+            font-weight: 600;
+        }
+
+        .highlight-card {
+            background: #fafbfc;
+            border: 1px dashed var(--primary);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+            .highlight-card p {
+                margin: 0;
+                line-height: 1.6;
+                font-size: 1rem;
+            }
+
+        .important-note {
+            color: var(--primary);
+            font-weight: 600;
+            display: block;
+            margin-top: 8px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+            .btn-primary:hover {
+                background: #566a85;
+            }
+
+        .countdown {
+            font-size: 0.85rem;
+            color: #bdc3c7;
+            margin-top: 20px;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .container {
+            animation: fadeIn 0.5s ease-out;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="icon-box">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+        </div>
+
+        <h1 id="txt-card-title">_</h1>
+
+        <div class="highlight-card">
+            <p>
+                <span id="txt-desc">_</span>
+                <br />
+                <span class="important-note" id="txt-desc-note">_</span>
+            </p>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-primary" id="txt-btn-return">_</button>
+        </div>
+    </div>
+
+    <script>
+        const i18n = {
+            'zhs': {
+                title: 'MiaoNet+ 授权页面',
+                cardTitle: '授权就绪',
+                desc: '网页端的身份确认已完成。',
+                descNote: '请尽快返回游戏客户端连接服务器完成完整的验证。',
+                btn: '立即返回游戏完成验证'
+            },
+            'en': {
+                title: 'MiaoNet+ Authentication Page',
+                cardTitle: 'Authentication Ready',
+                desc: 'Web-side identity confirmation is complete.',
+                descNote: 'Please return to the game client to complete full authentication.',
+                btn: 'Return to Game Now'
+            }
+        };
+
+        const getClientLanguage = () => {
+            const params = new URLSearchParams(window.location.search);
+            let lang = params.get('lang') || 'en';
+
+            const mainLang = lang.toLowerCase().split('-')[0];
+            return i18n[mainLang] ? mainLang : 'en';
+        };
+
+        const currentLang = getClientLanguage();
+        const content = i18n[currentLang];
+
+        document.getElementById('txt-title').innerText = content.title;
+        document.getElementById('txt-card-title').innerText = content.cardTitle;
+        document.getElementById('txt-desc').innerText = content.desc;
+        document.getElementById('txt-desc-note').innerText = content.descNote;
+        const btn = document.getElementById('txt-btn-return');
+        btn.innerText = content.btn;
+        btn.addEventListener("click", () => fetch("/raise-game"));
+    </script>
+
+</body>
+
+</html>

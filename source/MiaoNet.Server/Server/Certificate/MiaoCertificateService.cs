@@ -18,11 +18,15 @@ public sealed class MiaoCertificateService : BackgroundService, IMiaoCertificate
     private DateTime lastCertModifiedTime;
     private DateTime lastKeyModifiedTime;
 
-    private X509Certificate2 cert;
+    private volatile X509Certificate2 cert;
 
     public MiaoCertificateService(ILogger<MiaoCertificateService> logger, IOptions<MiaoServerOptions> options)
     {
         var oc = options.Value.Certificate;
+        if (oc.CertificatePath is null || oc.CertificateKeyPath is null)
+        {
+            throw new Exception("Certificate must be configured when using MiaoCertificateService.");
+        }
         certPath = oc.CertificatePath;
         keyPath = oc.CertificateKeyPath;
         timer = new PeriodicTimer(TimeSpan.FromHours(4));
@@ -37,12 +41,12 @@ public sealed class MiaoCertificateService : BackgroundService, IMiaoCertificate
     {
         logger.LogInformation(AppEvents.Certificate, "Reloading certificate...");
         var newCert = X509Certificate2.CreateFromPemFile(certPath, keyPath);
-        Interlocked.Exchange(ref cert, newCert);
+        cert = newCert;
         logger.LogInformation(
             AppEvents.Certificate,
             "Reloaded, not before: {a}, not after: {b}, name: {c}.",
-            cert.NotBefore, 
-            cert.NotAfter, 
+            cert.NotBefore,
+            cert.NotAfter,
             cert.SubjectName.Name
         );
     }

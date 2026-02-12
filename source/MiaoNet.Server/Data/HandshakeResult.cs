@@ -2,4 +2,4 @@
 
 namespace MiaoNet.Server;
 
-public sealed record HandshakeResult(HandshakeData HandshakeData);
+public sealed record HandshakeResult(PlayerInfo PlayerInfo, HandshakeData HandshakeData, HandshakeAckData HandshakeAckData);

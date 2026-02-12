@@ -14,4 +14,5 @@ public static class AppEvents
     public static readonly EventId Server = new(17, "Server");
     public static readonly EventId Certificate = new(18, "Certificate");
     public static readonly EventId Http = new(19, "Http");
+    public static readonly EventId Auth = new(20, "Auth");
 }

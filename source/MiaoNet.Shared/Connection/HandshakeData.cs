@@ -26,24 +26,36 @@ public sealed class HandshakeData : IRefBinarySerializable<HandshakeData>
 
     public byte LangCode { get; }
 
-    public string Name { get; }
+    public AuthenticationType Type { get; }
+
+    public byte[] AuthenticationData { get; }
 
     public IReadOnlyList<NetMod> NetMods { get; }
 
-    public HandshakeData(byte langCode, string name, IReadOnlyList<NetMod> netMods)
+    public HandshakeData(byte langCode, AuthenticationType type, byte[] authenticationData, IReadOnlyList<NetMod> netMods)
     {
         LangCode = langCode;
-        Name = name;
+        Type = type;
+        AuthenticationData = authenticationData;
         NetMods = netMods;
     }
 
     public void Serialize(ref RefBinaryWriter writer)
     {
         writer.Write(LangCode);
-        writer.Write(Name);
+        writer.Write((byte)Type);
+        writer.Write((ushort)AuthenticationData.Length);
+        writer.WriteSpan(AuthenticationData);
         writer.Write(NetMods);
     }
 
     public static HandshakeData Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadByte(), reader.ReadString(), reader.ReadArray<NetMod>());
+    {
+        byte langCode = reader.ReadByte();
+        AuthenticationType type = (AuthenticationType)reader.ReadByte();
+        ushort authDataLength = reader.ReadUInt16();
+        byte[] authData = reader.ReadSpan(authDataLength).ToArray();
+        NetMod[] netMods = reader.ReadArray<NetMod>();
+        return new HandshakeData(langCode, type, authData, netMods);
+    }
 }
