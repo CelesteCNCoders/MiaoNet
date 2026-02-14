@@ -177,8 +177,9 @@ partial class MiaoNetContext
             catch (Exception e)
             {
                 connection?.Dispose();
+                SocketException? se = (e as IOException)?.InnerException as SocketException;
                 Logger.Error(LT.MiaoNetConnection, $"Error when connecting: {e}");
-                QueueDisconnectStatus(ConnectionStatus.ConnectFailedWithReason(e.Message));
+                QueueDisconnectStatus(ConnectionStatus.ConnectFailedWithReason((se ?? e).Message));
                 return;
             }
 
