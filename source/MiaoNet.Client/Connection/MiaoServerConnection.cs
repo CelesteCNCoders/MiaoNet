@@ -49,14 +49,17 @@ public sealed class MiaoServerConnection : IDisposable
         socket.NoDelay = true;
 
         await socket.ConnectAsync(endPoint, token);
+        NetworkStream networkStream = new NetworkStream(socket);
+        await networkStream.WriteAsync(Connection.HandshakeHead, token);
+
 #if !USE_LOCALHOST_PFX
-        var sslStream = new SslStream(new NetworkStream(socket));
+        var sslStream = new SslStream(networkStream);
 #else
         var certStream = typeof(MiaoServerConnection).Assembly.GetManifestResourceStream("localhost.pfx")!;
         byte[] certRawData = new byte[certStream.Length];
         certStream.ReadExactly(certRawData, 0, certRawData.Length);
         var cert = new X509Certificate2(certRawData);
-        var sslStream = new SslStream(new NetworkStream(socket), false, (sender, certificate, chain, errors) =>
+        var sslStream = new SslStream(networkStream, false, (sender, certificate, chain, errors) =>
         {
             if (certificate == null) return false;
             var remote = new X509Certificate2(certificate);
@@ -74,7 +77,6 @@ public sealed class MiaoServerConnection : IDisposable
         };
 
         await sslStream.AuthenticateAsClientAsync(options, token);
-        await sslStream.WriteAsync(Connection.HandshakeHead, token);
 
         return new(socket, sslStream);
     }

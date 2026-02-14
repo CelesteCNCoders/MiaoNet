@@ -100,17 +100,14 @@ public sealed partial class MiaoServerService : BackgroundService
         try
         {
             networkConnection = await pendingConnection.CompleteAsync(localToken);
-            bool result;
-
-            // we've finished TLS handshake
-            // now check if it's a MiaoNet client
-            result = await DoConnectionHeadCheckAsync(networkConnection, localToken);
-            if (!result)
+            if (networkConnection is null)
             {
-                networkConnection.Dispose();
+                logger.LogInformation(AppEvents.Connection, "{addr} is not a MiaoNet client.", addr);
                 return;
             }
+            bool result;
 
+            // we've finished TLS handshake and MiaoNet client check
             // now do version check
             result = await DoVersionCheckAsync(networkConnection, localToken);
             if (!result)
@@ -155,28 +152,6 @@ public sealed partial class MiaoServerService : BackgroundService
 
         // now it's not "pending" for us
         await HandleConnectionAsync(networkConnection, handshakeResult);
-
-        async Task<bool> DoConnectionHeadCheckAsync(INetworkConnection connection, CancellationToken token)
-        {
-            var stream = connection.Stream;
-
-            var buffer = pool.Rent(Connection.HandshakeHeadLength);
-            try
-            {
-                var memory = buffer.AsMemory(0, Connection.HandshakeHeadLength);
-                await stream.ReadExactlyAsync(memory, token);
-                bool equals = memory.Span.SequenceEqual(Connection.HandshakeHead.Span);
-                if (!equals)
-                {
-                    logger.LogInformation(AppEvents.Connection, "{addr} is not a MiaoNet client.", connection.RemoteAddress);
-                }
-                return equals;
-            }
-            finally
-            {
-                pool.Return(buffer);
-            }
-        }
 
         // maybe we could improve our serialization implement...
         // this is ugly
