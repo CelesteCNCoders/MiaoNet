@@ -249,12 +249,6 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
         item.AddDescription(menu, Dialog.Clean("miaonet_options_fireworks_tip"));
 
-        item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_emotes_count"), 8, 32, settings.EmotesCount
-        ).Change(v => settings.EmotesCount = v);
-        menu.Add(item);
-        item.AddDescription(menu, Dialog.Clean("miaonet_options_emotes_count_tip"));
-
         item = new TextMenu.Button(
             Dialog.Get("miaonet_options_open_settings_file")
         ).Pressed(() =>
@@ -412,11 +406,11 @@ public static class MenuMiaoNetOptions
             AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list"), settings.PlayerListButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_create_fireworks"), settings.CreateFireworksButton.Binding);
 
-            while (settings.EmoteButtons.Count < settings.EmotesCount)
+            while (settings.EmoteButtons.Count < settings.Emotes.Count)
                 settings.EmoteButtons.Add(new());
 
             Add(new SubHeader(Dialog.Get("miaonet_options_button_emotes")));
-            for (int i = 0; i < settings.EmotesCount; i++)
+            for (int i = 0; i < settings.Emotes.Count; i++)
                 AddMapForceLabel(
                     Dialog.Get("miaonet_options_button_emote_i").Replace("(0)", (i + 1).ToString()),
                     settings.EmoteButtons[i].Binding
@@ -486,11 +480,11 @@ public static class MenuMiaoNetOptions
             AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list"), settings.PlayerListButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_create_fireworks"), settings.CreateFireworksButton.Binding);
 
-            while (settings.EmoteButtons.Count < settings.EmotesCount)
+            while (settings.EmoteButtons.Count < settings.Emotes.Count)
                 settings.EmoteButtons.Add(new());
 
             Add(new SubHeader(Dialog.Get("miaonet_options_button_emotes")));
-            for (int i = 0; i < settings.EmotesCount; i++)
+            for (int i = 0; i < settings.Emotes.Count; i++)
                 AddMapForceLabel(
                     Dialog.Get("miaonet_options_button_emote_i").Replace("(0)", (i + 1).ToString()),
                     settings.EmoteButtons[i].Binding

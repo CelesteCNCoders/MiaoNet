@@ -58,12 +58,6 @@ miaonet_options_fireworks_tip=
 	是否开启烟花功能。
 	开启后可以发送烟花以及接收来自其他玩家的烟花。
 	此选项不会被保存。
-miaonet_options_emotes_count= Emote 数量
-miaonet_options_emotes_count_tip= 
-	如果要设置具体 Emote 的内容，
-	你需要手动打开设置文件然后编辑并重载设置
-	警告：减少该值会使你失去超出范围的 Emote 设置
-	仅在你知道你在做什么时减少该值
 miaonet_options_open_settings_file= 打开设置文件
 miaonet_options_open_settings_file_tip= 
 	使用默认打开方式打开本 Mod 的设置文件，

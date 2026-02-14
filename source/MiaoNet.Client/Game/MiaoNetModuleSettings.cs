@@ -145,8 +145,6 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     [YamlIgnore]
     public bool Fireworks { get; set; } = true;
 
-    public int EmotesCount { get; set; } = 8;
-
     public List<ButtonBinding> EmoteButtons { get; set; }
 
     public List<string> Emotes { get; set; }
@@ -187,8 +185,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public MiaoNetModuleSettings()
     {
-        ResetKeyBindings();
         ResetEmotes();
+        ResetKeyBindings();
     }
 
     public void ResetKeyBindings()
@@ -197,7 +195,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
         ChatCommandButton = new(0, 0);
         PlayerListButton = new(0, Keys.Tab);
         List<ButtonBinding> bindings = new();
-        for (int i = 0; i < EmotesCount; i++)
+        for (int i = 0; i < Emotes.Count; i++)
             bindings.Add(new(0, i < 8 ? Keys.D1 + i : Keys.None));
         EmoteButtons = bindings;
         CreateFireworksButton = new(0, 0);
@@ -205,7 +203,6 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public void ResetEmotes()
     {
-        EmotesCount = 8;
         Emotes = [
             "i:collectables/heartgem/0/spin",
             "i:collectables/strawberry",
