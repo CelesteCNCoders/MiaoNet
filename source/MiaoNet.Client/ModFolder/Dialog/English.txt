@@ -97,6 +97,7 @@ miaonet_connection_status_disconnecting= Disconnecting...
 miaonet_connection_status_disconnected= Disconnected
 miaonet_connection_status_disconnected_exceptionally= Disconnected exceptionally
 miaonet_connection_status_disconnected_exceptionally_with_reason= Disconnected exceptionally. (0)
+miaonet_connection_status_disconnected_locally_exceptionally_with_reason= Disconnected locally exceptionally. (0)
 miaonet_connection_status_cancelled= Connection cancelled
 miaonet_connection_status_kicked= Kicked from server
 miaonet_connection_status_serverclosed= Server closed

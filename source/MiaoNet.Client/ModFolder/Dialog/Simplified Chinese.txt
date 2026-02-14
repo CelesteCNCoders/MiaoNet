@@ -94,6 +94,7 @@ miaonet_connection_status_disconnecting= 连接断开中…
 miaonet_connection_status_disconnected= 连接断开
 miaonet_connection_status_disconnected_exceptionally= 连接异常断开
 miaonet_connection_status_disconnected_exceptionally_with_reason= 连接异常断开。(0)
+miaonet_connection_status_disconnected_locally_exceptionally_with_reason= 连接因本地异常断开。(0)
 miaonet_connection_status_cancelled= 连接取消
 miaonet_connection_status_kicked= 被服务器踢出
 miaonet_connection_status_serverclosed= 服务器已关闭

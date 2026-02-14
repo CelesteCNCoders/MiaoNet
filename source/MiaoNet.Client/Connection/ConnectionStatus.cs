@@ -28,4 +28,8 @@ public static class ConnectionStatus
     public static string DisconnectedWithReason(string reason)
         => Dialog.Get(string.Format(Base, "disconnected_exceptionally_with_reason"))
             .Replace("(0)", reason);
+
+    public static string DisconnectedWithLocalReason(string reason)
+        => Dialog.Get(string.Format(Base, "disconnected_locally_exceptionally_with_reason"))
+            .Replace("(0)", reason);
 }

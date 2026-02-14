@@ -112,14 +112,15 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public void Disconnect()
     {
-        cts?.Cancel();
-        cts = null;
         if (connection is not null)
-        {
-            connection.Dispose();
-            connection = null;
             StatusComponent.ShowStatusMessage(ConnectionStatus.Disconnected);
-        }
+        OnDisconnected();
+    }
+
+    public void DisconnectByException(Exception exception)
+    {
+        SafeGuard.Assert(connection is not null);
+        StatusComponent.ShowStatusMessage(ConnectionStatus.DisconnectedWithLocalReason(exception.Message));
         OnDisconnected();
     }
 
@@ -190,7 +191,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         {
             Logger.Error(LT.MiaoNet, "Exception occurred during updating!");
             Logger.LogDetailed(e, LT.MiaoNet);
-            Disconnect();
+            DisconnectByException(e);
         }
     }
 
@@ -207,7 +208,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         {
             Logger.Error(LT.MiaoNet, "Exception occurred during rendering!");
             Logger.LogDetailed(e, LT.MiaoNet);
-            Disconnect();
+            DisconnectByException(e);
         }
         finally
         {
