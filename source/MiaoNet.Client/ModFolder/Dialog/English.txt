@@ -8,6 +8,12 @@ miaonet_options_login_tip=
 	log in to the MiaoNet forum.
 miaonet_options_last_logged_in_name= Last Logged In As:
 
+miaonet_options_custom_auth_name= Name:
+miaonet_options_custom_auth_prefix= Prefix:
+miaonet_options_custom_auth_color= Color:
+miaonet_options_custom_auth_tip_in_game= Go to the main menu and press to edit.  
+miaonet_options_custom_auth_tip= Press to edit.
+
 miaonet_options_connection= Connection
 miaonet_options_connect_on_game_start= Connect On Game Start
 miaonet_options_ignore_cert_revocation_status= Skip Certificate Revocation Check
@@ -103,6 +109,7 @@ miaonet_connection_status_cancelled= Connection cancelled
 miaonet_connection_status_kicked= Kicked from server
 miaonet_connection_status_serverclosed= Server closed
 miaonet_connection_status_no_token= Please login first
+miaonet_connection_status_no_name= Please name first
 miaonet_connection_status_connect_failed_with_reason= Connect failed. (0)
 miaonet_connection_status_connection_aborted= Connection aborted
 

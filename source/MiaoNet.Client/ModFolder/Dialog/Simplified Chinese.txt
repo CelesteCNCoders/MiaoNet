@@ -7,6 +7,12 @@ miaonet_options_login_tip=
 	这会打开浏览器访问 MiaoNet 论坛并进行登录。
 miaonet_options_last_logged_in_name= 上次登录为：
 
+miaonet_options_custom_auth_name= 名称：
+miaonet_options_custom_auth_prefix= 头衔：
+miaonet_options_custom_auth_color= 颜色：
+miaonet_options_custom_auth_tip_in_game= 前往主界面后按下以修改
+miaonet_options_custom_auth_tip= 按下以修改
+
 miaonet_options_connection= 连接
 miaonet_options_connect_on_game_start= 游戏启动时连接
 miaonet_options_ignore_cert_revocation_status= 跳过证书吊销检查
@@ -98,6 +104,7 @@ miaonet_connection_status_cancelled= 连接取消
 miaonet_connection_status_kicked= 被服务器踢出
 miaonet_connection_status_serverclosed= 服务器已关闭
 miaonet_connection_status_no_token= 请先进行登录
+miaonet_connection_status_no_name= 请先设置名字
 miaonet_connection_status_connect_failed_with_reason= 连接失败。(0)
 miaonet_connection_status_connection_aborted= 连接被强制断开
 

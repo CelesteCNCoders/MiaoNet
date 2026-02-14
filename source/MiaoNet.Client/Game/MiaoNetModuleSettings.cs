@@ -24,6 +24,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 {
     #region Login State
 
+#if USE_CELEMIAO_AUTH
+
     // encrypted using the user's environment string so that 
     // someone can't just leak it by taking a screenshot of the settings file.
     [YamlIgnore]
@@ -48,6 +50,16 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     }
 
     public string? LastName { get; set; }
+
+#else
+
+    public string? Name { get; set; }
+
+    public string? Prefix { get; set; }
+
+    public string? Color { get; set; }
+
+#endif
 
     #endregion
 

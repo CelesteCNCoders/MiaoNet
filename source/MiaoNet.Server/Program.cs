@@ -61,7 +61,7 @@ public static class Program
 #if USE_CELEMIAO_AUTH
         builder.Services.AddSingleton<IMiaoAuthenticator, CeleMiaoAuthenticator>();
 #else
-        builder.Services.AddSingleton<IMiaoAuthenticator, TestAuthenticator>();
+        builder.Services.AddSingleton<IMiaoAuthenticator, CustomAuthenticator>();
 #endif
         builder.Services.Configure<MiaoServerOptions>(builder.Configuration.GetRequiredSection("MiaoServer"));
 

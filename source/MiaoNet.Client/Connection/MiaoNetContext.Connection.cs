@@ -56,7 +56,11 @@ partial class MiaoNetContext
                 return;
             }
 #else
-            MiaoNetModule.Settings.TokenData ??= [];
+            if (string.IsNullOrEmpty(MiaoNetModule.Settings.Name))
+            {
+                QueueDisconnectStatus(Dialog.Get("miaonet_connection_status_no_name"));
+                return;
+            }
 #endif
 
             string host = TargetServer;
@@ -70,6 +74,8 @@ partial class MiaoNetContext
             HandshakeData.NetMod[] netMods = [];
 
             HandshakeData handshakeData;
+
+#if USE_CELEMIAO_AUTH
             if (ClientRC.AuthenticationCode is null)
             {
                 Logger.Info(LT.MiaoNetConnection, "Using AuthType QuickLogin to log in.");
@@ -82,6 +88,18 @@ partial class MiaoNetContext
             }
 
             ClientRC.AuthenticationCode = null;
+#else
+            var settings = MiaoNetModule.Settings;
+            string name = settings.Name;
+            string? prefix = settings.Prefix;
+            Color color = Calc.HexToColor(settings.Color);
+            PlayerInfo playerInfo = new(name, prefix ?? string.Empty, string.Empty, color);
+            MemoryStream ms = new(32);
+            RefBinaryWriter writer = new(ms);
+            writer.Write(playerInfo);
+            byte[] authData = ms.GetBuffer().AsSpan(0, checked((int)ms.Position)).ToArray();
+            handshakeData = new(langCode, AuthenticationType.QuickLogin, authData, netMods);
+#endif
 
             MiaoServerConnection? connection = null;
             try
@@ -111,11 +129,13 @@ partial class MiaoNetContext
                     return;
                 }
 
+#if USE_CELEMIAO_AUTH
                 if (handshakeAck.AuthenticationData is not null)
                 {
                     MiaoNetModule.Settings.TokenData = handshakeAck.AuthenticationData;
                     Logger.Info(LT.MiaoNetConnection, "Server sent new auth data, accepted.");
                 }
+#endif
 
                 IContextualPacket? packetInitial = await connection!.ReceivePacketAsync(context, token);
                 if (packetInitial is not PacketClientInitial clientInitial)
@@ -134,7 +154,9 @@ partial class MiaoNetContext
 
                     mainThreadQueue.Enqueue(() =>
                     {
+#if USE_CELEMIAO_AUTH
                         MiaoNetModule.Settings.LastName = clientInitial.SelfPlayerInfo.Name;
+#endif
                         clientState = new(clientInitial);
                         this.connection = connection;
                         ClientInitialized?.Invoke(clientState);

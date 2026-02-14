@@ -44,6 +44,7 @@ public static class MenuMiaoNetOptions
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_login_state"), false);
         menu.Add(item);
 
+#if USE_CELEMIAO_AUTH
         item = new TextMenu.Button(Dialog.Get("miaonet_options_login"))
         {
             OnPressed = () =>
@@ -67,6 +68,37 @@ public static class MenuMiaoNetOptions
             item = new TextMenu.Button(loggedInText);
             menu.Add(item);
         }
+#else
+        AddAuthPropButton(menu, inGame, Dialog.Get("miaonet_options_custom_auth_name"), () => settings.Name, v => settings.Name = v);
+        AddAuthPropButton(menu, inGame, Dialog.Get("miaonet_options_custom_auth_prefix"), () => settings.Prefix, v => settings.Prefix = v);
+        AddAuthPropButton(menu, inGame, Dialog.Get("miaonet_options_custom_auth_color"), () => settings.Color, v => settings.Color = v);
+
+        static void AddAuthPropButton(TextMenu menu, bool inGame, string label, Func<string?> getter, Action<string> setter)
+        {
+            var button = new TextMenu.Button($"{label} {getter()}");
+            if (!inGame)
+            {
+                button.OnPressed = () =>
+                {
+                    Audio.Play(SFX.ui_main_savefile_rename_start);
+                    menu.SceneAs<Overworld>()
+                        .Goto<OuiModOptionString>()
+                        .Init<OuiModOptions>(getter(), v =>
+                            {
+                                v = v.Trim();
+                                setter(v);
+                                button.Label = $"{label} {v}";
+                            }, 36, 2
+                        );
+                };
+            }
+            menu.Add(button);
+            if (inGame)
+                button.AddDescription(menu, Dialog.Get("miaonet_options_custom_auth_tip_in_game"));
+            else
+                button.AddDescription(menu, Dialog.Get("miaonet_options_custom_auth_tip"));
+        }
+#endif
 
         #endregion
 
@@ -202,11 +234,14 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.PlayerInteractions = v);
         menu.Add(item);
 
+        // if not using celemiao auth then this is meaningless
+#if USE_CELEMIAO_AUTH
         item = new TextMenu.OnOff(
             Dialog.Get("miaonet_options_live_mode"), settings.LiveMode
         ).Change(v => settings.LiveMode = v);
         menu.Add(item);
         item.AddDescription(menu, Dialog.Clean("miaonet_options_live_mode_tip"));
+#endif
 
         item = new TextMenu.OnOff(
             Dialog.Get("miaonet_options_fireworks"), settings.Fireworks
