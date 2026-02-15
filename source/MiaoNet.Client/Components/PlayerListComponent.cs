@@ -1,3 +1,5 @@
+//#define MOCK_DATA
+
 using System.Text;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Input;
@@ -23,6 +25,9 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     private float pausedTexFloatTimer;
     private float pausedTexOffset;
 
+    private float scroll;
+    private float scrollTarget;
+
     public PlayerListComponent(MiaoNetContext context)
         : base(context)
     {
@@ -45,8 +50,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
     private void BuildPlayerList()
     {
-        #region sth i used to test the rendering
-#if false
+#if MOCK_DATA
         int id = 0;
         channelPlayerList.Clear();
         OnlineChannel cMain = new(0, "main");
@@ -77,6 +81,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             CreateTestPlayer(cOther, "idk_others222", "StrawberryJam2021/Advanced/Lobby", "a-01"),
             CreateTestPlayer(cOther, "idk_others_too222", "Celeste/9-Core", "f-0j"),
         ];
+        for (int i = 0; i < 80; i++)
+            otherChannel2PlayerList.Add(CreateTestPlayer(cOther, $"P {i}", "Celeste/9-Core", "f-0j"));
         foreach (var item in otherChannel2PlayerList)
             cOther2.Players.Add(item.Player.ID, item.Player);
         channelPlayerList.AddRange([
@@ -89,15 +95,14 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
         PlayerListItem CreateTestPlayer(OnlineChannel channel, string name, string sid, string room)
         {
-            return new PlayerListItem(new OnlinePlayer(channel, new(id++, name), PlayerGlobalFlags.None)
+            id++;
+            return new PlayerListItem(new OnlinePlayer(channel, id, new PlayerInfo(name, string.Empty, string.Empty, Color.AntiqueWhite), PlayerGlobalFlags.None)
             {
-                Location = new PlayerLocation(sid, AreaMode.Normal, room),
+                Location = new PlayerLocation(sid, Random.Shared.Next(0, 3) switch { 0 => AreaMode.Normal, 1 => AreaMode.BSide, 2 => AreaMode.CSide }, room),
                 LastPing = Random.Shared.Next(20, Random.Shared.Next(20, Random.Shared.Next(20, 2000)))
             });
         }
-#endif
-        #endregion
-
+#else
         channelPlayerList.Clear();
         var state = ClientState;
 
@@ -111,6 +116,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             channelPlayerList.Add((channel, playerList));
         }
         SortPlayerList();
+#endif
     }
 
     private void Context_PingDataReceived()
@@ -122,6 +128,9 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
     private void UpdatePlayer(OnlinePlayer player)
     {
+#if MOCK_DATA
+        return;
+#endif
         var channel = player.Channel;
         var pair = channelPlayerList.Find(p => p.Item1 == channel);
         var item = pair.Item2.Find(i => i.Player == player);
@@ -183,12 +192,26 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             else
             {
                 Active = false;
+                scrollTarget = 0f;
+                scroll = 0f;
             }
         }
 
-        pausedTexFloatTimer += Engine.RawDeltaTime * 2f;
-        pausedTexFloatTimer = Calc.WrapAngle(pausedTexFloatTimer);
-        pausedTexOffset = MathF.Sin(pausedTexFloatTimer) * PausedTexOffsetRange;
+        if (Active)
+        {
+            pausedTexFloatTimer += Engine.RawDeltaTime * 2f;
+            pausedTexFloatTimer = Calc.WrapAngle(pausedTexFloatTimer);
+            pausedTexOffset = MathF.Sin(pausedTexFloatTimer) * PausedTexOffsetRange;
+            const float KeyboardScrollSpeed = 1024f;
+            if (MInput.Keyboard.Check(Keys.PageUp))
+                scrollTarget -= KeyboardScrollSpeed * Engine.RawDeltaTime;
+            else if (MInput.Keyboard.Check(Keys.PageDown))
+                scrollTarget += KeyboardScrollSpeed * Engine.RawDeltaTime;
+            scrollTarget = Math.Max(scrollTarget, 0);
+
+            float maxMove = Math.Max(Math.Abs(scrollTarget - scroll), 8f) * 8f * Engine.RawDeltaTime;
+            scroll = Calc.Approach(scroll, scrollTarget, maxMove);
+        }
     }
 
     public override void Render()
@@ -242,7 +265,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
         // calculate channel rect max width and heights
         {
-            float curY = 0f;
+            float curY = -scroll;
             for (int i = 0; i < channelPlayerList.Count; i++)
             {
                 var channel = channelPlayerList[i].Item1;
@@ -318,8 +341,11 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                         itemWidth += spaceWidth;
                         itemWidth += MiaoNetFont.Measure(item.MapName ?? (liveMode ? "*" : player.Location.MapSid)).X * scale;
 
-                        itemWidth += spaceWidth;
-                        itemWidth += MiaoNetFont.Measure(item.AreaSideText!).X * scale;
+                        if (item.AreaSideText is not null)
+                        {
+                            itemWidth += spaceWidth;
+                            itemWidth += MiaoNetFont.Measure(item.AreaSideText).X * scale;
+                        }
                     }
 
                     if (item.PingText is not null)
@@ -469,16 +495,18 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
 
                     // draw side
-                    string sideName = loc.SideCharacter.ToString();
-                    MiaoNetFont.Draw(
-                        sideName,
-                        position: new(x, curY),
-                        justify: Vector2.UnitX,
-                        scale: Vector2.One * scale,
-                        item.MapSideColor
-                    );
-                    x -= MiaoNetFont.Measure(sideName).X * scale;
-                    x -= spaceWidth;
+                    if (item.AreaSideText is not null)
+                    {
+                        MiaoNetFont.Draw(
+                            item.AreaSideText,
+                            position: new(x, curY),
+                            justify: Vector2.UnitX,
+                            scale: Vector2.One * scale,
+                            item.MapSideColor
+                        );
+                        x -= MiaoNetFont.Measure(item.AreaSideText).X * scale;
+                        x -= spaceWidth;
+                    }
 
                     // draw name or sid
                     bool liveMode = MiaoNetModule.Settings.LiveMode;
