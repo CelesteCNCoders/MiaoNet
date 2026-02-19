@@ -7,7 +7,7 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
     public GhostRenderLayerEntity(bool isHigh)
     {
         Tag = MiaoNetTag.Tag;
-        Depth = isHigh ? Depths.Top : Depths.Player;
+        Depth = isHigh ? Depths.Top : (Depths.Player + 1);
         this.isHigh = isHigh;
     }
 
