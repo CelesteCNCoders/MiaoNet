@@ -58,16 +58,16 @@ public sealed class GhostFollower : MiaoNetGhostEntity
             if (targetMatch)
                 alphaFactor = settings.GhostFollowersForceHideOpacityValue;
         }
-        else if (settings.GhostFollowersVisibility == GhostFollowersVisibilityMode.SmartHide)
+        else if (settings.GhostFollowersVisibility == GhostFollowersVisibilityMode.DistanceBased)
         {
-            bool targetMatch = settings.GhostFollowersSmartHideTarget == GhostFollowersTargetType.All ||
-                               (settings.GhostFollowersSmartHideTarget == GhostFollowersTargetType.CustomOnly && type == FollowerType.Custom);
+            bool targetMatch = settings.GhostFollowersDistanceTarget == GhostFollowersTargetType.All ||
+                               (settings.GhostFollowersDistanceTarget == GhostFollowersTargetType.CustomOnly && type == FollowerType.Custom);
 
             if (targetMatch && Scene.Tracker.GetEntity<Player>() is Player player)
             {
                 float dist = Vector2.Distance(Position, player.Position);
-                float fadeDist = Math.Max(0, dist - settings.GhostFollowersSmartHideRadius);
-                float fadeRange = Math.Max(1f, settings.GhostFollowersSmartHideFadeRadius); // Avoid division by zero
+                float fadeDist = Math.Max(0, dist - settings.GhostFollowersDistanceRadius);
+                float fadeRange = Math.Max(1f, settings.GhostFollowersDistanceFadeRadius); // Avoid division by zero
                 alphaFactor = Calc.Clamp(fadeDist / fadeRange, 0f, 1f);
             }
         }

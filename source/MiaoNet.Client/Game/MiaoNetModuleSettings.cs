@@ -20,7 +20,7 @@ public enum TeleportBehaviour
 public enum GhostFollowersVisibilityMode
 {
     Visible,
-    SmartHide,
+    DistanceBased,
     ForceHide
 }
 
@@ -108,11 +108,11 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public GhostFollowersVisibilityMode GhostFollowersVisibility { get; set; } = GhostFollowersVisibilityMode.Visible;
 
-    public GhostFollowersTargetType GhostFollowersSmartHideTarget { get; set; } = GhostFollowersTargetType.All;
+    public GhostFollowersTargetType GhostFollowersDistanceTarget { get; set; } = GhostFollowersTargetType.All;
 
-    public int GhostFollowersSmartHideRadius { get; set; } = 30;
+    public int GhostFollowersDistanceRadius { get; set; } = 30;
 
-    public int GhostFollowersSmartHideFadeRadius { get; set; } = 120;
+    public int GhostFollowersDistanceFadeRadius { get; set; } = 120;
 
     public GhostFollowersTargetType GhostFollowersForceHideTarget { get; set; } = GhostFollowersTargetType.All;
 
