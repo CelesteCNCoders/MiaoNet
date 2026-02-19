@@ -9,12 +9,14 @@ public sealed class GhostFollower : MiaoNetGhostEntity
     private readonly Sprite sprite;
     private readonly BloomPoint? bloomPoint;
     private readonly VertexLight? vertexLight;
+    private readonly FollowerType type;
 
     public Follower Follower { get; }
 
     public GhostFollower(MiaoNetGhost ghost, Vector2 offset, FollowerType type, string spriteID)
         : base(ghost.Position + offset)
     {
+        this.type = type;
         Tag |= ghost.Tag;
         Depth = ghost.Depth;
         Add(Follower = new() { MoveTowardsLeader = false });
@@ -46,9 +48,34 @@ public sealed class GhostFollower : MiaoNetGhostEntity
     public override void Update()
     {
         base.Update();
-        float v = MiaoNetModule.Settings.PlayerOpacityValue;
-        bloomPoint?.Alpha = v;
-        vertexLight?.Alpha = v;
+        var settings = MiaoNetModule.Settings;
+        float alphaFactor = 1f;
+
+        if (settings.GhostFollowersVisibility == GhostFollowersVisibilityMode.ForceHide)
+        {
+            bool targetMatch = settings.GhostFollowersForceHideTarget == GhostFollowersTargetType.All ||
+                               (settings.GhostFollowersForceHideTarget == GhostFollowersTargetType.CustomOnly && type == FollowerType.Custom);
+            if (targetMatch)
+                alphaFactor = settings.GhostFollowersForceHideOpacityValue;
+        }
+        else if (settings.GhostFollowersVisibility == GhostFollowersVisibilityMode.SmartHide)
+        {
+            bool targetMatch = settings.GhostFollowersSmartHideTarget == GhostFollowersTargetType.All ||
+                               (settings.GhostFollowersSmartHideTarget == GhostFollowersTargetType.CustomOnly && type == FollowerType.Custom);
+
+            if (targetMatch && Scene.Tracker.GetEntity<Player>() is Player player)
+            {
+                float dist = Vector2.Distance(Position, player.Position);
+                float fadeDist = Math.Max(0, dist - settings.GhostFollowersSmartHideRadius);
+                float fadeRange = Math.Max(1f, settings.GhostFollowersSmartHideFadeRadius); // Avoid division by zero
+                alphaFactor = Calc.Clamp(fadeDist / fadeRange, 0f, 1f);
+            }
+        }
+
+        sprite.Color = Color.White * alphaFactor;
+        float v = settings.PlayerOpacityValue * alphaFactor;
+        if (bloomPoint != null) bloomPoint.Alpha = v;
+        if (vertexLight != null) vertexLight.Alpha = v;
     }
 
     public void UpdateSprite(string animationID, int animationFrame)

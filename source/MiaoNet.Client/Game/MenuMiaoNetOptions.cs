@@ -166,6 +166,64 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.PlayerNameOpacity = v);
         menu.Add(item);
 
+        var smartHideTarget = new EnumSlider<GhostFollowersTargetType>(
+            Dialog.Get("miaonet_options_ghost_followers_smart_hide_target"),
+            e => Dialog.Get($"miaonet_options_ghost_followers_target_{e}"),
+            settings.GhostFollowersSmartHideTarget
+        ).Change(v => settings.GhostFollowersSmartHideTarget = v);
+
+        var smartHideRadius = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_ghost_followers_smart_hide_radius"), 0, 100, settings.GhostFollowersSmartHideRadius
+        ).Change(v => settings.GhostFollowersSmartHideRadius = v);
+
+        var smartHideFadeRadius = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_ghost_followers_smart_hide_fade_radius"), 0, 200, settings.GhostFollowersSmartHideFadeRadius
+        ).Change(v => settings.GhostFollowersSmartHideFadeRadius = v);
+
+        var forceHideTarget = new EnumSlider<GhostFollowersTargetType>(
+            Dialog.Get("miaonet_options_ghost_followers_force_hide_target"),
+            e => Dialog.Get($"miaonet_options_ghost_followers_target_{e}"),
+            settings.GhostFollowersForceHideTarget
+        ).Change(v => settings.GhostFollowersForceHideTarget = v);
+
+        var forceHideOpacity = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_ghost_followers_force_hide_opacity"), 0, 10, settings.GhostFollowersForceHideOpacity
+        ).Change(v => settings.GhostFollowersForceHideOpacity = v);
+
+        void UpdateGhostFollowersVisibility(GhostFollowersVisibilityMode mode)
+        {
+            bool smart = mode == GhostFollowersVisibilityMode.SmartHide;
+            bool force = mode == GhostFollowersVisibilityMode.ForceHide;
+
+            smartHideTarget.Visible = smart;
+            smartHideRadius.Visible = smart;
+            smartHideFadeRadius.Visible = smart;
+            forceHideTarget.Visible = force;
+            forceHideOpacity.Visible = force;
+        }
+
+        item = new EnumSlider<GhostFollowersVisibilityMode>(
+            Dialog.Get("miaonet_options_ghost_followers_visibility"),
+            e => Dialog.Get($"miaonet_options_ghost_followers_visibility_{e}"),
+            settings.GhostFollowersVisibility
+        ).Change(v =>
+        {
+            settings.GhostFollowersVisibility = v;
+            UpdateGhostFollowersVisibility(v);
+        });
+        menu.Add(item);
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_ghost_followers_visibility_tip"));
+
+        menu.Add(smartHideTarget);
+        menu.Add(smartHideRadius);
+        smartHideRadius.AddDescription(menu, Dialog.Clean("miaonet_options_ghost_followers_smart_hide_radius_tip"));
+        menu.Add(smartHideFadeRadius);
+        smartHideFadeRadius.AddDescription(menu, Dialog.Clean("miaonet_options_ghost_followers_smart_hide_fade_radius_tip"));
+        menu.Add(forceHideTarget);
+        menu.Add(forceHideOpacity);
+
+        UpdateGhostFollowersVisibility(settings.GhostFollowersVisibility);
+
         item = new EnumSlider<JumpthruType>(
             Dialog.Get("miaonet_options_group_photo_platform_type"),
             t => t.ToString(), settings.GroupPhotoPlatformType

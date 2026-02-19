@@ -17,6 +17,19 @@ public enum TeleportBehaviour
     WithSession
 }
 
+public enum GhostFollowersVisibilityMode
+{
+    Visible,
+    SmartHide,
+    ForceHide
+}
+
+public enum GhostFollowersTargetType
+{
+    All,
+    CustomOnly
+}
+
 // note: menus for this settings are all created and handled manually
 // so all everest attributes will have no effect
 // check MenuMiaoNetOptions for more details
@@ -93,6 +106,18 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public JumpthruType GroupPhotoPlatformType { get; set; } = JumpthruType.Dream;
 
+    public GhostFollowersVisibilityMode GhostFollowersVisibility { get; set; } = GhostFollowersVisibilityMode.Visible;
+
+    public GhostFollowersTargetType GhostFollowersSmartHideTarget { get; set; } = GhostFollowersTargetType.All;
+
+    public int GhostFollowersSmartHideRadius { get; set; } = 30;
+
+    public int GhostFollowersSmartHideFadeRadius { get; set; } = 120;
+
+    public GhostFollowersTargetType GhostFollowersForceHideTarget { get; set; } = GhostFollowersTargetType.All;
+
+    public int GhostFollowersForceHideOpacity { get; set; } = 0;
+
     #region Calculated
 
     [YamlIgnore] public float PlayerListUIScaleValue => GetScaleValue(PlayerListUIScale);
@@ -108,6 +133,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     [YamlIgnore] public float ChatBackgroundOpacityValue => ChatBackgroundOpacity / 10f;
 
     [YamlIgnore] public float ChatTextOpacityValue => ChatTextOpacity / 10f;
+
+    [YamlIgnore] public float GhostFollowersForceHideOpacityValue => GhostFollowersForceHideOpacity / 10f;
 
     #endregion
 

@@ -34,6 +34,21 @@ miaonet_options_self_name_opactiy= Self Name Opacity
 miaonet_options_player_name_opacity= Name Opacity
 miaonet_options_group_photo_platform_type= Group Photo Platform Type
 
+miaonet_options_ghost_followers_visibility= Ghost Followers Visibility
+miaonet_options_ghost_followers_visibility_Visible= Visible
+miaonet_options_ghost_followers_visibility_SmartHide= Smart Hide
+miaonet_options_ghost_followers_visibility_ForceHide= Force Hide
+miaonet_options_ghost_followers_visibility_tip= Controls how other players' followers are displayed.
+miaonet_options_ghost_followers_smart_hide_target= Smart Hide Target
+miaonet_options_ghost_followers_smart_hide_radius= Fully Transparent Radius
+miaonet_options_ghost_followers_smart_hide_radius_tip= Followers will be invisible when closer than this distance.
+miaonet_options_ghost_followers_smart_hide_fade_radius= Fade Radius
+miaonet_options_ghost_followers_smart_hide_fade_radius_tip= Distance over which followers fade from visible to invisible.
+miaonet_options_ghost_followers_force_hide_target= Force Hide Target
+miaonet_options_ghost_followers_force_hide_opacity= Force Hide Opacity
+miaonet_options_ghost_followers_target_All= All
+miaonet_options_ghost_followers_target_CustomOnly= Custom Only
+
 miaonet_options_audio= Audio
 miaonet_options_player_audio= Sync Audio
 miaonet_options_player_audio_tip= 
