@@ -166,63 +166,69 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.PlayerNameOpacity = v);
         menu.Add(item);
 
-        var distanceTarget = new EnumSlider<GhostFollowersTargetType>(
-            "  " + Dialog.Get("miaonet_options_ghost_followers_distance_target"),
-            e => Dialog.Get($"miaonet_options_ghost_followers_target_{e}"),
-            settings.GhostFollowersDistanceTarget
-        ).Change(v => settings.GhostFollowersDistanceTarget = v);
+        uiSubMenu = new TextMenuExt.SubMenu(Dialog.Get("miaonet_options_player_followers_visibility"), false);
 
-        var distanceRadius = new TextMenuExt.IntSlider(
-            "  " + Dialog.Get("miaonet_options_ghost_followers_distance_radius"), 0, 100, settings.GhostFollowersDistanceRadius
-        ).Change(v => settings.GhostFollowersDistanceRadius = v);
+        TextMenu.Item distanceTarget = new EnumSlider<FollowerTargetType>(
+            Dialog.Get("miaonet_options_player_followers_distance_target"),
+            e => Dialog.Get($"miaonet_options_player_followers_target_{e}"),
+            settings.PlayerFollowersDistanceTarget
+        ).Change(v => settings.PlayerFollowersDistanceTarget = v);
 
-        var distanceFadeRadius = new TextMenuExt.IntSlider(
-            "  " + Dialog.Get("miaonet_options_ghost_followers_distance_fade_radius"), 0, 200, settings.GhostFollowersDistanceFadeRadius
-        ).Change(v => settings.GhostFollowersDistanceFadeRadius = v);
+        TextMenu.Item distanceRadius = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_player_followers_distance_radius"), 0, 100, settings.PlayerFollowersDistanceRadius
+        ).Change(v => settings.PlayerFollowersDistanceRadius = v);
 
-        var forceHideTarget = new EnumSlider<GhostFollowersTargetType>(
-            "  " + Dialog.Get("miaonet_options_ghost_followers_force_hide_target"),
-            e => Dialog.Get($"miaonet_options_ghost_followers_target_{e}"),
-            settings.GhostFollowersForceHideTarget
-        ).Change(v => settings.GhostFollowersForceHideTarget = v);
+        TextMenu.Item distanceFadeRadius = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_player_followers_distance_fade_radius"), 1, 200, settings.PlayerFollowersDistanceFadeRadius
+        ).Change(v => settings.PlayerFollowersDistanceFadeRadius = v);
 
-        var forceHideOpacity = new TextMenuExt.IntSlider(
-            "  " + Dialog.Get("miaonet_options_ghost_followers_force_hide_opacity"), 0, 10, settings.GhostFollowersForceHideOpacity
-        ).Change(v => settings.GhostFollowersForceHideOpacity = v);
+        TextMenu.Item customTarget = new EnumSlider<FollowerTargetType>(
+            Dialog.Get("miaonet_options_player_followers_custom_target"),
+            e => Dialog.Get($"miaonet_options_player_followers_target_{e}"),
+            settings.PlayerFollowersCustomTarget
+        ).Change(v => settings.PlayerFollowersCustomTarget = v);
 
-        void UpdateGhostFollowersVisibility(GhostFollowersVisibilityMode mode)
+        TextMenu.Item customOpacity = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_player_followers_custom_opacity"), 0, 10, settings.PlayerFollowersCustomOpacity
+        ).Change(v => settings.PlayerFollowersCustomOpacity = v);
+
+        void UpdateOptionsVisibility(RemotePlayerVisibility mode)
         {
-            bool distance = mode == GhostFollowersVisibilityMode.DistanceBased;
-            bool force = mode == GhostFollowersVisibilityMode.ForceHide;
+            bool distance = mode == RemotePlayerVisibility.DistanceBased;
+            bool custom = mode == RemotePlayerVisibility.CustomAlpha;
 
             distanceTarget.Visible = distance;
             distanceRadius.Visible = distance;
             distanceFadeRadius.Visible = distance;
-            forceHideTarget.Visible = force;
-            forceHideOpacity.Visible = force;
+            customTarget.Visible = custom;
+            customOpacity.Visible = custom;
         }
 
-        item = new EnumSlider<GhostFollowersVisibilityMode>(
-            Dialog.Get("miaonet_options_ghost_followers_visibility"),
-            e => Dialog.Get($"miaonet_options_ghost_followers_visibility_{e}"),
-            settings.GhostFollowersVisibility
+        item = new EnumSlider<RemotePlayerVisibility>(
+            Dialog.Get("miaonet_options_player_followers_visibility"),
+            e => Dialog.Get($"miaonet_options_player_followers_visibility_{e}"),
+            settings.PlayerFollowersVisibility
         ).Change(v =>
         {
-            settings.GhostFollowersVisibility = v;
-            UpdateGhostFollowersVisibility(v);
+            settings.PlayerFollowersVisibility = v;
+            UpdateOptionsVisibility(v);
         });
-        menu.Add(item);
-        item.AddDescription(menu, Dialog.Clean("miaonet_options_ghost_followers_visibility_tip"));
+        uiSubMenu.Add(item);
+        item.AddDescription(uiSubMenu, menu, Dialog.Clean("miaonet_options_player_followers_visibility_tip"));
 
-        menu.Add(distanceTarget);
-        menu.Add(distanceRadius);
-        distanceRadius.AddDescription(menu, Dialog.Clean("miaonet_options_ghost_followers_distance_radius_tip"));
-        menu.Add(distanceFadeRadius);
-        distanceFadeRadius.AddDescription(menu, Dialog.Clean("miaonet_options_ghost_followers_distance_fade_radius_tip"));
-        menu.Add(forceHideTarget);
-        menu.Add(forceHideOpacity);
+        uiSubMenu.Add(distanceTarget);
 
-        UpdateGhostFollowersVisibility(settings.GhostFollowersVisibility);
+        uiSubMenu.Add(distanceRadius);
+        distanceRadius.AddDescription(uiSubMenu, menu, Dialog.Clean("miaonet_options_player_followers_distance_radius_tip"));
+
+        uiSubMenu.Add(distanceFadeRadius);
+        distanceFadeRadius.AddDescription(uiSubMenu, menu, Dialog.Clean("miaonet_options_player_followers_distance_fade_radius_tip"));
+
+        uiSubMenu.Add(customTarget);
+        uiSubMenu.Add(customOpacity);
+
+        UpdateOptionsVisibility(settings.PlayerFollowersVisibility);
+        menu.Add(uiSubMenu);
 
         item = new EnumSlider<JumpthruType>(
             Dialog.Get("miaonet_options_group_photo_platform_type"),

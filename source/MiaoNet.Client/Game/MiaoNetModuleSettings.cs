@@ -17,14 +17,14 @@ public enum TeleportBehaviour
     WithSession
 }
 
-public enum GhostFollowersVisibilityMode
+public enum RemotePlayerVisibility
 {
     Visible,
     DistanceBased,
-    ForceHide
+    CustomAlpha
 }
 
-public enum GhostFollowersTargetType
+public enum FollowerTargetType
 {
     All,
     CustomOnly
@@ -106,17 +106,17 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public JumpthruType GroupPhotoPlatformType { get; set; } = JumpthruType.Dream;
 
-    public GhostFollowersVisibilityMode GhostFollowersVisibility { get; set; } = GhostFollowersVisibilityMode.Visible;
+    public RemotePlayerVisibility PlayerFollowersVisibility { get; set; } = RemotePlayerVisibility.Visible;
 
-    public GhostFollowersTargetType GhostFollowersDistanceTarget { get; set; } = GhostFollowersTargetType.All;
+    public FollowerTargetType PlayerFollowersDistanceTarget { get; set; } = FollowerTargetType.All;
 
-    public int GhostFollowersDistanceRadius { get; set; } = 30;
+    public int PlayerFollowersDistanceRadius { get; set; } = 30;
 
-    public int GhostFollowersDistanceFadeRadius { get; set; } = 120;
+    public int PlayerFollowersDistanceFadeRadius { get; set; } = 120;
 
-    public GhostFollowersTargetType GhostFollowersForceHideTarget { get; set; } = GhostFollowersTargetType.All;
+    public FollowerTargetType PlayerFollowersCustomTarget { get; set; } = FollowerTargetType.All;
 
-    public int GhostFollowersForceHideOpacity { get; set; } = 0;
+    public int PlayerFollowersCustomOpacity { get; set; } = 0;
 
     #region Calculated
 
@@ -134,7 +134,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     [YamlIgnore] public float ChatTextOpacityValue => ChatTextOpacity / 10f;
 
-    [YamlIgnore] public float GhostFollowersForceHideOpacityValue => GhostFollowersForceHideOpacity / 10f;
+    [YamlIgnore] public float PlayerFollowersCustomOpacityValue => PlayerFollowersCustomOpacity / 10f;
 
     #endregion
 

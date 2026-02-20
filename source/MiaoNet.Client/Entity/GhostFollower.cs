@@ -51,23 +51,23 @@ public sealed class GhostFollower : MiaoNetGhostEntity
         var settings = MiaoNetModule.Settings;
         float alphaFactor = 1f;
 
-        if (settings.GhostFollowersVisibility == GhostFollowersVisibilityMode.ForceHide)
+        if (settings.PlayerFollowersVisibility == RemotePlayerVisibility.CustomAlpha)
         {
-            bool targetMatch = settings.GhostFollowersForceHideTarget == GhostFollowersTargetType.All ||
-                               (settings.GhostFollowersForceHideTarget == GhostFollowersTargetType.CustomOnly && type == FollowerType.Custom);
+            bool targetMatch = settings.PlayerFollowersCustomTarget == FollowerTargetType.All ||
+                               (settings.PlayerFollowersCustomTarget == FollowerTargetType.CustomOnly && type == FollowerType.Custom);
             if (targetMatch)
-                alphaFactor = settings.GhostFollowersForceHideOpacityValue;
+                alphaFactor = settings.PlayerFollowersCustomOpacityValue;
         }
-        else if (settings.GhostFollowersVisibility == GhostFollowersVisibilityMode.DistanceBased)
+        else if (settings.PlayerFollowersVisibility == RemotePlayerVisibility.DistanceBased)
         {
-            bool targetMatch = settings.GhostFollowersDistanceTarget == GhostFollowersTargetType.All ||
-                               (settings.GhostFollowersDistanceTarget == GhostFollowersTargetType.CustomOnly && type == FollowerType.Custom);
+            bool targetMatch = settings.PlayerFollowersDistanceTarget == FollowerTargetType.All ||
+                               (settings.PlayerFollowersDistanceTarget == FollowerTargetType.CustomOnly && type == FollowerType.Custom);
 
             if (targetMatch && Scene.Tracker.GetEntity<Player>() is Player player)
             {
                 float dist = Vector2.Distance(Position, player.Position);
-                float fadeDist = Math.Max(0, dist - settings.GhostFollowersDistanceRadius);
-                float fadeRange = Math.Max(1f, settings.GhostFollowersDistanceFadeRadius); // Avoid division by zero
+                float fadeDist = Math.Max(0, dist - settings.PlayerFollowersDistanceRadius);
+                float fadeRange = settings.PlayerFollowersDistanceFadeRadius;
                 alphaFactor = Calc.Clamp(fadeDist / fadeRange, 0f, 1f);
             }
         }
