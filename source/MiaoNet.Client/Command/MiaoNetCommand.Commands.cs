@@ -458,7 +458,7 @@ partial class MiaoNetCommand
             .Replace("(0)", player!.Info.Name)
             .Replace("(1)", Dialog.Get(othersArea!.Name));
 
-        context.AddLocalChat(MiaoNetChatText.CreateCommandTip(m));
+        context.TipMessage(m);
 
         return null;
     }
