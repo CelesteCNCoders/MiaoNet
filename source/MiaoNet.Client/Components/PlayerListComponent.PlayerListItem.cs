@@ -41,10 +41,7 @@ public sealed partial class PlayerListComponent
                 var areaData = AreaData.Get(loc.MapSid);
                 if (areaData is not null)
                 {
-                    if (Dialog.Has(areaData.Name))
-                        MapName = Dialog.Get(areaData.Name);
-                    else
-                        MapName = null;
+                    MapName = Dialog.Get(areaData.Name);
 
                     string iconPath = areaData.Icon;
                     string? lobbySid;
