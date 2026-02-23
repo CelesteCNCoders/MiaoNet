@@ -1,3 +1,4 @@
+using Celeste.Mod.ChatInputBox;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
@@ -23,10 +24,13 @@ public sealed partial class MiaoNetCommand
             where TResponse : PacketResponse
             => MiaoNetContext.Request(packet, callback);
 
+        public void AddLocalChat(ChatText message)
+            => MiaoNetContext.ChatComponent.AddLocalChat(message);
+
         public void TipMessage(string message)
-            => MiaoNetContext.ChatComponent.TipMessage(message);
+            => AddLocalChat(MiaoNetChatText.CreateCommandTip(message));
 
         public void TipErrorMessage(string message)
-            => MiaoNetContext.ChatComponent.TipErrorMessage(message);
+            => AddLocalChat(MiaoNetChatText.CreateCommandError(message));
     }
 }

@@ -64,14 +64,16 @@ public sealed class ChatComponent : MiaoNetComponent
     {
         if (!MiaoNetModule.Settings.PlayerPresenceMessages)
             return;
-        OnNotifyMessage(Dialog.Clean("miaonet_context_player_joined").Replace("(0)", player.Info.Name));
+        string text = Dialog.Clean("miaonet_context_player_joined").Replace("(0)", player.Info.Name);
+        AddLocalChat(MiaoNetChatText.CreateAnnouncement(text));
     }
 
     private void Context_PlayerLeft(OnlinePlayer player)
     {
         if (!MiaoNetModule.Settings.PlayerPresenceMessages)
             return;
-        OnNotifyMessage(Dialog.Clean("miaonet_context_player_left").Replace("(0)", player.Info.Name));
+        string text = Dialog.Clean("miaonet_context_player_left").Replace("(0)", player.Info.Name);
+        AddLocalChat(MiaoNetChatText.CreateAnnouncement(text));
     }
 
     private void Context_ChatMessageReceived(OnlinePlayer? player, PacketChatMessage packet)
@@ -170,7 +172,7 @@ public sealed class ChatComponent : MiaoNetComponent
                         if (!MiaoNetModule.Settings.LiveMode)
                             SendChat(trimmedText);
                         else
-                            TipErrorMessage(Dialog.Get("miaonet_chat_disabled"));
+                            AddLocalChat(MiaoNetChatText.CreateCommandError(Dialog.Get("miaonet_chat_disabled")));
                     }
                     else
                     {
@@ -222,14 +224,8 @@ public sealed class ChatComponent : MiaoNetComponent
     public void SendChat(string text)
         => context.QueuePacket(new PacketSendChatMessage(text));
 
-    public void TipMessage(string text)
-        => chatView.AddChatMessage(MiaoNetChatText.CreateCommandTip(text));
-
-    public void TipErrorMessage(string text)
-        => chatView.AddChatMessage(MiaoNetChatText.CreateCommandErrorEcho(text));
-
-    public void OnNotifyMessage(string text)
-        => chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(text));
+    public void AddLocalChat(ChatText message)
+        => chatView.AddChatMessage(message);
 
     public void OnSentPrivateMessage(DateTime dateTime, OnlinePlayer other, string text)
         => chatView.AddChatMessage(MiaoNetChatText.CreateSentPrivateChat(dateTime, other, context.ClientState!.Self, text));
@@ -251,7 +247,7 @@ public sealed class ChatComponent : MiaoNetComponent
 
         string? error = cmd!.OnExecute(new MiaoNetCommand.Context(context, args!));
         if (error is not null)
-            TipErrorMessage(error);
+            AddLocalChat(MiaoNetChatText.CreateCommandError(error));
 
         void TipCommandError(CommandParser.ParseResult result, string cmdName, MiaoNetCommand? cmd, int argc)
         {
@@ -271,7 +267,7 @@ public sealed class ChatComponent : MiaoNetComponent
                     .Replace("(1)", cmd!.Segments.Count.ToString())
                     .Replace("(2)", argc.ToString()),
             };
-            TipErrorMessage(msg);
+            AddLocalChat(MiaoNetChatText.CreateCommandError(msg));
         }
     }
 

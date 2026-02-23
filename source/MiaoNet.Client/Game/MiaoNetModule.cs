@@ -154,7 +154,9 @@ public sealed class MiaoNetModule : EverestModule
                 var ctx = Instance.miaoNetContext;
                 if (ctx is not null && ctx.HasConnection && Settings.PlayerInteractions)
                 {
-                    ctx.ChatComponent.TipMessage(Dialog.Get("miaonet_interactions_off_on_collecting_golden"));
+                    ctx.ChatComponent.AddLocalChat(
+                        MiaoNetChatText.CreateCommandTip(Dialog.Get("miaonet_interactions_off_on_collecting_golden"))
+                    );
                     Settings.PlayerInteractions = false;
                 }
             }

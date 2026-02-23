@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+using Celeste.Mod.ChatInputBox;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
@@ -95,6 +96,13 @@ partial class MiaoNetCommand
                 segments: [],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(Interactions)
+            ),
+            new MiaoNetCommand(
+                name: "locate",
+                aliases: ["lc"],
+                segments: [CommandSegmentType.Player],
+                captureRestSegments: false,
+                onExecute: new ExecuteHandler(Locate)
             ),
         ];
     }
@@ -431,8 +439,27 @@ partial class MiaoNetCommand
         var settings = MiaoNetModule.Settings;
         bool p = settings.PlayerInteractions;
         settings.PlayerInteractions = !p;
-        string key = p ? "miaonet_commands_player_interactions_off" : "miaonet_commands_player_interactions_on";
+        string key = p ? "miaonet_commands_interactions_off" : "miaonet_commands_interactions_on";
         context.TipMessage(Dialog.Get(key));
+        return null;
+    }
+
+    private static string? Locate(Context context)
+    {
+        string? error = MatchNotSelfPlayer(context, context.Segments[0], out OnlinePlayer? player);
+        if (error is not null)
+            return error;
+
+        error = EnsurePlayerInExistedMap(player!, out AreaData? othersArea);
+        if (error is not null)
+            return error;
+
+        string m = Dialog.Get("miaonet_commands_locate_message")
+            .Replace("(0)", player!.Info.Name)
+            .Replace("(1)", Dialog.Get(othersArea!.Name));
+
+        context.AddLocalChat(MiaoNetChatText.CreateCommandTip(m));
+
         return null;
     }
 
@@ -451,11 +478,11 @@ partial class MiaoNetCommand
         return null;
     }
 
-    private static string? EnsurePlayerInExistedMap(OnlinePlayer player, out AreaData? otherArea)
+    private static string? EnsurePlayerInExistedMap(OnlinePlayer player, out AreaData? othersArea)
     {
-        otherArea = null;
+        othersArea = null;
 
-        PlayerLocation loc = player!.Location;
+        PlayerLocation loc = player.Location;
         if (!loc.IsInMap)
             return PlayerNotInMap.Replace("(0)", player.Info.Name);
 
@@ -464,7 +491,7 @@ partial class MiaoNetCommand
         if (area is null || area.Mode.Length <= (int)loc.Side)
             return PlayerMapMissing.Replace("(0)", player.Info.Name).Replace("(1)", liveMode ? "*" : loc.ToString());
 
-        otherArea = area;
+        othersArea = area;
         return null;
     }
 }

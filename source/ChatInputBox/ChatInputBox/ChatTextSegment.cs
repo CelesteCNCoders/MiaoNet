@@ -11,8 +11,10 @@ public readonly struct ChatTextSegment
 
     public string Text { get; }
 
-    public ChatTextSegment(string text)
+    public ChatTextSegment(Color color, string text)
     {
+        Style = ChatTextStyle.None;
+        Color = color;
         Text = text;
     }
 
