@@ -20,7 +20,7 @@ public sealed class ChatInputBoxEntity : Entity
         {
             Scale = 2f / 3f
         };
-        inputBox = new(r);
+        inputBox = new(r, new TestCompletionProvider());
         msgListView = new(r);
         List<string> randomMsgs = [
             @"\uThis entire sentence is underlined.\r",

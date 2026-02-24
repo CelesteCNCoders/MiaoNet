@@ -92,7 +92,7 @@ partial class MiaoNetContext
             var settings = MiaoNetModule.Settings;
             string name = settings.Name;
             string? prefix = settings.Prefix;
-            Color color = Calc.HexToColor(settings.Color);
+            Color color = settings.Color is null ? Color.White : Calc.HexToColor(settings.Color);
             PlayerInfo playerInfo = new(name, prefix ?? string.Empty, string.Empty, color);
             MemoryStream ms = new(32);
             RefBinaryWriter writer = new(ms);

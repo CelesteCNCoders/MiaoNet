@@ -6,7 +6,7 @@ namespace Celeste.Mod.MiaoNet;
 public enum CommandSegmentType : byte
 {
     Text,
-    Boolean,
+    Emote,
     Player,
     Channel
 }

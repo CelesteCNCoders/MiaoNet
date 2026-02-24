@@ -6,6 +6,7 @@
     <CelesteRootPath>C:/Program Files (x86)/Steam/steamapps/common/Celeste</CelesteRootPath>
     <RootNamespace>Celeste.Mod.ChatInputBoxExample</RootNamespace>
     <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseCelesteAnalyzer>false</UseCelesteAnalyzer>
     <UseCelestePublicizer>true</UseCelestePublicizer>

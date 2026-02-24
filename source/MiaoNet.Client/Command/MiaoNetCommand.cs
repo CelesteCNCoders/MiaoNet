@@ -7,9 +7,9 @@ public sealed partial class MiaoNetCommand
 
     public string Name { get; }
 
-    public IReadOnlyCollection<string>? Aliases { get; }
+    public IReadOnlyList<string>? Aliases { get; }
 
-    public IReadOnlyCollection<CommandSegmentType> Segments { get; }
+    public IReadOnlyList<CommandSegmentType> Segments { get; }
 
     public bool CaptureRestSegments { get; }
 
@@ -17,8 +17,8 @@ public sealed partial class MiaoNetCommand
 
     public MiaoNetCommand(
         string name,
-        IReadOnlyCollection<string>? aliases,
-        IReadOnlyCollection<CommandSegmentType> segments,
+        IReadOnlyList<string>? aliases,
+        IReadOnlyList<CommandSegmentType> segments,
         bool captureRestSegments,
         ExecuteHandler onExecute
     )

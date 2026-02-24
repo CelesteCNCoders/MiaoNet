@@ -119,7 +119,6 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public void DisconnectByException(Exception exception)
     {
-        SafeGuard.Assert(connection is not null);
         StatusComponent.ShowStatusMessage(ConnectionStatus.DisconnectedWithLocalReason(exception.Message));
         OnDisconnected();
     }

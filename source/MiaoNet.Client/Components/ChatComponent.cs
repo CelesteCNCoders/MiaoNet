@@ -4,10 +4,10 @@ using Microsoft.Xna.Framework.Input;
 
 namespace Celeste.Mod.MiaoNet;
 
-public sealed class ChatComponent : MiaoNetComponent
+public sealed partial class ChatComponent : MiaoNetComponent
 {
     // from CelesteNet
-    private class PauseUpdateOverlay : Overlay
+    private sealed class PauseUpdateOverlay : Overlay
     {
         public override void Update()
         {
@@ -50,9 +50,9 @@ public sealed class ChatComponent : MiaoNetComponent
         float scale = MiaoNetModule.Settings.ChatUIScaleValue;
         textRenderer = new MiaoNetChatTextRenderer(scale, MiaoNetFont.ENZhsLineHeight * scale);
         dummyOverlay = new();
-        inputBox = new InputBox(textRenderer);
-        chatView = new(textRenderer);
         cmdParser = new(MiaoNetCommand.Commands);
+        inputBox = new InputBox(textRenderer, new ChatCompletionProvider(context, cmdParser));
+        chatView = new(textRenderer);
         lastMouseScrollWheelValue = Mouse.GetState().ScrollWheelValue;
 
         context.ChatMessageReceived += Context_ChatMessageReceived;
@@ -182,32 +182,36 @@ public sealed class ChatComponent : MiaoNetComponent
                 Deactivate();
                 return;
             }
-            else if (MInput.Keyboard.Pressed(Keys.Up))
+
+            if (!inputBox.HasCompletions)
             {
-                int i = historyIndex;
-                i -= 1;
-                if (i < 0) i = 0;
-                if (i != historyIndex)
+                if (MInput.Keyboard.Pressed(Keys.Up))
                 {
-                    if (historyIndex == history.Count)
-                        lastInput = inputBox.Text;
-                    historyIndex = i;
-                    inputBox.SetText(history[i]);
-                }
-            }
-            else if (MInput.Keyboard.Pressed(Keys.Down))
-            {
-                int i = historyIndex;
-                i += 1;
-                if (i > history.Count)
-                    i = history.Count;
-                if (i != historyIndex)
-                {
-                    historyIndex = i;
-                    if (i == history.Count)
-                        inputBox.SetText(lastInput);
-                    else
+                    int i = historyIndex;
+                    i -= 1;
+                    if (i < 0) i = 0;
+                    if (i != historyIndex)
+                    {
+                        if (historyIndex == history.Count)
+                            lastInput = inputBox.Text;
+                        historyIndex = i;
                         inputBox.SetText(history[i]);
+                    }
+                }
+                else if (MInput.Keyboard.Pressed(Keys.Down))
+                {
+                    int i = historyIndex;
+                    i += 1;
+                    if (i > history.Count)
+                        i = history.Count;
+                    if (i != historyIndex)
+                    {
+                        historyIndex = i;
+                        if (i == history.Count)
+                            inputBox.SetText(lastInput);
+                        else
+                            inputBox.SetText(history[i]);
+                    }
                 }
             }
 

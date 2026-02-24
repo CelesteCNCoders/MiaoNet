@@ -2,7 +2,7 @@ namespace Celeste.Mod.ChatInputBoxExample;
 
 public sealed class ChatInputBoxExampleModule : EverestModule
 {
-    public static ChatInputBoxExampleModule Instance { get; private set; }
+    public static ChatInputBoxExampleModule Instance { get; private set; } = null!;
 
     public override void Load()
     {

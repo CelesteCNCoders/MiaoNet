@@ -17,6 +17,8 @@ public sealed class CommandParser
 
     private readonly IReadOnlyCollection<MiaoNetCommand> commandsToMatch;
 
+    public IReadOnlyCollection<MiaoNetCommand> Commands => commandsToMatch;
+
     public CommandParser(IReadOnlyCollection<MiaoNetCommand> commandsToMatch)
     {
         this.commandsToMatch = commandsToMatch;
@@ -24,22 +26,22 @@ public sealed class CommandParser
 
     /// <summary>
     /// Parse a command text(i.e. <![CDATA[/w <a player> <some text to whisper>]]>) into
-    /// a <paramref name="matchedCommand"/> and <paramref name="arguments"/>.
+    /// a <paramref name="matchedCommand"/> and <paramref name="segments"/>.
     /// </summary>
     public ParseResult Parse(
         string commandText,
         out string commandName,
         out MiaoNetCommand? matchedCommand,
-        out IReadOnlyList<string>? arguments
+        out IReadOnlyList<string>? segments
     )
     {
         SafeGuard.Assert(commandText.StartsWith(CommandPrefix));
         matchedCommand = null;
-        arguments = null;
+        segments = null;
 
         int firstSpaceIndex = commandText.IndexOf(' ');
         if (firstSpaceIndex == -1) firstSpaceIndex = commandText.Length;
-
+        
         string parsedCmdName = commandText[CommandPrefix.Length..firstSpaceIndex];
         commandName = parsedCmdName;
 
@@ -57,7 +59,7 @@ public sealed class CommandParser
         {
             string[] splitedArgs = commandText[firstSpaceIndex..]
                 .Split(' ', nameMatchedCmd.Segments.Count, sso);
-            arguments = splitedArgs;
+            segments = splitedArgs;
             if (splitedArgs.Length < nameMatchedCmd.Segments.Count)
                 return ParseResult.MissingArguments;
             return ParseResult.Success;
@@ -65,7 +67,7 @@ public sealed class CommandParser
         else
         {
             string[] splitedArgs = commandText[firstSpaceIndex..].Split(' ', sso);
-            arguments = splitedArgs;
+            segments = splitedArgs;
             if (splitedArgs.Length < nameMatchedCmd.Segments.Count)
                 return ParseResult.MissingArguments;
             if (splitedArgs.Length > nameMatchedCmd.Segments.Count)
