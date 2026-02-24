@@ -152,7 +152,9 @@ miaonet_commands_clear_description= Clear chat history.
 miaonet_commands_back_description= Back to where you teleported.
 miaonet_commands_group_photo_mode_description= Toggle group photo mode. This reduces your network update frequency.
 miaonet_commands_interactions_description= Toggle player interactions.
-miaonet_commands_locate_message= Player (0) is in map (1)
+miaonet_commands_locate_description= Locate a player.
+miaonet_commands_locate_s0_name= Player
+miaonet_commands_locate_s0_description= The player that being located.
 
 miaonet_commands_teleport_notice=
 	By default, using the Teleport command saves your current progress and switches to a temporary save file.
@@ -172,6 +174,7 @@ miaonet_commands_group_photo_mode_on= Group photo mode is on
 miaonet_commands_group_photo_mode_off= Group photo mode is off
 miaonet_commands_player_interactions_on= Player interactions is on
 miaonet_commands_player_interactions_off= Player interactions is off
+miaonet_commands_locate_message= Player (0) is in map (1)
 
 miaonet_chat_whisper_sent= \[whisper to (0)\] (1)
 miaonet_chat_whisper_received= \[whisper\] (0)
