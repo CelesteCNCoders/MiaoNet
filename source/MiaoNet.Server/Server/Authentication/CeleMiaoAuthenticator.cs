@@ -142,7 +142,7 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
 
         if (result is not null)
         {
-            if (!TryParseHexColor(result.Color.AsSpan(1), out Color color))
+            if (result.Color is not { Length: 7 } || !TryParseHexColor(result.Color.AsSpan(1), out Color color))
             {
                 color = Color.White;
                 logger.LogWarning(AppEvents.Auth, "Failed to parse color for player {name}, raw hex string: {hex}.", result.Username, result.Color);
