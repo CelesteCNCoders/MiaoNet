@@ -316,6 +316,12 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                         itemWidth += texScale * texGroupPhotoMode.Width;
                     }
 
+                    if(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching))
+                    {
+                        float texScale = lineHeight / texPlayerDebugMap.Height;
+                        itemWidth += texScale * texPlayerDebugMap.Width;
+                    }
+
                     if (!player.Location.IsEmpty)
                     {
                         bool liveMode = MiaoNetModule.Settings.LiveMode;
@@ -456,6 +462,14 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     texGroupPhotoMode.Draw(new(x, curY), Vector2.Zero, Color.White, Vector2.One * texScale);
 
                     x += texScale * texGroupPhotoMode.Width;
+                }
+
+                if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching))
+                {
+                    float texScale = lineHeight / texPlayerDebugMap.Height;
+                    texPlayerDebugMap.Draw(new(x, curY), Vector2.Zero, Color.White, Vector2.One * texScale);
+
+                    x += texScale * texPlayerDebugMap.Width;
                 }
 
                 // -- right to left drawing --

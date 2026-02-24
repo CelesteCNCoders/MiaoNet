@@ -25,7 +25,7 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
 
         foreach (MiaoNetGhostEntity entity in level.Tracker.GetEntities<MiaoNetGhostEntity>().Cast<MiaoNetGhostEntity>())
         {
-            if (isHigh ? entity.Depth <= Depth : entity.Depth >= Depth)
+            if (isHigh ? entity.Depth <= Depth : entity.Depth >= Depth && entity.Visible)
                 entity.GhostRender();
         }
 

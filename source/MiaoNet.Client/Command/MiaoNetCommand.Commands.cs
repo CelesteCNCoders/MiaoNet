@@ -15,14 +15,14 @@ partial class MiaoNetCommand
         Commands = [
             new MiaoNetCommand(
                 name: "help",
-                aliases: ["?", "？", "h"],
+                aliases: [ "?", "？", "h" ],
                 segments: [],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(Help)
             ),
             new MiaoNetCommand(
                 name: "help-command",
-                aliases: ["??", "？？", "hc"],
+                aliases: [ "??", "？？", "hc" ],
                 segments: [CommandSegmentType.Text],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(HelpCommand)
@@ -36,42 +36,42 @@ partial class MiaoNetCommand
             ),
             new MiaoNetCommand(
                 name: "emote",
-                aliases: ["e"],
+                aliases: [ "e" ],
                 segments: [CommandSegmentType.Text],
                 captureRestSegments: true,
                 onExecute: new ExecuteHandler(Emote)
             ),
             new MiaoNetCommand(
                 name: "teleport-no-session",
-                aliases: ["tp-ns", "tpns"],
+                aliases: [ "tp-ns", "tpns" ],
                 segments: [CommandSegmentType.Player],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(TeleportNoSession)
             ),
             new MiaoNetCommand(
                 name: "teleport-with-session",
-                aliases: ["tp-ws", "tpws"],
+                aliases: [ "tp-ws", "tpws" ],
                 segments: [CommandSegmentType.Player],
                 captureRestSegments:false,
                 onExecute: new ExecuteHandler(TeleportWithSession)
             ),
             new MiaoNetCommand(
                 name: "whisper",
-                aliases: ["w", "msg"],
+                aliases: [ "w", "msg" ],
                 segments: [CommandSegmentType.Player, CommandSegmentType.Text],
                 captureRestSegments: true,
                 onExecute: new ExecuteHandler(Whisper)
             ),
             new MiaoNetCommand(
                 name: "teleport",
-                aliases: ["tp"],
+                aliases: [ "tp" ],
                 segments: [CommandSegmentType.Player],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(Teleport)
             ),
             new MiaoNetCommand(
                 name: "clear",
-                aliases: ["cls"],
+                aliases: [ "cls" ],
                 segments: [],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(Clear)
@@ -85,7 +85,7 @@ partial class MiaoNetCommand
             ),
             new MiaoNetCommand(
                 name: "group-photo-mode",
-                aliases: ["gpm", "HeYing", "hy"],
+                aliases: [ "gpm", "HeYing", "hy" ],
                 segments: [],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(GroupPhotoMode)
@@ -99,11 +99,25 @@ partial class MiaoNetCommand
             ),
             new MiaoNetCommand(
                 name: "locate",
-                aliases: ["lc"],
+                aliases: [ "lc" ],
                 segments: [CommandSegmentType.Player],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(Locate)
             ),
+            new MiaoNetCommand(
+                name: "watch",
+                aliases: [ "w" ],
+                segments: [CommandSegmentType.Player],
+                captureRestSegments: false,
+                onExecute: new ExecuteHandler(Watch)
+            ),
+            new MiaoNetCommand(
+                name: "unwatch",
+                aliases: [ "uw" ],
+                segments: [],
+                captureRestSegments: false,
+                onExecute: new ExecuteHandler(Unwatch)
+            )
         ];
     }
 
@@ -464,6 +478,48 @@ partial class MiaoNetCommand
         return null;
     }
 
+    private static string? Watch(Context context)
+    {
+        string? error = MatchNotSelfPlayer(context, context.Segments[0], out OnlinePlayer? player);
+        if (error is not null)
+            return error;
+
+        error = EnsurePlayerInExistedMap(player!, out AreaData? othersArea);
+        if (error is not null)
+            return error;
+
+        if (Engine.Scene is not Level level || level.Session.Area.SID != othersArea!.SID)
+        {
+            string m = Dialog.Get("miaonet_commands_watch_not_same_map")
+                .Replace("(0)", player!.Info.Name)
+                .Replace("(1)", Dialog.Get(othersArea!.Name));
+            return m;
+        }
+
+        context.MiaoNetContext.MainComponent.StartWatching(player!);
+        context.TipMessage(Dialog.Get("miaonet_commands_watch_watching").Replace("(0)", player!.Info.Name));
+
+        return null;
+    }
+
+    private static string? Unwatch(Context context)
+    {
+        var player = context.MiaoNetContext.MainComponent.StopWatching();
+        if (player is null)
+        {
+            return Dialog.Get("miaonet_commands_unwatch_none_unwatched");
+        }
+        else
+        {
+            string msg = Dialog.Get("miaonet_commands_unwatch_unwatched").Replace("(0)", player.Info.Name);
+            context.TipMessage(msg);
+        }
+
+        return null;
+    }
+
+    #region helpers
+
     private static string? MatchNotSelfPlayer(Context context, string playerName, out OnlinePlayer? player)
     {
         player = null;
@@ -495,4 +551,6 @@ partial class MiaoNetCommand
         othersArea = area;
         return null;
     }
+
+    #endregion
 }

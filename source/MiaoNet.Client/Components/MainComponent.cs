@@ -20,6 +20,10 @@ public sealed partial class MainComponent : MiaoNetComponent
 
     public (Session? session, SaveData? saveData, int slot) LastLocationBeforeTeleport;
 
+    private OnlinePlayer? playerWatching;
+
+    public bool Watching => playerWatching is not null;
+
     public MainComponent(MiaoNetContext context) : base(context)
     {
         ghosts = new();
@@ -55,6 +59,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         ghosts.Clear();
         selfNameTag?.RemoveSelf();
         selfNameTag = null;
+        CleanUpWatching();
         CleanUpInteractions(Engine.Scene as Level);
         MiaoNetModule.Settings.GroupPhotoMode = false;
 #if DEBUG
@@ -82,7 +87,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.LiveMode, MiaoNetModule.Settings.LiveMode);
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Interactions, MiaoNetModule.Settings.PlayerInteractions);
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.GroupPhotoMode, MiaoNetModule.Settings.GroupPhotoMode);
-            // can this be optimized?
+            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Watching, playerWatching is not null);
             bool hasGolden = player?.Leader.Followers.Any(f => f.Entity is Strawberry { Golden: true }) == true;
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.TakingGolden, hasGolden);
             if (previousGlobalFlags != globalFlags)
@@ -131,6 +136,9 @@ public sealed partial class MainComponent : MiaoNetComponent
             player.Scene.CompletelyRemove(selfNameTag);
             selfNameTag = null;
         }
+
+        // watching
+        UpdateWatching(level, player);
 
         // player interactions
         UpdateInteractions(level, player);
@@ -579,6 +587,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (!ghosts.TryGetValue(player.ID, out var ghost))
             return;
         ghost.OnUpdatePaused(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Paused));
+        ghost.OnUpdateWatching();
     }
 
     private void Context_PlayerCreatedFireworks(OnlinePlayer player, Color color, float initialSpeed)

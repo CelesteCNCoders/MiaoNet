@@ -152,6 +152,10 @@ miaonet_commands_interactions_description= 切换玩家交互开关。
 miaonet_commands_locate_description= 查询玩家所在的位置。
 miaonet_commands_locate_s0_name= 玩家名称
 miaonet_commands_locate_s0_description= 要查询的玩家。
+miaonet_commands_watch_description= 观看一个玩家。
+miaonet_commands_watch_s0_name= 玩家名称
+miaonet_commands_watch_s0_description= 要观看的玩家。
+miaonet_commands_unwatch_description= 停止观看玩家。
 
 miaonet_commands_teleport_notice= 
 	使用 Teleport 指令默认会保存你的当前游戏进度并将存档切换至一个临时存档。
@@ -172,6 +176,10 @@ miaonet_commands_group_photo_mode_off= 已关闭合影模式
 miaonet_commands_interactions_on= 已开启玩家交互
 miaonet_commands_interactions_off= 已关闭玩家交互
 miaonet_commands_locate_message= 玩家 (0) 位于地图 (1) 中
+miaonet_commands_watch_watching= 正在观看玩家 (0)
+miaonet_commands_watch_not_same_map= 当前不在玩家 (0) 所在地图 (1) 中
+miaonet_commands_unwatch_none_unwatched= 当前不在观看任何玩家
+miaonet_commands_unwatch_unwatched= 停止观看玩家 (0)
 
 miaonet_chat_whisper_sent= \[私聊 (0)\] (1)
 miaonet_chat_whisper_received= \[私聊\] (0)

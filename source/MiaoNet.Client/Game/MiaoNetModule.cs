@@ -188,14 +188,14 @@ public sealed class MiaoNetModule : EverestModule
 
     private static bool PlayerCollider_Check(On.Celeste.PlayerCollider.orig_Check orig, PlayerCollider self, Player player)
     {
-        if (Instance.miaoNetContext?.MainComponent.HeldByOthers == true)
+        if (Instance.miaoNetContext?.MainComponent is { HeldByOthers: true } or { Watching: true })
             return false;
         return orig(self, player);
     }
 
     private static bool Player_TransitionTo(On.Celeste.Player.orig_TransitionTo orig, Player self, Vector2 target, Vector2 direction)
     {
-        if (Instance.miaoNetContext?.MainComponent.HeldByOthers == true)
+        if (Instance.miaoNetContext?.MainComponent is { HeldByOthers: true } or { Watching: true })
             return true;
         return orig(self, target, direction);
     }

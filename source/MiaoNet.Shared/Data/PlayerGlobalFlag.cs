@@ -9,5 +9,6 @@ public enum PlayerGlobalFlags : ushort
     LiveMode = 1 << 2,
     Interactions = 1 << 3,
     TakingGolden = 1 << 4,
-    GroupPhotoMode = 1 << 5
+    GroupPhotoMode = 1 << 5,
+    Watching = 1 << 6
 }
