@@ -71,6 +71,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         Level? level = Engine.Scene as Level;
         Player? player = level?.Tracker.GetEntity<Player>();
 
+        // TODO this can be optimized
         OnlinePlayer self = ClientState.Self;
         {
             // online status update
