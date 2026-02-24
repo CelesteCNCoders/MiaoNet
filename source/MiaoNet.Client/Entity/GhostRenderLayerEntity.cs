@@ -1,8 +1,15 @@
-﻿namespace Celeste.Mod.MiaoNet;
+﻿using Microsoft.Xna.Framework.Graphics;
+using MiaoNet.Shared;
+
+namespace Celeste.Mod.MiaoNet;
 
 public sealed class GhostRenderLayerEntity : MiaoNetEntity
 {
     private readonly bool isHigh;
+    private readonly List<MiaoNetGhostEntity> transparentBatch = new();
+    private readonly List<MiaoNetGhostEntity> opaqueBatch = new();
+
+    public static Effect? FollowerRadialShader;
 
     public GhostRenderLayerEntity(bool isHigh)
     {
@@ -15,27 +22,92 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
     {
         var gd = Engine.Instance.GraphicsDevice;
         Level level = SceneAs<Level>();
+        var settings = MiaoNetModule.Settings;
 
         GameplayRenderer.End();
 
-        gd.SetRenderTarget(GameplayBuffers.TempA);
-        gd.Clear(Color.Transparent);
-
-        GameplayRenderer.Begin();
+        transparentBatch.Clear();
+        opaqueBatch.Clear();
 
         foreach (MiaoNetGhostEntity entity in level.Tracker.GetEntities<MiaoNetGhostEntity>().Cast<MiaoNetGhostEntity>())
         {
             if (isHigh ? entity.Depth <= Depth : entity.Depth >= Depth)
-                entity.GhostRender();
+            {
+                if (ShouldRenderTransparent(entity))
+                    transparentBatch.Add(entity);
+                else
+                    opaqueBatch.Add(entity);
+            }
         }
 
+        gd.SetRenderTarget(GameplayBuffers.TempA);
+        gd.Clear(Color.Transparent);
+        GameplayRenderer.Begin();
+        foreach (MiaoNetGhostEntity entity in transparentBatch)
+            entity.GhostRender();
+        GameplayRenderer.End();
+
+        gd.SetRenderTarget(GameplayBuffers.TempB);
+        gd.Clear(Color.Transparent);
+
+        Effect? shader = FollowerRadialShader;
+        bool useShader = shader != null && settings.PlayerFollowersVisibility == RemotePlayerVisibility.DistanceBased;
+        Effect? activeEffect = null;
+        float batchAlpha = 1f;
+
+        if (useShader)
+        {
+            Player? player = level.Tracker.GetEntity<Player>();
+            if (player != null)
+            {
+                shader!.Parameters["Time"]?.SetValue(level.TimeActive);
+                shader.Parameters["CamPos"]?.SetValue(level.Camera.Position);
+                shader.Parameters["Dimensions"]?.SetValue(new Vector2(320f, 180f));
+                shader.Parameters["CenterPos"]?.SetValue(player.Center);
+                shader.Parameters["FadeRadiusInner"]?.SetValue(settings.PlayerFollowersDistanceRadius);
+                shader.Parameters["FadeRadiusOuter"]?.SetValue(settings.PlayerFollowersDistanceRadius + settings.PlayerFollowersDistanceFadeRadius);
+                shader.Parameters["MinAlpha"]?.SetValue(0f);
+                activeEffect = shader;
+            }
+        }
+        else if (settings.PlayerFollowersVisibility == RemotePlayerVisibility.CustomAlpha)
+        {
+            batchAlpha = settings.PlayerFollowersCustomOpacityValue;
+        }
+
+        Draw.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone, activeEffect, level.Camera.Matrix);
+        Draw.SpriteBatch.Draw(GameplayBuffers.TempA, level.Camera.Position, Color.White * batchAlpha);
+        Draw.SpriteBatch.End();
+
+        GameplayRenderer.Begin();
+        foreach (MiaoNetGhostEntity entity in opaqueBatch)
+            entity.GhostRender();
         GameplayRenderer.End();
 
         gd.SetRenderTarget(GameplayBuffers.Gameplay);
-
         GameplayRenderer.Begin();
-
         float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
-        Draw.SpriteBatch.Draw(GameplayBuffers.TempA, level.Camera.Position, Color.White * alpha);
+        Draw.SpriteBatch.Draw(GameplayBuffers.TempB, level.Camera.Position, Color.White * alpha);
+    }
+
+    private static bool ShouldRenderTransparent(MiaoNetGhostEntity entity)
+    {
+        if (entity is not GhostFollower follower)
+            return false;
+
+        var settings = MiaoNetModule.Settings;
+        if (settings.PlayerFollowersVisibility == RemotePlayerVisibility.DistanceBased)
+        {
+            return settings.PlayerFollowersDistanceTarget == FollowerTargetType.All ||
+                   (settings.PlayerFollowersDistanceTarget == FollowerTargetType.CustomOnly && follower.Type == FollowerType.Custom);
+        }
+
+        if (settings.PlayerFollowersVisibility == RemotePlayerVisibility.CustomAlpha)
+        {
+            return settings.PlayerFollowersCustomTarget == FollowerTargetType.All ||
+                   (settings.PlayerFollowersCustomTarget == FollowerTargetType.CustomOnly && follower.Type == FollowerType.Custom);
+        }
+
+        return false;
     }
 }

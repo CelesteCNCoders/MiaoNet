@@ -117,6 +117,13 @@ public sealed class MiaoNetModule : EverestModule
         SpeedrunToolCompat.Unload();
     }
 
+    public override void LoadContent(bool firstLoad)
+    {
+        base.LoadContent(firstLoad);
+        if (Everest.Content.TryGet("Effects/RadialAlphaMask.cso", out ModAsset asset))
+            GhostRenderLayerEntity.FollowerRadialShader = new Effect(Engine.Graphics.GraphicsDevice, asset.Data);
+    }
+
     public override void OnInputInitialize()
     {
         foreach (var item in Settings.GetButtonBindings())
