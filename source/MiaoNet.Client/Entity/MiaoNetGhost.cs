@@ -435,7 +435,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         {
             respawning = true;
             deadEase = 1f;
-            Collidable = true;
+            UpdateCollidable();
             var tween = Tween.Set(this, Tween.TweenMode.Oneshot, 0.6f, null,
                 t =>
                 {
@@ -458,7 +458,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         }
         else
         {
-            Collidable = true;
+            UpdateCollidable();
             respawning = false;
             dead = false;
             Visible = true;
