@@ -21,7 +21,7 @@ public enum RemotePlayerVisibility
 {
     Visible,
     DistanceBased,
-    Hidden
+    CustomAlpha
 }
 
 public enum FollowerTargetType
@@ -108,9 +108,15 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public RemotePlayerVisibility PlayerFollowersVisibility { get; set; } = RemotePlayerVisibility.Visible;
 
-    public FollowerTargetType PlayerFollowersTarget { get; set; } = FollowerTargetType.All;
+    public FollowerTargetType PlayerFollowersDistanceTarget { get; set; } = FollowerTargetType.All;
 
-    public int PlayerFollowersDistanceRadius { get; set; } = 50;
+    public int PlayerFollowersDistanceRadius { get; set; } = 30;
+
+    public int PlayerFollowersDistanceFadeRadius { get; set; } = 120;
+
+    public FollowerTargetType PlayerFollowersCustomTarget { get; set; } = FollowerTargetType.All;
+
+    public int PlayerFollowersCustomOpacity { get; set; } = 0;
 
     #region Calculated
 
@@ -127,6 +133,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     [YamlIgnore] public float ChatBackgroundOpacityValue => ChatBackgroundOpacity / 10f;
 
     [YamlIgnore] public float ChatTextOpacityValue => ChatTextOpacity / 10f;
+
+    [YamlIgnore] public float PlayerFollowersCustomOpacityValue => PlayerFollowersCustomOpacity / 10f;
 
     #endregion
 

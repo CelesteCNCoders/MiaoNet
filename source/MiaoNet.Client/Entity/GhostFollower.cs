@@ -49,29 +49,33 @@ public sealed class GhostFollower : MiaoNetGhostEntity
     {
         base.Update();
         var settings = MiaoNetModule.Settings;
-        bool visible = true;
+        float alphaFactor = 1f;
 
-        bool targetMatch = settings.PlayerFollowersTarget == FollowerTargetType.All ||
-                           (settings.PlayerFollowersTarget == FollowerTargetType.CustomOnly && type == FollowerType.Custom);
-
-        if (settings.PlayerFollowersVisibility == RemotePlayerVisibility.Hidden)
+        if (settings.PlayerFollowersVisibility == RemotePlayerVisibility.CustomAlpha)
         {
+            bool targetMatch = settings.PlayerFollowersCustomTarget == FollowerTargetType.All ||
+                               (settings.PlayerFollowersCustomTarget == FollowerTargetType.CustomOnly && type == FollowerType.Custom);
             if (targetMatch)
-                visible = false;
+                alphaFactor = settings.PlayerFollowersCustomOpacityValue;
         }
         else if (settings.PlayerFollowersVisibility == RemotePlayerVisibility.DistanceBased)
         {
+            bool targetMatch = settings.PlayerFollowersDistanceTarget == FollowerTargetType.All ||
+                               (settings.PlayerFollowersDistanceTarget == FollowerTargetType.CustomOnly && type == FollowerType.Custom);
+
             if (targetMatch && Scene.Tracker.GetEntity<Player>() is Player player)
             {
                 float dist = Vector2.Distance(Position, player.Position);
-                if (dist < settings.PlayerFollowersDistanceRadius)
-                    visible = false;
+                float fadeDist = Math.Max(0, dist - settings.PlayerFollowersDistanceRadius);
+                float fadeRange = settings.PlayerFollowersDistanceFadeRadius;
+                alphaFactor = Calc.Clamp(fadeDist / fadeRange, 0f, 1f);
             }
         }
 
-        sprite.Visible = visible;
-        if (bloomPoint != null) bloomPoint.Visible = visible;
-        if (vertexLight != null) vertexLight.Visible = visible;
+        sprite.Color = Color.White * alphaFactor;
+        float v = settings.PlayerOpacityValue * alphaFactor;
+        if (bloomPoint != null) bloomPoint.Alpha = v;
+        if (vertexLight != null) vertexLight.Alpha = v;
     }
 
     public void UpdateSprite(string animationID, int animationFrame)
