@@ -195,18 +195,4 @@ partial class MainComponent
         if (player.ID == holdingPlayerGhost?.OnlinePlayer.ID)
             level.Tracker.GetEntity<Player>()?.Drop();
     }
-
-#if DEBUG
-    public override void Render()
-    {
-        MiaoNetFont.DrawOutline(
-            $"holding: {holdingPlayerGhost?.OnlinePlayer.Info}\n" +
-            $"heldBy: {heldByPlayerGhost?.OnlinePlayer.Info}",
-            new(0f, 150f),
-            Vector2.Zero,
-            Vector2.One,
-            Color.White
-        );
-    }
-#endif
 }
