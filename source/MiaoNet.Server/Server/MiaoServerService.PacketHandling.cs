@@ -41,6 +41,18 @@ public sealed partial class MiaoServerService
             return;
         }
 
+        int fc = packet.FollowerInitials is not null 
+            ? packet.FollowerInitials.Length 
+            : packet.FollowerDeltas is not null 
+                ? packet.FollowerDeltas.Length 
+                : 0;
+        if (fc > 12)
+        {
+            logger.LogWarning(AppEvents.Game, "Player {p} is taking up to {n} followers", player.Info, fc);
+            await connection.DisconnectAsync(DisconnectReason.Kicked, "Too many followers");
+            return;
+        }
+
         var state = player.State;
         state.FacingLeft = packet.FacingLeft;
         state.Position = packet.Position;

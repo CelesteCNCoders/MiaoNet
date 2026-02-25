@@ -307,7 +307,9 @@ public sealed partial class MainComponent : MiaoNetComponent
 
     private static FollowerInfo[] FetchFollowerInitials(Leader leader)
     {
-        var array = new FollowerInfo[leader.Followers.Count];
+        int count = leader.Followers.Count;
+        count = Math.Min(12, count);
+        var array = new FollowerInfo[count];
         for (int i = 0; i < array.Length; i++)
             array[i] = FetchFollowerInitial(leader.Entity.Position, leader.Followers[i]);
         return array;
@@ -337,7 +339,9 @@ public sealed partial class MainComponent : MiaoNetComponent
     // TODO pool?
     private static FollowerInfoDelta[] FetchFollowerDeltas(Leader leader)
     {
-        var array = new FollowerInfoDelta[leader.Followers.Count];
+        int count = leader.Followers.Count;
+        count = Math.Min(12, count);
+        var array = new FollowerInfoDelta[count];
         for (int i = 0; i < array.Length; i++)
             array[i] = FetchFollowerDelta(leader.Entity.Position, leader.Followers[i]);
         return array;

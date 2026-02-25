@@ -74,6 +74,25 @@ public static class RefBinaryReaderExtensions
         return list;
     }
 
+    public static T[] ReadSmallArray<T>(this ref RefBinaryReader reader) where T : IRefBinarySerializable<T>
+    {
+        int count = reader.ReadByte();
+        T[] list = new T[count];
+        for (int i = 0; i < count; i++)
+            list[i] = Read<T>(ref reader);
+        return list;
+    }
+
+    public static T[] ReadSmallArray<T, TContext>(this ref RefBinaryReader reader, TContext context)
+        where T : IContextualRefBinarySerializable<T, TContext>
+    {
+        int count = reader.ReadByte();
+        T[] list = new T[count];
+        for (int i = 0; i < count; i++)
+            list[i] = Read<T, TContext>(ref reader, context);
+        return list;
+    }
+
     public static DateTime ReadDateTime(this ref RefBinaryReader reader)
         => new DateTime(reader.ReadInt64());
 }

@@ -82,6 +82,26 @@ public static class RefBinaryWriterExtensions
             item.Serialize(ref writer, context);
     }
 
+    public static void WriteSmall<T>(this ref RefBinaryWriter writer, IReadOnlyCollection<T> values)
+    where T : IRefBinarySerializable<T>
+    {
+        if (values.Count > byte.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(values));
+        writer.Write((byte)values.Count);
+        foreach (var item in values)
+            item.Serialize(ref writer);
+    }
+
+    public static void WriteSmall<T, TContext>(this ref RefBinaryWriter writer, IReadOnlyCollection<T> values, TContext context)
+        where T : IContextualRefBinarySerializable<T, TContext>
+    {
+        if (values.Count > byte.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(values));
+        writer.Write((byte)values.Count);
+        foreach (var item in values)
+            item.Serialize(ref writer, context);
+    }
+
     public static void Write(this ref RefBinaryWriter writer, DateTime dateTime)
         => writer.Write(dateTime.Ticks);
 }
