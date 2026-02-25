@@ -159,6 +159,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     public override void OnDisconnected()
     {
         Active = false;
+        scroll = 0f;
         channelPlayerList.Clear();
     }
 
