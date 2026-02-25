@@ -9,7 +9,13 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
     private readonly List<MiaoNetGhostEntity> transparentBatch = new();
     private readonly List<MiaoNetGhostEntity> opaqueBatch = new();
 
-    public static Effect? FollowerRadialShader;
+    private static Effect? followerRadialShader;
+
+    public static void LoadContent()
+    {
+        if (Everest.Content.TryGet("Effects/RadialAlphaMask.cso", out ModAsset asset))
+            followerRadialShader = new Effect(Engine.Graphics.GraphicsDevice, asset.Data);
+    }
 
     public GhostRenderLayerEntity(bool isHigh)
     {
@@ -50,7 +56,7 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
         gd.SetRenderTarget(GameplayBuffers.TempB);
         gd.Clear(Color.Transparent);
 
-        Effect? shader = FollowerRadialShader;
+        Effect? shader = followerRadialShader;
         bool useShader = shader != null && settings.PlayerFollowersVisibility == RemotePlayerVisibility.DistanceBased;
         Effect? activeEffect = null;
         float batchAlpha = 1f;
@@ -60,13 +66,13 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
             Player? player = level.Tracker.GetEntity<Player>();
             if (player != null)
             {
-                shader!.Parameters["Time"]?.SetValue(level.TimeActive);
-                shader.Parameters["CamPos"]?.SetValue(level.Camera.Position);
-                shader.Parameters["Dimensions"]?.SetValue(new Vector2(320f, 180f));
-                shader.Parameters["CenterPos"]?.SetValue(player.Center);
-                shader.Parameters["FadeRadiusInner"]?.SetValue(settings.PlayerFollowersDistanceRadius);
-                shader.Parameters["FadeRadiusOuter"]?.SetValue(settings.PlayerFollowersDistanceRadius + settings.PlayerFollowersDistanceFadeRadius);
-                shader.Parameters["MinAlpha"]?.SetValue(0f);
+                shader!.Parameters["Time"].SetValue(level.TimeActive);
+                shader.Parameters["CamPos"].SetValue(level.Camera.Position);
+                shader.Parameters["Dimensions"].SetValue(new Vector2(320f, 180f));
+                shader.Parameters["CenterPos"].SetValue(player.Center);
+                shader.Parameters["FadeRadiusInner"].SetValue(settings.PlayerFollowersDistanceRadius);
+                shader.Parameters["FadeRadiusOuter"].SetValue(settings.PlayerFollowersDistanceRadius + settings.PlayerFollowersDistanceFadeRadius);
+                shader.Parameters["MinAlpha"].SetValue(0f);
                 activeEffect = shader;
             }
         }

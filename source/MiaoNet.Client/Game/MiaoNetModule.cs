@@ -120,8 +120,7 @@ public sealed class MiaoNetModule : EverestModule
     public override void LoadContent(bool firstLoad)
     {
         base.LoadContent(firstLoad);
-        if (Everest.Content.TryGet("Effects/RadialAlphaMask.cso", out ModAsset asset))
-            GhostRenderLayerEntity.FollowerRadialShader = new Effect(Engine.Graphics.GraphicsDevice, asset.Data);
+        GhostRenderLayerEntity.LoadContent();
     }
 
     public override void OnInputInitialize()
