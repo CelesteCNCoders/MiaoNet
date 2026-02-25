@@ -198,3 +198,4 @@ miaonet_oui_conflict_description=
 miaonet_oui_conflict_exit_game= 退出游戏
 
 miaonet_interactions_off_on_collecting_golden= 玩家交互已因捡起金草莓而关闭。
+miaonet_group_photo_mode_off_on_map_change= 合影模式已因位置变化而关闭。

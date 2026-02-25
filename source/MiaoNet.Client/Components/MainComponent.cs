@@ -398,6 +398,8 @@ public sealed partial class MainComponent : MiaoNetComponent
         var changeResult = ClientState.OnPlayerLocationChanged(location);
         if (changeResult is PlayerLocation.ChangeResult.All || forceFullChange)
         {
+            TryDisableGroupPhotoModeAndTip();
+
             foreach (var pair in ghosts)
                 pair.Value.RemoveSelf();
             ghosts.Clear();
@@ -437,8 +439,19 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
         else if (changeResult is PlayerLocation.ChangeResult.RoomOnly)
         {
+            TryDisableGroupPhotoModeAndTip();
+
             PacketPlayerMapRoomChanged p = new(location.MapRoom);
             context.QueuePacket(p);
+        }
+
+        void TryDisableGroupPhotoModeAndTip()
+        {
+            if (MiaoNetModule.Settings.GroupPhotoMode)
+            {
+                MiaoNetModule.Settings.GroupPhotoMode = false;
+                context.ChatComponent.AddLocalChat(MiaoNetChatText.CreateCommandTip(Dialog.Get("miaonet_group_photo_mode_off_on_map_change")));
+            }
         }
     }
 
