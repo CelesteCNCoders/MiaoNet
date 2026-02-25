@@ -20,14 +20,7 @@ public enum TeleportBehaviour
 public enum RemotePlayerVisibility
 {
     Visible,
-    DistanceBased,
-    CustomAlpha
-}
-
-public enum FollowerTargetType
-{
-    All,
-    CustomOnly
+    DistanceBased
 }
 
 // note: menus for this settings are all created and handled manually
@@ -108,15 +101,9 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public RemotePlayerVisibility PlayerFollowersVisibility { get; set; } = RemotePlayerVisibility.Visible;
 
-    public FollowerTargetType PlayerFollowersDistanceTarget { get; set; } = FollowerTargetType.All;
-
     public int PlayerFollowersDistanceRadius { get; set; } = 30;
 
-    public int PlayerFollowersDistanceFadeRadius { get; set; } = 120;
-
-    public FollowerTargetType PlayerFollowersCustomTarget { get; set; } = FollowerTargetType.All;
-
-    public int PlayerFollowersCustomOpacity { get; set; } = 0;
+    public int PlayerFollowersDistanceFadeRadius { get; set; } = 60;
 
     #region Calculated
 
@@ -133,8 +120,6 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     [YamlIgnore] public float ChatBackgroundOpacityValue => ChatBackgroundOpacity / 10f;
 
     [YamlIgnore] public float ChatTextOpacityValue => ChatTextOpacity / 10f;
-
-    [YamlIgnore] public float PlayerFollowersCustomOpacityValue => PlayerFollowersCustomOpacity / 10f;
 
     #endregion
 

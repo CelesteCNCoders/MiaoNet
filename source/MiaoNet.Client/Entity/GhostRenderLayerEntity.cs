@@ -1,5 +1,4 @@
 ﻿using Microsoft.Xna.Framework.Graphics;
-using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -76,10 +75,6 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
                 activeEffect = shader;
             }
         }
-        else if (settings.PlayerFollowersVisibility == RemotePlayerVisibility.CustomAlpha)
-        {
-            batchAlpha = settings.PlayerFollowersCustomOpacityValue;
-        }
 
         Draw.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone, activeEffect, level.Camera.Matrix);
         Draw.SpriteBatch.Draw(GameplayBuffers.TempA, level.Camera.Position, Color.White * batchAlpha);
@@ -98,22 +93,10 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
 
     private static bool ShouldRenderTransparent(MiaoNetGhostEntity entity)
     {
-        if (entity is not GhostFollower follower)
+        if (entity is not GhostFollower)
             return false;
 
         var settings = MiaoNetModule.Settings;
-        if (settings.PlayerFollowersVisibility == RemotePlayerVisibility.DistanceBased)
-        {
-            return settings.PlayerFollowersDistanceTarget == FollowerTargetType.All ||
-                   (settings.PlayerFollowersDistanceTarget == FollowerTargetType.CustomOnly && follower.Type == FollowerType.Custom);
-        }
-
-        if (settings.PlayerFollowersVisibility == RemotePlayerVisibility.CustomAlpha)
-        {
-            return settings.PlayerFollowersCustomTarget == FollowerTargetType.All ||
-                   (settings.PlayerFollowersCustomTarget == FollowerTargetType.CustomOnly && follower.Type == FollowerType.Custom);
-        }
-
-        return false;
+        return settings.PlayerFollowersVisibility == RemotePlayerVisibility.DistanceBased;
     }
 }

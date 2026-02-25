@@ -9,16 +9,12 @@ public sealed class GhostFollower : MiaoNetGhostEntity
     private readonly Sprite sprite;
     private readonly BloomPoint? bloomPoint;
     private readonly VertexLight? vertexLight;
-    private readonly FollowerType type;
-
-    public FollowerType Type => type;
 
     public Follower Follower { get; }
 
     public GhostFollower(MiaoNetGhost ghost, Vector2 offset, FollowerType type, string spriteID)
         : base(ghost.Position + offset)
     {
-        this.type = type;
         Tag |= ghost.Tag;
         Depth = ghost.Depth + 1;
         Add(Follower = new() { MoveTowardsLeader = false });
@@ -50,13 +46,9 @@ public sealed class GhostFollower : MiaoNetGhostEntity
     public override void Update()
     {
         base.Update();
-        var settings = MiaoNetModule.Settings;
-
-        sprite.Color = Color.White;
-        
-        float v = settings.PlayerOpacityValue;
-        if (bloomPoint != null) bloomPoint.Alpha = v;
-        if (vertexLight != null) vertexLight.Alpha = v;
+        float v = MiaoNetModule.Settings.PlayerOpacityValue;
+        bloomPoint?.Alpha = v;
+        vertexLight?.Alpha = v;
     }
 
     public void UpdateSprite(string animationID, int animationFrame)
