@@ -215,7 +215,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             flags |= FFlags.StarFlying;
         if (selfState.WindDirection != player.windDirection)
             flags |= FFlags.HasWindDirection;
-        if (MiaoNetModule.Settings.PlayerInteractions)
+        if (MiaoNetModule.Settings.PlayerInteractions && player.InControl)
             flags |= FFlags.Interactions;
         if (player.Ducking)
             flags |= FFlags.Ducking;
