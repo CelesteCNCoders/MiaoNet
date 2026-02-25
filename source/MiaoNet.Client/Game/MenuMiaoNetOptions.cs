@@ -405,6 +405,8 @@ public static class MenuMiaoNetOptions
             AddMapForceLabel(Dialog.Get("miaonet_options_button_chat_command"), settings.ChatCommandButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list"), settings.PlayerListButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_create_fireworks"), settings.CreateFireworksButton.Binding);
+            AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list_scroll_up"), settings.PlayerListScrollUp.Binding);
+            AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list_scroll_down"), settings.PlayerListScrollDown.Binding);
 
             while (settings.EmoteButtons.Count < settings.Emotes.Count)
                 settings.EmoteButtons.Add(new());
@@ -479,6 +481,8 @@ public static class MenuMiaoNetOptions
             AddMapForceLabel(Dialog.Get("miaonet_options_button_chat_command"), settings.ChatCommandButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list"), settings.PlayerListButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_create_fireworks"), settings.CreateFireworksButton.Binding);
+            AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list_scroll_up"), settings.PlayerListScrollUp.Binding);
+            AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list_scroll_down"), settings.PlayerListScrollDown.Binding);
 
             while (settings.EmoteButtons.Count < settings.Emotes.Count)
                 settings.EmoteButtons.Add(new());
