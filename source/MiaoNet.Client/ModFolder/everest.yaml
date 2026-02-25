@@ -4,8 +4,10 @@
   Dependencies:
     - Name: EverestCore
       Version: 1.6088.0
-    - Name: ExtendedChineseFont
-      Version: 1.0.0
+    - Name: ChineseFontPack
+      Version: 1.4.2
   OptionalDependencies:
     - Name: SpeedrunTool
       Version: 3.27.11
+    - Name: CelesteEmojis
+      Version: 2.2.0
