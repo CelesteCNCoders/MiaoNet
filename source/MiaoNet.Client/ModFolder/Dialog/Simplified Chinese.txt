@@ -83,6 +83,8 @@ miaonet_options_button_chat= 打开聊天栏
 miaonet_options_button_chat_command= 输入指令
 miaonet_options_button_player_list= 打开玩家列表
 miaonet_options_button_create_fireworks= 生成烟花
+miaonet_options_button_player_list_scroll_up= 向上滚动玩家列表
+miaonet_options_button_player_list_scroll_down= 向下滚动玩家列表
 miaonet_options_button_emotes= Emotes
 miaonet_options_button_emote_i= 发送 Emote (0)
 

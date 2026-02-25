@@ -203,9 +203,9 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             pausedTexFloatTimer = Calc.WrapAngle(pausedTexFloatTimer);
             pausedTexOffset = MathF.Sin(pausedTexFloatTimer) * PausedTexOffsetRange;
             const float KeyboardScrollSpeed = 1024f;
-            if (MInput.Keyboard.Check(Keys.PageUp))
+            if (settings.PlayerListScrollUp.Check)
                 scrollTarget -= KeyboardScrollSpeed * Engine.RawDeltaTime;
-            else if (MInput.Keyboard.Check(Keys.PageDown))
+            else if (settings.PlayerListScrollDown.Check)
                 scrollTarget += KeyboardScrollSpeed * Engine.RawDeltaTime;
             scrollTarget = Math.Max(scrollTarget, 0);
 
