@@ -8,6 +8,8 @@ public readonly struct AuthenticationResult
 {
     public AuthenticationResultType Type { get; }
 
+    public string? SuspendMessage { get; }
+
     public PlayerInfo? PlayerInfo { get; }
 
     public byte[]? TokenData { get; }
@@ -21,9 +23,16 @@ public readonly struct AuthenticationResult
         Debug.Assert(type != AuthenticationResultType.Success);
     }
 
+    public AuthenticationResult(AuthenticationResultType type, string? suspendMessage)
+    {
+        Debug.Assert(type == AuthenticationResultType.Suspended);
+        Type = type;
+        SuspendMessage = suspendMessage;
+    }
+
     public AuthenticationResult(AuthenticationResultType type, PlayerInfo? playerInfo, byte[]? tokenData)
     {
-        if (type is AuthenticationResultType.Success)
+        if (type == AuthenticationResultType.Success)
             Debug.Assert(playerInfo is not null);
         else
             Debug.Assert(playerInfo is null);

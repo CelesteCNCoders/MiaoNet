@@ -278,7 +278,8 @@ public sealed partial class MiaoServerService : BackgroundService
                 token
             );
 
-            HandshakeAckData ack = new(authResult.Type, authResult.TokenData, authResult.IsFailed ? "Authentication failed." : null);
+            string? failedReason = authResult.IsFailed ? (authResult.SuspendMessage ?? "Authentication failed.") : null;
+            HandshakeAckData ack = new(authResult.Type, authResult.TokenData, failedReason);
 
             MemoryStream ms = new(32);
             ms.Seek(2, SeekOrigin.Begin);
