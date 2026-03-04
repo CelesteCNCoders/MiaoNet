@@ -194,6 +194,13 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     {
         ResetEmotes();
         ResetKeyBindings();
+        if (ServerIpAddr is null)
+        {
+            ServerIpAddr = "s.saplonily.top";
+        }
+        if (ServerPort is null) {
+            ServerPort = "21473";
+        }
     }
 
     public void ResetKeyBindings()
