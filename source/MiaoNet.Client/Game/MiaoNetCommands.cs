@@ -8,7 +8,7 @@ public static class MiaoNetCommands
         var ctx = MiaoNetModule.Instance.MiaoNetContext;
         if (server is not null)
            ctx.TargetServer = server;
-        if (port is not null && int.TryParse(port, out var num))
+        if (port is not null && int.TryParse(port, out var num) && num is > 0 and <= 65535)
             ctx.TargetPort = num;
         ctx.Connect();
     }
