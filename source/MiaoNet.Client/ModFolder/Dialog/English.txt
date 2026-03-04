@@ -19,6 +19,10 @@ miaonet_options_connect_server_ip_address= Server Address:
 miaonet_options_connect_server_port= Server Port:
 miaonet_options_connect_on_game_start= Connect On Game Start
 miaonet_options_ignore_cert_revocation_status= Skip Certificate Revocation Check
+miaonet_options_trust_all_certs= Force To Trust All Certificates
+miaonet_options_trust_all_certs_tip= 
+	Warning: This will make your connection extremely insecure. Only for debugging.
+	This option will not be saved.
 miaonet_options_ignore_cert_revocation_status_tip=
 	Warning: This will make your connection insecure.
 	This option will not be saved.

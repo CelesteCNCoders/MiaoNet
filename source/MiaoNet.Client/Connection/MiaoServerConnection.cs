@@ -51,21 +51,27 @@ public sealed class MiaoServerConnection : IDisposable
         await socket.ConnectAsync(endPoint, token);
         NetworkStream networkStream = new NetworkStream(socket);
         await networkStream.WriteAsync(Connection.HandshakeHead, token);
-
+        SslStream sslStream;
+        if (MiaoNetModule.Settings.TrustAllCertificates)
+        {
+            sslStream = new SslStream(networkStream, false, (sender, certificate, chain, errors) => true);
+        }
+        else {
 #if !USE_LOCALHOST_PFX
-        var sslStream = new SslStream(networkStream);
+        sslStream = new SslStream(networkStream);
 #else
         var certStream = typeof(MiaoServerConnection).Assembly.GetManifestResourceStream("localhost.pfx")!;
         byte[] certRawData = new byte[certStream.Length];
         certStream.ReadExactly(certRawData, 0, certRawData.Length);
         var cert = new X509Certificate2(certRawData);
-        var sslStream = new SslStream(networkStream, false, (sender, certificate, chain, errors) =>
+        sslStream = new SslStream(networkStream, false, (sender, certificate, chain, errors) =>
         {
             if (certificate == null) return false;
             var remote = new X509Certificate2(certificate);
             return string.Equals(remote.Thumbprint, cert.Thumbprint, StringComparison.OrdinalIgnoreCase);
         });
 #endif
+        }
         bool checkRevocation = !MiaoNetModule.Settings.IgnoreCertRevocationStatus;
         SslClientAuthenticationOptions options = new()
         {

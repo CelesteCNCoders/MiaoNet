@@ -73,7 +73,9 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     // This should be a temporary option
     [YamlIgnore]
     public bool IgnoreCertRevocationStatus { get; set; }
-
+    [YamlIgnore]
+    public bool TrustAllCertificates { get; set; } 
+    
     #endregion
 
     #region Visuals
