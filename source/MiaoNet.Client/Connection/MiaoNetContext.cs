@@ -13,13 +13,14 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     private readonly ConcurrentDictionary<int, Action<PacketResponse>> pendingRequests;
 
     //private int warningTimes;
-#if DEBUG
-    public string TargetServer { get; set; } = "127.0.0.1";
-#else
-    public string TargetServer { get; set; } = "s.saplonily.top";
-#endif
+// #if DEBUG
+//     public string TargetServer { get; set; } = "127.0.0.1";
+// #else
+//     public string TargetServer { get; set; } = "s.saplonily.top";
+// #endif
 
-    public int TargetPort { get; set; } = 21473;
+    public string TargetServer {get; set;}
+    public int TargetPort { get; set; }
 
     private CancellationTokenSource? cts;
     private Thread? connectionThread;
@@ -71,10 +72,29 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public StatusComponent StatusComponent { get; }
 
-    public MiaoNetContext()
+    public MiaoNetContext(MiaoNetModuleSettings settings)
     {
         RuntimeHelpers.RunClassConstructor(typeof(MiaoNetFont).TypeHandle);
-
+        if (settings.ServerIpAddr is not null)
+        {
+            TargetServer = settings.ServerIpAddr;
+        }
+        else
+        {
+            TargetServer = "s.saplonily.top";
+        }
+        
+        if (settings.ServerPort is not null)
+        {
+            if (int.TryParse(settings.ServerPort, out int port))
+            {
+                TargetPort = port;
+            }
+            else
+            {
+                TargetPort = 21473;
+            }
+        }
         receiveQueue = new();
         pendingRequests = new();
         mainThreadQueue = new();

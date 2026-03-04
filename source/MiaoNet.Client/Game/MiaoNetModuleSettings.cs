@@ -65,6 +65,9 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     #region Connection
 
+    public string? ServerIpAddr { get; set; }
+
+    public string? ServerPort { get; set; }
     public bool ConnectOnGameStart { get; set; }
 
     // This should be a temporary option

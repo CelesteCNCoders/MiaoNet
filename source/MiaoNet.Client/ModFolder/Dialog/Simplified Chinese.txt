@@ -14,6 +14,8 @@ miaonet_options_custom_auth_tip_in_game= 前往主界面后按下以修改
 miaonet_options_custom_auth_tip= 按下以修改
 
 miaonet_options_connection= 连接
+miaonet_options_connect_server_ip_address= 服务器 IP 地址：
+miaonet_options_connect_server_port= 服务器端口：
 miaonet_options_connect_on_game_start= 游戏启动时连接
 miaonet_options_ignore_cert_revocation_status= 跳过证书吊销检查
 miaonet_options_ignore_cert_revocation_status_tip=
@@ -104,6 +106,7 @@ miaonet_connection_status_no_token= 请先进行登录
 miaonet_connection_status_no_name= 请先设置名字
 miaonet_connection_status_connect_failed_with_reason= 连接失败。(0)
 miaonet_connection_status_connection_aborted= 连接被强制断开
+miaonet_connection_status_invalid_port= 端口无效
 
 miaonet_context_player_joined= (0) 加入了 MiaoNet
 miaonet_context_player_left= (0) 退出了 MiaoNet

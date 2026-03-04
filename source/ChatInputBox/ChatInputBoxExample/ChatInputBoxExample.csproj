@@ -3,7 +3,9 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <CelesteRootPath>C:/Program Files (x86)/Steam/steamapps/common/Celeste</CelesteRootPath>
+    <CelesteRootPath Condition="$([MSBuild]::IsOSPlatform('Linux'))">$(HOME)/.local/share/Steam/steamapps/common/Celeste</CelesteRootPath>
+    <CelesteRootPath Condition="$([MSBuild]::IsOSPlatform('Windows'))">C:\Program Files (x86)\Steam\steamapps\common\Celeste</CelesteRootPath>
+    <CelesteRootPath Condition="$([MSBuild]::IsOSPlatform('OSX'))">$(HOME)/Library/Application Support/Steam/steamapps/common/Celeste</CelesteRootPath>
     <RootNamespace>Celeste.Mod.ChatInputBoxExample</RootNamespace>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>

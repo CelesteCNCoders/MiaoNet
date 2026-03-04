@@ -15,6 +15,8 @@ miaonet_options_custom_auth_tip_in_game= Go to the main menu and press to edit.
 miaonet_options_custom_auth_tip= Press to edit.
 
 miaonet_options_connection= Connection
+miaonet_options_connect_server_ip_address= Server IP Address:
+miaonet_options_connect_server_port= Server Port:
 miaonet_options_connect_on_game_start= Connect On Game Start
 miaonet_options_ignore_cert_revocation_status= Skip Certificate Revocation Check
 miaonet_options_ignore_cert_revocation_status_tip=
@@ -107,6 +109,7 @@ miaonet_connection_status_no_token= Please login first
 miaonet_connection_status_no_name= Please name first
 miaonet_connection_status_connect_failed_with_reason= Connect failed. (0)
 miaonet_connection_status_connection_aborted= Connection aborted
+miaonet_connection_status_invalid_port= Invalid port.
 
 miaonet_context_player_joined= (0) joined MiaoNet
 miaonet_context_player_left= (0) left MiaoNet

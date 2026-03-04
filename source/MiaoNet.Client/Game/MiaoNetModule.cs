@@ -23,7 +23,7 @@ public sealed class MiaoNetModule : EverestModule
     private static readonly DetourConfig RootConfig = new("MiaoNet");
     private static readonly DetourConfig RootBeforeAllConfig = new("MiaoNet.BeforeAll", before: ["*"]);
 
-    public MiaoNetContext MiaoNetContext => miaoNetContext ??= new();
+    public MiaoNetContext MiaoNetContext => miaoNetContext ??= new(Settings);
 
     // TODO need we use scissors to render chats?
     /*

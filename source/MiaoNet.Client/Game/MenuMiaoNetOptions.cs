@@ -8,6 +8,32 @@ namespace Celeste.Mod.MiaoNet;
 
 public static class MenuMiaoNetOptions
 {
+    static void AddKeyboardButton(TextMenu menu, bool inGame, string label, Func<string?> getter, Action<string> setter)
+    {
+        var button = new TextMenu.Button($"{label} {getter()}");
+        if (!inGame)
+        {
+            button.OnPressed = () =>
+            {
+                Audio.Play(SFX.ui_main_savefile_rename_start);
+                menu.SceneAs<Overworld>()
+                    .Goto<OuiModOptionString>()
+                    .Init<OuiModOptions>(getter(), v =>
+                        {
+                            v = v.Trim();
+                            setter(v);
+                            button.Label = $"{label} {v}";
+                        }, 36, 2
+                    );
+            };
+        }
+        menu.Add(button);
+        if (inGame)
+            button.AddDescription(menu, Dialog.Get("miaonet_options_custom_auth_tip_in_game"));
+        else
+            button.AddDescription(menu, Dialog.Get("miaonet_options_custom_auth_tip"));
+    }
+
     public static void BuildHeader(TextMenu menu)
     {
         TextMenu.Item item;
@@ -69,35 +95,10 @@ public static class MenuMiaoNetOptions
             menu.Add(item);
         }
 #else
-        AddAuthPropButton(menu, inGame, Dialog.Get("miaonet_options_custom_auth_name"), () => settings.Name, v => settings.Name = v);
-        AddAuthPropButton(menu, inGame, Dialog.Get("miaonet_options_custom_auth_prefix"), () => settings.Prefix, v => settings.Prefix = v);
-        AddAuthPropButton(menu, inGame, Dialog.Get("miaonet_options_custom_auth_color"), () => settings.Color, v => settings.Color = v);
+        AddKeyboardButton(menu, inGame, Dialog.Get("miaonet_options_custom_auth_name"), () => settings.Name, v => settings.Name = v);
+        AddKeyboardButton(menu, inGame, Dialog.Get("miaonet_options_custom_auth_prefix"), () => settings.Prefix, v => settings.Prefix = v);
+        AddKeyboardButton(menu, inGame, Dialog.Get("miaonet_options_custom_auth_color"), () => settings.Color, v => settings.Color = v);
 
-        static void AddAuthPropButton(TextMenu menu, bool inGame, string label, Func<string?> getter, Action<string> setter)
-        {
-            var button = new TextMenu.Button($"{label} {getter()}");
-            if (!inGame)
-            {
-                button.OnPressed = () =>
-                {
-                    Audio.Play(SFX.ui_main_savefile_rename_start);
-                    menu.SceneAs<Overworld>()
-                        .Goto<OuiModOptionString>()
-                        .Init<OuiModOptions>(getter(), v =>
-                            {
-                                v = v.Trim();
-                                setter(v);
-                                button.Label = $"{label} {v}";
-                            }, 36, 2
-                        );
-                };
-            }
-            menu.Add(button);
-            if (inGame)
-                button.AddDescription(menu, Dialog.Get("miaonet_options_custom_auth_tip_in_game"));
-            else
-                button.AddDescription(menu, Dialog.Get("miaonet_options_custom_auth_tip"));
-        }
 #endif
 
         #endregion
@@ -106,6 +107,29 @@ public static class MenuMiaoNetOptions
 
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_connection"), false);
         menu.Add(item);
+
+        AddKeyboardButton(menu, inGame, Dialog.Get("miaonet_options_connect_server_ip_address"), () => settings.ServerIpAddr, v =>
+        {
+            settings.ServerIpAddr = v;
+            var context = MiaoNetModule.Instance.MiaoNetContext;
+            context.TargetServer = v;
+        });
+        AddKeyboardButton(
+            menu,
+            inGame,
+            Dialog.Get("miaonet_options_connect_server_port"),
+            () => settings.ServerPort,
+            v =>
+            {
+                var context = MiaoNetModule.Instance.MiaoNetContext;
+                if (int.TryParse(v, out int port) && port is > 0 and <= 65535) { settings.ServerPort = v; context.TargetPort = port; }
+                else
+                {
+
+                    context.StatusComponent.ShowStatusMessage("Bad Port");
+                }
+            }
+        );
 
         item = new TextMenu.OnOff(
             Dialog.Get("miaonet_options_connect_on_game_start"),

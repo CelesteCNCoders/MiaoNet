@@ -2,7 +2,10 @@
   <Import Project="CelesteMod.props" />
 
   <PropertyGroup>
-    <CelesteRootPath>C:\Program Files (x86)\Steam\steamapps\common\Celeste</CelesteRootPath>
+    <CelesteRootPath Condition="$([MSBuild]::IsOSPlatform('Linux'))">$(HOME)/.local/share/Steam/steamapps/common/Celeste</CelesteRootPath>
+    <CelesteRootPath Condition="$([MSBuild]::IsOSPlatform('Windows'))">C:\Program Files (x86)\Steam\steamapps\common\Celeste</CelesteRootPath>
+    <CelesteRootPath Condition="$([MSBuild]::IsOSPlatform('OSX'))">$(HOME)/Library/Application Support/Steam/steamapps/common/Celeste</CelesteRootPath>
+    <CelesteRootPath>/home/sakimidare/.local/share/Steam/steamapps/common/Celeste</CelesteRootPath>
     <AssemblyName>MiaoNet</AssemblyName>
     <RootNamespace>Celeste.Mod.MiaoNet</RootNamespace>
     <LangVersion>preview</LangVersion>
