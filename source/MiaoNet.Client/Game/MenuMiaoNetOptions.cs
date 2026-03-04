@@ -125,8 +125,7 @@ public static class MenuMiaoNetOptions
                 if (int.TryParse(v, out int port) && port is > 0 and <= 65535) { settings.ServerPort = v; context.TargetPort = port; }
                 else
                 {
-
-                    context.StatusComponent.ShowStatusMessage("Bad Port");
+                    context.StatusComponent.ShowStatusMessage(Dialog.Get("miaonet_connection_status_invalid_port"), false);
                 }
             }
         );
