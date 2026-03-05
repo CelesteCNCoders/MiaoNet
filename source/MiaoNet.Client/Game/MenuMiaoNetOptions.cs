@@ -137,13 +137,6 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
 
         item = new TextMenu.OnOff(
-            Dialog.Get("miaonet_options_trust_all_certs"),
-            settings.TrustAllCertificates
-        ).Change(v => settings.TrustAllCertificates = v);
-        menu.Add(item);
-        item.AddDescription(menu, Dialog.Clean("miaonet_options_trust_all_certs_tip"));
-
-        item = new TextMenu.OnOff(
             Dialog.Get("miaonet_options_ignore_cert_revocation_status"),
             settings.IgnoreCertRevocationStatus
         ).Change(v => settings.IgnoreCertRevocationStatus = v);

@@ -22,6 +22,8 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     public string TargetServer {get; set;}
     public int TargetPort { get; set; }
 
+    public bool TrustAllCertificates { get; set; } = false;
+
     private CancellationTokenSource? cts;
     private Thread? connectionThread;
     private readonly ConcurrentQueue<IContextualPacket> receiveQueue;

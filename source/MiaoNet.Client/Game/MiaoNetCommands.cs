@@ -19,4 +19,18 @@ public static class MiaoNetCommands
         var ctx = MiaoNetModule.Instance.MiaoNetContext;
         ctx.Disconnect();
     }
+
+    [Command("trust_all", "Trust all certificates when connecting to MiaoNet.")]
+    public static void TrustAllCertificates()
+    {
+        var ctx = MiaoNetModule.Instance.MiaoNetContext;
+        ctx.TrustAllCertificates = true;
+    }
+
+    [Command("distrust_all", "Do not trust all certificates when connecting to MiaoNet.")]
+    public static void DistrustAllCertificates()
+    {
+        var ctx = MiaoNetModule.Instance.MiaoNetContext;
+        ctx.TrustAllCertificates = false;
+    }
 }

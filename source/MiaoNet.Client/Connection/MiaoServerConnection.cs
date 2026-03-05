@@ -52,7 +52,7 @@ public sealed class MiaoServerConnection : IDisposable
         NetworkStream networkStream = new NetworkStream(socket);
         await networkStream.WriteAsync(Connection.HandshakeHead, token);
         SslStream sslStream;
-        if (MiaoNetModule.Settings.TrustAllCertificates)
+        if (MiaoNetModule.Instance.MiaoNetContext.TrustAllCertificates)
         {
             sslStream = new SslStream(networkStream, false, (sender, certificate, chain, errors) => true);
         }
