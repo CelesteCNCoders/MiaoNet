@@ -104,7 +104,7 @@ partial class MiaoNetContext
             MiaoServerConnection? connection = null;
             try
             {
-                Logger.Info(LT.MiaoNetConnection, "Trying connecting to " + ep.ToString()+ ".");
+                Logger.Info(LT.MiaoNetConnection, $"Trying connecting to {ep}.");
                 connection = await MiaoServerConnection.CreateAsync(ep, TargetServer, handshakeData, token);
 
                 Version localVersion = MiaoNetModule.Instance.Metadata.Version;
