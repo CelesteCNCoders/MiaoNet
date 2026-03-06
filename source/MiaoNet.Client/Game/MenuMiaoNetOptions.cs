@@ -108,9 +108,9 @@ public static class MenuMiaoNetOptions
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_connection"), false);
         menu.Add(item);
 
-        AddKeyboardButton(menu, inGame, Dialog.Get("miaonet_options_connect_server_ip_address"), () => settings.ServerIpAddr, v =>
+        AddKeyboardButton(menu, inGame, Dialog.Get("miaonet_options_connect_server_ip_address"), () => settings.TargetServer, v =>
         {
-            settings.ServerIpAddr = v;
+            settings.TargetServer = v;
             var context = MiaoNetModule.Instance.MiaoNetContext;
             context.TargetServer = v;
         });
@@ -118,11 +118,11 @@ public static class MenuMiaoNetOptions
             menu,
             inGame,
             Dialog.Get("miaonet_options_connect_server_port"),
-            () => settings.ServerPort,
+            () => settings.TargetPort,
             v =>
             {
                 var context = MiaoNetModule.Instance.MiaoNetContext;
-                if (int.TryParse(v, out int port) && port is > 0 and <= 65535) { settings.ServerPort = v; context.TargetPort = port; }
+                if (int.TryParse(v, out int port) && port is > 0 and <= 65535) { settings.TargetPort = v; context.TargetPort = port; }
                 else
                 {
                     context.StatusComponent.ShowStatusMessage(Dialog.Get("miaonet_connection_status_invalid_port"), false);

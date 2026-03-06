@@ -65,9 +65,9 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     #region Connection
 
-    public string? ServerIpAddr { get; set; }
+    public string? TargetServer { get; set; }
 
-    public string? ServerPort { get; set; }
+    public string? TargetPort { get; set; }
     public bool ConnectOnGameStart { get; set; }
 
     // This should be a temporary option
@@ -194,12 +194,12 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     {
         ResetEmotes();
         ResetKeyBindings();
-        if (ServerIpAddr is null)
+        if (TargetServer is null)
         {
-            ServerIpAddr = "s.saplonily.top";
+            TargetServer = "s.saplonily.top";
         }
-        if (ServerPort is null) {
-            ServerPort = "21473";
+        if (TargetPort is null) {
+            TargetPort = "21473";
         }
     }
 

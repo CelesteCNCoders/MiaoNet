@@ -77,18 +77,18 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     public MiaoNetContext(MiaoNetModuleSettings settings)
     {
         RuntimeHelpers.RunClassConstructor(typeof(MiaoNetFont).TypeHandle);
-        if (settings.ServerIpAddr is not null)
+        if (settings.TargetServer is not null)
         {
-            TargetServer = settings.ServerIpAddr;
+            TargetServer = settings.TargetServer;
         }
         else
         {
             TargetServer = "s.saplonily.top";
         }
         
-        if (settings.ServerPort is not null)
+        if (settings.TargetPort is not null)
         {
-            if (int.TryParse(settings.ServerPort, out int port))
+            if (int.TryParse(settings.TargetPort, out int port))
             {
                 TargetPort = port;
             }
