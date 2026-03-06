@@ -14,8 +14,8 @@ miaonet_options_custom_auth_tip_in_game= 前往主界面后按下以修改
 miaonet_options_custom_auth_tip= 按下以修改
 
 miaonet_options_connection= 连接
-miaonet_options_connect_server_ip_address= 服务器地址：
-miaonet_options_connect_server_port= 服务器端口：
+miaonet_options_connect_target_server= 服务器地址：
+miaonet_options_connect_target_port= 服务器端口：
 miaonet_options_connect_on_game_start= 游戏启动时连接
 miaonet_options_trust_all_certs= 强制信任所有证书
 miaonet_options_trust_all_certs_tip= 

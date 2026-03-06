@@ -108,7 +108,7 @@ public static class MenuMiaoNetOptions
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_connection"), false);
         menu.Add(item);
 
-        AddKeyboardButton(menu, inGame, Dialog.Get("miaonet_options_connect_server_ip_address"), () => settings.TargetServer, v =>
+        AddKeyboardButton(menu, inGame, Dialog.Get("miaonet_options_connect_target_server"), () => settings.TargetServer, v =>
         {
             settings.TargetServer = v;
             var context = MiaoNetModule.Instance.MiaoNetContext;
@@ -117,7 +117,7 @@ public static class MenuMiaoNetOptions
         AddKeyboardButton(
             menu,
             inGame,
-            Dialog.Get("miaonet_options_connect_server_port"),
+            Dialog.Get("miaonet_options_connect_target_port"),
             () => settings.TargetPort,
             v =>
             {

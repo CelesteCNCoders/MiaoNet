@@ -15,8 +15,8 @@ miaonet_options_custom_auth_tip_in_game= Go to the main menu and press to edit.
 miaonet_options_custom_auth_tip= Press to edit.
 
 miaonet_options_connection= Connection
-miaonet_options_connect_server_ip_address= Server Address:
-miaonet_options_connect_server_port= Server Port:
+miaonet_options_connect_target_server= Server Address:
+miaonet_options_connect_target_port= Server Port:
 miaonet_options_connect_on_game_start= Connect On Game Start
 miaonet_options_ignore_cert_revocation_status= Skip Certificate Revocation Check
 miaonet_options_trust_all_certs= Force To Trust All Certificates
