@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Microsoft.Xna.Framework.Input;
 using YamlDotNet.Serialization;
 
@@ -177,6 +178,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public ButtonBinding PlayerListScrollDown { get; set; }
 
+    public ButtonBinding EmoteWheelSendEmote { get; set; }
+
     #endregion
 
     #region 
@@ -205,6 +208,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
         CreateFireworksButton = new(0, 0);
         PlayerListScrollUp = new(0, Keys.PageUp);
         PlayerListScrollDown = new(0, Keys.PageDown);
+        EmoteWheelSendEmote = new(Buttons.RightStick, 0);
     }
 
     public void ResetEmotes()
@@ -227,7 +231,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
             ChatButton, ChatCommandButton, PlayerListButton,
             .. EmoteButtons,
             CreateFireworksButton,
-            PlayerListScrollUp, PlayerListScrollDown
+            PlayerListScrollUp, PlayerListScrollDown,
+            EmoteWheelSendEmote
         ];
     }
 

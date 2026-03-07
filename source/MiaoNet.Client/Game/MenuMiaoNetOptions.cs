@@ -483,16 +483,7 @@ public static class MenuMiaoNetOptions
             AddMapForceLabel(Dialog.Get("miaonet_options_button_create_fireworks"), settings.CreateFireworksButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list_scroll_up"), settings.PlayerListScrollUp.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list_scroll_down"), settings.PlayerListScrollDown.Binding);
-
-            while (settings.EmoteButtons.Count < settings.Emotes.Count)
-                settings.EmoteButtons.Add(new());
-
-            Add(new SubHeader(Dialog.Get("miaonet_options_button_emotes")));
-            for (int i = 0; i < settings.Emotes.Count; i++)
-                AddMapForceLabel(
-                    Dialog.Get("miaonet_options_button_emote_i").Replace("(0)", (i + 1).ToString()),
-                    settings.EmoteButtons[i].Binding
-                );
+            AddMapForceLabel(Dialog.Get("miaonet_options_button_emote_wheel_send_emote"), settings.EmoteWheelSendEmote.Binding);
 
             Add(new SubHeader(string.Empty));
             Add(new Button(Dialog.Clean("KEY_CONFIG_RESET"))

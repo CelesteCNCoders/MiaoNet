@@ -85,6 +85,7 @@ miaonet_options_button_player_list= 打开玩家列表
 miaonet_options_button_create_fireworks= 生成烟花
 miaonet_options_button_player_list_scroll_up= 向上滚动玩家列表
 miaonet_options_button_player_list_scroll_down= 向下滚动玩家列表
+miaonet_options_button_emote_wheel_send_emote= Emote 轮盘发送 Emote
 miaonet_options_button_emotes= Emotes
 miaonet_options_button_emote_i= 发送 Emote (0)
 

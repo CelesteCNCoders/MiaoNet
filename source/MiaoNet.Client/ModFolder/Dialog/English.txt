@@ -88,6 +88,7 @@ miaonet_options_button_player_list= Open Player List
 miaonet_options_button_create_fireworks= Create Fireworks
 miaonet_options_button_player_list_scroll_up= Scroll Up Player List
 miaonet_options_button_player_list_scroll_down= Scroll Down Player List
+miaonet_options_button_emote_wheel_send_emote= Emote Wheel Send Emote
 miaonet_options_button_emotes= Emotes
 miaonet_options_button_emote_i= Send Emote (0)
 

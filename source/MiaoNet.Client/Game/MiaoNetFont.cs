@@ -82,10 +82,12 @@ public static class MiaoNetFont
         Color color
     )
     {
+        float alpha = (color.A / 255f);
+        alpha *= alpha * alpha;
         ENZhsFont.DrawOutline(
             ENZhsBaseSize, text, position,
             justify, scale, color,
-            2f, Color.Black with { A = (byte)((color.A / 255f) * (color.A / 255f) * 255f) }
+            2f, Color.Black * alpha
         );
     }
 

@@ -121,12 +121,18 @@ public sealed class MiaoNetModule : EverestModule
     {
         foreach (var item in Settings.GetButtonBindings())
             InitializeButton(item);
+
+        static void InitializeButton(ButtonBinding buttonBinding)
+        {
+            buttonBinding.Button = new VirtualButton(buttonBinding.Binding, Input.Gamepad, 0.08f, 0.2f);
+            buttonBinding.Button.AutoConsumeBuffer = true;
+        }
     }
 
-    public static void InitializeButton(ButtonBinding buttonBinding)
+    public override void OnInputDeregister()
     {
-        buttonBinding.Button = new VirtualButton(buttonBinding.Binding, Input.Gamepad, 0.08f, 0.2f);
-        buttonBinding.Button.AutoConsumeBuffer = true;
+        foreach (var item in Settings.GetButtonBindings())
+            item.Button?.Deregister();
     }
 
     private static void ILHook_LeaderFollowersMarkDirty(ILContext il)

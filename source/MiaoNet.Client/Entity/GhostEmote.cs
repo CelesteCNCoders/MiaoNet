@@ -17,7 +17,7 @@ public sealed class GhostEmote : MiaoNetEntity
 
     private GhostEmote(Entity target)
     {
-        Tag = MiaoNetTag.Tag |TagsExt.SubHUD;
+        Tag = MiaoNetTag.Tag | TagsExt.SubHUD;
         this.target = target;
         Add(new Coroutine(Routine()));
     }

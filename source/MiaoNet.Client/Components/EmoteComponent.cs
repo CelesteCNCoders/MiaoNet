@@ -7,6 +7,8 @@ public sealed class EmoteComponent : MiaoNetComponent
 {
     private static bool IsLiveMode => MiaoNetModule.Settings.LiveMode;
 
+    private EmoteWheel? wheel;
+
     public EmoteComponent(MiaoNetContext context)
         : base(context)
     {
@@ -37,6 +39,27 @@ public sealed class EmoteComponent : MiaoNetComponent
                     SendEmote(player, emoteData);
                 else
                     SendEmote(player, content);
+            }
+        }
+
+        if (MInput.ControllerHasFocus)
+        {
+            if (wheel is null)
+            {
+                wheel = new(player);
+                wheel.OnEmote += (te) =>
+                {
+                    if (te.Item1 is not null)
+                        SendEmote((EmoteData)te.Item1);
+                    else
+                        SendEmote(te.Item2!);
+                };
+            }
+            wheel.Tracking = player;
+            if (wheel.Scene != player.Scene)
+            {
+                wheel.RemoveSelf();
+                level.Add(wheel);
             }
         }
     }
