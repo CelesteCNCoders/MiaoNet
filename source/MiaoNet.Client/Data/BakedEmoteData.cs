@@ -55,7 +55,7 @@ public sealed class BakedEmoteData
             {
                 builder.Add(GFX.Game.GetFallback());
                 Logger.Warn(LT.MiaoNetEmoteData, string.Format(SR.FrameNotFound, fullFrameName));
-                break;
+                continue;
             }
         }
 
