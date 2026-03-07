@@ -18,8 +18,6 @@ public sealed class EmoteComponent : MiaoNetComponent
     {
         if (Engine.Scene is not Level level)
             return;
-        if (level.Paused)
-            return;
 
         Player player = level.Tracker.GetEntity<Player>();
         if (player is null)
