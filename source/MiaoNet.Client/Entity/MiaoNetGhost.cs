@@ -438,6 +438,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         {
             respawning = true;
             deadEase = 1f;
+            UpdateVisible();
             UpdateCollidable();
             var tween = Tween.Set(this, Tween.TweenMode.Oneshot, 0.6f, null,
                 t =>
@@ -599,7 +600,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     private void UpdateVisible()
     {
         bool watching = OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching);
-        Visible = !dead && !watching;
+        Visible = (!dead || respawning) && !watching;
         nameTag.Visible = !watching;
     }
 
