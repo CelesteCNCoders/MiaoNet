@@ -101,6 +101,7 @@ partial class MiaoNetContext
             handshakeData = new(langCode, AuthenticationType.QuickLogin, authData, netMods);
 #endif
 
+            Logger.Info(LT.MiaoNetConnection, $"Trying connecting to {ep}...");
             MiaoServerConnection? connection = null;
             try
             {

@@ -50,7 +50,12 @@ partial class MiaoNetContext
     private void HandlePacket(PacketDisconnected packet)
     {
         OnDisconnected();
-        StatusComponent.ShowStatusMessage($"{packet.Reason}, {packet.Message}");
+        if (packet.Reason == DisconnectReason.Kicked && packet.Message is not null)
+        {
+            StatusComponent.ShowStatusMessage(ConnectionStatus.Kicked(packet.Message));
+            return;
+        }
+        StatusComponent.ShowStatusMessage($"{packet.Reason}. {packet.Message}");
     }
 
     private void HandlePacket(PacketPlayerJoined packet)
