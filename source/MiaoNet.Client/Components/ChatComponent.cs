@@ -25,8 +25,10 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
     private float lastMouseScrollWheelValue;
 
+    // i hate these "previous" things
     private bool previousCommandsEnabled = false;
     private bool previousScenePaused = false;
+    private bool previousAllowHudHide = true;
     private readonly PauseUpdateOverlay dummyOverlay;
 
     private bool active;
@@ -297,7 +299,11 @@ public sealed partial class ChatComponent : MiaoNetComponent
         Engine.Scene.Paused = true;
 
         if (Engine.Scene is Level level)
+        {
+            previousAllowHudHide = level.AllowHudHide;
             level.Add(dummyOverlay);
+            level.AllowHudHide = false;
+        }
     }
 
     private void Deactivate()
@@ -312,7 +318,10 @@ public sealed partial class ChatComponent : MiaoNetComponent
         Engine.Scene.Paused = previousScenePaused;
 
         if (Engine.Scene is Level level)
+        {
             level.Remove(dummyOverlay);
+            level.AllowHudHide = previousAllowHudHide;
+        }
     }
 
     public override void Render()
