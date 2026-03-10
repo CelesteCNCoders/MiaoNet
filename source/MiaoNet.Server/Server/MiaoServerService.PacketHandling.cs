@@ -41,10 +41,10 @@ public sealed partial class MiaoServerService
             return;
         }
 
-        int fc = packet.FollowerInitials is not null 
-            ? packet.FollowerInitials.Length 
-            : packet.FollowerDeltas is not null 
-                ? packet.FollowerDeltas.Length 
+        int fc = packet.FollowerInitials is not null
+            ? packet.FollowerInitials.Length
+            : packet.FollowerDeltas is not null
+                ? packet.FollowerDeltas.Length
                 : 0;
         if (fc > 12)
         {
@@ -217,6 +217,12 @@ public sealed partial class MiaoServerService
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketSendChatMessage packet)
     {
         logger.LogInformation(AppEvents.GameChat, "{player}: {msg}", connection.Player.Info, packet.Content);
+        if (packet.Content.Length > 64)
+        {
+            logger.LogWarning(AppEvents.GameChat, "{player} is sending a large chat!", connection.Player.Info);
+            await connection.DisconnectAsync(DisconnectReason.Kicked, "Chat too long.");
+            return;
+        }
         await BroadcastAsync(new PacketChatMessage(DateTime.UtcNow, ChatMessageType.Chat, connection.Player.ID, packet.Content));
     }
 

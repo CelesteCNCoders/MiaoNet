@@ -30,6 +30,8 @@ public sealed class InputBox
 
     public bool HasCompletions => completions is { Count: > 0 };
 
+    public int MaxTextLength { get; set; } = 64;
+
     static InputBox()
     {
         leftButton = new(new Binding() { Keyboard = [Keys.Left] }, Input.Gamepad, 0f, 0.4f);
@@ -51,11 +53,14 @@ public sealed class InputBox
         this.completionProvider = completionProvider;
 
         buffer = new();
-        buffer.TextOrCaretChanged += UpdateCompletions;
+        buffer.TextOrCaretChanged += OnTextOrCaretChanged;
     }
 
-    private void UpdateCompletions()
+    private void OnTextOrCaretChanged()
     {
+        if (buffer.Text.Length > MaxTextLength)
+            buffer.SetText(buffer.Text.Substring(0, MaxTextLength));
+
         completions = completionProvider.GetCompletions(buffer.TextBeforeCaret)?.ToList();
         selectedCompletionIndex = -1;
     }
