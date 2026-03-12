@@ -329,6 +329,7 @@ public sealed class MiaoNetModule : EverestModule
 
     public static void OnLoadState(Level level)
     {
+        PlayerLocationChanged?.Invoke(PlayerLocation.FetchFrom(level.Session), false);
         PreviewPlayerRespawn?.Invoke(level.Tracker.GetEntity<Player>(), level, true);
     }
 
