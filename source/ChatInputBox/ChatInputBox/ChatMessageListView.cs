@@ -177,19 +177,23 @@ public sealed class ChatMessageListView
 
             if (seg.Style.HasFlag(ChatTextStyle.Underscore))
             {
+                float thinkness = Math.Max(2f, 4f * textRenderer.LineHeight / 96f);
                 Draw.Line(
                     new Vector2(curX, curY),
                     new Vector2(curX + size.X, curY),
-                    seg.Color * fade * TextOpacity
+                    seg.Color * fade * TextOpacity,
+                    thinkness
                 );
             }
 
             if (seg.Style.HasFlag(ChatTextStyle.Strikethrough))
             {
+                float thinkness = Math.Max(2f, 4f * textRenderer.LineHeight / 96f);
                 Draw.Line(
                     new Vector2(curX, curY - lineHeight / 2f),
                     new Vector2(curX + size.X, curY - lineHeight / 2),
-                    seg.Color * fade * TextOpacity
+                    seg.Color * fade * TextOpacity,
+                    thinkness
                 );
             }
 
