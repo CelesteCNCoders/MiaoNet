@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Channels;
@@ -13,14 +14,14 @@ using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
-public sealed class MiaoServerConnection : IDisposable
+public sealed partial class MiaoServerConnection : IDisposable
 {
     private static readonly ArrayPool<byte> pool = ArrayPool<byte>.Shared;
 
     private readonly Socket socket;
     private readonly SslStream sslStream;
 
-    // TODO use memory stream is not so good
+    // TODO we need to stop using this
     private readonly MemoryStream sendMemoryStream;
 
     private readonly ConcurrentQueue<IContextualPacket> sendQueue;
@@ -41,7 +42,7 @@ public sealed class MiaoServerConnection : IDisposable
     public static async Task<MiaoServerConnection> CreateAsync(
         EndPoint endPoint,
         string hostName,
-        HandshakeData handshakeData,
+        bool revocationCheck,
         CancellationToken token
     )
     {
@@ -66,12 +67,11 @@ public sealed class MiaoServerConnection : IDisposable
             return string.Equals(remote.Thumbprint, cert.Thumbprint, StringComparison.OrdinalIgnoreCase);
         });
 #endif
-        bool checkRevocation = !MiaoNetModule.Settings.IgnoreCertRevocationStatus;
         SslClientAuthenticationOptions options = new()
         {
             TargetHost = hostName,
             EnabledSslProtocols = Connection.AllowedSslProtocols,
-            CertificateRevocationCheckMode = checkRevocation
+            CertificateRevocationCheckMode = revocationCheck
                 ? X509RevocationMode.Online
                 : X509RevocationMode.NoCheck
         };
@@ -195,6 +195,68 @@ public sealed class MiaoServerConnection : IDisposable
         }
     }
 
+    // hmmm I think using async enumerable is somehow not the best way
+    // but I can't think up any better
+    public async IAsyncEnumerable<IContextualPacket> ReceivePacketsLoopAsync(
+        IPacketSerializationContext context,
+        [EnumeratorCancellation] CancellationToken token
+    )
+    {
+        const int HeadSize = 2 * sizeof(ushort);
+        byte[] headBuffer = new byte[HeadSize];
+        while (!token.IsCancellationRequested)
+        {
+            IContextualPacket? packet;
+
+            // read head
+            ushort size, type;
+            {
+                int count = await sslStream.ReadAtLeastAsync(headBuffer, HeadSize, false, token);
+                if (count < HeadSize)
+                    packet = null;
+
+                size = BinaryPrimitives.ReadUInt16LittleEndian(headBuffer);
+                type = BinaryPrimitives.ReadUInt16LittleEndian(headBuffer.AsSpan().Slice(sizeof(ushort)));
+            }
+
+            // read payload
+            var payloadBuffer = pool.Rent(size);
+            try
+            {
+                Memory<byte> payloadMemory = payloadBuffer.AsMemory().Slice(0, size);
+                int count = await sslStream.ReadAtLeastAsync(payloadMemory, size, false, token);
+                if (count < size)
+                    packet = null;
+
+                try
+                {
+                    RefBinaryReader reader = new(payloadMemory.Span);
+                    var readHandler = PacketRegistry.GetPacketReader(type);
+                    packet = readHandler(ref reader, context);
+                }
+                catch (Exception e)
+                {
+                    Logger.Error(
+                        LT.MiaoNetPacketReading,
+                        $"Read packet failed, size: {size}, type: {type}. Raw payload:\n" +
+                            Convert.ToBase64String(payloadMemory.ToArray())
+                    );
+                    Logger.LogDetailed(e, LT.MiaoNetPacketReading);
+                    throw;
+                }
+            }
+            finally
+            {
+                pool.Return(payloadBuffer);
+            }
+
+            if (packet is null)
+                yield break;
+            else
+                yield return packet;
+        }
+    }
+
     public int QueuePacket(IContextualPacket packet)
     {
         sendQueue.Enqueue(packet);
@@ -203,7 +265,7 @@ public sealed class MiaoServerConnection : IDisposable
         return count;
     }
 
-    public async Task SendPacketAsync(IContextualPacket packet, IPacketSerializationContext context, CancellationToken token)
+    private async Task SendPacketAsync(IContextualPacket packet, IPacketSerializationContext context, CancellationToken token)
     {
         sendMemoryStream.Seek(2, SeekOrigin.Begin);
         RefBinaryWriter writer = new(sendMemoryStream);
@@ -214,58 +276,5 @@ public sealed class MiaoServerConnection : IDisposable
         sendMemoryStream.Seek(0, SeekOrigin.Begin);
         writer.Write(length);
         await sslStream.WriteAsync(sendMemoryStream.GetBuffer().AsMemory(0, length + 2 * sizeof(ushort)), token);
-    }
-
-    public async Task<IContextualPacket?> ReceivePacketAsync(IPacketSerializationContext context, CancellationToken token)
-    {
-        const int HeadSize = 2 * sizeof(ushort);
-
-        var headBuffer = pool.Rent(HeadSize);
-        ushort size, type;
-        try
-        {
-            Memory<byte> headMemory = headBuffer.AsMemory().Slice(0, HeadSize);
-            int count = await sslStream.ReadAtLeastAsync(headMemory, HeadSize, false, token);
-            if (count < HeadSize)
-                return null;
-
-            size = BinaryPrimitives.ReadUInt16LittleEndian(headMemory.Span);
-            type = BinaryPrimitives.ReadUInt16LittleEndian(headMemory.Span.Slice(sizeof(ushort)));
-        }
-        finally
-        {
-            pool.Return(headBuffer);
-        }
-
-        var payloadBuffer = pool.Rent(size);
-        try
-        {
-            Memory<byte> payloadMemory = payloadBuffer.AsMemory().Slice(0, size);
-            int count = await sslStream.ReadAtLeastAsync(payloadMemory, size, false, token);
-            if (count < size)
-                return null;
-
-            try
-            {
-                RefBinaryReader reader = new(payloadMemory.Span);
-                var readHandler = PacketRegistry.GetPacketReader(type);
-                IContextualPacket packet = readHandler(ref reader, context);
-                return packet;
-            }
-            catch (Exception e)
-            {
-                Logger.Error(
-                    LT.MiaoNetPacketReading,
-                    $"Read packet failed, size: {size}, type: {type}. Raw payload:\n" +
-                        Convert.ToBase64String(payloadMemory.ToArray())
-                );
-                Logger.LogDetailed(e, LT.MiaoNetPacketReading);
-                throw;
-            }
-        }
-        finally
-        {
-            pool.Return(payloadBuffer);
-        }
     }
 }

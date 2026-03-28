@@ -11,18 +11,9 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     private int currentRequestID;
     // request id -> on response handler
     private readonly ConcurrentDictionary<int, Action<PacketResponse>> pendingRequests;
-
     //private int warningTimes;
-#if DEBUG
-    public string TargetServer { get; set; } = "127.0.0.1";
-#else
-    public string TargetServer { get; set; } = "s.saplonily.top";
-#endif
-
-    public int TargetPort { get; set; } = 21473;
 
     private CancellationTokenSource? cts;
-    private Thread? connectionThread;
     private readonly ConcurrentQueue<IContextualPacket> receiveQueue;
     private readonly ConcurrentQueue<Action> mainThreadQueue;
 
@@ -32,6 +23,14 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     private readonly PacketDispatcher packetDispatcher;
 
     private ClientState? clientState;
+
+#if DEBUG
+    public string TargetServer { get; set; } = "127.0.0.1";
+#else
+    public string TargetServer { get; set; } = "s.saplonily.top";
+#endif
+
+    public int TargetPort { get; set; } = 21473;
 
     public static bool IsSuitableToOpenUI
     {
@@ -95,10 +94,10 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public void Connect()
     {
-        if (connectionThread is not null)
+        if (cts is not null)
             return;
         cts = new();
-        connectionThread = new(ConnectionThread);
+        Thread connectionThread = new(new ParameterizedThreadStart(ConnectionThread));
         connectionThread.Name = "MiaoNet Connection";
         connectionThread.Start(cts.Token);
         StatusComponent.ShowStatusMessage(ConnectionStatus.Connecting, true);
@@ -127,7 +126,6 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     {
         cts?.Cancel();
         cts = null;
-        connectionThread = null;
         // any better ways?
         while (receiveQueue.TryDequeue(out var packet))
         {
@@ -161,25 +159,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                 item();
 
             while (receiveQueue.TryDequeue(out var packet))
-            {
-                if (packet is PacketResponse response)
-                {
-                    if (pendingRequests.TryRemove(response.RequestID, out var handler))
-                    {
-                        handler(response);
-                    }
-                    else
-                    {
-                        Logger.Warn(LT.MiaoNet, $"Unknown response id: {response.RequestID}.");
-                    }
-                }
-                else
-                {
-                    bool handled = packetDispatcher.DispatchPacket(packet);
-                    if (!handled)
-                        Logger.Warn(LT.MiaoNet, $"Unhandled packet type: {packet.GetType()}.");
-                }
-            }
+                HandleQueuedPacket(packet);
 
             if (!HasConnection)
                 return;
@@ -191,6 +171,38 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             Logger.Error(LT.MiaoNet, "Exception occurred during updating!");
             Logger.LogDetailed(e, LT.MiaoNet);
             DisconnectByException(e);
+        }
+    }
+
+    // warn: this is called on Connection Thread
+    private bool HandleDirectPacket(IContextualPacket packet)
+    {
+        if (packet is PacketPing ping)
+        {
+            Response(ping, new PacketPong());
+            return true;
+        }
+        return false;
+    }
+
+    private void HandleQueuedPacket(IContextualPacket packet)
+    {
+        if (packet is PacketResponse response)
+        {
+            if (pendingRequests.TryRemove(response.RequestID, out var handler))
+            {
+                handler(response);
+            }
+            else
+            {
+                Logger.Warn(LT.MiaoNet, $"Unknown response id: {response.RequestID}.");
+            }
+        }
+        else
+        {
+            bool handled = packetDispatcher.DispatchPacket(packet);
+            if (!handled)
+                Logger.Warn(LT.MiaoNet, $"Unhandled packet type: {packet.GetType()}.");
         }
     }
 

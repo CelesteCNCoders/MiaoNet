@@ -5,6 +5,7 @@ using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
+// TODO this is ugly, we need a refactor on this
 partial class MiaoNetContext
 {
     private void ConnectionThread(object? param)
@@ -28,13 +29,14 @@ partial class MiaoNetContext
                 // throw to main thread
                 mainThreadQueue.Enqueue(() => throw t.Exception);
             }
-        });
+        }, taskScheduler);
 
         try
         {
             syncCtx.ProcessLoop(threadCts.Token);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException e)
+        when (e.CancellationToken == threadCts.Token)
         {
             Logger.Info(LT.MiaoNetConnection, "Connection thread cancelled.");
             return;
@@ -103,9 +105,12 @@ partial class MiaoNetContext
 
             Logger.Info(LT.MiaoNetConnection, $"Trying connecting to {ep}...");
             MiaoServerConnection? connection = null;
+
+            IAsyncEnumerator<IContextualPacket> packetsAsyncEnumerator;
             try
             {
-                connection = await MiaoServerConnection.CreateAsync(ep, TargetServer, handshakeData, token);
+                bool revocationCheck = !MiaoNetModule.Settings.IgnoreCertRevocationStatus;
+                connection = await MiaoServerConnection.CreateAsync(ep, TargetServer, revocationCheck, token);
 
                 Version localVersion = MiaoNetModule.Instance.Metadata.Version;
                 Version? version = await connection.MakeVersionCheck(localVersion, token);
@@ -138,7 +143,10 @@ partial class MiaoNetContext
                 }
 #endif
 
-                IContextualPacket? packetInitial = await connection!.ReceivePacketAsync(context, token);
+                packetsAsyncEnumerator = connection.ReceivePacketsLoopAsync(context, token).GetAsyncEnumerator(token);
+
+                await packetsAsyncEnumerator.MoveNextAsync();
+                IContextualPacket? packetInitial = packetsAsyncEnumerator.Current;
                 if (packetInitial is not PacketClientInitial clientInitial)
                 {
                     if (packetInitial is null)
@@ -152,7 +160,7 @@ partial class MiaoNetContext
                 else
                 {
                     Logger.Info(LT.MiaoNetConnection, $"Connected to {ep}.");
-
+                    TaskCompletionSource ackTaskSource = new();
                     mainThreadQueue.Enqueue(() =>
                     {
 #if USE_CELEMIAO_AUTH
@@ -163,7 +171,10 @@ partial class MiaoNetContext
                         ClientInitialized?.Invoke(clientState);
                         StatusComponent.ShowStatusMessage(ConnectionStatus.Connected);
                         OnConnected();
+                        ackTaskSource.SetResult();
                     });
+                    // wait until the main thread ack we've finished connecting
+                    await ackTaskSource.Task;
                 }
 
             }
@@ -188,19 +199,60 @@ partial class MiaoNetContext
             {
                 using (CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(token))
                 {
-                    Task receiveTask = ReceivePacketsLoopAsync(connection, context, cts.Token);
+                    Task receiveTask = DoReceivingAndProcessingAsync(packetsAsyncEnumerator, context, cts.Token);
                     Task sendTask = connection.SendPacketsLoopAsync(context, cts.Token);
 
                     Task task = await Task.WhenAny(receiveTask, sendTask);
                     if (task.IsFaulted)
                         await task;
                     cts.Cancel();
+
+                    async Task DoReceivingAndProcessingAsync(
+                        IAsyncEnumerator<IContextualPacket> packets,
+                        IPacketSerializationContext context,
+                        CancellationToken token
+                    )
+                    {
+#if PACKET_TRACING
+                        System.Text.Json.JsonSerializerOptions options = new()
+                        {
+                            IncludeFields = true,
+                            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All),
+                            Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+                        };
+#endif
+                        while (await packets.MoveNextAsync())
+                        {
+                            var packet = packets.Current;
+
+                            if (!HandleDirectPacket(packet))
+                                receiveQueue.Enqueue(packet);
+#if PACKET_TRACING
+                            string typeName = packet.GetType().ToString();
+                            if (
+                                !typeName.Contains("Frame")
+                                && !typeName.Contains("PingData")
+                                && !typeName.Contains("UpdateOnlineStatus")
+                                && !typeName.Contains("PlayedAudio")
+                                && !typeName.Contains("PacketPing")
+                            )
+                            {
+                                var pColor = Console.ForegroundColor;
+                                Console.ForegroundColor = ConsoleColor.Green;
+                                Console.WriteLine($"== Type: {packet.GetType()} ==");
+                                Console.ForegroundColor = ConsoleColor.DarkGreen;
+                                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize((object)packet, options));
+                                Console.ForegroundColor = pColor;
+                            }
+#endif
+                        }
+                    }
                 }
             }
             catch (OperationCanceledException e)
             when (e.CancellationToken == token)
             {
-                Logger.Info(LT.MiaoNetConnection, "Connection cancelled");
+                Logger.Info(LT.MiaoNetConnection, "Connection cancelled.");
                 QueueDisconnectStatus(ConnectionStatus.Cancelled);
                 return;
             }
@@ -211,57 +263,6 @@ partial class MiaoNetContext
                     e = se;
                 QueueDisconnectStatus(ConnectionStatus.DisconnectedWithReason(e.Message));
                 return;
-            }
-        }
-
-        // TODO move to connection
-        async Task ReceivePacketsLoopAsync(
-            MiaoServerConnection connection,
-            IPacketSerializationContext context,
-            CancellationToken token
-        )
-        {
-#if PACKET_TRACING
-            System.Text.Json.JsonSerializerOptions options = new()
-            {
-                IncludeFields = true,
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All),
-                Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
-            };
-#endif
-
-            await Task.Yield();
-            while (!token.IsCancellationRequested)
-            {
-                IContextualPacket? packet = await connection.ReceivePacketAsync(context, token);
-                if (packet is null)
-                    return;
-
-                // quickly handle ping packets
-                if (packet is PacketPing ping)
-                {
-                    // we may still don't have connection set this time
-                    connection.QueuePacket(new PacketPong() { RequestID = ping.RequestID });
-                    continue;
-                }
-#if PACKET_TRACING
-                string typeName = packet.GetType().ToString();
-                if (
-                    !typeName.Contains("Frame")
-                    && !typeName.Contains("PingData")
-                    && !typeName.Contains("UpdateOnlineStatus")
-                    && !typeName.Contains("PlayedAudio")
-                )
-                {
-                    var pColor = Console.ForegroundColor;
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"== Type: {packet.GetType()} ==");
-                    Console.ForegroundColor = ConsoleColor.DarkGreen;
-                    Console.WriteLine(System.Text.Json.JsonSerializer.Serialize((object)packet, options));
-                    Console.ForegroundColor = pColor;
-                }
-#endif
-                receiveQueue.Enqueue(packet);
             }
         }
 
