@@ -72,6 +72,8 @@ public sealed class SerializedPacket
 
     public void OnConsumed(int count)
     {
+        if (count == 0)
+            return;
         int v = Interlocked.Add(ref clientCount, -count);
         if (v < 0)
             throw new ArgumentOutOfRangeException(nameof(count)); // TODO message

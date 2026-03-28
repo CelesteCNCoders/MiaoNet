@@ -545,8 +545,7 @@ public sealed partial class MiaoServerService : BackgroundService
                 notMeetCount++;
             }
         }
-        if (notMeetCount != 0)
-            serializedPacket.OnConsumed(notMeetCount);
+        serializedPacket.OnConsumed(notMeetCount);
         if (bounded is not null)
             return Task.WhenAll(bounded);
         return Task.CompletedTask;
