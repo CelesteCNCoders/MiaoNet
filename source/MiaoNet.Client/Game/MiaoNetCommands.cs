@@ -7,7 +7,7 @@ public static class MiaoNetCommands
     {
         var ctx = MiaoNetModule.Instance.MiaoNetContext;
         if (server is not null)
-           ctx.TargetServer = server;
+            ctx.TargetServer = server;
         if (port is not null && int.TryParse(port, out var num))
             ctx.TargetPort = num;
         ctx.Connect();
@@ -19,4 +19,12 @@ public static class MiaoNetCommands
         var ctx = MiaoNetModule.Instance.MiaoNetContext;
         ctx.Disconnect();
     }
+
+#if !USE_CELEMIAO_AUTH
+    [Command("mn_avatar", "Set the avatar of miaonet")]
+    public static void SetAvatar(string? url)
+    {
+        MiaoNetModule.Settings.AvatarUrl = url;
+    }
+#endif
 }

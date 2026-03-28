@@ -95,7 +95,7 @@ partial class MiaoNetContext
             string name = settings.Name;
             string? prefix = settings.Prefix;
             Color color = settings.Color is null ? Color.White : Calc.HexToColor(settings.Color);
-            PlayerInfo playerInfo = new(name, prefix ?? string.Empty, string.Empty, color);
+            PlayerInfo playerInfo = new(name, prefix ?? string.Empty, settings.AvatarUrl ?? string.Empty, color);
             MemoryStream ms = new(32);
             RefBinaryWriter writer = new(ms);
             writer.Write(playerInfo);
@@ -175,6 +175,9 @@ partial class MiaoNetContext
                     });
                     // wait until the main thread ack we've finished connecting
                     await ackTaskSource.Task;
+                    foreach (var p in clientInitial.Players)
+                        _ = SafePrepareAvatarAsync(p.PlayerID, p.PlayerInfo);
+                    _ = SafePrepareAvatarAsync(clientInitial.PlayerID, clientInitial.SelfPlayerInfo);
                 }
 
             }

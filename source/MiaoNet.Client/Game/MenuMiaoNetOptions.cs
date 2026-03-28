@@ -69,13 +69,22 @@ public static class MenuMiaoNetOptions
             menu.Add(item);
         }
 #else
-        AddAuthPropButton(menu, inGame, Dialog.Get("miaonet_options_custom_auth_name"), () => settings.Name, v => settings.Name = v);
-        AddAuthPropButton(menu, inGame, Dialog.Get("miaonet_options_custom_auth_prefix"), () => settings.Prefix, v => settings.Prefix = v);
-        AddAuthPropButton(menu, inGame, Dialog.Get("miaonet_options_custom_auth_color"), () => settings.Color, v => settings.Color = v);
+        AddAuthPropButton(menu, inGame, Dialog.Get("miaonet_options_custom_auth_name"),
+            () => settings.Name, v => settings.Name = v
+        );
+        AddAuthPropButton(menu, inGame, Dialog.Get("miaonet_options_custom_auth_prefix"),
+            () => settings.Prefix, v => settings.Prefix = v
+        );
+        AddAuthPropButton(menu, inGame, Dialog.Get("miaonet_options_custom_auth_color"),
+            () => settings.Color, v => settings.Color = v
+        );
+        AddAuthPropButton(menu, inGame, Dialog.Get("miaonet_options_custom_auth_avatar_url"),
+            () => settings.AvatarUrl, v => settings.AvatarUrl = v
+        );
 
         static void AddAuthPropButton(TextMenu menu, bool inGame, string label, Func<string?> getter, Action<string> setter)
         {
-            var button = new TextMenu.Button($"{label} {getter()}");
+            var button = new TextMenu.Button($"{label} {WithCutOff(getter() ?? string.Empty)}");
             if (!inGame)
             {
                 button.OnPressed = () =>
@@ -87,7 +96,7 @@ public static class MenuMiaoNetOptions
                             {
                                 v = v.Trim();
                                 setter(v);
-                                button.Label = $"{label} {v}";
+                                button.Label = $"{label} {WithCutOff(v)}";
                             }, 36, 2
                         );
                 };
@@ -97,6 +106,14 @@ public static class MenuMiaoNetOptions
                 button.AddDescription(menu, Dialog.Get("miaonet_options_custom_auth_tip_in_game"));
             else
                 button.AddDescription(menu, Dialog.Get("miaonet_options_custom_auth_tip"));
+
+            static string WithCutOff(string value)
+            {
+                const int CutOffLength = 24;
+                if (value.Length > CutOffLength)
+                    value = $"{value.AsSpan()[..CutOffLength]}...";
+                return value;
+            }
         }
 #endif
 

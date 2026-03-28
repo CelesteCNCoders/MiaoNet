@@ -141,6 +141,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             return;
         connection.Dispose();
         connection = null;
+        AvatarManager.PersistStateToDisk();
     }
 
     public void Update()
@@ -182,7 +183,52 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             Response(ping, new PacketPong());
             return true;
         }
+        else if (packet is PacketPlayerJoined joined)
+        {
+            SynchronizationContext.Current!.Post(async s =>
+            {
+                PacketPlayerJoined joined = (PacketPlayerJoined)s!;
+                await SafePrepareAvatarAsync(joined.PlayerID, joined.PlayerInfo);
+            }, joined);
+        }
         return false;
+    }
+
+    private async Task SafePrepareAvatarAsync(int playerID, PlayerInfo playerInfo)
+    {
+        try
+        {
+            string sid = $"\0mn_avt_{playerID}";
+
+            if (!Uri.TryCreate(playerInfo.AvatarUrl, UriKind.Absolute, out Uri? uri))
+            {
+                Logger.Warn(LT.MiaoNetAvatar, $"Invalid url \"{playerInfo.AvatarUrl}\" for player {playerInfo.DisplayName}.");
+                mainThreadQueue.Enqueue(() =>
+                {
+                    Emoji.Register(sid, GFX.Gui["miaonet/missing_avatar"], 64, 64);
+                    Emoji.Fill(MiaoNetFont.ENZhsFont);
+                });
+                return;
+            }
+
+            string avatarPath = await AvatarManager.GetAsync(uri);
+
+            mainThreadQueue.Enqueue(() =>
+            {
+                MTexture tex = new(VirtualContent.CreateTexture(avatarPath));
+                Emoji.Register(sid, tex, 64, 64);
+                Emoji.Fill(MiaoNetFont.ENZhsFont);
+            });
+        }
+        catch (Exception e)
+        {
+            Logger.Error(
+                LT.MiaoNetAvatar,
+                $"Error on avatar preparing for player \"{playerInfo}\" " +
+                $"of id {playerID} with url {playerInfo.AvatarUrl}."
+            );
+            Logger.LogDetailed(e);
+        }
     }
 
     private void HandleQueuedPacket(IContextualPacket packet)

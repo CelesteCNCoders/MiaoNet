@@ -60,6 +60,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public string? Color { get; set; }
 
+    public string? AvatarUrl { get; set; }
+
 #endif
 
     #endregion

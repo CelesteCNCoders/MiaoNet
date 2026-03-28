@@ -88,7 +88,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         Add(playerHair);
 
         Add(playerSprite);
-        nameTag = new(this, player.Info);
+        nameTag = new(this, player);
         playerHair.Start();
 
         ApplyState(initialState);

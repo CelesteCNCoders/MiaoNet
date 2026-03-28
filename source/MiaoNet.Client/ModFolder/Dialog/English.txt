@@ -11,6 +11,7 @@ miaonet_options_last_logged_in_name= Last Logged In As:
 miaonet_options_custom_auth_name= Name:
 miaonet_options_custom_auth_prefix= Prefix:
 miaonet_options_custom_auth_color= Color:
+miaonet_options_custom_auth_avatar_url= Avatar Url:
 miaonet_options_custom_auth_tip_in_game= Go to the main menu and press to edit.  
 miaonet_options_custom_auth_tip= Press to edit.
 

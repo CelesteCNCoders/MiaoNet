@@ -121,7 +121,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         {
             if (selfNameTag is null)
             {
-                selfNameTag = new(player, ClientState.Self.Info);
+                selfNameTag = new(player, ClientState.Self);
                 player.Scene.Add(selfNameTag);
             }
             else if (selfNameTag.Scene != player.Scene)

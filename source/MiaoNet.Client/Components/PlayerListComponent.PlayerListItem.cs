@@ -20,7 +20,7 @@ public sealed partial class PlayerListComponent
         public PlayerListItem(OnlinePlayer player)
         {
             Player = player;
-            DisplayName = player.Info.DisplayName;
+            DisplayName = player.GetFullDisplayName();
             Update();
         }
 

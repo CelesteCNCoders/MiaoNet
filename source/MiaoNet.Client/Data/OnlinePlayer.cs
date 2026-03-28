@@ -38,6 +38,13 @@ public sealed class OnlinePlayer : IPlayerListEntry
     public override string ToString()
         => $"{Info} at {Location}";
 
+    public string GetFullDisplayName() => string.IsNullOrEmpty(Info.Prefix)
+        ? $":\0mn_avt_{ID}: {Info.Name}"
+        : $":\0mn_avt_{ID}: [{Info.Prefix}] {Info.Name}";
+
+    public string GetFullDisplayNameWithoutPrefix() =>
+        $":\0mn_avt_{ID}: {Info.Name}";
+
     PlayerLocation IPlayerListEntry.Location => Location;
 
     PlayerInfo IPlayerListEntry.PlayerInfo => Info;

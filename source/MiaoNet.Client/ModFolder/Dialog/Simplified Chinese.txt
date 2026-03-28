@@ -10,6 +10,7 @@ miaonet_options_last_logged_in_name= 上次登录为：
 miaonet_options_custom_auth_name= 名称：
 miaonet_options_custom_auth_prefix= 头衔：
 miaonet_options_custom_auth_color= 颜色：
+miaonet_options_custom_auth_avatar_url= 头像链接：
 miaonet_options_custom_auth_tip_in_game= 前往主界面后按下以修改
 miaonet_options_custom_auth_tip= 按下以修改
 

@@ -18,7 +18,7 @@ public static class MiaoNetChatText
     public static ChatText CreatePublicChat(DateTime dateTime, OnlinePlayer sender, string text)
         => new ChatText([
             new(ColorTime, FormatDateTime(dateTime)),
-            new(sender.Info.Color, sender.Info.DisplayName),
+            new(sender.Info.Color, sender.GetFullDisplayName()),
             new(ColorChat, ": "),
             ..ChatText.Parse(text, ColorChat)
         ]);
@@ -31,7 +31,7 @@ public static class MiaoNetChatText
                 Dialog.Get("miaonet_chat_whisper_received")
                       .Replace(@"\[", "[") // idk how to escape '[]'s in Celeste dialogs
                       .Replace(@"\]", "]")
-                      .Replace("(0)", sender.Info.Name)
+                      .Replace("(0)", sender.GetFullDisplayNameWithoutPrefix())
             ),
             new( ColorPrivateChat, ": "),
             ..ChatText.Parse(text, ColorPrivateChat)
@@ -45,8 +45,8 @@ public static class MiaoNetChatText
                 Dialog.Get("miaonet_chat_whisper_sent")
                       .Replace(@"\[", "[")
                       .Replace(@"\]", "]")
-                      .Replace("(0)", other.Info.Name)
-                      .Replace("(1)", self.Info.Name)
+                      .Replace("(0)", other.GetFullDisplayNameWithoutPrefix())
+                      .Replace("(1)", self.GetFullDisplayNameWithoutPrefix())
             ),
             new( ColorPrivateChat, ": "),
             ..ChatText.Parse(text, ColorPrivateChat)

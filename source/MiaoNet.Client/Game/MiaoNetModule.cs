@@ -53,6 +53,9 @@ public sealed class MiaoNetModule : EverestModule
     public override void Load()
     {
         Instance = this;
+#if DEBUG
+        Logger.SetLogLevel(LT.MiaoNetAvatar, LogLevel.Verbose);
+#endif
         using (new DetourConfigContext(RootConfig).Use())
         {
             Everest.Events.Level.OnCreatePauseMenuButtons += Level_OnCreatePauseMenuButtons;
