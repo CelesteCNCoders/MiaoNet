@@ -157,8 +157,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             playerHair.Color = GraphicsInfo.GetHairInfo(dashes).Color;
         }
 
-        if (playerSprite.Mode == PlayerSpriteMode.Playback)
+        if (playerSprite.Mode == PlayerSpriteMode.Playback || starFlying)
             playerSprite.Color = playerHair.Color;
+        else
+            playerSprite.Color = Color.White;
 
         // simulate hair waving
         if (windDirection.X != 0f)
