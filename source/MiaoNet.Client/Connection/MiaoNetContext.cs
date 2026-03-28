@@ -215,7 +215,17 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
             mainThreadQueue.Enqueue(() =>
             {
-                MTexture tex = new(VirtualContent.CreateTexture(avatarPath));
+                MTexture tex;
+                try
+                {
+                    tex = new(VirtualContent.CreateTexture(avatarPath));
+                }
+                catch (Exception e)
+                {
+                    Logger.Error(LT.MiaoNetAvatar, $"Failed to create texture of \"{playerInfo.AvatarUrl}\" for player {playerInfo.DisplayName}");
+                    Logger.LogDetailed(e);
+                    tex = GFX.Gui["miaonet/missing_avatar"];
+                }
                 Emoji.Register(sid, tex, 64, 64);
                 Emoji.Fill(MiaoNetFont.ENZhsFont);
             });
