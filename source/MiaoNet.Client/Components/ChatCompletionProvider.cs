@@ -47,6 +47,7 @@ public sealed class ChatCompletionProvider : ICompletionProvider
 
         int remove = input.Length - lastColonIndex - 1;
         return from e in Emoji.Registered
+               where !e.StartsWith('\0')
                where e.Contains(afterColon, StringComparison.OrdinalIgnoreCase)
                select new Completion(e, $"{(char)(Emoji.Get(e) + Emoji.Start)} {e}", remove);
     }
