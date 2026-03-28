@@ -106,14 +106,14 @@ partial class MiaoNetCommand
             ),
             new MiaoNetCommand(
                 name: "watch",
-                aliases: [ "w" ],
+                aliases: [ "wt" ],
                 segments: [CommandSegmentType.Player],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(Watch)
             ),
             new MiaoNetCommand(
                 name: "unwatch",
-                aliases: [ "uw" ],
+                aliases: [ "uw", "uwt" ],
                 segments: [],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(Unwatch)
