@@ -166,44 +166,17 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.PlayerNameOpacity = v);
         menu.Add(item);
 
-        uiSubMenu = new TextMenuExt.SubMenu(Dialog.Get("miaonet_options_player_followers_visibility"), false);
+        TextMenuExt.IntSlider minPlayerOpacitySlider;
+        minPlayerOpacitySlider = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_min_player_opacity"), 1, 10, settings.MinPlayerOpacity
+        ).Change(v => settings.MinPlayerOpacity = v);
+        minPlayerOpacitySlider.Visible = settings.DistanceBasedOpacity;
 
-        TextMenu.Item distanceRadius = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_player_followers_distance_radius"), 0, 100, settings.PlayerFollowersDistanceRadius
-        ).Change(v => settings.PlayerFollowersDistanceRadius = v);
-
-        TextMenu.Item distanceFadeRadius = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_player_followers_distance_fade_radius"), 1, 200, settings.PlayerFollowersDistanceFadeRadius
-        ).Change(v => settings.PlayerFollowersDistanceFadeRadius = v);
-
-        void UpdateOptionsVisibility(RemotePlayerVisibility mode)
-        {
-            bool distance = mode == RemotePlayerVisibility.DistanceBased;
-
-            distanceRadius.Visible = distance;
-            distanceFadeRadius.Visible = distance;
-        }
-
-        item = new EnumSlider<RemotePlayerVisibility>(
-            Dialog.Get("miaonet_options_player_followers_visibility"),
-            e => Dialog.Get($"miaonet_options_player_followers_visibility_{e}"),
-            settings.PlayerFollowersVisibility
-        ).Change(v =>
-        {
-            settings.PlayerFollowersVisibility = v;
-            UpdateOptionsVisibility(v);
-        });
-        uiSubMenu.Add(item);
-        item.AddDescription(uiSubMenu, menu, Dialog.Clean("miaonet_options_player_followers_visibility_tip"));
-
-        uiSubMenu.Add(distanceRadius);
-        distanceRadius.AddDescription(uiSubMenu, menu, Dialog.Clean("miaonet_options_player_followers_distance_radius_tip"));
-
-        uiSubMenu.Add(distanceFadeRadius);
-        distanceFadeRadius.AddDescription(uiSubMenu, menu, Dialog.Clean("miaonet_options_player_followers_distance_fade_radius_tip"));
-
-        UpdateOptionsVisibility(settings.PlayerFollowersVisibility);
-        menu.Add(uiSubMenu);
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_distance_based_opacity"), settings.DistanceBasedOpacity
+        ).Change(v => settings.DistanceBasedOpacity = minPlayerOpacitySlider.Visible = v);
+        menu.Add(item);
+        menu.Add(minPlayerOpacitySlider);
 
         item = new EnumSlider<JumpthruType>(
             Dialog.Get("miaonet_options_group_photo_platform_type"),

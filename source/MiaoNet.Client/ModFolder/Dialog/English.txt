@@ -32,16 +32,9 @@ miaonet_options_active_chat_height= Active Chat Height
 miaonet_options_player_opacity= Player Opacity
 miaonet_options_self_name_opactiy= Self Name Opacity
 miaonet_options_player_name_opacity= Name Opacity
+miaonet_options_distance_based_opacity= Player Distance Based Opacity
+miaonet_options_min_player_opacity= Min Player Opacity
 miaonet_options_group_photo_platform_type= Group Photo Platform Type
-
-miaonet_options_player_followers_visibility= Other Players' Followers Visibility
-miaonet_options_player_followers_visibility_tip= Controls how other players' followers are displayed.
-miaonet_options_player_followers_visibility_Visible= Visible
-miaonet_options_player_followers_visibility_DistanceBased= Distance Based
-miaonet_options_player_followers_distance_radius= Fully Transparent Radius
-miaonet_options_player_followers_distance_radius_tip= Followers will be invisible when closer than this distance.
-miaonet_options_player_followers_distance_fade_radius= Fade Radius
-miaonet_options_player_followers_distance_fade_radius_tip= Distance over which followers fade from visible to invisible.
 
 miaonet_options_audio= Audio
 miaonet_options_player_audio= Sync Audio
