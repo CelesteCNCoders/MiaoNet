@@ -1,13 +1,24 @@
-﻿namespace Celeste.Mod.MiaoNet;
+﻿using Microsoft.Xna.Framework.Graphics;
+
+namespace Celeste.Mod.MiaoNet;
 
 public sealed class GhostRenderLayerEntity : MiaoNetEntity
 {
     private readonly bool isHigh;
 
+    private static Effect radialAlphaMaskEffect = null!;
+
+    public static void LoadContent()
+    {
+        var asset = Everest.Content.Get("Effects/MiaoNet/RadialAlphaMask.cso")
+            ?? throw new KeyNotFoundException("RadialAlphaMask.cso is not found.");
+        radialAlphaMaskEffect = new Effect(Engine.Graphics.GraphicsDevice, asset.Data);
+    }
+
     public GhostRenderLayerEntity(bool isHigh)
     {
         Tag = MiaoNetTag.Tag;
-        Depth = isHigh ? Depths.Top : Depths.Player;
+        Depth = isHigh ? Depths.Top : (Depths.Player + 1);
         this.isHigh = isHigh;
     }
 
@@ -15,27 +26,52 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
     {
         var gd = Engine.Instance.GraphicsDevice;
         Level level = SceneAs<Level>();
+        var settings = MiaoNetModule.Settings;
 
         GameplayRenderer.End();
 
+        // draw all ghost entities without alpha set
         gd.SetRenderTarget(GameplayBuffers.TempA);
         gd.Clear(Color.Transparent);
 
         GameplayRenderer.Begin();
-
         foreach (MiaoNetGhostEntity entity in level.Tracker.GetEntities<MiaoNetGhostEntity>().Cast<MiaoNetGhostEntity>())
         {
             if ((isHigh ? entity.Depth <= Depth : entity.Depth >= Depth) && entity.Visible)
                 entity.GhostRender();
         }
-
         GameplayRenderer.End();
 
+        // prepare effect if needed
+        Effect? effect = null;
+        if (settings.DistanceBasedOpacity)
+        {
+            Player? player = level.Tracker.GetEntity<Player>();
+            if (player != null)
+            {
+                effect = radialAlphaMaskEffect;
+                // TODO scaling?
+                effect.Parameters["Dimensions"].SetValue(new Vector2(320f, 180f));
+                effect.Parameters["CenterPos"].SetValue(player.Center - level.Camera.Position);
+                effect.Parameters["MinAlpha"].SetValue(settings.MinPlayerOpacityValue);
+            }
+        }
+
+        // target gameplay, draw with a global alpha
+        // with optionally distance based alpha
         gd.SetRenderTarget(GameplayBuffers.Gameplay);
+        Draw.SpriteBatch.Begin(
+            SpriteSortMode.Deferred,
+            BlendState.AlphaBlend, 
+            SamplerState.PointClamp,
+            DepthStencilState.None, 
+            RasterizerState.CullNone, 
+            effect,
+            level.Camera.Matrix
+        );
+        Draw.SpriteBatch.Draw(GameplayBuffers.TempA, level.Camera.Position, Color.White * settings.PlayerOpacityValue);
+        Draw.SpriteBatch.End();
 
         GameplayRenderer.Begin();
-
-        float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
-        Draw.SpriteBatch.Draw(GameplayBuffers.TempA, level.Camera.Position, Color.White * alpha);
     }
 }

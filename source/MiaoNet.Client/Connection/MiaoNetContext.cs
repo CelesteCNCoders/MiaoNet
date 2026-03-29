@@ -92,6 +92,9 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         packetDispatcher = new(r);
     }
 
+    public void QueueConnect()
+        => mainThreadQueue.Enqueue(new Action(Connect));
+
     public void Connect()
     {
         if (cts is not null)

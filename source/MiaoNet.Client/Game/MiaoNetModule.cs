@@ -120,6 +120,12 @@ public sealed class MiaoNetModule : EverestModule
         SpeedrunToolCompat.Unload();
     }
 
+    public override void LoadContent(bool firstLoad)
+    {
+        base.LoadContent(firstLoad);
+        GhostRenderLayerEntity.LoadContent();
+    }
+
     public override void OnInputInitialize()
     {
         foreach (var item in Settings.GetButtonBindings())

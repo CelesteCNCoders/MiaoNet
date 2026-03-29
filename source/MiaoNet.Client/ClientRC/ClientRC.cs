@@ -119,6 +119,7 @@ public static class ClientRC
         {
             nint handle = Celeste.Instance.Window.Handle;
             SDL2.SDL.SDL_RaiseWindow(handle);
+            MiaoNetModule.Instance.MiaoNetContext.QueueConnect();
             res.StatusCode = (int)HttpStatusCode.NoContent;
         }
         else

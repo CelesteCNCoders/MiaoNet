@@ -21,6 +21,15 @@ public sealed class BbsAuthResult
 
     [JsonPropertyName("color")]
     public string? Color { get; set; }
+
+    [JsonPropertyName("suspended_until")]
+    public DateTime? SuspendedUntil { get; set; }
+
+    [JsonPropertyName("suspend_message")]
+    public string? SuspendMessage { get; set; }
+
+    [JsonPropertyName("suspend_reason")]
+    public string? SuspendReason { get; set; }
 }
 
 public sealed class BbsAuthErrorResult

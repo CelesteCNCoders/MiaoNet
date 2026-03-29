@@ -16,7 +16,7 @@ public sealed class GhostFollower : MiaoNetGhostEntity
         : base(ghost.Position + offset)
     {
         Tag |= ghost.Tag;
-        Depth = ghost.Depth;
+        Depth = ghost.Depth + 1;
         Add(Follower = new() { MoveTowardsLeader = false });
 
         if (GFX.SpriteBank.SpriteData.ContainsKey(spriteID))

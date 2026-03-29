@@ -106,7 +106,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         {
             SlowRun = false,
             SlowFall = false,
-            OnPickup = () => Depth = selfHoldable!.Entity.Depth + 1,
+            OnPickup = () => Depth = selfHoldable!.idleDepth,
             OnRelease = f =>
             {
                 if (f.X != 0f)

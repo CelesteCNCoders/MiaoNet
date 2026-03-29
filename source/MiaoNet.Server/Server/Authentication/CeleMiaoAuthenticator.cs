@@ -74,20 +74,20 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
 
                 if (tokenResult is not null)
                 {
-                    (AuthenticationResultType resultType, PlayerInfo? playerInfo)
-                        = await FetchPlayerInfoByAuthTokenAsync(tokenResult.AccessToken, tokenResult.RefreshToken, token);
+                    AuthenticationResult result = await AuthenticateByTokenAsync(tokenResult.AccessToken, tokenResult.RefreshToken, token);
 
-                    if (resultType is not AuthenticationResultType.Success)
-                        return new(resultType, null, null);
+                    if (result.Type is AuthenticationResultType.Success)
+                    {
+                        byte[] signature = Sign(result.PlayerInfo!, tokenResult.AccessToken, tokenResult.RefreshToken);
+                        TokenObject tokenObject = new(result.PlayerInfo!, tokenResult.AccessToken, tokenResult.RefreshToken, signature);
 
-                    byte[] signature = Sign(playerInfo!, tokenResult.AccessToken, tokenResult.RefreshToken);
-                    TokenObject tokenObject = new(playerInfo!, tokenResult.AccessToken, tokenResult.RefreshToken, signature);
+                        MemoryStream ms = new(128);
+                        RefBinaryWriter writer = new(ms);
+                        writer.Write(tokenObject);
 
-                    MemoryStream ms = new(128);
-                    RefBinaryWriter writer = new(ms);
-                    writer.Write(tokenObject);
-
-                    return new(resultType, playerInfo, ms.GetBuffer().AsSpan()[..(int)ms.Position].ToArray());
+                        return new(result.Type, result.PlayerInfo, ms.GetBuffer().AsSpan()[..(int)ms.Position].ToArray());
+                    }
+                    return result;
                 }
                 else if (errorResult is not null)
                 {
@@ -116,9 +116,7 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
                 if (!signatureMatch)
                     return new(AuthenticationResultType.InvalidTokenData, null, null);
 
-                (AuthenticationResultType resultType, PlayerInfo? playerInfo)
-                    = await FetchPlayerInfoByAuthTokenAsync(tokenObject.AccessToken, tokenObject.RefreshToken, token);
-                return new AuthenticationResult(resultType, playerInfo, null);
+                return await AuthenticateByTokenAsync(tokenObject.AccessToken, tokenObject.RefreshToken, token);
             }
             }
             logger.LogWarning(AppEvents.Auth, "Unknown auth type {v}.", type);
@@ -132,7 +130,8 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
     }
 
     // TODO use refreshToken
-    private async Task<(AuthenticationResultType, PlayerInfo?)> FetchPlayerInfoByAuthTokenAsync(string accessToken, string refreshToken, CancellationToken token)
+    // TODO using logger scopes
+    private async Task<AuthenticationResult> AuthenticateByTokenAsync(string accessToken, string refreshToken, CancellationToken token)
     {
         var res = await httpClient.GetAsync($"{EndPointAuth}{Uri.EscapeDataString(accessToken)}", token);
         res.EnsureSuccessStatusCode();
@@ -142,23 +141,39 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
 
         if (result is not null)
         {
+            if (result.SuspendMessage is not null)
+            {
+                logger.LogInformation(
+                    AppEvents.Auth, 
+                    "{pn}:{id} is suspended due to {reason}, message: {msg}. Until {until}",
+                    result.Username, result.ID,
+                    result.SuspendReason, result.SuspendMessage,
+                    result.SuspendedUntil
+                );
+                return new AuthenticationResult(AuthenticationResultType.Suspended, result.SuspendMessage);
+            }
+
             if (result.Color is not { Length: 7 } || !TryParseHexColor(result.Color.AsSpan(1), out Color color))
             {
                 color = Color.White;
                 logger.LogWarning(AppEvents.Auth, "Failed to parse color for player {name}, raw hex string: {hex}.", result.Username, result.Color);
             }
-            return (AuthenticationResultType.Success, new(result.Username, result.Prefix ?? string.Empty, result.AvatarUrl ?? string.Empty, color));
+            return new AuthenticationResult(
+                AuthenticationResultType.Success,
+                new PlayerInfo(result.Username, result.Prefix ?? string.Empty, result.AvatarUrl ?? string.Empty, color),
+                null
+            );
         }
         else if (errorResult is not null)
         {
             // TODO return expiration info here
             logger.LogWarning(AppEvents.Auth, "Auth failed bbs-side with error {err}. {msg}.", errorResult.Error, errorResult.ErrorDescription);
-            return (AuthenticationResultType.InvalidTokenData, null);
+            return new(AuthenticationResultType.InvalidTokenData);
         }
         else
         {
             logger.LogWarning(AppEvents.Auth, "Bbs-side sent null.");
-            return (AuthenticationResultType.InternalError, null);
+            return new(AuthenticationResultType.InternalError);
         }
     }
 
