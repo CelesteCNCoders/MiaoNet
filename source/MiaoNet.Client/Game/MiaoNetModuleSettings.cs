@@ -91,6 +91,12 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public int SelfNameOpacity { get; set; } = 8;
 
+    public bool DistanceBasedOpacity { get; set; } = false;
+
+    public int MinPlayerOpacity { get; set; } = 2;
+
+    public int MinPlayerNameOpacity { get; set; } = 2;
+
     public JumpthruType GroupPhotoPlatformType { get; set; } = JumpthruType.Dream;
 
     #region Calculated
@@ -101,9 +107,13 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     [YamlIgnore] public float PlayerOpacityValue => PlayerOpacity / 10f;
 
+    [YamlIgnore] public float PlayerNameOpacityValue => PlayerNameOpacity / 10f;
+
     [YamlIgnore] public float SelfNameOpacityValue => SelfNameOpacity / 10f;
 
-    [YamlIgnore] public float PlayerNameOpacityValue => PlayerNameOpacity / 10f;
+    [YamlIgnore] public float MinPlayerOpacityValue => MinPlayerOpacity / 10f;
+
+    [YamlIgnore] public float MinPlayerNameOpacityValue => MinPlayerNameOpacity / 10f;
 
     [YamlIgnore] public float ChatBackgroundOpacityValue => ChatBackgroundOpacity / 10f;
 

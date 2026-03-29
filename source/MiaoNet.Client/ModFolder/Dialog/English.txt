@@ -32,6 +32,8 @@ miaonet_options_active_chat_height= Active Chat Height
 miaonet_options_player_opacity= Player Opacity
 miaonet_options_self_name_opactiy= Self Name Opacity
 miaonet_options_player_name_opacity= Name Opacity
+miaonet_options_distance_based_opacity= Player Distance Based Opacity
+miaonet_options_min_player_opacity= Min Player Opacity
 miaonet_options_group_photo_platform_type= Group Photo Platform Type
 
 miaonet_options_audio= Audio

@@ -166,6 +166,18 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.PlayerNameOpacity = v);
         menu.Add(item);
 
+        TextMenuExt.IntSlider minPlayerOpacitySlider;
+        minPlayerOpacitySlider = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_min_player_opacity"), 1, 10, settings.MinPlayerOpacity
+        ).Change(v => settings.MinPlayerOpacity = v);
+        minPlayerOpacitySlider.Visible = settings.DistanceBasedOpacity;
+
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_distance_based_opacity"), settings.DistanceBasedOpacity
+        ).Change(v => settings.DistanceBasedOpacity = minPlayerOpacitySlider.Visible = v);
+        menu.Add(item);
+        menu.Add(minPlayerOpacitySlider);
+
         item = new EnumSlider<JumpthruType>(
             Dialog.Get("miaonet_options_group_photo_platform_type"),
             t => t.ToString(), settings.GroupPhotoPlatformType
