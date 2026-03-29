@@ -115,6 +115,12 @@ public sealed partial class ChatComponent : MiaoNetComponent
             scrollDelta -= KeyboardScrollSpeed * Engine.RawDeltaTime;
 
         var settings = MiaoNetModule.Settings;
+        var toggleChatVisibilityButton = settings.ToggleChatVisibilityButton;
+        if (toggleChatVisibilityButton.Pressed)
+        {
+            toggleChatVisibilityButton.ConsumePress();
+            settings.ShowChat = !settings.ShowChat;
+        }
 
         // apply settings
         // any better ways?
@@ -326,7 +332,8 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
     public override void Render()
     {
-        chatView.Render();
+        if (MiaoNetModule.Settings.ShowChat)
+            chatView.Render();
         if (active)
             inputBox.Render();
     }

@@ -81,6 +81,7 @@ miaonet_options_player_presence_message= 聊天栏玩家进出消息
 
 miaonet_options_button_chat= 打开聊天栏
 miaonet_options_button_chat_command= 输入指令
+miaonet_options_button_toggle_chat_visibility= 切换聊天显示
 miaonet_options_button_player_list= 打开玩家列表
 miaonet_options_button_create_fireworks= 生成烟花
 miaonet_options_button_player_list_scroll_up= 向上滚动玩家列表

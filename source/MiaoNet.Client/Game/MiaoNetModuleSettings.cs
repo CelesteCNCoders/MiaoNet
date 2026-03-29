@@ -96,6 +96,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public int ActiveChatHeight { get; set; } = 8;
 
+    public bool ShowChat { get; set; } = true;
+
     #endregion
 
     public int PlayerOpacity { get; set; } = 8;
@@ -170,6 +172,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public ButtonBinding ChatCommandButton { get; set; }
 
+    public ButtonBinding ToggleChatVisibilityButton { get; set; }
+
     public ButtonBinding PlayerListButton { get; set; }
 
     public ButtonBinding CreateFireworksButton { get; set; }
@@ -200,6 +204,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     {
         ChatButton = new(0, Keys.T);
         ChatCommandButton = new(0, 0);
+        ToggleChatVisibilityButton = new(0, 0);
         PlayerListButton = new(0, Keys.Tab);
         List<ButtonBinding> bindings = new();
         for (int i = 0; i < Emotes.Count; i++)
@@ -228,7 +233,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     public IEnumerable<ButtonBinding> GetButtonBindings()
     {
         return [
-            ChatButton, ChatCommandButton, PlayerListButton,
+            ChatButton, ChatCommandButton, ToggleChatVisibilityButton, PlayerListButton,
             .. EmoteButtons,
             CreateFireworksButton,
             PlayerListScrollUp, PlayerListScrollDown,
