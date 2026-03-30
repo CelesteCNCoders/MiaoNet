@@ -195,8 +195,11 @@ miaonet_commands_watch_not_same_map= You're not in map (1) where (0) in
 miaonet_commands_unwatch_none_unwatched= No player being watched currently
 miaonet_commands_unwatch_unwatched= Stop watching player (0)
 
-miaonet_chat_whisper_sent= \[whisper to (0)\] (1)
-miaonet_chat_whisper_received= \[whisper\] (0)
+miaonet_lb= [
+miaonet_rb= ]
+miaonet_chat_map_chat= {+ miaonet_lb}Map Chat{+ miaonet_rb}
+miaonet_chat_whisper_sent= {+ miaonet_lb}whisper to (0){+ miaonet_rb} (1)
+miaonet_chat_whisper_received= {+ miaonet_lb}whisper{+ miaonet_rb} (0)
 
 miaonet_oui_conflict_title= MiaoNet Mod Conflict
 miaonet_oui_conflict_description=

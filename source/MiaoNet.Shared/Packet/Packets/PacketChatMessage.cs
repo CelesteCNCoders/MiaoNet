@@ -4,6 +4,7 @@ public enum ChatMessageType : byte
 {
     Chat,
     PrivateMessage,
+    MapChat,
     Server,
     ServerChat
 }
@@ -64,6 +65,20 @@ public sealed class PacketSendChatMessage : IContextlessPacket<PacketSendChatMes
         => writer.Write(Content);
 
     public static PacketSendChatMessage Deserialize(ref RefBinaryReader reader)
+        => new(reader.ReadString());
+}
+
+public sealed class PacketSendMapChatMessage : IContextlessPacket<PacketSendMapChatMessage>
+{
+    public string Content { get; }
+
+    public PacketSendMapChatMessage(string content)
+        => Content = content;
+
+    public void Serialize(ref RefBinaryWriter writer)
+        => writer.Write(Content);
+
+    public static PacketSendMapChatMessage Deserialize(ref RefBinaryReader reader)
         => new(reader.ReadString());
 }
 

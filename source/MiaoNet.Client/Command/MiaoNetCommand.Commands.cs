@@ -117,7 +117,14 @@ partial class MiaoNetCommand
                 segments: [],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(Unwatch)
-            )
+            ),
+            new MiaoNetCommand(
+                name: "map-chat",
+                aliases: [ "mc" ],
+                segments: [CommandSegmentType.Text],
+                captureRestSegments: true,
+                onExecute: new ExecuteHandler(MapChat)
+            ),
         ];
     }
 
@@ -448,7 +455,7 @@ partial class MiaoNetCommand
         context.TipMessage(Dialog.Get(key));
         return null;
     }
-
+    
     private static string? Interactions(Context context)
     {
         var settings = MiaoNetModule.Settings;
@@ -514,6 +521,16 @@ partial class MiaoNetCommand
             string msg = Dialog.Get("miaonet_commands_unwatch_unwatched").Replace("(0)", player.Info.Name);
             context.TipMessage(msg);
         }
+
+        return null;
+    }
+
+    private static string? MapChat(Context context)
+    {
+        if (MiaoNetModule.Settings.LiveMode)
+            return Dialog.Get("miaonet_chat_disabled");
+
+        context.QueuePacket(new PacketSendMapChatMessage(context.Segments[0]));
 
         return null;
     }

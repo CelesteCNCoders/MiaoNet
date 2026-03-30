@@ -52,5 +52,7 @@ using MiaoNet.Shared;
     typeof(PacketPlayerGrabJumpOut),
 
     typeof(PacketCreateFireworks),
-    typeof(PacketPlayerNotification<PacketCreateFireworks>)
+    typeof(PacketPlayerNotification<PacketCreateFireworks>),
+
+    typeof(PacketSendMapChatMessage),
 ])]

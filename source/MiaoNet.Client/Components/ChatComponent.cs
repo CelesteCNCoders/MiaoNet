@@ -80,18 +80,22 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
     private void Context_ChatMessageReceived(OnlinePlayer? player, PacketChatMessage packet)
     {
-        var disableChat = MiaoNetModule.Settings.LiveMode;
+        var chatAvailable = MiaoNetModule.Settings.LiveMode;
         switch (packet.Type)
         {
         case ChatMessageType.Chat:
-            if (!disableChat)
+            if (!chatAvailable)
                 chatView.AddChatMessage(MiaoNetChatText.CreatePublicChat(packet.DateTime, player!, packet.Content));
+            break;
+        case ChatMessageType.MapChat:
+            if (!chatAvailable)
+                chatView.AddChatMessage(MiaoNetChatText.CreateMapChat(packet.DateTime, player!, packet.Content));
             break;
         case ChatMessageType.Server:
             chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.DateTime, packet.Content));
             break;
         case ChatMessageType.PrivateMessage:
-            if (!disableChat)
+            if (!chatAvailable)
                 chatView.AddChatMessage(MiaoNetChatText.CreatePrivateChat(packet.DateTime, player!, packet.Content));
             break;
         case ChatMessageType.ServerChat:

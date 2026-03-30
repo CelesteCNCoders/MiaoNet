@@ -6,14 +6,16 @@ namespace Celeste.Mod.MiaoNet;
 
 public static class MiaoNetChatText
 {
-    public static readonly Color ColorTime = Color.DimGray;
-    public static readonly Color ColorChat = Color.White;
-    public static readonly Color ColorCommand = Color.LightGray;
-    public static readonly Color ColorCommandEcho = Color.DodgerBlue;
-    public static readonly Color ColorCommandError = Color.IndianRed;
-    public static readonly Color ColorPrivateChat = Color.LightGray;
-    public static readonly Color ColorPrivateChatReceived = Color.DarkGray;
-    public static readonly Color ColorAnnouncements = Color.Yellow;
+    private static readonly Color ColorTime = Color.DimGray;
+    private static readonly Color ColorChat = Color.LightGray;
+    private static readonly Color ColorCommand = Color.LightGray;
+    private static readonly Color ColorCommandEcho = Color.DodgerBlue;
+    private static readonly Color ColorCommandError = Color.IndianRed;
+    private static readonly Color ColorPrivateChat = Color.LightGray;
+    private static readonly Color ColorPrivateChatReceived = Color.DarkGray;
+    private static readonly Color ColorMapChat = Color.Cyan;
+    private static readonly Color ColorMapChatContent = Color.White;
+    private static readonly Color ColorAnnouncements = Color.Yellow;
 
     public static ChatText CreatePublicChat(DateTime dateTime, OnlinePlayer sender, string text)
         => new ChatText([
@@ -23,14 +25,22 @@ public static class MiaoNetChatText
             ..ChatText.Parse(text, ColorChat)
         ]);
 
+    public static ChatText CreateMapChat(DateTime dateTime, OnlinePlayer sender, string text)
+        => new ChatText([
+            new(ColorTime, FormatDateTime(dateTime)),
+            new(ColorMapChat, Dialog.Clean("miaonet_chat_map_chat")),
+            new(ColorChat, " "),
+            new(sender.Info.Color, sender.GetFullDisplayName()),
+            new(ColorMapChatContent, ": "),
+            ..ChatText.Parse(text, ColorMapChatContent)
+        ]);
+
     public static ChatText CreatePrivateChat(DateTime dateTime, OnlinePlayer sender, string text)
         => new ChatText([
             new(ColorTime, FormatDateTime(dateTime)),
             new(
                 ColorPrivateChatReceived,
-                Dialog.Get("miaonet_chat_whisper_received")
-                      .Replace(@"\[", "[") // idk how to escape '[]'s in Celeste dialogs
-                      .Replace(@"\]", "]")
+                Dialog.Clean("miaonet_chat_whisper_received")
                       .Replace("(0)", sender.GetFullDisplayNameWithoutPrefix())
             ),
             new( ColorPrivateChat, ": "),
@@ -42,9 +52,7 @@ public static class MiaoNetChatText
             new( ColorTime, FormatDateTime(dateTime)),
             new(
                  ColorPrivateChatReceived,
-                Dialog.Get("miaonet_chat_whisper_sent")
-                      .Replace(@"\[", "[")
-                      .Replace(@"\]", "]")
+                Dialog.Clean("miaonet_chat_whisper_sent")
                       .Replace("(0)", other.GetFullDisplayNameWithoutPrefix())
                       .Replace("(1)", self.GetFullDisplayNameWithoutPrefix())
             ),
