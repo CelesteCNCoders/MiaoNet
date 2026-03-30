@@ -174,6 +174,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public bool PlayerPresenceMessages { get; set; } = true;
 
+    public bool NoNewMessagesShowing { get; set; }
+
     #endregion
 
     #region Button Bindings

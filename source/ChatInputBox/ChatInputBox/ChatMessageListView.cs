@@ -16,6 +16,8 @@ public sealed class ChatMessageListView
 
     public float ShowDuration { get; set; } = 8f;
 
+    public bool NoNewMessagesShowing { get; set; }
+
     public bool Active { get; set; }
 
     public float Scroll
@@ -48,23 +50,31 @@ public sealed class ChatMessageListView
         for (int i = chatLog.Count - 1; i >= 0; i--)
         {
             var item = chatLog[i];
-            if (item.ShowTimer <= 0f)
+            if (item.ShowTimer > 0f)
             {
-                if (item.FadeOut <= 0f)
+                if (NoNewMessagesShowing)
                 {
-                    break;
+                    item.ShowTimer = 0f;
+                    item.FadeOut = 0f;
                 }
                 else
+                {
+                    item.ShowTimer -= Engine.RawDeltaTime;
+                }
+            }
+            else
+            {
+                if (item.FadeOut > 0f)
                 {
                     const float DisappearDuration = 0.25f;
                     item.FadeOut -= (1f / DisappearDuration) * Engine.RawDeltaTime;
                     if (item.FadeOut < 0f)
                         item.FadeOut = 0f;
                 }
-            }
-            else
-            {
-                item.ShowTimer -= Engine.RawDeltaTime;
+                else
+                {
+                    break;
+                }
             }
             chatLog[i] = item;
         }
@@ -136,7 +146,7 @@ public sealed class ChatMessageListView
         float fade = msgFade;
         if (Active)
             fade = 1f;
-        else if (fade <= 0f)
+        else if (fade == 0f)
             return false;
 
         fade *= alpha;

@@ -83,6 +83,10 @@ miaonet_options_teleport_behaviour= Teleport 指令行为
 miaonet_options_teleport_behaviour_nosession= 仅地图和房间
 miaonet_options_teleport_behaviour_withsession= 请求部分存档信息
 miaonet_options_player_presence_message= 聊天栏玩家进出消息
+miaonet_options_no_new_messages_showing= 聊天栏不显示新消息
+miaonet_options_no_new_messages_showing_tip=
+	这会在不打开聊天栏时不显示新的消息
+	此选项不会被保存。
 
 miaonet_options_button_chat= 打开聊天栏
 miaonet_options_button_chat_command= 输入指令

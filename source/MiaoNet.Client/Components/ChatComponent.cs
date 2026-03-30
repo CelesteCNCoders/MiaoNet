@@ -118,15 +118,17 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
         // apply settings
         // any better ways?
+        // or we can use sth like INotifyPropertyChanged
         {
             chatView.BackgroundOpacity = settings.ChatBackgroundOpacityValue;
             chatView.TextOpacity = settings.ChatTextOpacityValue;
             chatView.ShowDuration = settings.ChatDisplayDuration;
+            chatView.NoNewMessagesShowing = settings.NoNewMessagesShowing;
             // TODO explain this factor
             float factor = 32f / 10f / (settings.ChatUIScaleValue * 24f / 10f);
             chatView.IdleMaxCount = (int)(factor * settings.IdleChatHeight);
             chatView.ActiveMaxCount = (int)(factor * settings.ActiveChatHeight);
-            float scale = MiaoNetModule.Settings.ChatUIScaleValue;
+            float scale = settings.ChatUIScaleValue;
             textRenderer.Scale = scale;
             textRenderer.LineHeight = MiaoNetFont.ENZhsLineHeight * scale;
         }

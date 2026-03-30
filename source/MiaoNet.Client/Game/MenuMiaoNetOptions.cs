@@ -349,6 +349,13 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.PlayerPresenceMessages = v);
         menu.Add(item);
 
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_no_new_messages_showing"),
+            settings.NoNewMessagesShowing
+        ).Change(v => settings.NoNewMessagesShowing = v);
+        menu.Add(item);
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_no_new_messages_showing_tip"));
+
         #endregion
 
         AddKeyBindingsSection(menu, inGame);
