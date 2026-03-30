@@ -12,7 +12,7 @@ namespace MiaoNet.MockClient;
 
 public sealed class MockInstance : IPacketSerializationContext, IDisposable
 {
-    private static readonly Version ClientVersion = new(0, 2, 1);
+    private static readonly Version ClientVersion = new(0, 4, 2);
 
     private Vector2 position;
 
@@ -51,8 +51,7 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
 
     private async Task ProcessAsync(string name)
     {
-        await ConnectAsync("s.saplonily.top", 21478);
-        await teeStream.WriteAsync(Connection.HandshakeHead);
+        await ConnectAsync("127.0.0.1", 21473);
         var serverVersion = await DoVersionCheckAsync(ClientVersion);
         if (serverVersion is not null)
         {
@@ -60,7 +59,14 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
             return;
         }
 
-        await SendHandshakeAsync(new HandshakeData(langCode: 0, name, []));
+        PlayerInfo playerInfo = new(name, string.Empty, string.Empty, Color.White);
+        MemoryStream ms = new(32);
+        RefBinaryWriter writer = new(ms);
+        writer.Write(playerInfo);
+        byte[] authData = ms.GetBuffer().AsSpan(0, checked((int)ms.Position)).ToArray();
+        HandshakeData handshakeData = new(0, AuthenticationType.QuickLogin, authData, []);
+
+        await SendHandshakeAsync(handshakeData);
         var ack = await ReceiveHandshakeAckAsync();
         if (ack.DeniedReason is not null)
         {
@@ -106,6 +112,7 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
         socket.NoDelay = true;
         await socket.ConnectAsync(ep);
         NetworkStream netStream = new(socket);
+        await netStream.WriteAsync(Connection.HandshakeHead);
         var sslStream = new SslStream(netStream, false, (_, _, _, _) => true);
         teeStream = new(sslStream, new FileStream($"{name}.bin", FileMode.Create, FileAccess.Write));
         SslClientAuthenticationOptions options = new()
