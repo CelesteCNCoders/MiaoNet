@@ -110,6 +110,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public int MinPlayerOpacity { get; set; } = 2;
 
+    public int EmoteOpacity { get; set; } = 10;
+
     public JumpthruType GroupPhotoPlatformType { get; set; } = JumpthruType.Dream;
 
     #region Calculated
@@ -125,6 +127,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     [YamlIgnore] public float SelfNameOpacityValue => SelfNameOpacity / 10f;
 
     [YamlIgnore] public float MinPlayerOpacityValue => MinPlayerOpacity / 10f;
+
+    [YamlIgnore] public float EmoteOpacityValue => EmoteOpacity / 10f;
 
     [YamlIgnore] public float ChatBackgroundOpacityValue => ChatBackgroundOpacity / 10f;
 

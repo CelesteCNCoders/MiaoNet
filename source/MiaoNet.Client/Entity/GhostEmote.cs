@@ -76,6 +76,7 @@ public sealed class GhostEmote : MiaoNetEntity
     public override void Render()
     {
         base.Render();
+        float baseAlpha = MiaoNetModule.Settings.EmoteOpacityValue;
         const float Margin = 8f;
 
         Vector2 position = target.Position;
@@ -89,7 +90,7 @@ public sealed class GhostEmote : MiaoNetEntity
             float scale = FixedSize / Math.Max(texture.Width, texture.Height);
             Vector2 size = new Vector2(texture.Width, texture.Height) * popupScale * scale;
             position = ScreenClamper.ClampIntoScreen(position, size, new Vector2(1f / 2f, 1f), Margin);
-            texture.DrawJustified(position, new Vector2(0.5f, 1f), Color.White * popupAlpha, popupScale * scale);
+            texture.DrawJustified(position, new Vector2(0.5f, 1f), Color.White * baseAlpha * popupAlpha, popupScale * scale);
         }
         else
         {
@@ -97,7 +98,7 @@ public sealed class GhostEmote : MiaoNetEntity
             Vector2 size = MiaoNetFont.Measure(text);
             float scale = Math.Min(1f, (FixedSize * 4f) / size.X);
             position = ScreenClamper.ClampIntoScreen(position, size * popupScale * scale, new Vector2(1f / 2f, 1f), Margin);
-            MiaoNetFont.DrawOutlineBottomCentered(text, position, Vector2.One * popupScale * scale, Color.White * popupAlpha);
+            MiaoNetFont.DrawOutlineBottomCentered(text, position, Vector2.One * popupScale * scale, Color.White * baseAlpha * popupAlpha);
         }
     }
 }
