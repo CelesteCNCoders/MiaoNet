@@ -344,7 +344,21 @@ public sealed class MiaoNetModule : EverestModule
 
     private static void Level_OnCreatePauseMenuButtons(Level level, TextMenu menu, bool minimal)
     {
-        TextMenu.Item item = new TextMenu.Button("MiaoNet");
+        if (!Core.CoreModule.Settings.ShowModOptionsInGame)
+            return;
+
+        // this is ugly but mods like extvar or cu2 did this, same for us...
+        int menuOptionsIndex = menu.Items.FindIndex(item =>
+            item.GetType() == typeof(TextMenu.Button)
+            && ((TextMenu.Button)item).Label == Dialog.Get("menu_pause_options")
+        );
+
+        // not found, just don't add it
+        if (menuOptionsIndex == -1)
+            return;
+
+        // generate our options menu
+        TextMenu.Item item = new TextMenu.Button(Dialog.Get("miaonet_menu_options"));
         item.Pressed(() =>
         {
             menu.RemoveSelf();
@@ -375,7 +389,8 @@ public sealed class MiaoNetModule : EverestModule
             };
             level.Add(options);
         });
-        // TODO 444444444444444444444
-        menu.Insert(4, item);
+
+        // insert right after it
+        menu.Insert(menuOptionsIndex + 1, item);
     }
 }

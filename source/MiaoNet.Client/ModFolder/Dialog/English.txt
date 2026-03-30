@@ -1,3 +1,4 @@
+miaonet_menu_options= MiaoNet
 miaonet_options_title= MiaoNet Options
 
 miaonet_options_connected= Connected
