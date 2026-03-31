@@ -169,7 +169,7 @@ public sealed partial class MainComponent : MiaoNetComponent
                     const float VMax = 248f + Radius, VSMax = VMax * VMax;
                     float initialSpeed = MathF.Sqrt(VSMin + (VSMax - VSMin) * Random.Shared.NextSingle());
                     Color color = player.Hair.Color;
-                    level.Add(new Fireworks(player.Position, color, initialSpeed));
+                    level.Add(new SelfFireworks(player.Position, color, initialSpeed));
                     context.QueuePacket(new PacketCreateFireworks(color, initialSpeed));
                     sendFireworksTimer = SendFireworksCooldown;
                 }
