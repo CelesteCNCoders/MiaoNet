@@ -30,6 +30,9 @@ public sealed class GhostFollower : MiaoNetGhostEntity
             sprite.Play("idle");
             spriteFallbacked = true;
         }
+        const float SizeLimit = 40f;
+        float scale = Math.Min(1f, SizeLimit / Math.Max(sprite.Width, sprite.Height));
+        sprite.Scale = Vector2.One * scale;
         Add(sprite);
         Add(new MirrorReflection());
         if (type is FollowerType.Strawberry or FollowerType.StrawberrySeed)
