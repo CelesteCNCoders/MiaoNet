@@ -203,6 +203,16 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         {
             string sid = $"\0mn_avt_{playerID}";
 
+            if (string.IsNullOrEmpty(playerInfo.AvatarUrl))
+            {
+                mainThreadQueue.Enqueue(() =>
+                {
+                    Emoji.Register(sid, GFX.Gui["miaonet/missing_avatar"], 64, 64);
+                    Emoji.Fill(MiaoNetFont.ENZhsFont);
+                });
+                return;
+            }
+
             if (!Uri.TryCreate(playerInfo.AvatarUrl, UriKind.Absolute, out Uri? uri))
             {
                 Logger.Warn(LT.MiaoNetAvatar, $"Invalid url \"{playerInfo.AvatarUrl}\" for player {playerInfo.DisplayName}.");
