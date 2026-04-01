@@ -130,6 +130,22 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
         UpdateLightSettings(MiaoNetModule.Settings.PlayerLight);
 
+        // TODO these can be prevented server-side
+        // thus we should introduce PlayerGlobalSettings
+        bool fr = MiaoNetModule.Settings.FollowersSyncMode.HasReceive;
+        if (!fr && leader.Active)
+        {
+            leader.Active = false;
+            foreach (var e in leader.Followers)
+                e.Entity.RemoveSelf();
+        }
+        else if (fr && !leader.Active)
+        {
+            leader.Active = true;
+            foreach (var e in leader.Followers)
+                Scene.Add(e.Entity);
+        }
+
         if (OnlinePlayer.IsPaused)
             return;
 

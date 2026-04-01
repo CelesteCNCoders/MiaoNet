@@ -13,7 +13,6 @@ public sealed class MiaoNetModule : EverestModule
     private MiaoNetContext? miaoNetContext;
 
     private static bool seenOverworld;
-    public const string LeaderFollowersDirtyField = "mn_followersDirty";
 
     public static MiaoNetModule Instance { get; private set; } = null!;
 
@@ -66,9 +65,6 @@ public sealed class MiaoNetModule : EverestModule
             IL.Celeste.Level.Update += Level_Update;
             SpriteIDTracker.Load();
             IL.Celeste.Leader.GainFollower += Leader_GainFollower;
-            IL.Celeste.Leader.GainFollower += ILHook_LeaderFollowersMarkDirty;
-            IL.Celeste.Leader.LoseFollower += ILHook_LeaderFollowersMarkDirty;
-            IL.Celeste.Leader.LoseFollowers += ILHook_LeaderFollowersMarkDirty;
             On.Celeste.Overworld.Begin += Overworld_Begin;
             On.Celeste.Player.Added += Player_Added;
             Everest.Events.LevelLoader.OnLoadingThread += LevelLoader_OnLoadingThread;
@@ -104,9 +100,6 @@ public sealed class MiaoNetModule : EverestModule
         IL.Celeste.Level.Update -= Level_Update;
         SpriteIDTracker.Unload();
         IL.Celeste.Leader.GainFollower -= Leader_GainFollower;
-        IL.Celeste.Leader.GainFollower -= ILHook_LeaderFollowersMarkDirty;
-        IL.Celeste.Leader.LoseFollower -= ILHook_LeaderFollowersMarkDirty;
-        IL.Celeste.Leader.LoseFollowers -= ILHook_LeaderFollowersMarkDirty;
         On.Celeste.Overworld.Begin -= Overworld_Begin;
         On.Celeste.Player.Added -= Player_Added;
         Everest.Events.LevelLoader.OnLoadingThread -= LevelLoader_OnLoadingThread;
@@ -142,19 +135,6 @@ public sealed class MiaoNetModule : EverestModule
     {
         foreach (var item in Settings.GetButtonBindings())
             item.Button?.Deregister();
-    }
-
-    private static void ILHook_LeaderFollowersMarkDirty(ILContext il)
-    {
-        // or we can just read Followers._version evilly...
-        ILCursor cur = new(il);
-        cur.EmitLdarg0();
-        cur.EmitDelegate(static (Leader leader) =>
-        {
-            if (leader.Entity is not Player)
-                return;
-            DynamicData.For(leader).Set(LeaderFollowersDirtyField, true);
-        });
     }
 
     private static void Leader_GainFollower(ILContext il)

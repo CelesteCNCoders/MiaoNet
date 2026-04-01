@@ -18,7 +18,7 @@ public sealed class FireworksComponent : Component
     {
         base.EntityAdded(scene);
         var settings = MiaoNetModule.Settings;
-        if (!settings.PlayerAudio || scene.Paused)
+        if (!settings.PlayerAudioSyncMode.HasReceive || scene.Paused)
             return;
         var ins = Audio.Play(MiaoNetSFX.PlayerPreDeath, Entity.Position);
         ins?.setVolume(settings.PlayerAudioVolumeValue);
@@ -36,7 +36,7 @@ public sealed class FireworksComponent : Component
                 blooming = true;
 
                 var settings = MiaoNetModule.Settings;
-                if (!settings.PlayerAudio || Scene.Paused)
+                if (!settings.PlayerAudioSyncMode.HasReceive || Scene.Paused)
                     return;
 
                 var ins = Audio.Play(MiaoNetSFX.PlayerDeath, Entity.Position);

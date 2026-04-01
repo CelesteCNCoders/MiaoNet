@@ -240,6 +240,12 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.GroupPhotoPlatformType = v);
         menu.Add(item);
 
+        item = new SyncModeSlider(
+            Dialog.Get("miaonet_options_followers_sync_mode"), settings.FollowersSyncMode
+        ).Change(v => settings.FollowersSyncMode = v);
+        menu.Add(item);
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_followers_sync_mode_tip"));
+
         #endregion
 
         #region Audio
@@ -247,11 +253,11 @@ public static class MenuMiaoNetOptions
         item = new TextMenu.SubHeader(Dialog.Get("miaonet_options_audio"), false);
         menu.Add(item);
 
-        item = new TextMenu.OnOff(
-            Dialog.Get("miaonet_options_player_audio"), settings.PlayerAudio
-        ).Change(v => settings.PlayerAudio = v);
+        item = new SyncModeSlider(
+            Dialog.Get("miaonet_options_player_audio_sync_mode"), settings.PlayerAudioSyncMode
+        ).Change(v => settings.PlayerAudioSyncMode = v);
         menu.Add(item);
-        item.AddDescription(menu, Dialog.Clean("miaonet_options_player_audio_tip"));
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_player_audio_sync_mode_tip"));
 
         item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_player_audio_volume"), 1, 10, settings.PlayerAudioVolume
@@ -399,9 +405,20 @@ public static class MenuMiaoNetOptions
         }));
     }
 
-    private class EnumSlider<T> : TextMenu.Option<T> where T : struct, Enum
+    private sealed class SyncModeSlider : TextMenu.Option<SyncMode>
     {
-        public EnumSlider(string label, Func<T, string> enumLabelSelector, T startValue = default)
+        public SyncModeSlider(string label, SyncMode startValue) : base(label)
+        {
+            Add(Dialog.Get("miaonet_options_sync_mode_none"), SyncMode.None, startValue == SyncMode.None);
+            Add(Dialog.Get("miaonet_options_sync_mode_receive"), SyncMode.Receive, startValue == SyncMode.Receive);
+            Add(Dialog.Get("miaonet_options_sync_mode_send"), SyncMode.Send, startValue == SyncMode.Send);
+            Add(Dialog.Get("miaonet_options_sync_mode_both"), SyncMode.Both, startValue == SyncMode.Both);
+        }
+    }
+
+    private sealed class EnumSlider<T> : TextMenu.Option<T> where T : struct, Enum
+    {
+        public EnumSlider(string label, Func<T, string> enumLabelSelector, T startValue)
             : base(label)
         {
             foreach (T enumValue in Enum.GetValues(typeof(T)))
@@ -409,7 +426,7 @@ public static class MenuMiaoNetOptions
         }
     }
 
-    private class MiaoNetKeyboardConfigUI : KeyboardConfigUI
+    private sealed class MiaoNetKeyboardConfigUI : KeyboardConfigUI
     {
         private readonly MiaoNetModuleSettings settings;
 
@@ -482,7 +499,7 @@ public static class MenuMiaoNetOptions
         }
     }
 
-    private class MiaoNetButtonConfigUI : ButtonConfigUI
+    private sealed class MiaoNetButtonConfigUI : ButtonConfigUI
     {
         private readonly MiaoNetModuleSettings settings;
 

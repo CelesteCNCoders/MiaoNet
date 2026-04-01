@@ -43,12 +43,15 @@ miaonet_options_distance_based_opacity= 玩家近距离透明
 miaonet_options_min_player_opacity= 最小玩家不透明度
 miaonet_options_emote_opacity= Emote 不透明度
 miaonet_options_group_photo_platform_type= 合影平台类型
+miaonet_options_followers_sync_mode= 玩家跟随物
+miaonet_options_followers_sync_mode_tip= 
+	例如钥匙，草莓等跟随玩家的实体。
 
 miaonet_options_audio= 音频
-miaonet_options_player_audio= 玩家音频
-miaonet_options_player_audio_tip= 
-	这会将本地播放的音频发送给其他玩家，
-	同时也会播放来自其他玩家的音频
+miaonet_options_player_audio_sync_mode= 玩家音频
+miaonet_options_player_audio_sync_mode_tip= 
+	是否将本地播放的玩家音频发送给其他玩家，
+	以及是否播放来自其他玩家的音频
 miaonet_options_player_audio_volume= 玩家音频音量
 
 miaonet_options_interactions= 交互
@@ -97,6 +100,11 @@ miaonet_options_button_player_list_scroll_down= 向下滚动玩家列表
 miaonet_options_button_emote_wheel_send_emote= Emote 轮盘发送 Emote
 miaonet_options_button_emotes= Emotes
 miaonet_options_button_emote_i= 发送 Emote (0)
+
+miaonet_options_sync_mode_none= 关
+miaonet_options_sync_mode_receive= 仅接收
+miaonet_options_sync_mode_send= 仅发送
+miaonet_options_sync_mode_both= 开
 
 miaonet_connection_status_connecting= 连接中…
 miaonet_connection_status_authenticating= 验证中…

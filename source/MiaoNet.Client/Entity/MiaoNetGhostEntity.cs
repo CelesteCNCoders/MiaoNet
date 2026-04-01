@@ -20,7 +20,7 @@ public abstract class MiaoNetGhostEntity : MiaoNetEntity
     public void OnPlayAudio(string @event, string? param, float paramValue)
     {
         var settings = MiaoNetModule.Settings;
-        if (!settings.PlayerAudio || Scene is not Level level || level.Paused)
+        if (!settings.PlayerAudioSyncMode.HasReceive || Scene is not Level level || level.Paused)
             return;
 
         EventDescription eventDescription = Audio.GetEventDescription(@event);

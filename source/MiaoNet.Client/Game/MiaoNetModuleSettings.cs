@@ -1,10 +1,10 @@
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Xna.Framework.Input;
 using YamlDotNet.Serialization;
 
 namespace Celeste.Mod.MiaoNet;
 
-#pragma warning disable CS8618
 
 public enum ButtonMode
 {
@@ -16,6 +16,15 @@ public enum TeleportBehaviour
 {
     NoSession,
     WithSession
+}
+
+[Flags]
+public enum SyncMode
+{
+    None = 0b00,
+    Receive = 0b01,
+    Send = 0b10,
+    Both = 0b11
 }
 
 // note: menus for this settings are all created and handled manually
@@ -114,6 +123,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public JumpthruType GroupPhotoPlatformType { get; set; } = JumpthruType.Dream;
 
+    public SyncMode FollowersSyncMode { get; set; } = SyncMode.Both;
+
     #region Calculated
 
     [YamlIgnore] public float PlayerListUIScaleValue => GetScaleValue(PlayerListUIScale);
@@ -140,7 +151,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     #region Audio
 
-    public bool PlayerAudio { get; set; } = true;
+    public SyncMode PlayerAudioSyncMode { get; set; } = SyncMode.Both;
 
     public int PlayerAudioVolume { get; set; } = 5;
 
@@ -210,6 +221,16 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
         ResetKeyBindings();
     }
 
+    [MemberNotNull(
+        nameof(ChatButton),
+        nameof(ChatCommandButton),
+        nameof(PlayerListButton),
+        nameof(EmoteButtons),
+        nameof(CreateFireworksButton),
+        nameof(PlayerListScrollUp),
+        nameof(PlayerListScrollDown),
+        nameof(EmoteWheelSendEmote)
+    )]
     public void ResetKeyBindings()
     {
         ChatButton = new(0, Keys.T);
@@ -225,6 +246,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
         EmoteWheelSendEmote = new(Buttons.RightStick, 0);
     }
 
+    [MemberNotNull(nameof(Emotes))]
     public void ResetEmotes()
     {
         Emotes = [

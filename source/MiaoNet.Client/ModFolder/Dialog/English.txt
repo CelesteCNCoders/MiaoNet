@@ -44,12 +44,15 @@ miaonet_options_distance_based_opacity= Player Distance Based Opacity
 miaonet_options_min_player_opacity= Min Player Opacity
 miaonet_options_emote_opacity= Emote Opacity
 miaonet_options_group_photo_platform_type= Group Photo Platform Type
+miaonet_options_followers_sync_mode= Player Followers
+miaonet_options_followers_sync_mode_tip= 
+	Entities that follow player, like strawberries and keys.
 
 miaonet_options_audio= Audio
-miaonet_options_player_audio= Sync Audio
-miaonet_options_player_audio_tip= 
-	This sends locally played audio to other players
-	and also plays audio received from other players.
+miaonet_options_player_audio_sync_mode= Sync Audio
+miaonet_options_player_audio_sync_mode_tip= 
+	Whether sends locally played player audio to other players
+	and whether plays audio received from other players.
 miaonet_options_player_audio_volume= Other Players Audio volume
 
 miaonet_options_interactions= Interactions
@@ -100,6 +103,11 @@ miaonet_options_button_player_list_scroll_down= Scroll Down Player List
 miaonet_options_button_emote_wheel_send_emote= Emote Wheel Send Emote
 miaonet_options_button_emotes= Emotes
 miaonet_options_button_emote_i= Send Emote (0)
+
+miaonet_options_sync_mode_none= OFF
+miaonet_options_sync_mode_receive= Receive Only
+miaonet_options_sync_mode_send= Send Only
+miaonet_options_sync_mode_both= ON
 
 miaonet_connection_status_connecting= Connecting...
 miaonet_connection_status_authenticating= Authenticating...

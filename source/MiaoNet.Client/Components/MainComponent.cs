@@ -73,6 +73,7 @@ public sealed partial class MainComponent : MiaoNetComponent
     public override void Update()
     {
         base.Update();
+        var settings = MiaoNetModule.Settings;
         Level? level = Engine.Scene as Level;
         Player? player = level?.Tracker.GetEntity<Player>();
 
@@ -84,9 +85,9 @@ public sealed partial class MainComponent : MiaoNetComponent
             var globalFlags = previousGlobalFlags;
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Paused, Engine.Scene.Paused);
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Typing, context.ChatComponent.Active);
-            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.LiveMode, MiaoNetModule.Settings.LiveMode);
-            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Interactions, MiaoNetModule.Settings.PlayerInteractions);
-            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.GroupPhotoMode, MiaoNetModule.Settings.GroupPhotoMode);
+            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.LiveMode, settings.LiveMode);
+            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Interactions, settings.PlayerInteractions);
+            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.GroupPhotoMode, settings.GroupPhotoMode);
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Watching, playerWatching is not null);
             bool hasGolden = player?.Leader.Followers.Any(f => f.Entity is Strawberry { Golden: true }) == true;
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.TakingGolden, hasGolden);
@@ -117,7 +118,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             return;
 
         // show or remove own name
-        if (MiaoNetModule.Settings.ShowOwnName)
+        if (settings.ShowOwnName)
         {
             if (selfNameTag is null)
             {
@@ -152,15 +153,15 @@ public sealed partial class MainComponent : MiaoNetComponent
             return;
 
         // player frame
-        if (!MiaoNetModule.Settings.GroupPhotoMode || level.OnInterval(1f / 2f))
-            SendPlayerFrame(player, selfState);
+        if (!settings.GroupPhotoMode || level.OnInterval(1f / 2f))
+            SendPlayerFrame(player, selfState, settings.FollowersSyncMode.HasSend);
 
         // fireworks
-        if (MiaoNetModule.Settings.Fireworks)
+        if (settings.Fireworks)
         {
             if (sendFireworksTimer <= 0f)
             {
-                var button = MiaoNetModule.Settings.CreateFireworksButton;
+                var button = settings.CreateFireworksButton;
                 if (button.Pressed && !level.Paused)
                 {
                     MInputHack.ConsumeAllInputs();
@@ -195,14 +196,10 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
-    private void SendPlayerFrame(Player player, PlayerState selfState)
+    private void SendPlayerFrame(Player player, PlayerState selfState, bool sendFollowers)
     {
         bool currentDashing = player.StateMachine.State is Player.StDash;
         int currentDashes = player.Dashes;
-
-        HoldableInfo? holdableInfo = null;
-        FollowerInfo[]? followerInitials = null;
-        FollowerInfoDelta[]? followerDeltas = null;
 
         FFlags flags = FFlags.None;
         if (player.Facing is Facings.Left)
@@ -220,18 +217,21 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (player.Ducking)
             flags |= FFlags.Ducking;
 
-        // any better ways?
-        if (DynamicData.For(player.Leader).Get(MiaoNetModule.LeaderFollowersDirtyField) as bool? is not false)
+        HoldableInfo? holdableInfo = null;
+        FollowerInfo[]? followerInitials;
+        FollowerInfoDelta[]? followerDeltas = null;
+
+        List<Follower> currentFollowers = sendFollowers ? player.Leader.Followers : [];
+        followerInitials = FetchFollowerInitialsIfNeeded(selfState.FollowerInfos, player.Leader.Entity, currentFollowers);
+        if (followerInitials is not null)
         {
             flags |= FFlags.HasFollowerInitials;
-            followerInitials = FetchFollowerInitials(player.Leader);
         }
-        else if (player.Leader.Followers.Count > 0)
+        else if (currentFollowers.Count > 0)
         {
             flags |= FFlags.HasFollowerDeltas;
             followerDeltas = FetchFollowerDeltas(player.Leader);
         }
-        DynamicData.For(player.Leader).Set(MiaoNetModule.LeaderFollowersDirtyField, false);
         SafeGuard.Assert(!(flags.HasFlag(FFlags.HasFollowerInitials) && flags.HasFlag(FFlags.HasFollowerDeltas)));
 
         if (player.Holding is not null)
@@ -305,25 +305,37 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
-    private static FollowerInfo[] FetchFollowerInitials(Leader leader)
+    private static FollowerInfo[]? FetchFollowerInitialsIfNeeded(FollowerInfo[] previous, Entity leader, IReadOnlyList<Follower> followers)
     {
-        int count = leader.Followers.Count;
+        if (previous.Length != followers.Count || !AllSameType(previous, followers))
+            return FetchFollowerInitials(leader, followers);
+        return null;
+
+        static bool AllSameType(FollowerInfo[] previous, IReadOnlyList<Follower> followers)
+        {
+            SafeGuard.Assert(previous.Length == followers.Count);
+            for (int i = 0; i < previous.Length; i++)
+            {
+                if (previous[i].Type != GetFollowerType(followers[i].Entity))
+                    return false;
+            }
+            return true;
+        }
+    }
+
+    private static FollowerInfo[] FetchFollowerInitials(Entity leader, IReadOnlyList<Follower> followers)
+    {
+        int count = followers.Count;
         count = Math.Min(12, count);
         var array = new FollowerInfo[count];
         for (int i = 0; i < array.Length; i++)
-            array[i] = FetchFollowerInitial(leader.Entity.Position, leader.Followers[i]);
+            array[i] = FetchFollowerInitial(leader.Position, followers[i]);
         return array;
 
         static FollowerInfo FetchFollowerInitial(Vector2 leaderEntityPosition, Follower follower)
         {
             Entity entity = follower.Entity;
-            FollowerType type = entity switch
-            {
-                Strawberry => FollowerType.Strawberry,
-                StrawberrySeed => FollowerType.StrawberrySeed,
-                Key => FollowerType.Key,
-                _ => FollowerType.Custom
-            };
+            FollowerType type = GetFollowerType(entity);
             Sprite spr = entity.Get<Sprite>();
 
             // TODO Strawberry Jam's RefillShard's sprite only contains Path
@@ -335,6 +347,14 @@ public sealed partial class MainComponent : MiaoNetComponent
             );
         }
     }
+
+    private static FollowerType GetFollowerType(Entity entity) => entity switch
+    {
+        Strawberry => FollowerType.Strawberry,
+        StrawberrySeed => FollowerType.StrawberrySeed,
+        Key => FollowerType.Key,
+        _ => FollowerType.Custom
+    };
 
     // TODO pool?
     private static FollowerInfoDelta[] FetchFollowerDeltas(Leader leader)
@@ -375,7 +395,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         PlayerState initialState = new PlayerState(player.Position, (byte)player.Dashes, Engine.DeltaTime)
         {
             PlayerSpriteMode = player.Sprite.Mode,
-            FollowerInfos = FetchFollowerInitials(player.Leader),
+            FollowerInfos = FetchFollowerInitials(player.Leader.Entity, player.Leader.Followers),
             Dashing = player.StateMachine.State is Player.StDash,
             Dead = body is not null,
             FacingLeft = player.Facing == Facings.Left,
@@ -620,6 +640,8 @@ public sealed partial class MainComponent : MiaoNetComponent
     private void MiaoNetModule_PlayerSoundPlayed(string sound, string? param, float value)
     {
         if (!HasState)
+            return;
+        if (!MiaoNetModule.Settings.PlayerAudioSyncMode.HasSend)
             return;
         if (sound is SFX.char_mad_revive)
             sound = MiaoNetSFX.PlayerRevive;
