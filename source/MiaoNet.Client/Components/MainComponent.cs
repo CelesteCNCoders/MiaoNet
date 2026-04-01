@@ -249,6 +249,8 @@ public sealed partial class MainComponent : MiaoNetComponent
             selfState.ApplyFollowersDeltas(followerDeltas);
         if (holdableInfo is not null)
             selfState.ApplyHoldableInfo((HoldableInfo)holdableInfo);
+        else
+            selfState.HoldableInfo = new HoldableInfo();
 
         var packetFrame = new PacketPlayerFrame(
             player.Position,
@@ -280,7 +282,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         Entity entity = holdable.Entity;
         Entity holder = holdable.Holder;
         Vector2 offset = entity.Position - holder.Position;
-        Vector2? offsetN = previous.Offset == offset ? null : offset;
+        Vector2? offsetN = (previous.Type != HoldableType.None && previous.Offset == offset) ? null : offset;
 
         if (entity is Glider jelly)
         {
