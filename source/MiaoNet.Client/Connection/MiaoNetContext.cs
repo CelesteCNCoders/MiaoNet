@@ -54,7 +54,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     PooledStringManager IPacketSerializationContext.PooledStringManager
     {
-        get { EnsureState(); return PooledStringManager!; } // TODO connection status
+        get { EnsureState(); return PooledStringManager!; }
     }
 
     [MemberNotNullWhen(true, nameof(connection), nameof(ClientState))]
