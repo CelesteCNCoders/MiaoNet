@@ -305,13 +305,13 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
-    private static FollowerInfo[]? FetchFollowerInitialsIfNeeded(FollowerInfo[] previous, Entity leader, IReadOnlyList<Follower> followers)
+    private static FollowerInfo[]? FetchFollowerInitialsIfNeeded(FollowerInfo[] previous, Entity leader, List<Follower> followers)
     {
         if (previous.Length != followers.Count || !AllSameType(previous, followers))
             return FetchFollowerInitials(leader, followers);
         return null;
 
-        static bool AllSameType(FollowerInfo[] previous, IReadOnlyList<Follower> followers)
+        static bool AllSameType(FollowerInfo[] previous, List<Follower> followers)
         {
             SafeGuard.Assert(previous.Length == followers.Count);
             for (int i = 0; i < previous.Length; i++)
@@ -323,7 +323,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
-    private static FollowerInfo[] FetchFollowerInitials(Entity leader, IReadOnlyList<Follower> followers)
+    private static FollowerInfo[] FetchFollowerInitials(Entity leader, List<Follower> followers)
     {
         int count = followers.Count;
         count = Math.Min(12, count);
