@@ -11,6 +11,11 @@ public sealed class IdleHover : MiaoNetEntity
     private readonly Entity parentEntity;
     private readonly MTexture hoverTexture;
     private float timer;
+    private float scale = 1f;
+
+    private const float OutAnimDuration = 1f / 3f;
+    private const float InAnimDuration = 1f / 5f;
+    private Tween? animTween;
 
     public IdleHover(Entity parentEntity)
     {
@@ -23,7 +28,30 @@ public sealed class IdleHover : MiaoNetEntity
     public override void Update()
     {
         base.Update();
-        timer += Engine.RawDeltaTime;
+        if (animTween is null)
+            timer += Engine.RawDeltaTime;
+    }
+
+    public void PlayAnimation()
+    {
+        animTween = Tween.Set(
+            this, Tween.TweenMode.Oneshot,
+            OutAnimDuration, Ease.ElasticOut,
+            t => scale = MathHelper.Lerp(0.5f, 1f, t.Eased),
+            t => animTween = null
+        );
+        animTween.UseRawDeltaTime = true;
+    }
+
+    public void StopAnimationAndRemove()
+    {
+        animTween = Tween.Set(
+            this, Tween.TweenMode.Oneshot,
+            InAnimDuration, Ease.ElasticIn,
+            t => scale = MathHelper.Lerp(1f, 0.5f, t.Eased),
+            t => { animTween = null; RemoveSelf(); }
+        );
+        animTween.UseRawDeltaTime = true;
     }
 
     public override void Render()
@@ -39,7 +67,7 @@ public sealed class IdleHover : MiaoNetEntity
         hoverTexture.DrawJustified(
             pos,
             new Vector2(0.5f, 1f),
-            Color.White, 1f
+            Color.White, scale
         );
     }
 }

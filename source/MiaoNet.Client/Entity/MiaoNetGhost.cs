@@ -596,15 +596,18 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             {
                 playerHair.Active = false;
                 idleHover = new(this);
-                Scene?.Add(idleHover);
+                if (Scene is not null)
+                {
+                    Scene.Add(idleHover);
+                    idleHover.PlayAnimation();
+                }
                 UpdateCollidable();
             }
         }
         else
         {
             playerHair.Active = true;
-            if (idleHover is not null)
-                Scene?.CompletelyRemove(idleHover);
+            idleHover?.StopAnimationAndRemove();
             idleHover = null;
             UpdateCollidable();
         }
