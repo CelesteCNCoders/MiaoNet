@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 
 namespace MiaoNet.Server;
 
+// TODO simplify this
 public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
 {
     private readonly ILogger<CeleMiaoAuthenticator> logger;
