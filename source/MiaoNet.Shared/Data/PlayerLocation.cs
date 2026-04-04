@@ -77,8 +77,8 @@ public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatabl
         if (MapSid == string.Empty)
             return "None";
         if (MapRoom == string.Empty)
-            return $"{MapSid}.DebugMap {SideCharacter}";
-        return $"{MapSid}.{MapRoom} {SideCharacter}";
+            return $"{MapSid} {SideCharacter} .DebugMap";
+        return $"{MapSid} {SideCharacter} {MapRoom}";
     }
 
     public readonly void Serialize(ref RefBinaryWriter writer)
