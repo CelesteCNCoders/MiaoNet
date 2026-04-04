@@ -177,6 +177,9 @@ miaonet_commands_watch_description= 观看一个玩家。
 miaonet_commands_watch_s0_name= 玩家名称
 miaonet_commands_watch_s0_description= 要观看的玩家。
 miaonet_commands_unwatch_description= 停止观看玩家。
+miaonet_commands_map_chat_description= 发送一个地图聊天。
+miaonet_commands_map_chat_s0_name= 文本
+miaonet_commands_map_chat_s0_description= 聊天内容。
 
 miaonet_commands_teleport_notice= 
 	使用 Teleport 指令默认会保存你的当前游戏进度并将存档切换至一个临时存档。

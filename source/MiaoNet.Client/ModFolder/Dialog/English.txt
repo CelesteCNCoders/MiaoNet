@@ -180,6 +180,9 @@ miaonet_commands_watch_description= Watch a player.
 miaonet_commands_watch_s0_name= Player
 miaonet_commands_watch_s0_description= The player to be watched.
 miaonet_commands_unwatch_description= Stop watching a player.
+miaonet_commands_map_chat_description= Send a map chat.
+miaonet_commands_map_chat_s0_name= Text
+miaonet_commands_map_chat_s0_description= Chat message.
 
 miaonet_commands_teleport_notice=
 	By default, using the Teleport command saves your current progress and switches to a temporary save file.
