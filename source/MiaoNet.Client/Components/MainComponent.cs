@@ -118,7 +118,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             return;
 
         // show or remove own name
-        if (settings.ShowOwnName)
+        if (settings.ShowOwnName && !Watching)
         {
             if (selfNameTag is null)
             {
