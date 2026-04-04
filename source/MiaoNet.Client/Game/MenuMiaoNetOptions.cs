@@ -218,8 +218,8 @@ public static class MenuMiaoNetOptions
         {
             TextMenuExt.IntSlider minPlayerOpacitySlider;
             minPlayerOpacitySlider = new TextMenuExt.IntSlider(
-                Dialog.Get("miaonet_options_min_player_opacity"), 1, 10, settings.MinPlayerOpacity
-            ).Change(v => settings.MinPlayerOpacity = v);
+                Dialog.Get("miaonet_options_min_player_opacity_multiplier"), 0, 9, settings.MinPlayerOpacityMultiplier
+            ).Change(v => settings.MinPlayerOpacityMultiplier = v);
             minPlayerOpacitySlider.Visible = settings.DistanceBasedOpacity;
 
             item = new TextMenu.OnOff(

@@ -117,7 +117,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public bool DistanceBasedOpacity { get; set; } = false;
 
-    public int MinPlayerOpacity { get; set; } = 2;
+    public int MinPlayerOpacityMultiplier { get; set; } = 2;
 
     public int EmoteOpacity { get; set; } = 10;
 
@@ -137,7 +137,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     [YamlIgnore] public float SelfNameOpacityValue => SelfNameOpacity / 10f;
 
-    [YamlIgnore] public float MinPlayerOpacityValue => MinPlayerOpacity / 10f;
+    [YamlIgnore] public float MinPlayerOpacityValue => MinPlayerOpacityMultiplier / 10f;
 
     [YamlIgnore] public float EmoteOpacityValue => EmoteOpacity / 10f;
 
