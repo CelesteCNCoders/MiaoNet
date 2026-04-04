@@ -28,6 +28,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
     private readonly ILogger<MiaoClientConnection> logger;
     private readonly MiaoServerService server;
+    private readonly MiaoMetricsService metricsService;
 
     private readonly INetworkConnection networkConnection;
     private readonly CancellationTokenSource cts;
@@ -41,16 +42,19 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
     private readonly Channel<(SerializedPacket?, IContextualPacket?)> sendChannel;
 
+    // TODO refactor
     public MiaoClientConnection(
         int id, INetworkConnection networkConnection,
         ServerPlayer onlinePlayer,
         ILogger<MiaoClientConnection> logger,
-        MiaoServerService server
+        MiaoServerService server,
+        MiaoMetricsService metricsService
     )
     {
         ID = id;
         this.logger = logger;
         this.server = server;
+        this.metricsService = metricsService;
         this.networkConnection = networkConnection;
         Player = onlinePlayer;
 
@@ -189,9 +193,13 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
             while (true)
             {
                 var result = await pipeReader.ReadAsync(token);
+                var oldBuffer = result.Buffer;
                 var buffer = result.Buffer;
                 while (TryParsePacket(ref buffer, out IContextualPacket? packet, this))
+                {
+                    metricsService.RecordPacketTcpDownload((int)(oldBuffer.Length - buffer.Length));
                     await server.HandlePacketAsync(this, packet);
+                }
 
                 pipeReader.AdvanceTo(buffer.Start, buffer.End);
                 if (result.IsCompleted)
@@ -226,6 +234,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
             {
                 var packet = s is not null ? s : new SerializedPacket(p!, this);
                 await networkConnection.Stream.WriteAsync(packet.ArraySegment, token);
+                metricsService.RecordPacketTcpUpload(packet.ArraySegment.Count);
                 // TODO packet is not always "consumed"
                 packet.OnConsumed();
             }

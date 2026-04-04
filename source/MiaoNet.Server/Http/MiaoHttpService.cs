@@ -1,6 +1,7 @@
 ﻿using System.Collections.Specialized;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.Web;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -10,17 +11,44 @@ namespace MiaoNet.Server;
 
 public sealed partial class MiaoHttpService : BackgroundService
 {
+    private delegate Task RequestHandler(NameValueCollection query, HttpListenerContext context);
+
     private readonly ILogger<MiaoHttpService> logger;
     private readonly MiaoServerService miaoServerService;
-
+    private readonly MiaoMetricsService miaoMetricsService;
     private readonly HttpListener httpListener;
+    private readonly Dictionary<string, RequestHandler> requestHandlers;
 
-    public MiaoHttpService(ILogger<MiaoHttpService> logger, IOptions<MiaoServerOptions> options, MiaoServerService miaoServerService)
+    private readonly JsonSerializerOptions jsonSerializerOptions;
+
+    public MiaoHttpService(
+        ILogger<MiaoHttpService> logger,
+        IOptions<MiaoServerOptions> options,
+        MiaoServerService miaoServerService,
+        MiaoMetricsService miaoMetricsService
+    )
     {
         this.logger = logger;
         this.miaoServerService = miaoServerService;
+        this.miaoMetricsService = miaoMetricsService;
         httpListener = new();
         httpListener.Prefixes.Add(options.Value.HttpListenerPrefix);
+
+        jsonSerializerOptions = new()
+        {
+#if DEBUG
+            WriteIndented = true
+#endif
+        };
+
+        requestHandlers = new()
+        {
+            ["/status"] = Status,
+            ["/player/kick"] = PlayerKick,
+            ["/announce"] = Announce,
+            ["/gc"] = DoGC,
+            ["/metrics"] = GetMetrics
+        };
     }
 
     public override Task StartAsync(CancellationToken cancellationToken)
@@ -74,6 +102,26 @@ public sealed partial class MiaoHttpService : BackgroundService
             {
                 context.Response.Close();
             }
+        }
+    }
+
+    private async Task HandleRequestAsync(string path, NameValueCollection query, HttpListenerContext context)
+    {
+        try
+        {
+            if (requestHandlers.TryGetValue(path, out var handler))
+                await handler(query, context);
+            else
+                context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+        }
+        catch (Exception e)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+            logger.LogError(
+                AppEvents.Http, e,
+                "Error when handling request \"{url}\" from {ep}",
+                context.Request.RawUrl, context.Request.RemoteEndPoint
+            );
         }
     }
 

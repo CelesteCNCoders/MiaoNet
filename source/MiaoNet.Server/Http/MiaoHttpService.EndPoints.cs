@@ -1,53 +1,19 @@
-#pragma warning disable IDE0060 // unused parameters
-
 using System.Collections.Specialized;
+using System.Diagnostics;
+using System.Globalization;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using MiaoNet.Shared;
 using Microsoft.Extensions.Logging;
 namespace MiaoNet.Server;
 
 public partial class MiaoHttpService
 {
-    private async Task HandleRequestAsync(string path, NameValueCollection query, HttpListenerContext context)
+    private async Task PlayerKick(NameValueCollection query, HttpListenerContext context)
     {
-        try
-        {
-            switch (path)
-            {
-            case "/summary":
-            case "/info":
-                await Summary(query, context);
-                break;
-            case "/player/disconnect":
-                await PlayerDisconnect(query, context);
-                break;
-            case "/announce":
-                await Announce(query, context);
-                break;
-            case "/gc":
-                await GC(query, context);
-                break;
-            default:
-                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                break;
-            }
-        }
-        catch (Exception e)
-        {
-            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-            logger.LogError(AppEvents.Http, e, "Error when handling request \"{url}\" from {ep}", context.Request.RawUrl, context.Request.RemoteEndPoint);
-        }
-    }
-    private async Task PlayerDisconnect(NameValueCollection query, HttpListenerContext context)
-    {
-        if (context.Request.HttpMethod != HttpMethod.Post.Method)
-        {
-            context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
-            return;
-        }
-
-        if (!int.TryParse(query["id"], out int pid))
+        string? reason = query["reason"];
+        if (!int.TryParse(query["id"], CultureInfo.InvariantCulture, out int pid))
         {
             context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
             return;
@@ -57,41 +23,40 @@ public partial class MiaoHttpService
             context.Response.StatusCode = (int)HttpStatusCode.NotFound;
             return;
         }
-        await client.Connection.DisconnectAsync(DisconnectReason.Kicked, "admin kicked.");
+        await client.Connection.DisconnectAsync(DisconnectReason.Kicked, reason ?? "admin kicked.");
         context.Response.StatusCode = (int)HttpStatusCode.NoContent;
     }
 
-    // TODO jsonify
-    private Task Summary(NameValueCollection query, HttpListenerContext context)
+    private async Task Status(NameValueCollection query, HttpListenerContext context)
     {
-        StringBuilder sb = new(128);
+        context.Response.ContentType = "application/json";
 
         var state = miaoServerService.ServerState;
 
-        sb.AppendLine($"Channels Count: {state.AllChannels.Count}");
-        sb.AppendLine($"Players Count: {state.AllPlayers.Count}");
-        sb.AppendLine();
-        foreach ((_, var channel) in state.AllChannels)
+#pragma warning disable IDE0037
+        var response = new
         {
-            sb.AppendLine($"Channel {channel.StateInfo}");
-            foreach ((_, (var player, _)) in channel.Players)
+            PlayersCount = state.AllPlayers.Count,
+            Channels = state.AllChannels.Select(static c => new
             {
-                sb.AppendLine($"  Player {player.Info} at {player.Location}, {player.State}");
-            }
-        }
+                ID = c.Key,
+                Name = c.Value.StateInfo.Name,
+                Players = c.Value.Players.Select(static p => new
+                {
+                    ID = p.Key,
+                    Name = p.Value.Player.Info.Name,
+                    Location = p.Value.Player.Location.ToString()
+                })
+            })
+        };
+#pragma warning restore IDE0037
 
-        context.Response.OutputStream.Write(Encoding.UTF8.GetBytes(sb.ToString()));
-        return Task.CompletedTask;
+        await JsonSerializer.SerializeAsync(context.Response.OutputStream, response, jsonSerializerOptions);
+        context.Response.StatusCode = (int)HttpStatusCode.OK;
     }
 
     private async Task Announce(NameValueCollection query, HttpListenerContext context)
     {
-        if (context.Request.HttpMethod != HttpMethod.Post.Method)
-        {
-            context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
-            return;
-        }
-
         string? message = query["msg"];
         if (string.IsNullOrWhiteSpace(message))
         {
@@ -99,19 +64,38 @@ public partial class MiaoHttpService
             return;
         }
 
-        foreach (var (_, (p, c)) in miaoServerService.ServerState.AllPlayers)
-        {
+        var players = miaoServerService.ServerState.AllPlayers;
+        foreach (var (_, (p, c)) in players)
             await c.QueuePacketAsync(new PacketChatMessage(DateTime.UtcNow, ChatMessageType.Server, null, message));
-            context.Response.OutputStream.Write(Encoding.UTF8.GetBytes($"Announced to {p.Info}\n"));
-        }
+
         context.Response.StatusCode = (int)HttpStatusCode.NoContent;
     }
 
-    private Task GC(NameValueCollection query, HttpListenerContext context)
+    private Task DoGC(NameValueCollection query, HttpListenerContext context)
     {
-        System.GC.Collect(System.GC.MaxGeneration, GCCollectionMode.Forced, true, true);
-        System.GC.WaitForPendingFinalizers();
-        context.Response.OutputStream.Write(Encoding.UTF8.GetBytes("Done GC."));
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, true);
+        GC.WaitForPendingFinalizers();
+        context.Response.StatusCode = (int)HttpStatusCode.NoContent;
         return Task.CompletedTask;
+    }
+
+    private async Task GetMetrics(NameValueCollection query, HttpListenerContext context)
+    {
+        context.Response.ContentType = "application/json";
+
+        var values = miaoMetricsService.Get();
+        var ret = new
+        {
+            OnlinePlayersCount = miaoServerService.ServerState.AllPlayers.Count,
+            Metrics = values,
+            GC = new
+            {
+                TotalAllocatedBytes = GC.GetTotalAllocatedBytes(),
+                TotalMemory = GC.GetTotalMemory(false),
+                TotalPauseDuration = GC.GetTotalPauseDuration()
+            }
+        };
+        await JsonSerializer.SerializeAsync(context.Response.OutputStream, ret, jsonSerializerOptions);
+        context.Response.StatusCode = (int)HttpStatusCode.OK;
     }
 }

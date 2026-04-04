@@ -21,9 +21,10 @@ public sealed partial class MiaoServerService : BackgroundService
     private static readonly ArrayPool<byte> pool = ArrayPool<byte>.Shared;
 
     private readonly ILogger<MiaoServerService> logger;
-    private readonly ILoggerFactory connectionLoggerFactory;
+    private readonly MiaoClientConnectionFactory connectionFactory;
     private readonly MiaoServerOptions options;
     private readonly IMiaoAuthenticator authenticator;
+    private readonly MiaoMetricsService miaoMetricsService;
 
     private readonly PacketDispatcher packetDispatcher;
 
@@ -39,12 +40,14 @@ public sealed partial class MiaoServerService : BackgroundService
 
     public int DisconnectTimeout => options.DisconnectTimeout;
 
+    // TODO refactor
     public MiaoServerService(
         ILogger<MiaoServerService> logger,
         IOptions<MiaoServerOptions> options,
-        ILoggerFactory connectionLoggerFactory,
         NetworkListenerFactory networkListenerFactory,
-        IMiaoAuthenticator authenticator
+        MiaoClientConnectionFactory connectionFactory,
+        IMiaoAuthenticator authenticator,
+        MiaoMetricsService miaoMetricsService
     )
     {
         serverState = new();
@@ -54,12 +57,13 @@ public sealed partial class MiaoServerService : BackgroundService
         packetDispatcher = new(register);
 
         this.logger = logger;
-        this.connectionLoggerFactory = connectionLoggerFactory;
+        this.connectionFactory = connectionFactory;
         this.authenticator = authenticator;
         this.options = options.Value;
         networkListener = networkListenerFactory(this.options.Network);
         pingTimer = new(TimeSpan.FromMilliseconds(this.options.PingPeriod));
         stopwatch = Stopwatch.StartNew();
+        this.miaoMetricsService = miaoMetricsService;
     }
 
     public override Task StartAsync(CancellationToken cancellationToken)
@@ -272,6 +276,7 @@ public sealed partial class MiaoServerService : BackgroundService
 
     private async Task HandleConnectionAsync(INetworkConnection connection, HandshakeResult handshakeResult)
     {
+        miaoMetricsService.RecordSession();
         string addr = connection.RemoteAddress;
         try
         {
@@ -286,8 +291,7 @@ public sealed partial class MiaoServerService : BackgroundService
             );
 
             // create the connection
-            var conLogger = connectionLoggerFactory.CreateLogger<MiaoClientConnection>();
-            MiaoClientConnection newConnection = new(newPlayer.ID, connection, newPlayer, conLogger, this);
+            MiaoClientConnection newConnection = connectionFactory(newPlayer.ID, connection, newPlayer, this);
 
             // send the new player initial data
             PlayerInfo clientPlayerInfo = newConnection.Player.Info;
