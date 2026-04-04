@@ -1,5 +1,7 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using MiaoNet.Shared;
 
@@ -187,6 +189,17 @@ partial class MiaoNetContext
                 connection?.Dispose();
                 Logger.Info(LT.MiaoNetConnection, "Connection cancelled");
                 QueueDisconnectStatus(ConnectionStatus.Cancelled);
+                return;
+            }
+            catch (MiaoSslException e)
+            {
+                connection?.Dispose();
+                Logger.Error(LT.MiaoNetConnection, $"Ssl error: {e.SslPolicyErrors}. {e.X509ChainStatusFlags}");
+                Logger.LogDetailed(e, LT.MiaoNetConnection);
+                if (e.X509ChainStatusFlags.HasFlag(X509ChainStatusFlags.RevocationStatusUnknown | X509ChainStatusFlags.OfflineRevocation))
+                    QueueDisconnectStatus(ConnectionStatus.ConnectionSslRevocationCheckFailed);
+                else
+                    QueueDisconnectStatus(ConnectionStatus.ConnectionSslError(e.SslPolicyErrors, e.X509ChainStatusFlags));
                 return;
             }
             catch (Exception e)

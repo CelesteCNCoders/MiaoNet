@@ -54,7 +54,21 @@ public sealed partial class MiaoServerConnection : IDisposable
         await networkStream.WriteAsync(Connection.HandshakeHead, token);
 
 #if !USE_LOCALHOST_PFX
-        var sslStream = new SslStream(networkStream);
+        var sslStream = new SslStream(networkStream, false, (sender, certificate, chain, errors) =>
+        {
+            if (errors != SslPolicyErrors.None)
+            {
+                X509ChainStatusFlags chainStatusFlags = X509ChainStatusFlags.NoError;
+                if (chain != null)
+                {
+                    X509ChainStatus[] chainStatus = chain.ChainStatus;
+                    for (int i = 0; i < chainStatus.Length; i++)
+                        chainStatusFlags |= (chainStatus[i]).Status;
+                }
+                throw new MiaoSslException(errors, chainStatusFlags);
+            }
+            return true;
+        });
 #else
         var certStream = typeof(MiaoServerConnection).Assembly.GetManifestResourceStream("localhost.pfx")!;
         byte[] certRawData = new byte[certStream.Length];

@@ -121,6 +121,8 @@ miaonet_connection_status_no_token= 请先进行登录
 miaonet_connection_status_no_name= 请先设置名字
 miaonet_connection_status_connect_failed_with_reason= 连接失败。(0)
 miaonet_connection_status_connection_aborted= 连接被强制断开
+miaonet_connection_status_ssl_error= 连接 SSL 错误：(0) ((1))
+miaonet_connection_status_revocation_check_failed= 连接建立失败。证书吊销检查失败
 
 miaonet_context_player_joined= (0) 加入了 MiaoNet
 miaonet_context_player_left= (0) 退出了 MiaoNet

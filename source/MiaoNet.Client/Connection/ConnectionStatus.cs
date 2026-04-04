@@ -1,3 +1,6 @@
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
+
 namespace Celeste.Mod.MiaoNet;
 
 public static class ConnectionStatus
@@ -24,6 +27,14 @@ public static class ConnectionStatus
     public static string ConnectFailedWithReason(string reason)
         => Dialog.Get(string.Format(Base, "connect_failed_with_reason"))
             .Replace("(0)", reason);
+
+    public static string ConnectionSslError(SslPolicyErrors sslPolicyErrors, X509ChainStatusFlags x509ChainStatusFlags)
+        => Dialog.Get(string.Format(Base, "ssl_error"))
+            .Replace("(0)", sslPolicyErrors.ToString())
+            .Replace("(1)", x509ChainStatusFlags.ToString());
+
+    public static string ConnectionSslRevocationCheckFailed
+        => Dialog.Get(string.Format(Base, "revocation_check_failed"));
 
     public static string DisconnectedWithReason(string reason)
         => Dialog.Get(string.Format(Base, "disconnected_exceptionally_with_reason"))
