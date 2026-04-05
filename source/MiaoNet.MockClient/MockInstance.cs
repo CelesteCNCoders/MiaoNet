@@ -12,7 +12,7 @@ namespace MiaoNet.MockClient;
 
 public sealed class MockInstance : IPacketSerializationContext, IDisposable
 {
-    private static readonly Version ClientVersion = new(0, 4, 2);
+    private static readonly Version ClientVersion = new(0, 4, 3);
 
     private Vector2 position;
 
