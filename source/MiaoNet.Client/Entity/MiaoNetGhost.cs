@@ -23,6 +23,8 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     private bool dead;
     private bool starFlying;
     private bool ducking;
+    private bool tired;
+    private bool flash;
     // TODO sync hitbox size?
     private readonly Hitbox normalHitbox = new Hitbox(8f, 16f, -4f, -16f);
     private readonly Hitbox duckHitbox = new Hitbox(8f, 6f, -4f, -6f);
@@ -173,7 +175,13 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             playerHair.Color = GraphicsInfo.GetHairInfo(dashes).Color;
         }
 
-        if (playerSprite.Mode == PlayerSpriteMode.Playback || starFlying)
+        // TODO apply others' delta time
+        if (Scene.OnRawInterval(0.05f))
+            flash = !flash;
+
+        if (flash && tired)
+            playerSprite.Color = Color.Red;
+        else if (playerSprite.Mode == PlayerSpriteMode.Playback || starFlying)
             playerSprite.Color = playerHair.Color;
         else
             playerSprite.Color = Color.White;
@@ -581,6 +589,9 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         hitbox = ducking ? duckHitbox : normalHitbox;
         Collider = hitbox;
     }
+
+    public void UpdateTired(bool tired)
+        => this.tired = tired;
 
     public void UpdateInteractions(bool interactions)
     {

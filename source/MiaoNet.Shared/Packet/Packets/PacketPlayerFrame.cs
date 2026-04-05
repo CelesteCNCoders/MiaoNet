@@ -20,7 +20,8 @@ public sealed class PacketPlayerFrame : IContextualPacket<PacketPlayerFrame>
         HasFollowerDeltas = 1 << 6,
         HasWindDirection = 1 << 7,
         Interactions = 1 << 8,
-        Ducking = 1 << 9
+        Ducking = 1 << 9,
+        Tired = 1 << 10
     }
 
     #region flags
@@ -46,6 +47,8 @@ public sealed class PacketPlayerFrame : IContextualPacket<PacketPlayerFrame>
     public bool Interactions => Flags.HasFlag(FrameFlags.Interactions);
 
     public bool Ducking => Flags.HasFlag(FrameFlags.Ducking);
+
+    public bool Tired => Flags.HasFlag(FrameFlags.Tired);
 
     #endregion
 

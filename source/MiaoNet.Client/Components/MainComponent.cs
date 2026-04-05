@@ -216,6 +216,8 @@ public sealed partial class MainComponent : MiaoNetComponent
             flags |= FFlags.Interactions;
         if (player.Ducking)
             flags |= FFlags.Ducking;
+        if (player.IsTired)
+            flags |= FFlags.Tired;
 
         HoldableInfo? holdableInfo = null;
         FollowerInfo[]? followerInitials;
@@ -547,6 +549,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             );
             ghost.NotifyStarFlying(packet.StarFlying);
             ghost.UpdateDucking(packet.Ducking);
+            ghost.UpdateTired(packet.Tired);
         }
         else
         {
