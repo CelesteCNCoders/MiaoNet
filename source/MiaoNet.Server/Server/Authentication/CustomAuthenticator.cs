@@ -4,12 +4,12 @@ namespace MiaoNet.Server;
 
 public sealed class CustomAuthenticator : IMiaoAuthenticator
 {
-    public Task<AuthenticationResult> AuthenticateAsync(byte[] authenticationData, AuthenticationType authenticationType, CancellationToken cancellationToken)
+    public async Task<AuthenticationResult> AuthenticateAsync(byte[] authenticationData, bool isAuthorize, CancellationToken cancellationToken)
     {
         // authenticationData is a PlayerInfo here
         RefBinaryReader reader = new(authenticationData);
         PlayerInfo info = reader.Read<PlayerInfo>();
 
-        return Task.FromResult(new AuthenticationResult(AuthenticationResultType.Success, info, null));
+        return new AuthenticationResult(AuthenticationResultType.Success, info, null);
     }
 }

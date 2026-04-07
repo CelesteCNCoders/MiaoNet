@@ -19,8 +19,8 @@ public readonly struct AuthenticationResult
 
     public AuthenticationResult(AuthenticationResultType type)
     {
-        Type = type;
         Debug.Assert(type != AuthenticationResultType.Success);
+        Type = type;
     }
 
     public AuthenticationResult(AuthenticationResultType type, string? suspendMessage)

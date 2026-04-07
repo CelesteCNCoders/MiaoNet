@@ -13,12 +13,12 @@ public partial class MiaoHttpService
     private async Task PlayerKick(NameValueCollection query, HttpListenerContext context)
     {
         string? reason = query["reason"];
-        if (!int.TryParse(query["id"], CultureInfo.InvariantCulture, out int pid))
+        if (!int.TryParse(query["id"], CultureInfo.InvariantCulture, out int id))
         {
             context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
             return;
         }
-        if (!miaoServerService.ServerState.AllPlayers.TryGetValue(pid, out var client))
+        if (!miaoServerService.ServerState.AllPlayers.TryGetValue(id, out var client))
         {
             context.Response.StatusCode = (int)HttpStatusCode.NotFound;
             return;

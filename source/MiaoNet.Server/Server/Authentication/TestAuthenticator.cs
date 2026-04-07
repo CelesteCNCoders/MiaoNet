@@ -30,7 +30,7 @@ public sealed class TestAuthenticator : IMiaoAuthenticator
         "Heart", "Rainbow", "Orb", "Mountain", "SD", "Miao"
     ];
 
-    public Task<AuthenticationResult> AuthenticateAsync(byte[] data, AuthenticationType type, CancellationToken token)
+    public Task<AuthenticationResult> AuthenticateAsync(byte[] data, bool isAuthorize, CancellationToken token)
     {
         Random r = Random.Shared;
         string name = $"{Prefixes[r.Next(Prefixes.Count)]} {Names[r.Next(Names.Count)]}";

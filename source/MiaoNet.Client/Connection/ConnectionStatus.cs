@@ -24,6 +24,10 @@ public static class ConnectionStatus
 
     public static string Cancelled => Dialog.Get(string.Format(Base, "cancelled"));
 
+    public static string InvalidTokenData => Dialog.Get(string.Format(Base, "invalid_token_data"));
+
+    public static string InternalServerError => Dialog.Get(string.Format(Base, "internal_server_error"));
+
     public static string ConnectFailedWithReason(string reason)
         => Dialog.Get(string.Format(Base, "connect_failed_with_reason"))
             .Replace("(0)", reason);

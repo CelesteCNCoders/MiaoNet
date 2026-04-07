@@ -26,16 +26,16 @@ public sealed class HandshakeData : IRefBinarySerializable<HandshakeData>
 
     public byte LangCode { get; }
 
-    public AuthenticationType Type { get; }
+    public bool IsAuthorize { get; }
 
     public byte[] AuthenticationData { get; }
 
     public IReadOnlyList<NetMod> NetMods { get; }
 
-    public HandshakeData(byte langCode, AuthenticationType type, byte[] authenticationData, IReadOnlyList<NetMod> netMods)
+    public HandshakeData(byte langCode, bool isAuthorize, byte[] authenticationData, IReadOnlyList<NetMod> netMods)
     {
         LangCode = langCode;
-        Type = type;
+        IsAuthorize = isAuthorize;
         AuthenticationData = authenticationData;
         NetMods = netMods;
     }
@@ -43,7 +43,7 @@ public sealed class HandshakeData : IRefBinarySerializable<HandshakeData>
     public void Serialize(ref RefBinaryWriter writer)
     {
         writer.Write(LangCode);
-        writer.Write((byte)Type);
+        writer.Write(IsAuthorize);
         writer.Write((ushort)AuthenticationData.Length);
         writer.WriteSpan(AuthenticationData);
         writer.Write(NetMods);
@@ -52,10 +52,10 @@ public sealed class HandshakeData : IRefBinarySerializable<HandshakeData>
     public static HandshakeData Deserialize(ref RefBinaryReader reader)
     {
         byte langCode = reader.ReadByte();
-        AuthenticationType type = (AuthenticationType)reader.ReadByte();
+        bool isAuthorize = reader.ReadBoolean();
         ushort authDataLength = reader.ReadUInt16();
         byte[] authData = reader.ReadSpan(authDataLength).ToArray();
         NetMod[] netMods = reader.ReadArray<NetMod>();
-        return new HandshakeData(langCode, type, authData, netMods);
+        return new HandshakeData(langCode, isAuthorize, authData, netMods);
     }
 }

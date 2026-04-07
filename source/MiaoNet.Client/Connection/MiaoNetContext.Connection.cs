@@ -82,13 +82,12 @@ partial class MiaoNetContext
 #if USE_CELEMIAO_AUTH
             if (ClientRC.AuthenticationCode is null)
             {
-                Logger.Info(LT.MiaoNetConnection, "Using AuthType QuickLogin to log in.");
-                handshakeData = new HandshakeData(langCode, AuthenticationType.QuickLogin, MiaoNetModule.Settings.TokenData!, netMods);
+                handshakeData = new HandshakeData(langCode, false, MiaoNetModule.Settings.TokenData!, netMods);
             }
             else
             {
-                Logger.Info(LT.MiaoNetConnection, "Auth code is not null, using AuthType Authorize to log in.");
-                handshakeData = new HandshakeData(langCode, AuthenticationType.Authorize, Encoding.UTF8.GetBytes(ClientRC.AuthenticationCode), netMods);
+                Logger.Info(LT.MiaoNetConnection, "Auth code is not null, set isAuthorize to true to log in.");
+                handshakeData = new HandshakeData(langCode, true, Encoding.UTF8.GetBytes(ClientRC.AuthenticationCode), netMods);
             }
 
             ClientRC.AuthenticationCode = null;
@@ -102,7 +101,7 @@ partial class MiaoNetContext
             RefBinaryWriter writer = new(ms);
             writer.Write(playerInfo);
             byte[] authData = ms.GetBuffer().AsSpan(0, checked((int)ms.Position)).ToArray();
-            handshakeData = new(langCode, AuthenticationType.QuickLogin, authData, netMods);
+            handshakeData = new(langCode, false, authData, netMods);
 #endif
 
             Logger.Info(LT.MiaoNetConnection, $"Trying connecting to {ep}...");
@@ -128,12 +127,23 @@ partial class MiaoNetContext
                 }
 
                 HandshakeAckData handshakeAck = await connection.MakeHandshakeAsync(handshakeData, token);
-
-                string? reason = handshakeAck.DeniedReason;
-                if (reason is not null)
+                var r = handshakeAck.AuthenticationResultType;
+                if (r != AuthenticationResultType.Success)
                 {
                     connection.Dispose();
-                    QueueDisconnectStatus(reason);
+                    string? reason = handshakeAck.DeniedReason;
+                    if (reason is not null)
+                    {
+                        QueueDisconnectStatus(reason);
+                    }
+                    if (r == AuthenticationResultType.InvalidTokenData)
+                    {
+                        QueueDisconnectStatus(ConnectionStatus.InvalidTokenData);
+                    }
+                    else if (r == AuthenticationResultType.InternalServerError)
+                    {
+                        QueueDisconnectStatus(ConnectionStatus.InternalServerError);
+                    }
                     return;
                 }
 

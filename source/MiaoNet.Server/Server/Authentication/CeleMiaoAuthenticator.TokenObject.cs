@@ -9,39 +9,32 @@ public sealed partial class CeleMiaoAuthenticator
     {
         public const int SignatureLength = 32;
 
-        public PlayerInfo PlayerInfo { get; }
-
         public string AccessToken { get; }
 
         public string RefreshToken { get; }
 
-        public byte[] Signature { get; }
+        public DateTime ExpiredDateTime { get; }
 
-        public TokenObject(PlayerInfo playerInfo, string accessToken, string refreshToken, byte[] signature)
+        public TokenObject(string accessToken, string refreshToken, DateTime expiredOn)
         {
-            Debug.Assert(signature.Length == SignatureLength);
-
-            PlayerInfo = playerInfo;
             AccessToken = accessToken;
             RefreshToken = refreshToken;
-            Signature = signature;
+            ExpiredDateTime = expiredOn;
         }
 
         public void Serialize(ref RefBinaryWriter writer)
         {
-            writer.Write(PlayerInfo);
             writer.Write(AccessToken);
             writer.Write(RefreshToken);
-            writer.WriteSpan(Signature);
+            writer.Write(ExpiredDateTime);
         }
 
         public static TokenObject Deserialize(ref RefBinaryReader reader)
         {
-            PlayerInfo playerInfo = reader.Read<PlayerInfo>();
             string accessToken = reader.ReadString();
             string refreshToken = reader.ReadString();
-            byte[] signature = reader.ReadSpan(SignatureLength).ToArray();
-            return new TokenObject(playerInfo, accessToken, refreshToken, signature);
+            DateTime expiredOn = reader.ReadDateTime();
+            return new TokenObject(accessToken, refreshToken, expiredOn);
         }
     }
 }

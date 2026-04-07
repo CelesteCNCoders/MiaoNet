@@ -64,7 +64,7 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
         RefBinaryWriter writer = new(ms);
         writer.Write(playerInfo);
         byte[] authData = ms.GetBuffer().AsSpan(0, checked((int)ms.Position)).ToArray();
-        HandshakeData handshakeData = new(0, AuthenticationType.QuickLogin, authData, []);
+        HandshakeData handshakeData = new(0, false, authData, []);
 
         await SendHandshakeAsync(handshakeData);
         var ack = await ReceiveHandshakeAckAsync();

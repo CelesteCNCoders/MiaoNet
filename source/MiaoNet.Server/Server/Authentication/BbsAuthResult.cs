@@ -8,7 +8,7 @@ public sealed class BbsAuthResult
     public int ID { get; set; }
 
     [JsonPropertyName("username")]
-    public required string Username { get; set; }
+    public required string UserName { get; set; }
 
     [JsonPropertyName("avatar_url")]
     public string? AvatarUrl { get; set; }

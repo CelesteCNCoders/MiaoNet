@@ -19,7 +19,8 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
     private readonly JsonSerializerOptions jsonSerializerOptions;
     private readonly HttpClient httpClient;
     private readonly string clientID, clientSecret;
-    private readonly byte[] signatureKey;
+
+    private readonly SymmetricAlgorithm alg;
 
     public const string BaseAddress = "https://bbs.celemiao.com";
     public const string EndPointCodeAuth = "oauth/token";
@@ -28,13 +29,15 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
     public CeleMiaoAuthenticator(IOptions<MiaoServerOptions> options, ILogger<CeleMiaoAuthenticator> logger)
     {
         var authOptions = options.Value.Authentication;
-        if (authOptions.ClientID is null || authOptions.ClientSecret is null || authOptions.SignatureKey is null)
+        if (authOptions.ClientID is null || authOptions.ClientSecret is null || authOptions.EncryptionPassword is null)
         {
-            throw new Exception("ClientID, ClientSecret and SignatureKey must be configured when using CeleMiaoAuthenticator.");
+            throw new Exception("ClientID, ClientSecret and EncryptionPassword must be configured when using CeleMiaoAuthenticator.");
         }
         clientID = authOptions.ClientID;
         clientSecret = authOptions.ClientSecret;
-        signatureKey = Encoding.UTF8.GetBytes(authOptions.SignatureKey);
+
+        alg = GetAes(Encoding.UTF8.GetBytes(authOptions.EncryptionPassword), "MiaoNetServer.TokenSalt"u8.ToArray());
+
         this.logger = logger;
         jsonSerializerOptions = new()
         {
@@ -47,15 +50,23 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
         logger.LogInformation(AppEvents.Auth, "Using User-Agent \"{ua}\"", ua);
         httpClient.BaseAddress = new Uri(BaseAddress);
         httpClient.DefaultRequestHeaders.Add("User-Agent", ua);
+
+        static Aes GetAes(byte[] password, byte[] salt)
+        {
+            var aes = Aes.Create();
+            Span<byte> keyAndIV = stackalloc byte[32 + 16];
+            Rfc2898DeriveBytes.Pbkdf2(password, salt, keyAndIV, 1000, HashAlgorithmName.SHA512);
+            aes.Key = keyAndIV[0..32].ToArray();
+            aes.IV = keyAndIV[32..(32 + 16)].ToArray();
+            return aes;
+        }
     }
 
-    public async Task<AuthenticationResult> AuthenticateAsync(byte[] data, AuthenticationType type, CancellationToken token)
+    public async Task<AuthenticationResult> AuthenticateAsync(byte[] data, bool isAuthorize, CancellationToken token)
     {
         try
         {
-            switch (type)
-            {
-            case AuthenticationType.Authorize:
+            if (isAuthorize)
             {
                 // data is a utf8 string of code here
                 string authCode = Encoding.UTF8.GetString(data);
@@ -69,26 +80,30 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
                 };
                 var res = await httpClient.PostAsJsonAsync(EndPointCodeAuth, content, token);
                 res.EnsureSuccessStatusCode();
+                DateTime resTime = (res.Headers.Date ?? DateTimeOffset.UtcNow).DateTime;
                 var json = await res.Content.ReadAsStringAsync(token);
                 (BbsOAuth2TokenResult? tokenResult, BbsAuthErrorResult? errorResult) =
                     DeserializeOrError<BbsOAuth2TokenResult>(json, jsonSerializerOptions);
 
                 if (tokenResult is not null)
                 {
-                    AuthenticationResult result = await AuthenticateByTokenAsync(tokenResult.AccessToken, tokenResult.RefreshToken, token);
+                    AuthenticationResult result = await AuthenticateByTokenAsync(tokenResult.AccessToken, token);
 
                     if (result.Type is AuthenticationResultType.Success)
                     {
-                        byte[] signature = Sign(result.PlayerInfo!, tokenResult.AccessToken, tokenResult.RefreshToken);
-                        TokenObject tokenObject = new(result.PlayerInfo!, tokenResult.AccessToken, tokenResult.RefreshToken, signature);
-
-                        MemoryStream ms = new(128);
-                        RefBinaryWriter writer = new(ms);
-                        writer.Write(tokenObject);
-
-                        return new(result.Type, result.PlayerInfo, ms.GetBuffer().AsSpan()[..(int)ms.Position].ToArray());
+                        TokenObject tokenObject = new(
+                            tokenResult.AccessToken,
+                            tokenResult.RefreshToken,
+                            resTime + TimeSpan.FromSeconds(tokenResult.ExpiresIn)
+                        );
+                        var authData = RefBinarySerialization.Serialize(tokenObject, 80);
+                        var encryptedData = alg.EncryptCbc(authData, alg.IV);
+                        return new(result.Type, result.PlayerInfo, encryptedData);
                     }
-                    return result;
+                    else
+                    {
+                        return result;
+                    }
                 }
                 else if (errorResult is not null)
                 {
@@ -98,41 +113,83 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
                 else
                 {
                     logger.LogWarning(AppEvents.Auth, "Bbs-side sent null.");
-                    return new(AuthenticationResultType.InternalError, null, null);
+                    return new(AuthenticationResultType.InternalServerError, null, null);
                 }
             }
-            case AuthenticationType.QuickLogin:
+            else
             {
-                // TODO
-                goto case AuthenticationType.SyncRefresh;
-            }
-            case AuthenticationType.SyncRefresh:
-            {
-                // data is a TokenObject here
-                TokenObject tokenObject;
-                RefBinaryReader reader = new RefBinaryReader(data);
-                tokenObject = reader.Read<TokenObject>();
+                byte[] decryptedData;
+                try
+                {
+                    decryptedData = alg.DecryptCbc(data, alg.IV);
+                }
+                catch (CryptographicException e)
+                {
+                    logger.LogWarning(e, "Failed to decrypt data.");
+                    return new AuthenticationResult(AuthenticationResultType.InvalidTokenData);
+                }
+                TokenObject tokenObject = RefBinarySerialization.Deserialize<TokenObject>(decryptedData);
+                // the access token is expired, refresh it
+                if (DateTime.UtcNow > tokenObject.ExpiredDateTime)
+                {
+                    var content = new
+                    {
+                        client_id = clientID,
+                        client_secret = clientSecret,
+                        grant_type = "refresh_token",
+                        refresh_token = tokenObject.RefreshToken,
+                        redirect_uri = "http://localhost:21472/auth"
+                    };
+                    var res = await httpClient.PostAsJsonAsync(EndPointCodeAuth, content, token);
+                    res.EnsureSuccessStatusCode();
+                    DateTime resTime = (res.Headers.Date ?? DateTimeOffset.UtcNow).DateTime;
+                    var json = await res.Content.ReadAsStringAsync(token);
+                    (BbsOAuth2RefreshedTokenResult? tokenResult, BbsAuthErrorResult? errorResult) =
+                        DeserializeOrError<BbsOAuth2RefreshedTokenResult>(json, jsonSerializerOptions);
 
-                bool signatureMatch = VerifySignature(tokenObject);
-                if (!signatureMatch)
-                    return new(AuthenticationResultType.InvalidTokenData, null, null);
+                    if (tokenResult is not null)
+                    {
+                        AuthenticationResult result = await AuthenticateByTokenAsync(tokenResult.AccessToken, token);
 
-                return await AuthenticateByTokenAsync(tokenObject.AccessToken, tokenObject.RefreshToken, token);
+                        if (result.Type is AuthenticationResultType.Success)
+                        {
+                            TokenObject newTokenObject = new(
+                                tokenResult.AccessToken,
+                                tokenObject.RefreshToken,
+                                resTime + TimeSpan.FromSeconds(tokenResult.ExpiresIn)
+                            );
+                            var authData = RefBinarySerialization.Serialize(tokenObject, 80);
+                            var encryptedData = alg.EncryptCbc(authData, alg.IV);
+                            return new(result.Type, result.PlayerInfo, authData);
+                        }
+                        else
+                        {
+                            return result;
+                        }
+                    }
+                    else if (errorResult is not null)
+                    {
+                        logger.LogWarning(AppEvents.Auth, "Auth failed bbs-side with error {err}. {msg}.", errorResult.Error, errorResult.ErrorDescription);
+                        return new(AuthenticationResultType.InvalidTokenData, null, null);
+                    }
+                    else
+                    {
+                        logger.LogWarning(AppEvents.Auth, "Bbs-side sent null.");
+                        return new(AuthenticationResultType.InternalServerError, null, null);
+                    }
+                }
+                return await AuthenticateByTokenAsync(tokenObject.AccessToken, token);
             }
-            }
-            logger.LogWarning(AppEvents.Auth, "Unknown auth type {v}.", type);
-            return new AuthenticationResult(AuthenticationResultType.InvalidTokenData);
         }
         catch (Exception e)
         {
             logger.LogError(AppEvents.Auth, e, "Exception occurred when authing.");
-            return new AuthenticationResult(AuthenticationResultType.InternalError);
+            return new AuthenticationResult(AuthenticationResultType.InternalServerError);
         }
     }
 
-    // TODO use refreshToken
     // TODO using logger scopes
-    private async Task<AuthenticationResult> AuthenticateByTokenAsync(string accessToken, string refreshToken, CancellationToken token)
+    private async Task<AuthenticationResult> AuthenticateByTokenAsync(string accessToken, CancellationToken token)
     {
         var res = await httpClient.GetAsync($"{EndPointAuth}{Uri.EscapeDataString(accessToken)}", token);
         res.EnsureSuccessStatusCode();
@@ -142,12 +199,13 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
 
         if (result is not null)
         {
-            if (result.SuspendMessage is not null)
+            // if they are banned
+            if (result.SuspendedUntil is not null && result.SuspendedUntil.Value > DateTime.UtcNow)
             {
                 logger.LogInformation(
-                    AppEvents.Auth, 
+                    AppEvents.Auth,
                     "{pn}:{id} is suspended due to {reason}, message: {msg}. Until {until}",
-                    result.Username, result.ID,
+                    result.UserName, result.ID,
                     result.SuspendReason, result.SuspendMessage,
                     result.SuspendedUntil
                 );
@@ -157,24 +215,23 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
             if (result.Color is not { Length: 7 } || !TryParseHexColor(result.Color.AsSpan(1), out Color color))
             {
                 color = Color.White;
-                logger.LogWarning(AppEvents.Auth, "Failed to parse color for player {name}, raw hex string: {hex}.", result.Username, result.Color);
+                logger.LogWarning(AppEvents.Auth, "Failed to parse color for player {name}, raw hex string: {hex}.", result.UserName, result.Color);
             }
             return new AuthenticationResult(
                 AuthenticationResultType.Success,
-                new PlayerInfo(result.Username, result.Prefix ?? string.Empty, result.AvatarUrl ?? string.Empty, color),
+                new PlayerInfo(result.UserName, result.Prefix ?? string.Empty, result.AvatarUrl ?? string.Empty, color),
                 null
             );
         }
         else if (errorResult is not null)
         {
-            // TODO return expiration info here
             logger.LogWarning(AppEvents.Auth, "Auth failed bbs-side with error {err}. {msg}.", errorResult.Error, errorResult.ErrorDescription);
             return new(AuthenticationResultType.InvalidTokenData);
         }
         else
         {
             logger.LogWarning(AppEvents.Auth, "Bbs-side sent null.");
-            return new(AuthenticationResultType.InternalError);
+            return new(AuthenticationResultType.InternalServerError);
         }
     }
 
@@ -196,24 +253,8 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
         }
     }
 
-    private byte[] Sign(PlayerInfo playerInfo, string accessToken, string refreshToken)
-    {
-        MemoryStream ms = new(128);
-        RefBinaryWriter writer = new(ms);
-        writer.Write(playerInfo);
-        writer.Write(accessToken);
-        writer.Write(refreshToken);
-        return HMACSHA256.HashData(signatureKey, ms.GetBuffer().AsSpan()[..(int)ms.Position]);
-    }
-
-    private bool VerifySignature(TokenObject tokenObject)
-    {
-        byte[] signature = Sign(tokenObject.PlayerInfo, tokenObject.AccessToken, tokenObject.RefreshToken);
-        return CryptographicOperations.FixedTimeEquals(signature, tokenObject.Signature);
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static bool TryParseHexColor(ReadOnlySpan<char> hexSpan, out Color color)
+    private static bool TryParseHexColor(ReadOnlySpan<char> hexSpan, out Color color)
     {
         int r1 = GetHexVal(hexSpan[0]);
         int r2 = GetHexVal(hexSpan[1]);
@@ -237,7 +278,7 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static int GetHexVal(char c) => c switch
+    private static int GetHexVal(char c) => c switch
     {
         >= '0' and <= '9' => c - '0',
         >= 'A' and <= 'F' => c - 'A' + 10,

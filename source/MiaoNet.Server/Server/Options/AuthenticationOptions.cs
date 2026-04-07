@@ -6,5 +6,5 @@ public sealed class AuthenticationOptions
 
     public string? ClientSecret { get; set; }
 
-    public string? SignatureKey { get; set; }
+    public string? EncryptionPassword { get; set; }
 }

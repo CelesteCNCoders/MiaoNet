@@ -253,11 +253,11 @@ public sealed partial class MiaoServerService : BackgroundService
 
             var authResult = await authenticator.AuthenticateAsync(
                 handshakeData.AuthenticationData,
-                handshakeData.Type,
+                handshakeData.IsAuthorize,
                 token
             );
 
-            string? failedReason = authResult.IsFailed ? (authResult.SuspendMessage ?? "Authentication failed.") : null;
+            string? failedReason = authResult.IsFailed ? authResult.SuspendMessage : null;
             HandshakeAckData ack = new(authResult.Type, authResult.TokenData, failedReason);
 
             MemoryStream ms = new(32);
