@@ -5,6 +5,7 @@
     <UseLocalhostPfx>false</UseLocalhostPfx>
     <UseLocalhostPfx Condition="$(Configuration) == 'Debug'">true</UseLocalhostPfx>
     <UseCeleMiaoAuth>false</UseCeleMiaoAuth>
+    <UseCeleMiaoAuth Condition="$(Configuration) == 'Release'">true</UseCeleMiaoAuth>
 
     <DefineConstants Condition="$(UseLocalhostPfx) == 'true'">$(DefineConstants);USE_LOCALHOST_PFX</DefineConstants>
     <DefineConstants Condition="$(UseCeleMiaoAuth) == 'true'">$(DefineConstants);USE_CELEMIAO_AUTH</DefineConstants>
