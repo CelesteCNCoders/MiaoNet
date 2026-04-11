@@ -9,10 +9,10 @@ GET http://{{host}}/status
 
 ###
 
-# kick player
-@pid=6
+# kick player (by cid)
+@cid=1
 @reason=Reason here.
-POST http://{{host}}/player/kick?id={{pid}}&reason={{reason}}
+DELETE http://{{host}}/player?cid={{cid}}&reason={{reason}}
 
 ###
 
