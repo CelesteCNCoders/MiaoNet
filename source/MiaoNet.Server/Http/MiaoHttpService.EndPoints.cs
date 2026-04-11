@@ -21,18 +21,18 @@ public partial class MiaoHttpService
             if (reason is null)
             {
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                return;
+                break;
             }
             if (int.TryParse(query["cid"], CultureInfo.InvariantCulture, out int cid))
             {
                 if (!miaoServerService.ServerState.AllPlayers.TryGetValue(cid, out var client))
                 {
                     context.Response.StatusCode = (int)HttpStatusCode.NotFound;
-                    return;
+                    break;
                 }
                 await client.Connection.DisconnectAsync(DisconnectReason.Kicked, reason);
                 context.Response.StatusCode = (int)HttpStatusCode.NoContent;
-                return;
+                break;
             }
             else if (int.TryParse(query["aid"], CultureInfo.InvariantCulture, out int aid))
             {
@@ -41,18 +41,19 @@ public partial class MiaoHttpService
                     if (p.Value.Player.Info.AuthID == aid)
                         await p.Value.Connection.DisconnectAsync(DisconnectReason.Kicked, reason);
                 }
+                context.Response.StatusCode = (int)HttpStatusCode.NoContent;
+                break;
             }
             else
             {
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                return;
+                break;
             }
-            break;
         }
         default:
         {
             context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
-            return;
+            break;
         }
         }
     }
