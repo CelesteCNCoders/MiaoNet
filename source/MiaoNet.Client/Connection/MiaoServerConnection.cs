@@ -50,9 +50,7 @@ public sealed partial class MiaoServerConnection : IDisposable
         socket.NoDelay = true;
 
         await socket.ConnectAsync(endPoint, token);
-        NetworkStream networkStream = new NetworkStream(socket);
-        await networkStream.WriteAsync(Connection.HandshakeHead, token);
-
+        NetworkStream networkStream = new(socket);
 #if !USE_LOCALHOST_PFX
         var sslStream = new SslStream(networkStream, false, (sender, certificate, chain, errors) =>
         {
@@ -91,6 +89,7 @@ public sealed partial class MiaoServerConnection : IDisposable
         };
 
         await sslStream.AuthenticateAsClientAsync(options, token);
+        await sslStream.WriteAsync(Connection.HandshakeHead, token);
 
         return new(socket, sslStream);
     }

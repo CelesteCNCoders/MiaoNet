@@ -1,17 +1,13 @@
-﻿using System.Buffers;
-using System.Net.Security;
+﻿using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using MiaoNet.Shared;
-using Microsoft.Extensions.Logging;
 
 namespace MiaoNet.Server;
 
 public sealed class TlsTcpPendingConnection : IPendingNetworkConnection
 {
-    private static readonly ArrayPool<byte> pool = ArrayPool<byte>.Shared;
-
     private readonly IMiaoCertificateService certificateService;
     private readonly Socket socket;
 
@@ -23,27 +19,9 @@ public sealed class TlsTcpPendingConnection : IPendingNetworkConnection
         this.socket = socket;
     }
 
-    public async Task<INetworkConnection?> CompleteAsync(CancellationToken token)
+    public async Task<INetworkConnection> CompleteAsync(CancellationToken token)
     {
-        NetworkStream networkStream = new NetworkStream(socket);
-        var buffer = pool.Rent(Connection.HandshakeHeadLength);
-        try
-        {
-            var memory = buffer.AsMemory(0, Connection.HandshakeHeadLength);
-            await networkStream.ReadExactlyAsync(memory, token);
-            if (!memory.Span.SequenceEqual(Connection.HandshakeHead.Span))
-            {
-                networkStream.Dispose();
-                socket.Dispose();
-                return null;
-            }
-        }
-        finally
-        {
-            pool.Return(buffer);
-        }
-
-        SslStream sslStream = new SslStream(networkStream);
+        SslStream sslStream = new SslStream(new NetworkStream(socket));
         try
         {
             SslServerAuthenticationOptions options = new()
