@@ -59,7 +59,7 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
             return;
         }
 
-        PlayerInfo playerInfo = new(name, string.Empty, string.Empty, Color.White);
+        PlayerInfo playerInfo = new(-1, name, string.Empty, string.Empty, Color.White);
         MemoryStream ms = new(32);
         RefBinaryWriter writer = new(ms);
         writer.Write(playerInfo);

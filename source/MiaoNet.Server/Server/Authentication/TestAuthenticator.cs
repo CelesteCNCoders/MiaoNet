@@ -35,6 +35,6 @@ public sealed class TestAuthenticator : IMiaoAuthenticator
         Random r = Random.Shared;
         string name = $"{Prefixes[r.Next(Prefixes.Count)]} {Names[r.Next(Names.Count)]}";
         string prefix = $"{Prefixes[r.Next(Prefixes.Count)]}";
-        return Task.FromResult<AuthenticationResult>(new(AuthenticationResultType.Success, new(name, prefix, string.Empty, Color.White), null));
+        return Task.FromResult<AuthenticationResult>(new(AuthenticationResultType.Success, new(-1, name, prefix, string.Empty, Color.White), null));
     }
 }

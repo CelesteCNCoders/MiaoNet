@@ -55,7 +55,8 @@ partial class MiaoNetContext
             StatusComponent.ShowStatusMessage(ConnectionStatus.Kicked(packet.Message));
             return;
         }
-        StatusComponent.ShowStatusMessage($"{packet.Reason}. {packet.Message}");
+        Logger.Info(LT.MiaoNetConnection, $"Received PacketDisconnected with reason {packet.Reason} and message \"{packet.Message}\".");
+        StatusComponent.ShowStatusMessage(packet.Message ?? ConnectionStatus.Disconnected);
     }
 
     private void HandlePacket(PacketPlayerJoined packet)

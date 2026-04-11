@@ -1,35 +1,65 @@
 using System.Collections.Specialized;
-using System.Diagnostics;
 using System.Globalization;
 using System.Net;
+using System.Net.Mime;
 using System.Text;
 using System.Text.Json;
 using MiaoNet.Shared;
-using Microsoft.Extensions.Logging;
 namespace MiaoNet.Server;
 
 public partial class MiaoHttpService
 {
-    private async Task PlayerKick(NameValueCollection query, HttpListenerContext context)
+    // TODO uh, we may need to switch our connection id fully to auth id
+    // TODO don't use MiaoServerServices directly, use sth like IMiaoServerService
+    private async Task Player(NameValueCollection query, HttpListenerContext context)
     {
-        string? reason = query["reason"];
-        if (!int.TryParse(query["id"], CultureInfo.InvariantCulture, out int id))
+        switch (context.Request.HttpMethod)
         {
-            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+        case "DELETE":
+        {
+            string? reason = query["reason"];
+            if (reason is null)
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                return;
+            }
+            if (int.TryParse(query["cid"], CultureInfo.InvariantCulture, out int cid))
+            {
+                if (!miaoServerService.ServerState.AllPlayers.TryGetValue(cid, out var client))
+                {
+                    context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                    return;
+                }
+                await client.Connection.DisconnectAsync(DisconnectReason.Kicked, reason);
+                context.Response.StatusCode = (int)HttpStatusCode.NoContent;
+                return;
+            }
+            else if (int.TryParse(query["aid"], CultureInfo.InvariantCulture, out int aid))
+            {
+                foreach (var p in miaoServerService.ServerState.AllPlayers)
+                {
+                    if (p.Value.Player.Info.AuthID == aid)
+                        await p.Value.Connection.DisconnectAsync(DisconnectReason.Kicked, reason);
+                }
+            }
+            else
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                return;
+            }
+            break;
+        }
+        default:
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
             return;
         }
-        if (!miaoServerService.ServerState.AllPlayers.TryGetValue(id, out var client))
-        {
-            context.Response.StatusCode = (int)HttpStatusCode.NotFound;
-            return;
         }
-        await client.Connection.DisconnectAsync(DisconnectReason.Kicked, reason ?? "admin kicked.");
-        context.Response.StatusCode = (int)HttpStatusCode.NoContent;
     }
 
     private async Task Status(NameValueCollection query, HttpListenerContext context)
     {
-        context.Response.ContentType = "application/json";
+        context.Response.ContentType = MediaTypeNames.Application.Json;
 
         var state = miaoServerService.ServerState;
 
@@ -51,8 +81,8 @@ public partial class MiaoHttpService
         };
 #pragma warning restore IDE0037
 
-        await JsonSerializer.SerializeAsync(context.Response.OutputStream, response, jsonSerializerOptions);
         context.Response.StatusCode = (int)HttpStatusCode.OK;
+        await JsonSerializer.SerializeAsync(context.Response.OutputStream, response, jsonSerializerOptions);
     }
 
     private async Task Announce(NameValueCollection query, HttpListenerContext context)
@@ -81,7 +111,7 @@ public partial class MiaoHttpService
 
     private async Task GetMetrics(NameValueCollection query, HttpListenerContext context)
     {
-        context.Response.ContentType = "application/json";
+        context.Response.ContentType = MediaTypeNames.Application.Json;
 
         var values = miaoMetricsService.Get();
         var ret = new

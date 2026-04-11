@@ -219,7 +219,7 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
             }
             return new AuthenticationResult(
                 AuthenticationResultType.Success,
-                new PlayerInfo(result.UserName, result.Prefix ?? string.Empty, result.AvatarUrl ?? string.Empty, color),
+                new PlayerInfo(result.ID, result.UserName, result.Prefix ?? string.Empty, result.AvatarUrl ?? string.Empty, color),
                 null
             );
         }

@@ -2,6 +2,9 @@ namespace MiaoNet.Shared;
 
 public sealed class PlayerInfo : IRefBinarySerializable<PlayerInfo>
 {
+    /// <summary>from authenticator</summary>
+    public int AuthID { get; set; }
+
     public string Name { get; }
 
     public string Prefix { get; }
@@ -21,8 +24,9 @@ public sealed class PlayerInfo : IRefBinarySerializable<PlayerInfo>
         }
     }
 
-    public PlayerInfo(string name, string prefix, string avatarUrl, Color color)
+    public PlayerInfo(int authID, string name, string prefix, string avatarUrl, Color color)
     {
+        AuthID = authID;
         Name = name;
         Prefix = prefix;
         AvatarUrl = avatarUrl;
@@ -34,6 +38,7 @@ public sealed class PlayerInfo : IRefBinarySerializable<PlayerInfo>
 
     public void Serialize(ref RefBinaryWriter writer)
     {
+        writer.Write(AuthID);
         writer.Write(Name);
         writer.Write(Prefix);
         writer.Write(AvatarUrl);
@@ -41,5 +46,5 @@ public sealed class PlayerInfo : IRefBinarySerializable<PlayerInfo>
     }
 
     public static PlayerInfo Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadString(), reader.ReadString(), reader.ReadString(), reader.ReadColor());
+        => new(reader.ReadInt32(), reader.ReadString(), reader.ReadString(), reader.ReadString(), reader.ReadColor());
 }
