@@ -17,10 +17,10 @@ public sealed partial class PlayerListComponent
         public string? AreaSideText;
         public string? PingText;
 
-        public PlayerListItem(OnlinePlayer player)
+        public PlayerListItem(OnlinePlayer player, bool showAvatar)
         {
             Player = player;
-            DisplayName = player.GetFullDisplayName();
+            DisplayName = player.GetDisplayName(true, showAvatar);
             Update();
         }
 

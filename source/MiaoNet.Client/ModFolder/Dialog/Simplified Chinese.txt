@@ -23,6 +23,10 @@ miaonet_options_ignore_cert_revocation_status_tip=
 	此选项不会被保存。
 
 miaonet_options_visuals= 视觉
+miaonet_options_show_avatar= 显示头像
+miaonet_options_show_avatar_tip=
+	是否显示自己和其他玩家的头像。
+	这并不会影响与服务器的连接。
 miaonet_options_show_own_name= 显示自己的名称
 miaonet_options_player_light= 为其他玩家添加光照
 miaonet_options_ui= 界面
@@ -74,6 +78,7 @@ miaonet_options_behaviours= 行为
 miaonet_options_player_list_button_mode= 玩家列表展示模式
 miaonet_options_player_list_button_mode_press= 按下
 miaonet_options_player_list_button_mode_hold= 按住
+miaonet_options_enable_emote_wheel= 启用 Emote 轮盘
 miaonet_options_teleport_temp_save= Teleport 指令临时存档
 miaonet_options_teleport_temp_save_tip= 
 	开启后会在执行 Teleport 指令时

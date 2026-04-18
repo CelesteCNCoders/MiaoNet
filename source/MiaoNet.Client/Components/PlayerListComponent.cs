@@ -110,9 +110,9 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         {
             var playerList = new List<PlayerListItem>();
             if (channel == state.SelfChannel)
-                playerList.Add(new PlayerListItem(state.Self));
+                playerList.Add(new PlayerListItem(state.Self, context.ShowAvatar));
             foreach (var (_, player) in channel.Players)
-                playerList.Add(new PlayerListItem(player));
+                playerList.Add(new PlayerListItem(player, context.ShowAvatar));
             channelPlayerList.Add((channel, playerList));
         }
         SortPlayerList();

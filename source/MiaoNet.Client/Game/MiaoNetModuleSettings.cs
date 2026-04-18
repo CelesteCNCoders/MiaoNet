@@ -87,6 +87,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     #region Visuals
 
+    public bool ShowAvatar { get; set; } = true;
+
     public bool ShowOwnName { get; set; } = true;
 
     public bool PlayerLight { get; set; } = false;
@@ -178,6 +180,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
     #region Behaviours
 
     public ButtonMode PlayerListButtonMode { get; set; }
+
+    public bool EnableEmoteWheel { get; set; } = true;
 
     public bool TeleportTempSave { get; set; } = true;
 

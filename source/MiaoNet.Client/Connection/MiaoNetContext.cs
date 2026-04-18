@@ -24,6 +24,9 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     private ClientState? clientState;
 
+    /// <summary>Update on Connect() call.</summary>
+    public bool ShowAvatar { get; set; }
+
 #if DEBUG
     public string TargetServer { get; set; } = "127.0.0.1";
 #else
@@ -100,6 +103,8 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         if (cts is not null)
             return;
         cts = new();
+        // TODO hmmm tbh this is ugly, we'd better get a more elegant way to do this
+        ShowAvatar = MiaoNetModule.Settings.ShowAvatar;
         Thread connectionThread = new(new ParameterizedThreadStart(ConnectionThread));
         connectionThread.Name = "MiaoNet Connection";
         connectionThread.Start(cts.Token);
@@ -188,17 +193,21 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         }
         else if (packet is PacketPlayerJoined joined)
         {
-            SynchronizationContext.Current!.Post(async s =>
+            if (ShowAvatar)
             {
-                PacketPlayerJoined joined = (PacketPlayerJoined)s!;
-                await SafePrepareAvatarAsync(joined.PlayerID, joined.PlayerInfo);
-            }, joined);
+                SynchronizationContext.Current!.Post(async s =>
+                {
+                    PacketPlayerJoined joined = (PacketPlayerJoined)s!;
+                    await SafePrepareAvatarAsync(joined.PlayerID, joined.PlayerInfo);
+                }, joined);
+            }
         }
         return false;
     }
 
     private async Task SafePrepareAvatarAsync(int playerID, PlayerInfo playerInfo)
     {
+        SafeGuard.Assert(ShowAvatar);
         try
         {
             string sid = $"\0mn_avt_{playerID}";

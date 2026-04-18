@@ -153,6 +153,12 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
 
         item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_show_avatar"), settings.ShowAvatar
+        ).Change(v => settings.ShowAvatar = v);
+        menu.Add(item);
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_show_avatar_tip"));
+
+        item = new TextMenu.OnOff(
             Dialog.Get("miaonet_options_show_own_name"), settings.ShowOwnName
         ).Change(v => settings.ShowOwnName = v);
         menu.Add(item);
@@ -334,6 +340,12 @@ public static class MenuMiaoNetOptions
             e => Dialog.Get($"miaonet_options_player_list_button_mode_{e}"),
             settings.PlayerListButtonMode
         ).Change(v => settings.PlayerListButtonMode = v);
+        menu.Add(item);
+
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_enable_emote_wheel"),
+            settings.EnableEmoteWheel
+        ).Change(v => settings.EnableEmoteWheel = v);
         menu.Add(item);
 
         item = new TextMenu.OnOff(

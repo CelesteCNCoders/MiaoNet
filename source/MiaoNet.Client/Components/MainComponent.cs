@@ -122,7 +122,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         {
             if (selfNameTag is null)
             {
-                selfNameTag = new(player, ClientState.Self);
+                selfNameTag = new(player, ClientState.Self, context.ShowAvatar);
                 player.Scene.Add(selfNameTag);
             }
             else if (selfNameTag.Scene != player.Scene)
@@ -705,7 +705,7 @@ public sealed partial class MainComponent : MiaoNetComponent
                     // TODO make local state changes wait for server to confirm
                     return;
                 }
-                ghosts[other.ID] = ghost = new(other, graphicsInfo, initialState!);
+                ghosts[other.ID] = ghost = new(other, graphicsInfo, initialState!, context.ShowAvatar);
                 level!.Add(ghost);
                 Logger.Debug(LT.MiaoNet, $"added ghost for {other.Info}!");
             }
