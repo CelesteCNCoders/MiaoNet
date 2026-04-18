@@ -71,7 +71,8 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     public MiaoNetGhost(
         OnlinePlayer player,
         PlayerGraphicsInfo? playerGraphicsInfo,
-        PlayerState initialState
+        PlayerState initialState,
+        bool avatar
     )
     {
         Tag = MiaoNetTag.Tag;
@@ -90,7 +91,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         Add(playerHair);
 
         Add(playerSprite);
-        nameTag = new(this, player);
+        nameTag = new(this, player, avatar);
         playerHair.Start();
 
         ApplyState(initialState);

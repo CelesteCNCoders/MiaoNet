@@ -187,9 +187,12 @@ partial class MiaoNetContext
                     });
                     // wait until the main thread ack we've finished connecting
                     await ackTaskSource.Task;
-                    foreach (var p in clientInitial.Players)
-                        _ = SafePrepareAvatarAsync(p.PlayerID, p.PlayerInfo);
-                    _ = SafePrepareAvatarAsync(clientInitial.PlayerID, clientInitial.SelfPlayerInfo);
+                    if (ShowAvatar)
+                    {
+                        foreach (var p in clientInitial.Players)
+                            _ = SafePrepareAvatarAsync(p.PlayerID, p.PlayerInfo);
+                        _ = SafePrepareAvatarAsync(clientInitial.PlayerID, clientInitial.SelfPlayerInfo);
+                    }
                 }
 
             }

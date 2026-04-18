@@ -24,6 +24,10 @@ miaonet_options_ignore_cert_revocation_status_tip=
 	This option will not be saved.
 
 miaonet_options_visuals= Visuals
+miaonet_options_show_avatar= Show Avatar
+miaonet_options_show_avatar_tip=
+	Whether to display your and others' avatars.
+	This doesn't affect the connection to the server.
 miaonet_options_show_own_name= Show Own Name
 miaonet_options_player_light= Add Lights To Other Players
 miaonet_options_ui= UI

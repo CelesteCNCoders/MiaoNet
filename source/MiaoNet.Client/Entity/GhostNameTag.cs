@@ -20,20 +20,20 @@ public sealed class GhostNameTag : MiaoNetEntity
         Color = color;
     }
 
-    private GhostNameTag(Entity entity, OnlinePlayer onlinePlayer)
-        : this(entity, onlinePlayer.GetFullDisplayName(), onlinePlayer.Info.Color)
+    private GhostNameTag(Entity entity, OnlinePlayer onlinePlayer, bool avatar)
+        : this(entity, onlinePlayer.GetDisplayName(true, avatar), onlinePlayer.Info.Color)
     {
 
     }
 
-    public GhostNameTag(Player player, OnlinePlayer onlinePlayer)
-        : this((Entity)player, onlinePlayer)
+    public GhostNameTag(Player player, OnlinePlayer onlinePlayer, bool avatar)
+        : this((Entity)player, onlinePlayer, avatar)
     {
         IsOnSelf = true;
     }
 
-    public GhostNameTag(MiaoNetGhost ghost, OnlinePlayer onlinePlayer)
-        : this((Entity)ghost, onlinePlayer)
+    public GhostNameTag(MiaoNetGhost ghost, OnlinePlayer onlinePlayer, bool avatar)
+        : this((Entity)ghost, onlinePlayer, avatar)
     {
         IsOnSelf = false;
     }

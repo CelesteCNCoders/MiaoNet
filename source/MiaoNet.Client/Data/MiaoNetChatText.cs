@@ -17,44 +17,44 @@ public static class MiaoNetChatText
     private static readonly Color ColorMapChatContent = Color.White;
     private static readonly Color ColorAnnouncements = Color.Yellow;
 
-    public static ChatText CreatePublicChat(DateTime dateTime, OnlinePlayer sender, string text)
+    public static ChatText CreatePublicChat(DateTime dateTime, OnlinePlayer sender, string text, bool avatar)
         => new ChatText([
             new(ColorTime, FormatDateTime(dateTime)),
-            new(sender.Info.Color, sender.GetFullDisplayName()),
+            new(sender.Info.Color, sender.GetDisplayName(true, avatar)),
             new(ColorChat, ": "),
             ..ChatText.Parse(text, ColorChat)
         ]);
 
-    public static ChatText CreateMapChat(DateTime dateTime, OnlinePlayer sender, string text)
+    public static ChatText CreateMapChat(DateTime dateTime, OnlinePlayer sender, string text, bool avatar)
         => new ChatText([
             new(ColorTime, FormatDateTime(dateTime)),
             new(ColorMapChat, Dialog.Clean("miaonet_chat_map_chat")),
             new(ColorChat, " "),
-            new(sender.Info.Color, sender.GetFullDisplayName()),
+            new(sender.Info.Color, sender.GetDisplayName(true, avatar)),
             new(ColorMapChatContent, ": "),
             ..ChatText.Parse(text, ColorMapChatContent)
         ]);
 
-    public static ChatText CreatePrivateChat(DateTime dateTime, OnlinePlayer sender, string text)
+    public static ChatText CreatePrivateChat(DateTime dateTime, OnlinePlayer sender, string text, bool avatar)
         => new ChatText([
             new(ColorTime, FormatDateTime(dateTime)),
             new(
                 ColorPrivateChatReceived,
                 Dialog.Clean("miaonet_chat_whisper_received")
-                      .Replace("(0)", sender.GetFullDisplayNameWithoutPrefix())
+                      .Replace("(0)", sender.GetDisplayName(false, avatar))
             ),
             new( ColorPrivateChat, ": "),
             ..ChatText.Parse(text, ColorPrivateChat)
         ]);
 
-    public static ChatText CreateSentPrivateChat(DateTime dateTime, OnlinePlayer other, OnlinePlayer self, string text)
+    public static ChatText CreateSentPrivateChat(DateTime dateTime, OnlinePlayer other, OnlinePlayer self, string text, bool avatar)
         => new ChatText([
             new( ColorTime, FormatDateTime(dateTime)),
             new(
                  ColorPrivateChatReceived,
                 Dialog.Clean("miaonet_chat_whisper_sent")
-                      .Replace("(0)", other.GetFullDisplayNameWithoutPrefix())
-                      .Replace("(1)", self.GetFullDisplayNameWithoutPrefix())
+                      .Replace("(0)", other.GetDisplayName(false, avatar))
+                      .Replace("(1)", self.GetDisplayName(false, avatar))
             ),
             new( ColorPrivateChat, ": "),
             ..ChatText.Parse(text, ColorPrivateChat)

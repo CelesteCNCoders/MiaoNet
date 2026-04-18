@@ -23,6 +23,10 @@ miaonet_options_ignore_cert_revocation_status_tip=
 	此选项不会被保存。
 
 miaonet_options_visuals= 视觉
+miaonet_options_show_avatar= 显示头像
+miaonet_options_show_avatar_tip=
+	是否显示自己和其他玩家的头像。
+	这并不会影响与服务器的连接。
 miaonet_options_show_own_name= 显示自己的名称
 miaonet_options_player_light= 为其他玩家添加光照
 miaonet_options_ui= 界面

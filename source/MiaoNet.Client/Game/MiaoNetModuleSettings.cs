@@ -87,6 +87,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     #region Visuals
 
+    public bool ShowAvatar { get; set; } = true;
+
     public bool ShowOwnName { get; set; } = true;
 
     public bool PlayerLight { get; set; } = false;

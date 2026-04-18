@@ -38,12 +38,18 @@ public sealed class OnlinePlayer : IPlayerListEntry
     public override string ToString()
         => $"{Info} at {Location}";
 
-    public string GetFullDisplayName() => string.IsNullOrEmpty(Info.Prefix)
-        ? $":\0mn_avt_{ID}: {Info.Name}"
-        : $":\0mn_avt_{ID}: [{Info.Prefix}] {Info.Name}";
+    public string GetDisplayName(bool includePrefix, bool includeAvatarEmoji)
+    {
+        includePrefix &= !string.IsNullOrEmpty(Info.Prefix);
 
-    public string GetFullDisplayNameWithoutPrefix() =>
-        $":\0mn_avt_{ID}: {Info.Name}";
+        return includeAvatarEmoji
+            ? includePrefix 
+                ? $":\0mn_avt_{ID}: [{Info.Prefix}] {Info.Name}" 
+                : $":\0mn_avt_{ID}: {Info.Name}"
+            : includePrefix 
+                ? $"[{Info.Prefix}] {Info.Name}" 
+                : Info.Name;
+    }
 
     PlayerLocation IPlayerListEntry.Location => Location;
 
