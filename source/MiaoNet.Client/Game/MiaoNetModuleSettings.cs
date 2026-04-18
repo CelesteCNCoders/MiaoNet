@@ -181,6 +181,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     public ButtonMode PlayerListButtonMode { get; set; }
 
+    public bool EnableEmoteWheel { get; set; } = true;
+
     public bool TeleportTempSave { get; set; } = true;
 
     public TeleportBehaviour TeleportBehaviour { get; set; } = TeleportBehaviour.WithSession;

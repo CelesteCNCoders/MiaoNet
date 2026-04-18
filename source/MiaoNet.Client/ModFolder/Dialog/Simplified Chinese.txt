@@ -78,6 +78,7 @@ miaonet_options_behaviours= 行为
 miaonet_options_player_list_button_mode= 玩家列表展示模式
 miaonet_options_player_list_button_mode_press= 按下
 miaonet_options_player_list_button_mode_hold= 按住
+miaonet_options_enable_emote_wheel= 启用 Emote 轮盘
 miaonet_options_teleport_temp_save= Teleport 指令临时存档
 miaonet_options_teleport_temp_save_tip= 
 	开启后会在执行 Teleport 指令时

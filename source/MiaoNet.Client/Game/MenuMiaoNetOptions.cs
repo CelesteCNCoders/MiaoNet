@@ -343,6 +343,12 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
 
         item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_enable_emote_wheel"),
+            settings.EnableEmoteWheel
+        ).Change(v => settings.EnableEmoteWheel = v);
+        menu.Add(item);
+
+        item = new TextMenu.OnOff(
             Dialog.Get("miaonet_options_teleport_temp_save"), settings.TeleportTempSave
         ).Change(v => settings.TeleportTempSave = v);
         menu.Add(item);

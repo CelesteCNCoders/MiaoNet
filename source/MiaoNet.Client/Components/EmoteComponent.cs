@@ -44,25 +44,32 @@ public sealed class EmoteComponent : MiaoNetComponent
             }
         }
 
-        if (MInput.ControllerHasFocus)
+        if (settings.EnableEmoteWheel)
         {
-            if (wheel is null)
+            if (MInput.ControllerHasFocus)
             {
-                wheel = new(player);
-                wheel.OnEmote += (te) =>
+                if (wheel is null)
                 {
-                    if (te.Item1 is not null)
-                        SendEmote((EmoteData)te.Item1);
-                    else
-                        SendEmote(te.Item2!);
-                };
+                    wheel = new(player);
+                    wheel.OnEmote += (te) =>
+                    {
+                        if (te.Item1 is not null)
+                            SendEmote((EmoteData)te.Item1);
+                        else
+                            SendEmote(te.Item2!);
+                    };
+                }
+                wheel.Tracking = player;
+                if (wheel.Scene != player.Scene)
+                {
+                    wheel.RemoveSelf();
+                    level.Add(wheel);
+                }
             }
-            wheel.Tracking = player;
-            if (wheel.Scene != player.Scene)
-            {
-                wheel.RemoveSelf();
-                level.Add(wheel);
-            }
+        }
+        else
+        {
+            wheel?.RemoveSelf();
         }
     }
 
