@@ -25,7 +25,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     private ClientState? clientState;
 
     /// <summary>Update on Connect() call.</summary>
-    public bool ShowAvatar { get; set; }
+    public bool ShowAvatar { get; private set; }
 
 #if DEBUG
     public string TargetServer { get; set; } = "127.0.0.1";
