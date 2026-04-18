@@ -207,7 +207,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             {
                 mainThreadQueue.Enqueue(() =>
                 {
-                    Emoji.Register(sid, GFX.Gui["miaonet/missing_avatar"], 64, 64);
+                    Emoji.Register(sid, GFX.Gui["miaonet/default_avatar"], 64, 64);
                     Emoji.Fill(MiaoNetFont.ENZhsFont);
                 });
                 return;
