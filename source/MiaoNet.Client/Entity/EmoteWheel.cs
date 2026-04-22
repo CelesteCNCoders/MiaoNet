@@ -114,6 +114,8 @@ public sealed class EmoteWheel : MiaoNetEntity
             {
                 button.ConsumePress();
                 string e = emotes![selected + EmotesCountPerPage * page];
+                if (string.IsNullOrEmpty(e))
+                    return;
                 EmoteData? emoteData = EmoteData.Parse(e);
                 OnEmote?.Invoke((emoteData, emoteData is null ? e : null));
             }
@@ -126,6 +128,11 @@ public sealed class EmoteWheel : MiaoNetEntity
         previews.Clear();
         foreach (var e in emotes.Skip(EmotesCountPerPage * page).Take(EmotesCountPerPage))
         {
+            if (string.IsNullOrEmpty(e))
+            {
+                previews.Add((null, ""));
+                continue;
+            }
             EmoteData? data = EmoteData.Parse(e);
             if (data is not null)
                 previews.Add((new BakedEmoteData((EmoteData)data), null));

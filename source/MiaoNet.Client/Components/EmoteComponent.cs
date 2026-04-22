@@ -36,6 +36,8 @@ public sealed class EmoteComponent : MiaoNetComponent
             {
                 emoteButtons[i].ConsumePress();
                 string content = settings.Emotes[i];
+                if (string.IsNullOrEmpty(content))
+                    continue;
                 EmoteData? data = EmoteData.Parse(content);
                 if (data is EmoteData emoteData)
                     SendEmote(player, emoteData);
