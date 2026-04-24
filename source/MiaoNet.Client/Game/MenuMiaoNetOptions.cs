@@ -84,7 +84,7 @@ public static class MenuMiaoNetOptions
 
         static void AddAuthPropButton(TextMenu menu, bool inGame, string label, Func<string?> getter, Action<string> setter)
         {
-            var button = new TextMenu.Button($"{label} {WithCutOff(getter() ?? string.Empty)}");
+            var button = new TextMenu.Button($"{label} {WithTruncation(getter() ?? string.Empty)}");
             if (!inGame)
             {
                 button.OnPressed = () =>
@@ -96,7 +96,7 @@ public static class MenuMiaoNetOptions
                             {
                                 v = v.Trim();
                                 setter(v);
-                                button.Label = $"{label} {WithCutOff(v)}";
+                                button.Label = $"{label} {WithTruncation(v)}";
                             }, 36, 2
                         );
                 };
@@ -107,11 +107,11 @@ public static class MenuMiaoNetOptions
             else
                 button.AddDescription(menu, Dialog.Get("miaonet_options_custom_auth_tip"));
 
-            static string WithCutOff(string value)
+            static string WithTruncation(string value)
             {
-                const int CutOffLength = 24;
-                if (value.Length > CutOffLength)
-                    value = $"{value.AsSpan()[..CutOffLength]}...";
+                const int TruncationLength = 24;
+                if (value.Length > TruncationLength)
+                    value = $"{value.AsSpan()[..TruncationLength]}...";
                 return value;
             }
         }
@@ -283,7 +283,7 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
 
         // if not using celemiao auth then this is meaningless
-#if USE_CELEMIAO_AUTH
+#if USE_CELEMIAO_AUTH || DEBUG
         item = new TextMenu.OnOff(
             Dialog.Get("miaonet_options_live_mode"), settings.LiveMode
         ).Change(v => settings.LiveMode = v);
