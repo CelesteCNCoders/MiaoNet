@@ -2,7 +2,7 @@ namespace MiaoNet.Shared;
 
 public sealed class PlayerListEntryComparer : IComparer<IPlayerListEntry>
 {
-    public const string CelesteMapSet = "Celeste";
+    public const string CelesteMapSetPrefix = "Celeste/";
 
     public int Compare(IPlayerListEntry? x, IPlayerListEntry? y)
     {
@@ -18,11 +18,16 @@ public sealed class PlayerListEntryComparer : IComparer<IPlayerListEntry>
         if (xIsEmpty && yIsEmpty)
             return string.Compare(x.PlayerInfo.Name, y.PlayerInfo.Name);
 
-        bool xSp = x.Location.MapSet == CelesteMapSet;
-        bool ySp = y.Location.MapSet == CelesteMapSet;
+        bool xSp = x.Location.MapSid.StartsWith(CelesteMapSetPrefix);
+        bool ySp = y.Location.MapSid.StartsWith(CelesteMapSetPrefix);
 
         if (xSp && !ySp) return -1;
         if (!xSp && ySp) return 1;
+
+        if (x.IsLocallyKnownMap && !y.IsLocallyKnownMap) 
+            return -1;
+        if (!x.IsLocallyKnownMap && y.IsLocallyKnownMap)
+            return 1;
 
         int locationComparison = string.Compare(x.Location.MapSid, y.Location.MapSid);
         if (locationComparison != 0)

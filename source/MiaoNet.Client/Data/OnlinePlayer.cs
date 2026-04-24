@@ -2,7 +2,7 @@ using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
-public sealed class OnlinePlayer : IPlayerListEntry
+public sealed class OnlinePlayer
 {
     private PlayerLocation location;
 
@@ -50,8 +50,4 @@ public sealed class OnlinePlayer : IPlayerListEntry
                 ? $"[{Info.Prefix}] {Info.Name}" 
                 : Info.Name;
     }
-
-    PlayerLocation IPlayerListEntry.Location => Location;
-
-    PlayerInfo IPlayerListEntry.PlayerInfo => Info;
 }

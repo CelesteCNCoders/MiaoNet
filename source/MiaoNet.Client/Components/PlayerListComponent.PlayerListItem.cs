@@ -1,21 +1,29 @@
+using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
 public sealed partial class PlayerListComponent
 {
-    public class PlayerListItem
+    public class PlayerListItem : IPlayerListEntry
     {
         private static readonly Color DefaultColor = Color.LightGray;
 
         public OnlinePlayer Player;
         public string DisplayName;
         public string? MapName;
+        public bool IsLocallyKnownMap;
         public Color MapNameColor = DefaultColor;
         public Color MapSideColor = DefaultColor;
         public MTexture? AreaIconTexture;
         public string? AreaSideText;
         public string? PingText;
+
+        PlayerLocation IPlayerListEntry.Location => Player.Location;
+
+        bool IPlayerListEntry.IsLocallyKnownMap => IsLocallyKnownMap;
+
+        PlayerInfo IPlayerListEntry.PlayerInfo => Player.Info;
 
         public PlayerListItem(OnlinePlayer player, bool showAvatar)
         {
@@ -29,6 +37,7 @@ public sealed partial class PlayerListComponent
             PlayerLocation loc = Player.Location;
             if (loc.IsEmpty)
             {
+                IsLocallyKnownMap = true;
                 MapName = null;
                 AreaIconTexture = null;
                 AreaSideText = null;
@@ -41,6 +50,7 @@ public sealed partial class PlayerListComponent
                 var areaData = AreaData.Get(loc.MapSid);
                 if (areaData is not null)
                 {
+                    IsLocallyKnownMap = true;
                     MapName = Dialog.Get(areaData.Name);
 
                     string iconPath = areaData.Icon;
@@ -62,7 +72,8 @@ public sealed partial class PlayerListComponent
                 }
                 else
                 {
-                    MapName = null;
+                    IsLocallyKnownMap = false;
+                    MapName = loc.MapSid;
                     AreaIconTexture = null;
                     MapNameColor = MapSideColor = DefaultColor;
                 }

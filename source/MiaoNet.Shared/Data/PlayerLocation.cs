@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace MiaoNet.Shared;
 
 public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatable<PlayerLocation>
@@ -12,25 +10,6 @@ public struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatabl
     public readonly char SideCharacter => (char)('A' + (char)Side);
 
     public string MapRoom { get; set; } // empty: player is not in level or is in debug map
-
-    public readonly string MapSet
-    {
-        get
-        {
-            if (MapSid == string.Empty)
-            {
-                return string.Empty;
-            }
-            else
-            {
-                int i = MapSid.IndexOf('/');
-                if (i != -1)
-                    return MapSid[..i];
-                else
-                    return string.Empty;
-            }
-        }
-    }
 
     /// <summary>
     /// <see cref="MapSid"/> is <see cref="string.Empty"/> and <see cref="MapRoom"/> is <see cref="string.Empty"/>
