@@ -188,6 +188,11 @@ public static class MenuMiaoNetOptions
         uiSubMenu.Add(item);
 
         item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_chat_text_opacity"), 0, 10, settings.ChatTextOpacity
+        ).Change(v => settings.ChatTextOpacity = v);
+        uiSubMenu.Add(item);
+
+        item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_chat_display_duration"), 1, 12, settings.ChatDisplayDuration
         ).Change(v => settings.ChatDisplayDuration = v);
         uiSubMenu.Add(item);

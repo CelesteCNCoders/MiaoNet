@@ -34,6 +34,7 @@ miaonet_options_ui= UI
 miaonet_options_player_list_ui_scale= Player List UI Scale
 miaonet_options_chat_ui_scale= Chat UI Scale
 miaonet_options_chat_background_opacity= Chat Background Opacity
+miaonet_options_chat_text_opacity= Chat Text Opacity
 miaonet_options_chat_display_duration= Chat Display Duration
 miaonet_options_idle_chat_height= Chat Height
 miaonet_options_active_chat_height= Active Chat Height
