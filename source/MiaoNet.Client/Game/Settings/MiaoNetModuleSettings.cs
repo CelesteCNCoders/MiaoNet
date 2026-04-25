@@ -5,33 +5,14 @@ using YamlDotNet.Serialization;
 
 namespace Celeste.Mod.MiaoNet;
 
-
-public enum ButtonMode
-{
-    Press,
-    Hold
-}
-
-public enum TeleportBehaviour
-{
-    NoSession,
-    WithSession
-}
-
-[Flags]
-public enum SyncMode
-{
-    None = 0b00,
-    Receive = 0b01,
-    Send = 0b10,
-    Both = 0b11
-}
-
 // note: menus for this settings are all created and handled manually
 // so all everest attributes will have no effect
 // check MenuMiaoNetOptions for more details
-public sealed class MiaoNetModuleSettings : EverestModuleSettings
+public sealed class MiaoNetModuleSettings : EverestModuleSettings,
+    INotifySettingsChanged<MiaoNetModuleSettings>
 {
+    public event SettingsChangedEventHandler<MiaoNetModuleSettings>? SettingsChanged;
+
     #region Login State
 
 #if USE_CELEMIAO_AUTH
@@ -95,19 +76,19 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
 
     #region UI
 
-    public int PlayerListUIScale { get; set; } = 4;
+    public int PlayerListUIScale { get => field; set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } } = 4;
 
-    public int ChatUIScale { get; set; } = 4;
+    public int ChatUIScale { get => field; set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } } = 4;
 
-    public int ChatBackgroundOpacity { get; set; } = 5;
+    public int ChatBackgroundOpacity { get => field; set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } } = 5;
 
-    public int ChatTextOpacity { get; set; } = 10;
+    public int ChatTextOpacity { get => field; set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } } = 10;
 
-    public int ChatDisplayDuration { get; set; } = 8;
+    public int ChatDisplayDuration { get => field; set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } } = 8;
 
-    public int IdleChatHeight { get; set; } = 4;
+    public int IdleChatHeight { get => field; set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } } = 4;
 
-    public int ActiveChatHeight { get; set; } = 8;
+    public int ActiveChatHeight { get => field; set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } } = 8;
 
     #endregion
 
@@ -285,4 +266,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings
         5 => 12f,
         6 => 20f,
     } / 24f;
+
+    private void NotifySettingsChanged(SettingsCategory category)
+        => SettingsChanged?.Invoke(this, category);
 }

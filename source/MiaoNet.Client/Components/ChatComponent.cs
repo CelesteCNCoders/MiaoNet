@@ -60,6 +60,25 @@ public sealed partial class ChatComponent : MiaoNetComponent
         context.ChatMessageReceived += Context_ChatMessageReceived;
         context.PlayerJoined += Context_PlayerJoined;
         context.PlayerLeft += Context_PlayerLeft;
+
+        var settings = MiaoNetModule.Settings;
+        MiaoNetModule.Settings.SettingsChanged += Settings_SettingsChanged;
+        Settings_SettingsChanged(settings, SettingsCategory.VisualsUI);
+    }
+
+    private void Settings_SettingsChanged(MiaoNetModuleSettings settings, SettingsCategory category)
+    {
+        chatView.BackgroundOpacity = settings.ChatBackgroundOpacityValue;
+        chatView.TextOpacity = settings.ChatTextOpacityValue;
+        chatView.ShowDuration = settings.ChatDisplayDuration;
+        chatView.NoNewMessagesShowing = settings.NoNewMessagesShowing;
+        // TODO explain this factor
+        float factor = 32f / 10f / (settings.ChatUIScaleValue * 24f / 10f);
+        chatView.IdleMaxCount = (int)(factor * settings.IdleChatHeight);
+        chatView.ActiveMaxCount = (int)(factor * settings.ActiveChatHeight);
+        float scale = settings.ChatUIScaleValue;
+        textRenderer.Scale = scale;
+        textRenderer.LineHeight = MiaoNetFont.ENZhsLineHeight * scale;
     }
 
     private void Context_PlayerJoined(OnlinePlayer player)
@@ -119,23 +138,6 @@ public sealed partial class ChatComponent : MiaoNetComponent
             scrollDelta -= KeyboardScrollSpeed * Engine.RawDeltaTime;
 
         var settings = MiaoNetModule.Settings;
-
-        // apply settings
-        // any better ways?
-        // or we can use sth like INotifyPropertyChanged
-        {
-            chatView.BackgroundOpacity = settings.ChatBackgroundOpacityValue;
-            chatView.TextOpacity = settings.ChatTextOpacityValue;
-            chatView.ShowDuration = settings.ChatDisplayDuration;
-            chatView.NoNewMessagesShowing = settings.NoNewMessagesShowing;
-            // TODO explain this factor
-            float factor = 32f / 10f / (settings.ChatUIScaleValue * 24f / 10f);
-            chatView.IdleMaxCount = (int)(factor * settings.IdleChatHeight);
-            chatView.ActiveMaxCount = (int)(factor * settings.ActiveChatHeight);
-            float scale = settings.ChatUIScaleValue;
-            textRenderer.Scale = scale;
-            textRenderer.LineHeight = MiaoNetFont.ENZhsLineHeight * scale;
-        }
 
         if (!active)
         {
