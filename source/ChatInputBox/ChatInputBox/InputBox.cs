@@ -284,20 +284,24 @@ public sealed class InputBox
                 Vector2 size = textRenderer.Measure(item.Display);
                 width = Math.Max(width, size.X);
             }
-            Draw.Rect(
-                cBaseLoc.X, cBaseLoc.Y - totalHeight - CompletionsPadding * 2f,
-                width + CompletionsPadding * 2f, totalHeight + CompletionsPadding * 2f,
-                Color.CornflowerBlue * (0xcc / 255f)
-            );
-            Draw.HollowRect(
-                cBaseLoc.X, cBaseLoc.Y - totalHeight - CompletionsPadding * 2f,
-                width + CompletionsPadding * 2f, totalHeight + CompletionsPadding * 2f,
-                Color.Black * (0xcc / 255f)
-            );
+            float cX = cBaseLoc.X;
+            float cY = cBaseLoc.Y - totalHeight - CompletionsPadding * 2f;
+            float cW = width + CompletionsPadding * 2f;
+            float cH = totalHeight + CompletionsPadding * 2f;
+            Draw.Rect(cX, cY, cW, cH, Color.Black * (0xaa / 255f));
+            Draw.Rect(cX, cY, cW, 3f, Color.Cyan);
+            Draw.Rect(cX - 3f, cY, 3f, cH, Color.CornflowerBlue);
             float curY = cTextBaseLoc.Y;
             for (int i = completions.Count - 1; i >= 0; i--)
             {
-                Color c = i == selectedCompletionIndex ? Color.Yellow : Color.Black;
+                bool selected = i == selectedCompletionIndex;
+                Color c = selected ? Color.RoyalBlue : Color.White;
+                if (selected)
+                    Draw.Rect(
+                        cBaseLoc.X, curY - textRenderer.LineHeight,
+                        cW, textRenderer.LineHeight,
+                        Color.Black * (0x44 / 255f)
+                    );
                 textRenderer.Draw(completions[i].Display, new Vector2(cTextBaseLoc.X, curY), Vector2.UnitY, c);
                 curY -= textRenderer.LineHeight;
             }
