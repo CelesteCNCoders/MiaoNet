@@ -112,7 +112,7 @@ public sealed class StatusComponent : MiaoNetComponent
                         texture.Texture.Texture_Safe,
                         position + new Vector2(i, j),
                         clipRect,
-                        Color.Black * MathF.Pow(alpha, 4f), // diff from original DrawOutlineCentered
+                        Color.Black * MathF.Pow(alpha, 3f), // diff from original DrawOutlineCentered
                         rotation, origin, scale, SpriteEffects.None, 0f
                     );
                 }

@@ -72,7 +72,9 @@ public static class MiaoNetFont
         float stroke, Color strokeColor
     )
     {
-        ENZhsFont.DrawOutline(ENZhsBaseSize, text, position, justify, scale, color, stroke, strokeColor);
+        float alpha = (color.A / 255f);
+        alpha = MathF.Pow(alpha, 3f);
+        ENZhsFont.DrawOutline(ENZhsBaseSize, text, position, justify, scale, color, stroke, strokeColor * alpha);
     }
 
     [MethodImpl(MioAI)]
@@ -83,7 +85,7 @@ public static class MiaoNetFont
     )
     {
         float alpha = (color.A / 255f);
-        alpha = MathF.Pow(alpha, 4f);
+        alpha = MathF.Pow(alpha, 3f);
         ENZhsFont.DrawOutline(
             ENZhsBaseSize, text, position,
             justify, scale, color,
