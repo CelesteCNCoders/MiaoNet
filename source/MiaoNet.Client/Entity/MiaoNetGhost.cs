@@ -284,7 +284,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             if (vertexLight is null)
             {
                 // TODO player duck light offset
-                vertexLight = new VertexLight(new Vector2(0f, -8f), Color.White with { A = 233 }, 1f, 32, 64);
+                vertexLight = new VertexLight(new Vector2(0f, -8f), Color.White, 0.96f, 32, 64);
                 Add(vertexLight);
             }
             vertexLight.Visible = true;

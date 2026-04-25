@@ -219,7 +219,7 @@ public sealed class InputBox
             position: baseLoc - Vector2.UnitY * height,
             width: Engine.Width - 2 * Margin,
             height: height,
-            color: Color.Black with { A = 100 }
+            color: Color.Black * (0x7f / 255f)
         );
 
         Vector2 pos = textBaseLoc;
@@ -271,12 +271,12 @@ public sealed class InputBox
             Draw.Rect(
                 cBaseLoc.X, cBaseLoc.Y - totalHeight - CompletionsPadding * 2f,
                 width + CompletionsPadding * 2f, totalHeight + CompletionsPadding * 2f,
-                Color.CornflowerBlue with { A = 0xcc }
+                Color.CornflowerBlue * (0xcc / 255f)
             );
             Draw.HollowRect(
                 cBaseLoc.X, cBaseLoc.Y - totalHeight - CompletionsPadding * 2f,
                 width + CompletionsPadding * 2f, totalHeight + CompletionsPadding * 2f,
-                Color.Black with { A = 0xcc }
+                Color.Black * (0xcc / 255f)
             );
             float curY = cTextBaseLoc.Y;
             for (int i = completions.Count - 1; i >= 0; i--)

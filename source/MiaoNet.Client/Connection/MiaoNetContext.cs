@@ -309,7 +309,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     {
         Draw.SpriteBatch.Begin(
             SpriteSortMode.Deferred,
-            BlendState.NonPremultiplied,
+            BlendState.AlphaBlend,
             SamplerState.LinearClamp,
             DepthStencilState.None,
             RasterizerState.CullNone,
