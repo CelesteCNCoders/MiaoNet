@@ -218,7 +218,7 @@ partial class MiaoNetCommand
         PlayerLocation loc = player!.Location;
         AreaKey areaKey = new(area!.ID, loc.Side);
 
-        context.TipMessage(Dialog.Get("miaonet_commands_teleport_tip").Replace("(0)", player.Info.Name));
+        context.TipMessage(PFormat.Format(Dialog.Get("miaonet_commands_teleport_tip"), player.Info.Name));
 
         context.Request(new PacketTeleportRequest(player.ID), OnResponse);
 
@@ -227,8 +227,10 @@ partial class MiaoNetCommand
             if (response.IsFailed)
             {
                 context.TipErrorMessage(
-                    Dialog.Get("miaonet_commands_teleport_failed_tip")
-                    .Replace("(0)", Dialog.Get($"miaonet_commands_teleport_failed_{response.FailedReason}"))
+                    PFormat.Format(
+                        Dialog.Get("miaonet_commands_teleport_failed_tip"),
+                        Dialog.Get($"miaonet_commands_teleport_failed_{response.FailedReason}")
+                    )
                 );
                 return;
             }
@@ -318,10 +320,14 @@ partial class MiaoNetCommand
 
     private static void NoticeTeleportFinished(Context context, bool moveToDebugSave, bool noSession, string playerName)
     {
-        context.TipMessage(
-            Dialog.Get(noSession ? "miaonet_commands_teleport_success_nosession" : "miaonet_commands_teleport_success")
-                  .Replace("(0)", playerName)
+        string msg = PFormat.Format(
+            Dialog.Get(
+                noSession
+                ? "miaonet_commands_teleport_success_nosession"
+                : "miaonet_commands_teleport_success"
+            ), playerName
         );
+        context.TipMessage(msg);
         if (moveToDebugSave)
             context.TipMessage(Dialog.Get("miaonet_commands_teleport_back_notice"));
     }
@@ -359,7 +365,7 @@ partial class MiaoNetCommand
         //     <player> : desc of param1
         //     <text> : desc of param2
 
-        context.TipMessage(CommandHelpTitle.Replace("(0)", Commands.Count.ToString()));
+        context.TipMessage(PFormat.Format(CommandHelpTitle, Commands.Count));
         foreach (var command in Commands)
             TipCommandHelp(context, command);
         return null;
@@ -377,7 +383,7 @@ partial class MiaoNetCommand
         );
 
         if (command == null)
-            return CommandHelpNotFound.Replace("(0)", name);
+            return PFormat.Format(CommandHelpNotFound, name);
 
         TipCommandHelp(context, command);
 
@@ -455,7 +461,7 @@ partial class MiaoNetCommand
         context.TipMessage(Dialog.Get(key));
         return null;
     }
-    
+
     private static string? Interactions(Context context)
     {
         var settings = MiaoNetModule.Settings;
@@ -476,9 +482,7 @@ partial class MiaoNetCommand
         if (error is not null)
             return error;
 
-        string m = Dialog.Get("miaonet_commands_locate_message")
-            .Replace("(0)", player!.Info.Name)
-            .Replace("(1)", Dialog.Get(othersArea!.Name));
+        string m = PFormat.Format(Dialog.Get("miaonet_commands_locate_message"), player!.Info.Name, Dialog.Get(othersArea!.Name));
 
         context.TipMessage(m);
 
@@ -497,14 +501,12 @@ partial class MiaoNetCommand
 
         if (Engine.Scene is not Level level || level.Session.Area.SID != othersArea!.SID)
         {
-            string m = Dialog.Get("miaonet_commands_watch_not_same_map")
-                .Replace("(0)", player!.Info.Name)
-                .Replace("(1)", Dialog.Get(othersArea!.Name));
+            string m = PFormat.Format(Dialog.Get("miaonet_commands_watch_not_same_map"), player!.Info.Name, Dialog.Get(othersArea!.Name));
             return m;
         }
 
         context.MiaoNetContext.MainComponent.StartWatching(player!);
-        context.TipMessage(Dialog.Get("miaonet_commands_watch_watching").Replace("(0)", player!.Info.Name));
+        context.TipMessage(PFormat.Format(Dialog.Get("miaonet_commands_watch_watching"), player!.Info.Name));
 
         return null;
     }
@@ -518,7 +520,7 @@ partial class MiaoNetCommand
         }
         else
         {
-            string msg = Dialog.Get("miaonet_commands_unwatch_unwatched").Replace("(0)", player.Info.Name);
+            string msg = PFormat.Format(Dialog.Get("miaonet_commands_unwatch_unwatched"), player.Info.Name);
             context.TipMessage(msg);
         }
 
@@ -544,9 +546,9 @@ partial class MiaoNetCommand
         var allPlayers = from pair in clientState.SelfChannel.Players select pair.Value;
         var matchedPlayer = UniqueMatcher.MatchBy(allPlayers.Append(clientState.Self), p => p.Info.Name, playerName);
         if (matchedPlayer is null)
-            return PlayerNotFound.Replace("(0)", playerName);
+            return PFormat.Format(PlayerNotFound, playerName);
         if (matchedPlayer == clientState.Self)
-            return PlayerIsSelf.Replace("(0)", matchedPlayer.Info.Name);
+            return PFormat.Format(PlayerIsSelf, matchedPlayer.Info.Name);
 
         player = matchedPlayer;
         return null;
@@ -558,12 +560,12 @@ partial class MiaoNetCommand
 
         PlayerLocation loc = player.Location;
         if (!loc.IsInMap)
-            return PlayerNotInMap.Replace("(0)", player.Info.Name);
+            return PFormat.Format(PlayerNotInMap, player.Info.Name);
 
         bool liveMode = MiaoNetModule.Settings.LiveMode;
         var area = AreaData.Get(loc.MapSid);
         if (area is null || area.Mode.Length <= (int)loc.Side)
-            return PlayerMapMissing.Replace("(0)", player.Info.Name).Replace("(1)", liveMode ? "*" : loc.ToString());
+            return PFormat.Format(PlayerMapMissing, player.Info.Name, liveMode ? "*" : loc.ToString());
 
         othersArea = area;
         return null;

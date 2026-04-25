@@ -66,7 +66,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     {
         if (!MiaoNetModule.Settings.PlayerPresenceMessages)
             return;
-        string text = Dialog.Clean("miaonet_context_player_joined").Replace("(0)", player.GetDisplayName(false, context.ShowAvatar));
+        string text = PFormat.Format(Dialog.Clean("miaonet_context_player_joined"), player.GetDisplayName(false, context.ShowAvatar));
         AddLocalChat(MiaoNetChatText.CreateAnnouncement(text));
     }
 
@@ -74,7 +74,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     {
         if (!MiaoNetModule.Settings.PlayerPresenceMessages)
             return;
-        string text = Dialog.Clean("miaonet_context_player_left").Replace("(0)", player.GetDisplayName(false, context.ShowAvatar));
+        string text = PFormat.Format(Dialog.Clean("miaonet_context_player_left"), player.GetDisplayName(false, context.ShowAvatar));
         AddLocalChat(MiaoNetChatText.CreateAnnouncement(text));
     }
 
@@ -266,18 +266,11 @@ public sealed partial class ChatComponent : MiaoNetComponent
             string msg = result switch
             {
                 CommandParser.ParseResult.NoSuchCommand =>
-                    Dialog.Clean("miaonet_command_status_no_such_command")
-                    .Replace("(0)", cmdName),
+                    PFormat.Format(Dialog.Clean("miaonet_command_status_no_such_command"), cmdName),
                 CommandParser.ParseResult.MissingArguments =>
-                    Dialog.Clean("miaonet_command_status_missing_arguments")
-                    .Replace("(0)", cmdName)
-                    .Replace("(1)", cmd!.Segments.Count.ToString())
-                    .Replace("(2)", argc.ToString()),
+                    PFormat.Format(Dialog.Clean("miaonet_command_status_missing_arguments"), cmdName, cmd!.Segments.Count, argc),
                 CommandParser.ParseResult.TooManyArguments =>
-                    Dialog.Clean("miaonet_command_status_too_many_arguments")
-                    .Replace("(0)", cmdName)
-                    .Replace("(1)", cmd!.Segments.Count.ToString())
-                    .Replace("(2)", argc.ToString()),
+                    PFormat.Format(Dialog.Clean("miaonet_command_status_too_many_arguments"), cmdName, cmd!.Segments.Count, argc),
             };
             AddLocalChat(MiaoNetChatText.CreateCommandError(msg));
         }

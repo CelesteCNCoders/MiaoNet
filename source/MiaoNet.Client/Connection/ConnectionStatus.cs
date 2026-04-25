@@ -10,9 +10,7 @@ public static class ConnectionStatus
     public static string Connecting => Dialog.Get(string.Format(Base, "connecting"));
 
     public static string VersionNotMatch(Version local, Version remote)
-        => Dialog.Get(string.Format(Base, "version_not_match"))
-            .Replace("(0)", local.ToString(3))
-            .Replace("(1)", remote.ToString(3));
+        => PFormat.Format(Dialog.Get(string.Format(Base, "version_not_match")), local.ToString(3), remote.ToString(3));
 
     public static string Authenticating => Dialog.Get(string.Format(Base, "authenticating"));
 
@@ -29,26 +27,20 @@ public static class ConnectionStatus
     public static string InternalServerError => Dialog.Get(string.Format(Base, "internal_server_error"));
 
     public static string ConnectFailedWithReason(string reason)
-        => Dialog.Get(string.Format(Base, "connect_failed_with_reason"))
-            .Replace("(0)", reason);
+        => PFormat.Format(Dialog.Get(string.Format(Base, "connect_failed_with_reason")), reason);
 
     public static string ConnectionSslError(SslPolicyErrors sslPolicyErrors, X509ChainStatusFlags x509ChainStatusFlags)
-        => Dialog.Get(string.Format(Base, "ssl_error"))
-            .Replace("(0)", sslPolicyErrors.ToString())
-            .Replace("(1)", x509ChainStatusFlags.ToString());
+        => PFormat.Format(Dialog.Get(string.Format(Base, "ssl_error")), sslPolicyErrors, x509ChainStatusFlags);
 
     public static string ConnectionSslRevocationCheckFailed
         => Dialog.Get(string.Format(Base, "revocation_check_failed"));
 
     public static string DisconnectedWithReason(string reason)
-        => Dialog.Get(string.Format(Base, "disconnected_exceptionally_with_reason"))
-            .Replace("(0)", reason);
+        => PFormat.Format(Dialog.Get(string.Format(Base, "disconnected_exceptionally_with_reason")), reason);
 
     public static string DisconnectedWithLocalReason(string reason)
-        => Dialog.Get(string.Format(Base, "disconnected_locally_exceptionally_with_reason"))
-            .Replace("(0)", reason);
+        => PFormat.Format(Dialog.Get(string.Format(Base, "disconnected_locally_exceptionally_with_reason")), reason);
 
     public static string Kicked(string reason)
-        => Dialog.Get(string.Format(Base, "kicked"))
-            .Replace("(0)", reason);
+        => PFormat.Format(Dialog.Get(string.Format(Base, "kicked")), reason);
 }

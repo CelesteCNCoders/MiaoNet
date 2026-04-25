@@ -486,7 +486,7 @@ public static class MenuMiaoNetOptions
             Add(new SubHeader(Dialog.Get("miaonet_options_button_emotes")));
             for (int i = 0; i < settings.Emotes.Count; i++)
                 AddMapForceLabel(
-                    Dialog.Get("miaonet_options_button_emote_i").Replace("(0)", (i + 1).ToString()),
+                    PFormat.Format(Dialog.Get("miaonet_options_button_emote_i"), i + 1),
                     settings.EmoteButtons[i].Binding
                 );
 
