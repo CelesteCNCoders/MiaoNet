@@ -383,6 +383,20 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             Draw.Rect(dstX, dstY, dstWidth, dstHeight, Color.Black with { A = 0xcc });
             Draw.HollowRect(dstX, dstY, dstWidth, 3f, Color.CornflowerBlue);
             Draw.Rect(dstX, dstY, 3f, dstHeight, Color.Cyan);
+
+            var players = channelPlayerList[i].Item2;
+            float curY = dstY + RectYPadding + lineHeight;
+            for (int j = 0; j < players.Count; j++)
+            {
+                Color c = (j % 2)
+                switch
+                {
+                    0 => new Color(0x00, 0x00, 0x00, 0x22),
+                    1 => new Color(0x22, 0x22, 0x22, 0x88),
+                };
+                Draw.Rect(dstX + RectXPadding, curY, dstWidth - 2 * RectXPadding, lineHeight, c);
+                curY += lineHeight;
+            }
         }
 
         // draw channels
