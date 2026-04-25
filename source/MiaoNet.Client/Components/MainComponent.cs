@@ -144,8 +144,8 @@ public sealed partial class MainComponent : MiaoNetComponent
         // player interactions
         UpdateInteractions(level, player);
 
-        // do not send frames when paused
-        if (level.Paused)
+        // do not send frames when paused or in freeze frames
+        if (level.Paused || Engine.FreezeTimer > 0f)
             return;
 
         PlayerState? selfState = self.State;
