@@ -388,8 +388,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             float curY = dstY + RectYPadding + lineHeight;
             for (int j = 0; j < players.Count; j++)
             {
-                Color c = (j % 2)
-                switch
+                Color c = (j % 2) switch
                 {
                     0 => new Color(0x00, 0x00, 0x00, 0x22),
                     1 => new Color(0x22, 0x22, 0x22, 0x88),
