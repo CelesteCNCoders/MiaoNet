@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using Microsoft.Xna.Framework.Input;
 
 namespace Celeste.Mod.ChatInputBox;
@@ -28,6 +30,7 @@ public sealed class InputBox
 
     public string Text => buffer.Text;
 
+    [MemberNotNullWhen(true, nameof(completions))]
     public bool HasCompletions => completions is { Count: > 0 };
 
     public int MaxTextLength { get; set; } = 64;
@@ -227,9 +230,11 @@ public sealed class InputBox
         Vector2 sizeAfterCaret = textRenderer.Measure(buffer.TextAfterCaret);
         textRenderer.Draw(buffer.TextBeforeCaret, pos, justify: new Vector2(0f, 1f), color: Color.White);
         pos.X += sizeBeforeCaret.X;
+
+        Vector2 sizeImeEditing = Vector2.Zero;
         if (imeEditingText is not null)
         {
-            Vector2 sizeImeEditing = textRenderer.Measure(imeEditingText);
+            sizeImeEditing = textRenderer.Measure(imeEditingText);
             textRenderer.Draw(imeEditingText, pos, justify: new Vector2(0f, 1f), color: Color.Gray);
             pos.X += sizeImeEditing.X;
         }
@@ -251,12 +256,23 @@ public sealed class InputBox
             Draw.Line(fromLoc, toLoc, Color.White, 2f);
         }
 
-        Vector2 view = new(Engine.ViewWidth, Engine.ViewHeight);
-        Vector2 viewPos = new(pos.X / Engine.Width * view.X, pos.Y / Engine.Height * view.Y);
-        // TODO set the value correctly
-        TextInputEXT.SetInputRectangle(new Rectangle((int)viewPos.X + Engine.ViewPadding + 72, (int)viewPos.Y + Engine.ViewPadding, 1, 0));
+        {
+            Vector2 view = new(Engine.ViewWidth, Engine.ViewHeight);
+            float xScale = view.X / Engine.Width;
+            float yScale = view.Y / Engine.Height;
+            Vector2 viewPos = new((textBaseLoc.X + sizeBeforeCaret.X) * xScale, (baseLoc.Y - height) * yScale);
+            Rectangle finalRect = new Rectangle(
+                (int)viewPos.X,
+                (int)viewPos.Y,
+                Math.Max(1, (int)(sizeImeEditing.X * xScale)),
+                (int)(height * yScale)
+            );
+            // TODO the calculated result is almost correct but
+            // IME is still being placed in somewhere incorrect
+            TextInputEXT.SetInputRectangle(finalRect);
+        }
 
-        if (completions is { Count: > 0 })
+        if (HasCompletions)
         {
             const float CompletionsPadding = 4f;
             Vector2 cBaseLoc = textBaseLoc + new Vector2(sizeBeforeCaret.X, -textRenderer.LineHeight - Padding);
