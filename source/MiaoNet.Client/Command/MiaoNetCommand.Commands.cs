@@ -107,7 +107,7 @@ partial class MiaoNetCommand
             new MiaoNetCommand(
                 name: "watch",
                 aliases: [ "wt" ],
-                segments: [CommandSegmentType.Player],
+                segments: [CommandSegmentType.PlayerSameMap],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(Watch)
             ),

@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Text;
 using Celeste.Mod.ChatInputBox;
+using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -86,6 +87,12 @@ public sealed class ChatCompletionProvider : ICompletionProvider
                     return from pair in context.ClientState!.Players
                            let i = pair.Value.Info
                            where i.Name.Contains(part, StringComparison.OrdinalIgnoreCase)
+                           select new Completion(i.Name, i.DisplayName, remove);
+                case CommandSegmentType.PlayerSameMap:
+                    return from pair in context.ClientState!.Players
+                           let i = pair.Value.Info
+                           where i.Name.Contains(part, StringComparison.OrdinalIgnoreCase)
+                           where pair.Value.ShouldSyncFrom(context.ClientState.Self)
                            select new Completion(i.Name, i.DisplayName, remove);
                 }
             }
