@@ -61,9 +61,6 @@ public sealed class InputBox
 
     private void OnTextOrCaretChanged()
     {
-        if (buffer.Text.Length > MaxTextLength)
-            buffer.SetText(buffer.Text.Substring(0, MaxTextLength));
-
         completions = completionProvider.GetCompletions(buffer.TextBeforeCaret)?.ToList();
         selectedCompletionIndex = -1;
     }
@@ -140,7 +137,10 @@ public sealed class InputBox
             if (completions is not null && (completions.Count == 1 || selectedCompletionIndex != -1))
             {
                 Completion selected = completions[selectedCompletionIndex == -1 ? 0 : selectedCompletionIndex];
-                buffer.DoCompletion(selected.Remove, selected.Content);
+                string content = selected.Content;
+                if (Text.Length - selected.Remove + content.Length > MaxTextLength)
+                    content = content[..(MaxTextLength - Text.Length + selected.Remove)];
+                buffer.DoCompletion(selected.Remove, content);
                 completions = null;
                 selectedCompletionIndex = -1;
             }
@@ -153,6 +153,10 @@ public sealed class InputBox
         {
             string text = TextInput.GetClipboardText();
             string textNoControl = new string(text.Where(c => !char.IsControl(c)).ToArray());
+
+            if (Text.Length + textNoControl.Length > MaxTextLength)
+                textNoControl = textNoControl[..(MaxTextLength - Text.Length)];
+
             if (!string.IsNullOrEmpty(textNoControl))
                 buffer.InputString(textNoControl);
         }
@@ -186,7 +190,7 @@ public sealed class InputBox
         {
             // TODO need we support surrogate pair?
 
-            if (textRenderer.CanRender(chr))
+            if (textRenderer.CanRender(chr) && Text.Length < MaxTextLength)
             {
                 buffer.InputChar(chr);
                 operated = true;
