@@ -2,5 +2,6 @@
 
 public enum SettingsCategory
 {
-    VisualsUI
+    VisualsUI,
+    PlayerList
 }

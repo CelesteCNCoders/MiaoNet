@@ -257,6 +257,12 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
         item.AddDescription(menu, Dialog.Clean("miaonet_options_followers_sync_mode_tip"));
 
+        item = new EnumSlider<ClipType>(
+            Dialog.Get("miaonet_options_player_list_map_name_clip_type"),
+            t => Dialog.Get($"miaonet_options_clip_type_{t}"), settings.PlayerListMapNameClipType
+        ).Change(v => settings.PlayerListMapNameClipType = v);
+        menu.Add(item);
+
         #endregion
 
         #region Audio

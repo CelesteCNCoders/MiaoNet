@@ -28,6 +28,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     private float scroll;
     private float scrollTarget;
 
+    private static ClipType ClipType => MiaoNetModule.Settings.PlayerListMapNameClipType;
+
     public PlayerListComponent(MiaoNetContext context)
         : base(context)
     {
@@ -47,6 +49,16 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         texLiveMode = GFX.Gui["miaonet/live_mode"];
         texTakingGolden = GFX.Gui["miaonet/taking_golden"];
         texGroupPhotoMode = GFX.Gui["miaonet/group_photo_mode"];
+
+        MiaoNetModule.Settings.SettingsChanged += Settings_SettingsChanged;
+    }
+
+    private void Settings_SettingsChanged(MiaoNetModuleSettings settings, SettingsCategory category)
+    {
+        if (category is not SettingsCategory.PlayerList)
+            return;
+        if (HasState)
+            BuildPlayerList();
     }
 
     private void BuildPlayerList()
@@ -104,7 +116,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             {
                 Location = new PlayerLocation(sid, (AreaMode)Random.Shared.Next(0, 3), room),
                 LastPing = Random.Shared.Next(20, Random.Shared.Next(20, Random.Shared.Next(20, 2000)))
-            }, false);
+            }, false, ClipType);
         }
 #else
         channelPlayerList.Clear();
@@ -116,11 +128,11 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
             // add self
             if (channel == state.SelfChannel)
-                playerListEntries.Add(new PlayerListEntry(state.Self, context.ShowAvatar));
+                playerListEntries.Add(new PlayerListEntry(state.Self, context.ShowAvatar, ClipType));
 
             // add other players
             foreach (var (_, player) in channel.Players)
-                playerListEntries.Add(new PlayerListEntry(player, context.ShowAvatar));
+                playerListEntries.Add(new PlayerListEntry(player, context.ShowAvatar, ClipType));
 
             channelPlayerList.Add((new(channel, playerListEntries)));
         }
@@ -142,7 +154,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 #endif
         var channel = channelPlayerList.Find(c => c.Channel == player.Channel);
         var item = channel!.Players.Find(i => i.Player == player);
-        item!.Update();
+        item!.Update(ClipType);
         SortPlayerList();
         return;
     }
@@ -337,7 +349,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                         itemWidth += colonWidth;
                         if (!player.Location.IsInDebugMap)
                         {
-                            itemWidth += MiaoNetFont.Measure(liveMode ? "*" : player.Location.MapRoom).X * scale;
+                            itemWidth += MiaoNetFont.Measure(liveMode ? "*" : item.MapRoom!).X * scale;
                         }
                         else
                         {
@@ -568,13 +580,13 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     if (!loc.IsInDebugMap)
                     {
                         MiaoNetFont.Draw(
-                            liveMode ? "*" : loc.MapRoom,
+                            liveMode ? "*" : item.MapRoom!,
                             position: new(x, curY),
                             justify: Vector2.UnitX,
                             scale: Vector2.One * scale,
                             Color.LightGray
                         );
-                        x -= MiaoNetFont.Measure(loc.MapRoom).X * scale;
+                        x -= MiaoNetFont.Measure(item.MapRoom!).X * scale;
                     }
                     else
                     {

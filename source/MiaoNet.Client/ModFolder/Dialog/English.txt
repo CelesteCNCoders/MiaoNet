@@ -48,6 +48,7 @@ miaonet_options_group_photo_platform_type= Group Photo Platform Type
 miaonet_options_followers_sync_mode= Player Followers
 miaonet_options_followers_sync_mode_tip= 
 	Entities that follow player, like strawberries and keys.
+miaonet_options_player_list_map_name_clip_type= Player List Long Map Name Clipping
 
 miaonet_options_audio= Audio
 miaonet_options_player_audio_sync_mode= Sync Audio
@@ -110,6 +111,10 @@ miaonet_options_sync_mode_none= OFF
 miaonet_options_sync_mode_receive= Receive Only
 miaonet_options_sync_mode_send= Send Only
 miaonet_options_sync_mode_both= ON
+
+miaonet_options_clip_type_none= None
+miaonet_options_clip_type_keepprefix= Keep Prefix
+miaonet_options_clip_type_keepsuffix= Keep Suffix
 
 miaonet_platform_type_default= Default
 miaonet_platform_type_wood= Wood

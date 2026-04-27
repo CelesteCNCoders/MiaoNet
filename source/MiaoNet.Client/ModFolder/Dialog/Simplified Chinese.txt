@@ -47,6 +47,7 @@ miaonet_options_group_photo_platform_type= 合影平台类型
 miaonet_options_followers_sync_mode= 玩家跟随物
 miaonet_options_followers_sync_mode_tip= 
 	例如钥匙，草莓等跟随玩家的实体。
+miaonet_options_player_list_map_name_clip_type= 玩家列表长文本截断
 
 miaonet_options_audio= 音频
 miaonet_options_player_audio_sync_mode= 玩家音频
@@ -107,6 +108,10 @@ miaonet_options_sync_mode_none= 关
 miaonet_options_sync_mode_receive= 仅接收
 miaonet_options_sync_mode_send= 仅发送
 miaonet_options_sync_mode_both= 开
+
+miaonet_options_clip_type_none= 不截断
+miaonet_options_clip_type_keepprefix= 截断后半部分
+miaonet_options_clip_type_keepsuffix= 截断前半部分
 
 miaonet_platform_type_default= 默认
 miaonet_platform_type_wood= 木制

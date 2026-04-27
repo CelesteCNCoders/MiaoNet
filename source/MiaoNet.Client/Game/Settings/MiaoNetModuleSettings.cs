@@ -76,19 +76,47 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 
     #region UI
 
-    public int PlayerListUIScale { get => field; set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } } = 4;
+    public int PlayerListUIScale 
+    {
+        get => field; 
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } 
+    } = 4;
 
-    public int ChatUIScale { get => field; set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } } = 4;
+    public int ChatUIScale 
+    {
+        get => field; 
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
+    } = 4;
 
-    public int ChatBackgroundOpacity { get => field; set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } } = 5;
+    public int ChatBackgroundOpacity
+    { 
+        get => field; 
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } 
+    } = 5;
 
-    public int ChatTextOpacity { get => field; set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } } = 10;
+    public int ChatTextOpacity
+    {
+        get => field; 
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
+    } = 10;
 
-    public int ChatDisplayDuration { get => field; set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } } = 8;
+    public int ChatDisplayDuration 
+    {
+        get => field; 
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
+    } = 8;
 
-    public int IdleChatHeight { get => field; set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } } = 4;
+    public int IdleChatHeight
+    {
+        get => field; 
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
+    } = 4;
 
-    public int ActiveChatHeight { get => field; set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } } = 8;
+    public int ActiveChatHeight 
+    { 
+        get => field; 
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
+    } = 8;
 
     #endregion
 
@@ -107,6 +135,12 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     public JumpthruType GroupPhotoPlatformType { get; set; } = JumpthruType.Dream;
 
     public SyncMode FollowersSyncMode { get; set; } = SyncMode.Both;
+
+    public ClipType PlayerListMapNameClipType
+    { 
+        get => field; 
+        set { field = value; NotifySettingsChanged(SettingsCategory.PlayerList); }
+    } = ClipType.None;
 
     #region Calculated
 
