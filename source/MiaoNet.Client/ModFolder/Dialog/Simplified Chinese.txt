@@ -108,6 +108,16 @@ miaonet_options_sync_mode_receive= 仅接收
 miaonet_options_sync_mode_send= 仅发送
 miaonet_options_sync_mode_both= 开
 
+miaonet_platform_type_default= 默认
+miaonet_platform_type_wood= 木制
+miaonet_platform_type_cliffside= 山脊
+miaonet_platform_type_temple= 神庙
+miaonet_platform_type_templeb= 神庙（镜中）
+miaonet_platform_type_dream= 梦境
+miaonet_platform_type_reflection= 沉思
+miaonet_platform_type_core= 核心
+miaonet_platform_type_moon= 再见
+
 miaonet_connection_status_connecting= 连接中…
 miaonet_connection_status_authenticating= 验证中…
 miaonet_connection_status_version_not_match= 本地版本 (0) 与服务器要求版本 (1) 不匹配

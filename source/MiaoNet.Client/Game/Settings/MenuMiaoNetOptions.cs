@@ -247,7 +247,7 @@ public static class MenuMiaoNetOptions
 
         item = new EnumSlider<JumpthruType>(
             Dialog.Get("miaonet_options_group_photo_platform_type"),
-            t => t.ToString(), settings.GroupPhotoPlatformType
+            t => Dialog.Get($"miaonet_platform_type_{t}"), settings.GroupPhotoPlatformType
         ).Change(v => settings.GroupPhotoPlatformType = v);
         menu.Add(item);
 

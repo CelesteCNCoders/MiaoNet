@@ -111,6 +111,16 @@ miaonet_options_sync_mode_receive= Receive Only
 miaonet_options_sync_mode_send= Send Only
 miaonet_options_sync_mode_both= ON
 
+miaonet_platform_type_default= Default
+miaonet_platform_type_wood= Wood
+miaonet_platform_type_cliffside= Cliffside
+miaonet_platform_type_temple= Temple
+miaonet_platform_type_templeb= Temple (Mirror)
+miaonet_platform_type_dream= Dream
+miaonet_platform_type_reflection= Reflection
+miaonet_platform_type_core= Core
+miaonet_platform_type_moon= Moon
+
 miaonet_connection_status_connecting= Connecting...
 miaonet_connection_status_authenticating= Authenticating...
 miaonet_connection_status_version_not_match= Local version (0) mismatches server version (1)
