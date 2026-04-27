@@ -207,6 +207,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
                         if (historyIndex == history.Count)
                             lastInput = inputBox.Text;
                         historyIndex = i;
+                        inputBox.SetSuppressCompletions();
                         inputBox.SetText(history[i]);
                     }
                 }
@@ -220,9 +221,15 @@ public sealed partial class ChatComponent : MiaoNetComponent
                     {
                         historyIndex = i;
                         if (i == history.Count)
+                        {
+                            inputBox.SetSuppressCompletions();
                             inputBox.SetText(lastInput);
+                        }
                         else
+                        {
+                            inputBox.SetSuppressCompletions();
                             inputBox.SetText(history[i]);
+                        }
                     }
                 }
             }

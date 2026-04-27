@@ -28,6 +28,8 @@ public sealed class InputBox
 
     private int selectedCompletionIndex = -1;
 
+    private bool suppressCompletions;
+
     public string Text => buffer.Text;
 
     [MemberNotNullWhen(true, nameof(completions))]
@@ -61,6 +63,13 @@ public sealed class InputBox
 
     private void OnTextOrCaretChanged()
     {
+        if (suppressCompletions)
+        {
+            suppressCompletions = false;
+            completions = null;
+            selectedCompletionIndex = -1;
+            return;
+        }
         completions = completionProvider.GetCompletions(buffer.TextBeforeCaret)?.ToList();
         selectedCompletionIndex = -1;
     }
@@ -101,7 +110,7 @@ public sealed class InputBox
         }
         else if (upButton.Pressed)
         {
-            if (completions is { Count: > 0 })
+            if (HasCompletions)
             {
                 upButton.ConsumePress();
                 if (selectedCompletionIndex == -1)
@@ -118,7 +127,7 @@ public sealed class InputBox
         }
         else if (downButton.Pressed)
         {
-            if (completions is { Count: > 0 })
+            if (HasCompletions)
             {
                 downButton.ConsumePress();
                 if (selectedCompletionIndex == -1)
@@ -140,9 +149,8 @@ public sealed class InputBox
                 string content = selected.Content;
                 if (Text.Length - selected.Remove + content.Length > MaxTextLength)
                     content = content[..(MaxTextLength - Text.Length + selected.Remove)];
+                SetSuppressCompletions();
                 buffer.DoCompletion(selected.Remove, content);
-                completions = null;
-                selectedCompletionIndex = -1;
             }
         }
 
@@ -211,6 +219,12 @@ public sealed class InputBox
     {
         showCaret = true;
         caretTimer = CaretBlinkInterval;
+    }
+
+    // any better ways?
+    public void SetSuppressCompletions()
+    {
+        suppressCompletions = true;
     }
 
     public void Render()
