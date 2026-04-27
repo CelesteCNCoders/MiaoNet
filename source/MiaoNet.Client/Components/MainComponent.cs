@@ -553,7 +553,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
         else
         {
-            Logger.Warn(LT.MiaoNet, $"Notified but ghost does not exists for {player.Info}");
+            Logger.Warn(LT.MiaoNetSync, $"Notified but ghost does not exists for {player.Info}");
             // TODO something that records the warning times
             // if there are so many warnings then we may have to
             // disconnect from the server (a server or client bug?)
@@ -620,7 +620,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
         else
         {
-            Logger.Warn(LT.MiaoNet, $"Live state notified but ghost does not exists for {player.Info}");
+            Logger.Warn(LT.MiaoNetSync, $"Live state notified but ghost does not exists for {player.Info}");
         }
     }
 
@@ -659,7 +659,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         // TODO and also, we need to introduce player global settings
         if (!ghosts.TryGetValue(player.ID, out var ghost))
         {
-            Logger.Warn(LT.MiaoNet, $"Received player {player.Info} played audio {audio.Event} but no ghost found.");
+            Logger.Warn(LT.MiaoNetSync, $"Received player {player.Info} played audio {audio.Event} but no ghost found.");
             return;
         }
 

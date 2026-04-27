@@ -48,6 +48,8 @@ public sealed class MiaoNetModule : EverestModule
         Instance = this;
 #if DEBUG
         Logger.SetLogLevel(LT.MiaoNetAvatar, LogLevel.Verbose);
+        // TODO prevent those warnings server-side
+        Logger.SetLogLevel(LT.MiaoNetSync, LogLevel.Error);
 #endif
         using (new DetourConfigContext(RootConfig).Use())
         {
