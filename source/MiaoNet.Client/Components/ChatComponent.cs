@@ -68,6 +68,8 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
     private void Settings_SettingsChanged(MiaoNetModuleSettings settings, SettingsCategory category)
     {
+        if (category is not SettingsCategory.VisualsUI)
+            return;
         chatView.BackgroundOpacity = settings.ChatBackgroundOpacityValue;
         chatView.TextOpacity = settings.ChatTextOpacityValue;
         chatView.ShowDuration = settings.ChatDisplayDuration;

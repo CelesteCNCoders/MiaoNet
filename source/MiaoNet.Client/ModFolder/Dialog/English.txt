@@ -134,6 +134,8 @@ miaonet_connection_status_revocation_check_failed= Connection establishment fail
 miaonet_context_player_joined= (0) joined MiaoNet
 miaonet_context_player_left= (0) left MiaoNet
 
+miaonet_player_list_channel_header= #(0) | (1) Player(s)
+
 miaonet_chat_disabled= Chat has been set to disabled
 
 miaonet_command_status_no_such_command= Command "(0)" not found

@@ -11,7 +11,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     public bool Active { get; set; }
 
     private readonly PlayerListEntryComparer pComparer;
-    private readonly List<(OnlineChannel, List<PlayerListItem>)> channelPlayerList;
+    private readonly List<PlayerListChannelEntry> channelPlayerList;
 
     private readonly MTexture texPlayerPaused;
     private readonly MTexture texPlayerDebugMap;
@@ -34,6 +34,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         pComparer = new();
         channelPlayerList = new();
         context.ClientInitialized += Context_ClientInitialized;
+        // TODO surely full-rebuild is not necessary
         context.PlayerJoined += _ => BuildPlayerList();
         context.PlayerLeft += _ => BuildPlayerList();
         context.PlayerMapChanged += (p, _) => UpdatePlayer(p);
@@ -54,7 +55,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         int id = 0;
         channelPlayerList.Clear();
         OnlineChannel cMain = new(0, "main");
-        List<PlayerListItem> mainChannelPlayerList = [
+        List<PlayerListEntry> mainChannelPlayerList = [
             CreateTestPlayer(cMain, "sapcc", "Celeste/1-ForsakenCity", "a-01"),
             CreateTestPlayer(cMain, "Ccc", "Celeste/2-OldSite", "a-01"),
             CreateTestPlayer(cMain, "AAlice", "Celeste/LostLevels", "j-17"),
@@ -68,7 +69,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         foreach (var item in mainChannelPlayerList)
             cMain.Players.Add(item.Player.ID, item.Player);
         OnlineChannel cOther = new(1, "xinzhan");
-        List<PlayerListItem> otherChannelPlayerList = [
+        List<PlayerListEntry> otherChannelPlayerList = [
             CreateTestPlayer(cOther, "O5DZ", "StrawberryJam2021/Advanced/Lobby", "a-00"),
             CreateTestPlayer(cOther, "idk_others", "StrawberryJam2021/Advanced/Lobby", "a-01"),
             CreateTestPlayer(cOther, "idk_others_too", "Celeste/9-Core", "f-0j"),
@@ -76,7 +77,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         foreach (var item in otherChannelPlayerList)
             cOther.Players.Add(item.Player.ID, item.Player);
         OnlineChannel cOther2 = new(2, "xinzhan2");
-        List<PlayerListItem> otherChannel2PlayerList = [
+        List<PlayerListEntry> otherChannel2PlayerList = [
             CreateTestPlayer(cOther, "O5DZ222", "StrawberryJam2021/Advanced/Lobby", "a-00"),
             CreateTestPlayer(cOther, "idk_others222", "StrawberryJam2021/Advanced/Lobby", "a-01"),
             CreateTestPlayer(cOther, "idk_others_too222", "Celeste/9-Core", "f-0j"),
@@ -86,19 +87,22 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         foreach (var item in otherChannel2PlayerList)
             cOther2.Players.Add(item.Player.ID, item.Player);
         channelPlayerList.AddRange([
-            (cMain, mainChannelPlayerList),
-            (cOther, otherChannelPlayerList),
-            (cOther2, otherChannel2PlayerList)
+            new(cMain, mainChannelPlayerList),
+            new(cOther, otherChannelPlayerList),
+            new(cOther2, otherChannel2PlayerList)
         ]);
         SortPlayerList();
         return;
 
-        PlayerListItem CreateTestPlayer(OnlineChannel channel, string name, string sid, string room)
+        PlayerListEntry CreateTestPlayer(OnlineChannel channel, string name, string sid, string room)
         {
             id++;
-            return new PlayerListItem(new OnlinePlayer(channel, id, new PlayerInfo(id, name, string.Empty, string.Empty, Color.AntiqueWhite), PlayerGlobalFlags.None)
+            return new PlayerListEntry(new OnlinePlayer(
+                channel, id, new PlayerInfo(id, name, string.Empty, string.Empty, Color.AntiqueWhite),
+                PlayerGlobalFlags.None
+            )
             {
-                Location = new PlayerLocation(sid, Random.Shared.Next(0, 3) switch { 0 => AreaMode.Normal, 1 => AreaMode.BSide, 2 => AreaMode.CSide }, room),
+                Location = new PlayerLocation(sid, (AreaMode)Random.Shared.Next(0, 3), room),
                 LastPing = Random.Shared.Next(20, Random.Shared.Next(20, Random.Shared.Next(20, 2000)))
             }, false);
         }
@@ -108,12 +112,17 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
         foreach (var (_, channel) in state.Channels)
         {
-            var playerList = new List<PlayerListItem>();
+            var playerListEntries = new List<PlayerListEntry>();
+
+            // add self
             if (channel == state.SelfChannel)
-                playerList.Add(new PlayerListItem(state.Self, context.ShowAvatar));
+                playerListEntries.Add(new PlayerListEntry(state.Self, context.ShowAvatar));
+
+            // add other players
             foreach (var (_, player) in channel.Players)
-                playerList.Add(new PlayerListItem(player, context.ShowAvatar));
-            channelPlayerList.Add((channel, playerList));
+                playerListEntries.Add(new PlayerListEntry(player, context.ShowAvatar));
+
+            channelPlayerList.Add((new(channel, playerListEntries)));
         }
         SortPlayerList();
 #endif
@@ -121,8 +130,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
     private void Context_PingDataReceived()
     {
-        foreach (var pair in channelPlayerList)
-            foreach (var item in pair.Item2)
+        foreach (var channel in channelPlayerList)
+            foreach (var item in channel.Players)
                 item.UpdatePing();
     }
 
@@ -131,9 +140,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 #if MOCK_DATA
         return;
 #endif
-        var channel = player.Channel;
-        var pair = channelPlayerList.Find(p => p.Item1 == channel);
-        var item = pair.Item2.Find(i => i.Player == player);
+        var channel = channelPlayerList.Find(c => c.Channel == player.Channel);
+        var item = channel!.Players.Find(i => i.Player == player);
         item!.Update();
         SortPlayerList();
         return;
@@ -150,8 +158,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
     private void SortPlayerList()
     {
-        foreach (var (_, list) in channelPlayerList)
-            list.Sort(pComparer.Compare);
+        foreach (var c in channelPlayerList)
+            c.Players.Sort(pComparer.Compare);
     }
 
     public override void OnDisconnected()
@@ -268,8 +276,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             float curY = -scroll;
             for (int i = 0; i < channelPlayerList.Count; i++)
             {
-                var channel = channelPlayerList[i].Item1;
-                float headerWidth = MiaoNetFont.Measure($"#{channel.Name}   {channel.Players.Count} Players").X * scale;
+                var channel = channelPlayerList[i];
+                float headerWidth = MiaoNetFont.Measure(channel.Header).X * scale;
                 maxLineWidth = Math.Max(maxLineWidth, headerWidth);
 
                 curY += RectYMargin;
@@ -277,7 +285,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 curY += RectYPadding;
                 curY += lineHeight; // channel header
 
-                foreach (var item in channelPlayerList[i].Item2)
+                foreach (var item in channelPlayerList[i].Players)
                 {
                     var player = item.Player;
 
@@ -384,7 +392,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             Draw.Rect(dstX, dstY, dstWidth, 3f, Color.CornflowerBlue);
             Draw.Rect(dstX, dstY, 3f, dstHeight, Color.Cyan);
 
-            var players = channelPlayerList[i].Item2;
+            var players = channelPlayerList[i].Players;
             float curY = dstY + RectYPadding + lineHeight;
             for (int j = 0; j < players.Count; j++)
             {
@@ -401,12 +409,13 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         // draw channels
         for (int i = 0; i < channelPlayerList.Count; i++)
         {
-            (OnlineChannel channel, List<PlayerListItem> itemList) = channelPlayerList[i];
+            PlayerListChannelEntry channel = channelPlayerList[i];
+            List<PlayerListEntry> playerEntries = channel.Players;
             float xOffset = RectXMargin + RectXPadding;
             float curY = channelYOffsets[i] + RectYPadding;
             // draw header
             MiaoNetFont.Draw(
-                $"#{channel.Name}   {itemList.Count} Players",
+                channel.Header,
                 position: new(xOffset, curY),
                 justify: Vector2.Zero,
                 scale: Vector2.One * scale,
@@ -414,7 +423,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             );
             curY += lineHeight;
             // draw players
-            foreach (var item in itemList)
+            foreach (var item in playerEntries)
             {
                 var player = item.Player;
 

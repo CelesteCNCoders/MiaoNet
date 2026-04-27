@@ -5,11 +5,11 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed partial class PlayerListComponent
 {
-    public class PlayerListItem : IPlayerListEntry
+    public class PlayerListEntry : IPlayerListEntry
     {
         private static readonly Color DefaultColor = Color.LightGray;
 
-        public OnlinePlayer Player;
+        public readonly OnlinePlayer Player;
         public string DisplayName;
         public string? MapName;
         public bool IsLocallyKnownMap;
@@ -25,7 +25,7 @@ public sealed partial class PlayerListComponent
 
         PlayerInfo IPlayerListEntry.PlayerInfo => Player.Info;
 
-        public PlayerListItem(OnlinePlayer player, bool showAvatar)
+        public PlayerListEntry(OnlinePlayer player, bool showAvatar)
         {
             Player = player;
             DisplayName = player.GetDisplayName(true, showAvatar);

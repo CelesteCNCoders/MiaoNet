@@ -131,6 +131,8 @@ miaonet_connection_status_revocation_check_failed= 连接建立失败。证书�
 miaonet_context_player_joined= (0) 加入了 MiaoNet
 miaonet_context_player_left= (0) 退出了 MiaoNet
 
+miaonet_player_list_channel_header= #(0) | (1) 位玩家
+
 miaonet_chat_disabled= 聊天已被设置为禁用
 
 miaonet_command_status_no_such_command= 未找到指令 "(0)"
