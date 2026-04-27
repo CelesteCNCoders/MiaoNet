@@ -72,6 +72,7 @@ partial class MiaoNetContext
         var player = ClientState.GetPlayer(packet.PlayerID);
         ClientState.OnPlayerLeft(packet.PlayerID);
         PlayerLeft?.Invoke(player);
+        player.State = null;
     }
 
     private void HandlePacket(PacketContextualPlayerNotification<PacketPlayerFrame> packet)
