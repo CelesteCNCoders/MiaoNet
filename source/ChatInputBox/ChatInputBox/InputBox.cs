@@ -293,19 +293,22 @@ public sealed class InputBox
             float cW = width + CompletionsPadding * 2f;
             float cH = totalHeight + CompletionsPadding * 2f;
             Draw.Rect(cX, cY, cW, cH, Color.Black * (0xaa / 255f));
-            Draw.Rect(cX, cY, cW, 3f, Color.Cyan);
+            Draw.Rect(cX, cY, cW, 1f, Color.Cyan);
             Draw.Rect(cX - 3f, cY, 3f, cH, Color.CornflowerBlue);
             float curY = cTextBaseLoc.Y;
             for (int i = completions.Count - 1; i >= 0; i--)
             {
                 bool selected = i == selectedCompletionIndex;
-                Color c = selected ? Color.RoyalBlue : Color.White;
+                Color c = selected ? Color.White : Color.LightGray;
                 if (selected)
-                    Draw.Rect(
-                        cBaseLoc.X, curY - textRenderer.LineHeight,
-                        cW, textRenderer.LineHeight,
-                        Color.Black * (0x44 / 255f)
-                    );
+                {
+                    float sX = cBaseLoc.X;
+                    float sY = curY - textRenderer.LineHeight;
+                    float sW = cW;
+                    float sH = textRenderer.LineHeight;
+                    Draw.Rect(sX, sY, sW, sH, Color.Wheat * (0x22 / 255f));
+                    Draw.Rect(sX - 3f, sY, 3f, sH, Color.Wheat);
+                }
                 textRenderer.Draw(completions[i].Display, new Vector2(cTextBaseLoc.X, curY), Vector2.UnitY, c);
                 curY -= textRenderer.LineHeight;
             }

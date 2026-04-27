@@ -381,7 +381,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             float dstWidth = totalMaxLineWidth + 2 * RectXPadding, dstHeight = channelHeights[i];
 
             Draw.Rect(dstX, dstY, dstWidth, dstHeight, Color.Black * (0xcc / 255f));
-            Draw.HollowRect(dstX, dstY, dstWidth, 3f, Color.CornflowerBlue);
+            Draw.Rect(dstX, dstY, dstWidth, 3f, Color.CornflowerBlue);
             Draw.Rect(dstX, dstY, 3f, dstHeight, Color.Cyan);
 
             var players = channelPlayerList[i].Item2;
