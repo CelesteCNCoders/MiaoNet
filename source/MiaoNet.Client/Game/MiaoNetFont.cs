@@ -23,6 +23,8 @@ public static class MiaoNetFont
         if (Dialog.Languages is { Count: 0 })
             throw new InvalidOperationException();
 
+        // we also prevent the game from unloading schinese font textures
+        // see MiaoNetModule.LanguageSelectUI_SetNextLanguage
         Language langEN = Dialog.Languages["english"];
         Language langZhs = Dialog.Languages["schinese"];
         Fonts.Load(langZhs.FontFace); // schinese is not always loaded
