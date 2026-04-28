@@ -92,7 +92,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     { 
         get => field; 
         set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } 
-    } = 5;
+    } = 8;
 
     public int ChatTextOpacity
     {
