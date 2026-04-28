@@ -19,7 +19,11 @@ public sealed partial class ChatComponent : MiaoNetComponent
                 if (e.Active && e is not TextMenu)
                     e.Update();
 
-            level.HudRenderer.BackgroundFade = Calc.Approach(level.HudRenderer.BackgroundFade, level.Paused ? 1f : 0f, 8f * Engine.RawDeltaTime);
+            level.HudRenderer.BackgroundFade = Calc.Approach(
+                level.HudRenderer.BackgroundFade, 
+                level.Paused ? 1f : 0f,
+                8f * Engine.RawDeltaTime
+            );
         }
     }
 
@@ -148,13 +152,13 @@ public sealed partial class ChatComponent : MiaoNetComponent
             if (btn.Pressed)
             {
                 btn.ConsumePress();
-                if (MiaoNetContext.IsSuitableToOpenUI)
+                if (context.IsSuitableToOpenUI)
                     Activate();
             }
             else if (btnCmd.Pressed)
             {
                 btnCmd.ConsumePress();
-                if (MiaoNetContext.IsSuitableToOpenUI)
+                if (context.IsSuitableToOpenUI)
                 {
                     Activate();
                     inputBox.SetText(CommandParser.CommandPrefix);
@@ -314,6 +318,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
             level.Add(dummyOverlay);
             level.AllowHudHide = false;
         }
+        context.HasComponentFocus = true;
     }
 
     private void Deactivate()
@@ -332,6 +337,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
             level.Remove(dummyOverlay);
             level.AllowHudHide = previousAllowHudHide;
         }
+        context.HasComponentFocus = false;
     }
 
     public override void Render()

@@ -35,7 +35,13 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public int TargetPort { get; set; } = 21473;
 
-    public static bool IsSuitableToOpenUI
+    public bool HasComponentFocus
+    {
+        get => field;
+        set { SafeGuard.Assert(field != value); field = value; }
+    }
+
+    public bool IsSuitableToOpenUI
     {
         get
         {
@@ -48,6 +54,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                    // do not open ui when it's teleporting using CollabLobbyUI
                    // but why level.Overlay is null at this time??
                    scene is not LevelLoader &&
+                   !HasComponentFocus &&
                    (scene as Level)?.Overlay == null;
 #pragma warning restore IDE0260
         }

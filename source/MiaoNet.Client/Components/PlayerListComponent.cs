@@ -205,12 +205,16 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         {
             if (wantsTo)
             {
-                if (MiaoNetContext.IsSuitableToOpenUI)
+                if (context.IsSuitableToOpenUI)
+                {
                     Active = true;
+                    context.HasComponentFocus = true;
+                }
             }
             else
             {
                 Active = false;
+                context.HasComponentFocus = false;
                 scrollTarget = 0f;
                 scroll = 0f;
             }
