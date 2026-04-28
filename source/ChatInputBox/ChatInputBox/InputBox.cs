@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using Microsoft.Xna.Framework.Input;
 
 namespace Celeste.Mod.ChatInputBox;
@@ -26,8 +28,11 @@ public sealed class InputBox
 
     private int selectedCompletionIndex = -1;
 
+    private bool suppressCompletions;
+
     public string Text => buffer.Text;
 
+    [MemberNotNullWhen(true, nameof(completions))]
     public bool HasCompletions => completions is { Count: > 0 };
 
     public int MaxTextLength { get; set; } = 64;
@@ -58,9 +63,13 @@ public sealed class InputBox
 
     private void OnTextOrCaretChanged()
     {
-        if (buffer.Text.Length > MaxTextLength)
-            buffer.SetText(buffer.Text.Substring(0, MaxTextLength));
-
+        if (suppressCompletions)
+        {
+            suppressCompletions = false;
+            completions = null;
+            selectedCompletionIndex = -1;
+            return;
+        }
         completions = completionProvider.GetCompletions(buffer.TextBeforeCaret)?.ToList();
         selectedCompletionIndex = -1;
     }
@@ -101,7 +110,7 @@ public sealed class InputBox
         }
         else if (upButton.Pressed)
         {
-            if (completions is { Count: > 0 })
+            if (HasCompletions)
             {
                 upButton.ConsumePress();
                 if (selectedCompletionIndex == -1)
@@ -118,7 +127,7 @@ public sealed class InputBox
         }
         else if (downButton.Pressed)
         {
-            if (completions is { Count: > 0 })
+            if (HasCompletions)
             {
                 downButton.ConsumePress();
                 if (selectedCompletionIndex == -1)
@@ -137,9 +146,11 @@ public sealed class InputBox
             if (completions is not null && (completions.Count == 1 || selectedCompletionIndex != -1))
             {
                 Completion selected = completions[selectedCompletionIndex == -1 ? 0 : selectedCompletionIndex];
-                buffer.DoCompletion(selected.Remove, selected.Content);
-                completions = null;
-                selectedCompletionIndex = -1;
+                string content = selected.Content;
+                if (Text.Length - selected.Remove + content.Length > MaxTextLength)
+                    content = content[..(MaxTextLength - Text.Length + selected.Remove)];
+                SetSuppressCompletions();
+                buffer.DoCompletion(selected.Remove, content);
             }
         }
 
@@ -150,6 +161,10 @@ public sealed class InputBox
         {
             string text = TextInput.GetClipboardText();
             string textNoControl = new string(text.Where(c => !char.IsControl(c)).ToArray());
+
+            if (Text.Length + textNoControl.Length > MaxTextLength)
+                textNoControl = textNoControl[..(MaxTextLength - Text.Length)];
+
             if (!string.IsNullOrEmpty(textNoControl))
                 buffer.InputString(textNoControl);
         }
@@ -183,7 +198,7 @@ public sealed class InputBox
         {
             // TODO need we support surrogate pair?
 
-            if (textRenderer.CanRender(chr))
+            if (textRenderer.CanRender(chr) && Text.Length < MaxTextLength)
             {
                 buffer.InputChar(chr);
                 operated = true;
@@ -206,6 +221,12 @@ public sealed class InputBox
         caretTimer = CaretBlinkInterval;
     }
 
+    // any better ways?
+    public void SetSuppressCompletions()
+    {
+        suppressCompletions = true;
+    }
+
     public void Render()
     {
         const float Margin = 16f;
@@ -219,7 +240,7 @@ public sealed class InputBox
             position: baseLoc - Vector2.UnitY * height,
             width: Engine.Width - 2 * Margin,
             height: height,
-            color: Color.Black with { A = 100 }
+            color: Color.Black * (0x7f / 255f)
         );
 
         Vector2 pos = textBaseLoc;
@@ -227,9 +248,11 @@ public sealed class InputBox
         Vector2 sizeAfterCaret = textRenderer.Measure(buffer.TextAfterCaret);
         textRenderer.Draw(buffer.TextBeforeCaret, pos, justify: new Vector2(0f, 1f), color: Color.White);
         pos.X += sizeBeforeCaret.X;
+
+        Vector2 sizeImeEditing = Vector2.Zero;
         if (imeEditingText is not null)
         {
-            Vector2 sizeImeEditing = textRenderer.Measure(imeEditingText);
+            sizeImeEditing = textRenderer.Measure(imeEditingText);
             textRenderer.Draw(imeEditingText, pos, justify: new Vector2(0f, 1f), color: Color.Gray);
             pos.X += sizeImeEditing.X;
         }
@@ -251,12 +274,23 @@ public sealed class InputBox
             Draw.Line(fromLoc, toLoc, Color.White, 2f);
         }
 
-        Vector2 view = new(Engine.ViewWidth, Engine.ViewHeight);
-        Vector2 viewPos = new(pos.X / Engine.Width * view.X, pos.Y / Engine.Height * view.Y);
-        // TODO set the value correctly
-        TextInputEXT.SetInputRectangle(new Rectangle((int)viewPos.X + Engine.ViewPadding + 72, (int)viewPos.Y + Engine.ViewPadding, 1, 0));
+        {
+            Vector2 view = new(Engine.ViewWidth, Engine.ViewHeight);
+            float xScale = view.X / Engine.Width;
+            float yScale = view.Y / Engine.Height;
+            Vector2 viewPos = new((textBaseLoc.X + sizeBeforeCaret.X) * xScale, (baseLoc.Y - height) * yScale);
+            Rectangle finalRect = new Rectangle(
+                (int)viewPos.X,
+                (int)viewPos.Y,
+                Math.Max(1, (int)(sizeImeEditing.X * xScale)),
+                (int)(height * yScale)
+            );
+            // TODO the calculated result is almost correct but
+            // IME is still being placed in somewhere incorrect
+            TextInputEXT.SetInputRectangle(finalRect);
+        }
 
-        if (completions is { Count: > 0 })
+        if (HasCompletions)
         {
             const float CompletionsPadding = 4f;
             Vector2 cBaseLoc = textBaseLoc + new Vector2(sizeBeforeCaret.X, -textRenderer.LineHeight - Padding);
@@ -268,20 +302,27 @@ public sealed class InputBox
                 Vector2 size = textRenderer.Measure(item.Display);
                 width = Math.Max(width, size.X);
             }
-            Draw.Rect(
-                cBaseLoc.X, cBaseLoc.Y - totalHeight - CompletionsPadding * 2f,
-                width + CompletionsPadding * 2f, totalHeight + CompletionsPadding * 2f,
-                Color.CornflowerBlue with { A = 0xcc }
-            );
-            Draw.HollowRect(
-                cBaseLoc.X, cBaseLoc.Y - totalHeight - CompletionsPadding * 2f,
-                width + CompletionsPadding * 2f, totalHeight + CompletionsPadding * 2f,
-                Color.Black with { A = 0xcc }
-            );
+            float cX = cBaseLoc.X;
+            float cY = cBaseLoc.Y - totalHeight - CompletionsPadding * 2f;
+            float cW = width + CompletionsPadding * 2f;
+            float cH = totalHeight + CompletionsPadding * 2f;
+            Draw.Rect(cX, cY, cW, cH, Color.Black * (0xaa / 255f));
+            Draw.Rect(cX, cY, cW, 1f, Color.Cyan);
+            Draw.Rect(cX - 3f, cY, 3f, cH, Color.CornflowerBlue);
             float curY = cTextBaseLoc.Y;
             for (int i = completions.Count - 1; i >= 0; i--)
             {
-                Color c = i == selectedCompletionIndex ? Color.Yellow : Color.Black;
+                bool selected = i == selectedCompletionIndex;
+                Color c = selected ? Color.White : Color.LightGray;
+                if (selected)
+                {
+                    float sX = cBaseLoc.X;
+                    float sY = curY - textRenderer.LineHeight;
+                    float sW = cW;
+                    float sH = textRenderer.LineHeight;
+                    Draw.Rect(sX, sY, sW, sH, Color.Wheat * (0x22 / 255f));
+                    Draw.Rect(sX - 3f, sY, 3f, sH, Color.Wheat);
+                }
                 textRenderer.Draw(completions[i].Display, new Vector2(cTextBaseLoc.X, curY), Vector2.UnitY, c);
                 curY -= textRenderer.LineHeight;
             }

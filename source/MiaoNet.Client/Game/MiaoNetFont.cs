@@ -23,6 +23,8 @@ public static class MiaoNetFont
         if (Dialog.Languages is { Count: 0 })
             throw new InvalidOperationException();
 
+        // we also prevent the game from unloading schinese font textures
+        // see MiaoNetModule.LanguageSelectUI_SetNextLanguage
         Language langEN = Dialog.Languages["english"];
         Language langZhs = Dialog.Languages["schinese"];
         Fonts.Load(langZhs.FontFace); // schinese is not always loaded
@@ -72,7 +74,9 @@ public static class MiaoNetFont
         float stroke, Color strokeColor
     )
     {
-        ENZhsFont.DrawOutline(ENZhsBaseSize, text, position, justify, scale, color, stroke, strokeColor);
+        float alpha = (color.A / 255f);
+        alpha = MathF.Pow(alpha, 3f);
+        ENZhsFont.DrawOutline(ENZhsBaseSize, text, position, justify, scale, color, stroke, strokeColor * alpha);
     }
 
     [MethodImpl(MioAI)]
@@ -83,7 +87,7 @@ public static class MiaoNetFont
     )
     {
         float alpha = (color.A / 255f);
-        alpha *= alpha * alpha;
+        alpha = MathF.Pow(alpha, 3f);
         ENZhsFont.DrawOutline(
             ENZhsBaseSize, text, position,
             justify, scale, color,

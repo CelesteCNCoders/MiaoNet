@@ -1,35 +1,46 @@
+using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
 public sealed partial class PlayerListComponent
 {
-    public class PlayerListItem
+    public class PlayerListEntry : IPlayerListEntry
     {
         private static readonly Color DefaultColor = Color.LightGray;
 
-        public OnlinePlayer Player;
+        public readonly OnlinePlayer Player;
         public string DisplayName;
         public string? MapName;
+        public string? MapRoom;
+        public bool IsLocallyKnownMap;
         public Color MapNameColor = DefaultColor;
         public Color MapSideColor = DefaultColor;
         public MTexture? AreaIconTexture;
         public string? AreaSideText;
         public string? PingText;
 
-        public PlayerListItem(OnlinePlayer player, bool showAvatar)
+        PlayerLocation IPlayerListEntry.Location => Player.Location;
+
+        bool IPlayerListEntry.IsLocallyKnownMap => IsLocallyKnownMap;
+
+        PlayerInfo IPlayerListEntry.PlayerInfo => Player.Info;
+
+        public PlayerListEntry(OnlinePlayer player, bool showAvatar, ClipType clipType)
         {
             Player = player;
             DisplayName = player.GetDisplayName(true, showAvatar);
-            Update();
+            Update(clipType);
         }
 
-        public void Update()
+        public void Update(ClipType clipType)
         {
             PlayerLocation loc = Player.Location;
             if (loc.IsEmpty)
             {
+                IsLocallyKnownMap = true;
                 MapName = null;
+                MapRoom = null;
                 AreaIconTexture = null;
                 AreaSideText = null;
                 MapNameColor = MapSideColor = DefaultColor;
@@ -41,7 +52,9 @@ public sealed partial class PlayerListComponent
                 var areaData = AreaData.Get(loc.MapSid);
                 if (areaData is not null)
                 {
+                    IsLocallyKnownMap = true;
                     MapName = Dialog.Get(areaData.Name);
+                    MapRoom = Clip(loc.MapRoom, clipType);
 
                     string iconPath = areaData.Icon;
                     string? lobbySid;
@@ -62,7 +75,9 @@ public sealed partial class PlayerListComponent
                 }
                 else
                 {
-                    MapName = null;
+                    IsLocallyKnownMap = false;
+                    MapName = Clip(loc.MapSid, clipType);
+                    MapRoom = Clip(loc.MapRoom, clipType);
                     AreaIconTexture = null;
                     MapNameColor = MapSideColor = DefaultColor;
                 }
@@ -72,5 +87,23 @@ public sealed partial class PlayerListComponent
 
         public void UpdatePing()
             => PingText = Player.LastPing == -1 ? null : $"{Player.LastPing}ms";
+
+        private static string Clip(string str, ClipType clipType)
+        {
+            const int ClipLength = 24;
+            if (str.Length > ClipLength)
+            {
+                return clipType switch
+                {
+                    ClipType.None => str,
+                    ClipType.KeepPrefix => $"{str[..ClipLength]}...",
+                    ClipType.KeepSuffix => $"...{str.Substring(str.Length - ClipLength)}",
+                };
+            }
+            else
+            {
+                return str;
+            }
+        }
     }
 }

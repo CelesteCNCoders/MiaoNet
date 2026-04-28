@@ -84,7 +84,7 @@ public static class MenuMiaoNetOptions
 
         static void AddAuthPropButton(TextMenu menu, bool inGame, string label, Func<string?> getter, Action<string> setter)
         {
-            var button = new TextMenu.Button($"{label} {WithCutOff(getter() ?? string.Empty)}");
+            var button = new TextMenu.Button($"{label} {WithTruncation(getter() ?? string.Empty)}");
             if (!inGame)
             {
                 button.OnPressed = () =>
@@ -96,7 +96,7 @@ public static class MenuMiaoNetOptions
                             {
                                 v = v.Trim();
                                 setter(v);
-                                button.Label = $"{label} {WithCutOff(v)}";
+                                button.Label = $"{label} {WithTruncation(v)}";
                             }, 36, 2
                         );
                 };
@@ -107,11 +107,11 @@ public static class MenuMiaoNetOptions
             else
                 button.AddDescription(menu, Dialog.Get("miaonet_options_custom_auth_tip"));
 
-            static string WithCutOff(string value)
+            static string WithTruncation(string value)
             {
-                const int CutOffLength = 24;
-                if (value.Length > CutOffLength)
-                    value = $"{value.AsSpan()[..CutOffLength]}...";
+                const int TruncationLength = 24;
+                if (value.Length > TruncationLength)
+                    value = $"{value.AsSpan()[..TruncationLength]}...";
                 return value;
             }
         }
@@ -188,6 +188,11 @@ public static class MenuMiaoNetOptions
         uiSubMenu.Add(item);
 
         item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_chat_text_opacity"), 0, 10, settings.ChatTextOpacity
+        ).Change(v => settings.ChatTextOpacity = v);
+        uiSubMenu.Add(item);
+
+        item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_chat_display_duration"), 1, 12, settings.ChatDisplayDuration
         ).Change(v => settings.ChatDisplayDuration = v);
         uiSubMenu.Add(item);
@@ -242,7 +247,7 @@ public static class MenuMiaoNetOptions
 
         item = new EnumSlider<JumpthruType>(
             Dialog.Get("miaonet_options_group_photo_platform_type"),
-            t => t.ToString(), settings.GroupPhotoPlatformType
+            t => Dialog.Get($"miaonet_platform_type_{t}"), settings.GroupPhotoPlatformType
         ).Change(v => settings.GroupPhotoPlatformType = v);
         menu.Add(item);
 
@@ -251,6 +256,12 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.FollowersSyncMode = v);
         menu.Add(item);
         item.AddDescription(menu, Dialog.Clean("miaonet_options_followers_sync_mode_tip"));
+
+        item = new EnumSlider<ClipType>(
+            Dialog.Get("miaonet_options_player_list_map_name_clip_type"),
+            t => Dialog.Get($"miaonet_options_clip_type_{t}"), settings.PlayerListMapNameClipType
+        ).Change(v => settings.PlayerListMapNameClipType = v);
+        menu.Add(item);
 
         #endregion
 
@@ -283,7 +294,7 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
 
         // if not using celemiao auth then this is meaningless
-#if USE_CELEMIAO_AUTH
+#if USE_CELEMIAO_AUTH || DEBUG
         item = new TextMenu.OnOff(
             Dialog.Get("miaonet_options_live_mode"), settings.LiveMode
         ).Change(v => settings.LiveMode = v);
@@ -486,7 +497,7 @@ public static class MenuMiaoNetOptions
             Add(new SubHeader(Dialog.Get("miaonet_options_button_emotes")));
             for (int i = 0; i < settings.Emotes.Count; i++)
                 AddMapForceLabel(
-                    Dialog.Get("miaonet_options_button_emote_i").Replace("(0)", (i + 1).ToString()),
+                    PFormat.Format(Dialog.Get("miaonet_options_button_emote_i"), i + 1),
                     settings.EmoteButtons[i].Binding
                 );
 

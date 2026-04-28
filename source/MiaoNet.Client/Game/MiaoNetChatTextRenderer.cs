@@ -27,7 +27,7 @@ internal sealed class MiaoNetChatTextRenderer : ITextRenderer
         => MiaoNetFont.DrawOutline(
             text, position, justify,
             Vector2.One * Scale, color,
-            1f, (IsColorDark(color) ? Color.White : Color.Black) * (color.A / 255f) * (color.A / 255f)
+            1f, (IsColorDark(color) ? Color.White : Color.Black)
         );
 
     private static bool IsColorDark(Color color)

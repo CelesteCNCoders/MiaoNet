@@ -11,7 +11,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     public bool Active { get; set; }
 
     private readonly PlayerListEntryComparer pComparer;
-    private readonly List<(OnlineChannel, List<PlayerListItem>)> channelPlayerList;
+    private readonly List<PlayerListChannelEntry> channelPlayerList;
 
     private readonly MTexture texPlayerPaused;
     private readonly MTexture texPlayerDebugMap;
@@ -28,12 +28,15 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     private float scroll;
     private float scrollTarget;
 
+    private static ClipType ClipType => MiaoNetModule.Settings.PlayerListMapNameClipType;
+
     public PlayerListComponent(MiaoNetContext context)
         : base(context)
     {
         pComparer = new();
         channelPlayerList = new();
         context.ClientInitialized += Context_ClientInitialized;
+        // TODO surely full-rebuild is not necessary
         context.PlayerJoined += _ => BuildPlayerList();
         context.PlayerLeft += _ => BuildPlayerList();
         context.PlayerMapChanged += (p, _) => UpdatePlayer(p);
@@ -46,6 +49,16 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         texLiveMode = GFX.Gui["miaonet/live_mode"];
         texTakingGolden = GFX.Gui["miaonet/taking_golden"];
         texGroupPhotoMode = GFX.Gui["miaonet/group_photo_mode"];
+
+        MiaoNetModule.Settings.SettingsChanged += Settings_SettingsChanged;
+    }
+
+    private void Settings_SettingsChanged(MiaoNetModuleSettings settings, SettingsCategory category)
+    {
+        if (category is not SettingsCategory.PlayerList)
+            return;
+        if (HasState)
+            BuildPlayerList();
     }
 
     private void BuildPlayerList()
@@ -54,7 +67,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         int id = 0;
         channelPlayerList.Clear();
         OnlineChannel cMain = new(0, "main");
-        List<PlayerListItem> mainChannelPlayerList = [
+        List<PlayerListEntry> mainChannelPlayerList = [
             CreateTestPlayer(cMain, "sapcc", "Celeste/1-ForsakenCity", "a-01"),
             CreateTestPlayer(cMain, "Ccc", "Celeste/2-OldSite", "a-01"),
             CreateTestPlayer(cMain, "AAlice", "Celeste/LostLevels", "j-17"),
@@ -68,7 +81,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         foreach (var item in mainChannelPlayerList)
             cMain.Players.Add(item.Player.ID, item.Player);
         OnlineChannel cOther = new(1, "xinzhan");
-        List<PlayerListItem> otherChannelPlayerList = [
+        List<PlayerListEntry> otherChannelPlayerList = [
             CreateTestPlayer(cOther, "O5DZ", "StrawberryJam2021/Advanced/Lobby", "a-00"),
             CreateTestPlayer(cOther, "idk_others", "StrawberryJam2021/Advanced/Lobby", "a-01"),
             CreateTestPlayer(cOther, "idk_others_too", "Celeste/9-Core", "f-0j"),
@@ -76,31 +89,34 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         foreach (var item in otherChannelPlayerList)
             cOther.Players.Add(item.Player.ID, item.Player);
         OnlineChannel cOther2 = new(2, "xinzhan2");
-        List<PlayerListItem> otherChannel2PlayerList = [
+        List<PlayerListEntry> otherChannel2PlayerList = [
             CreateTestPlayer(cOther, "O5DZ222", "StrawberryJam2021/Advanced/Lobby", "a-00"),
             CreateTestPlayer(cOther, "idk_others222", "StrawberryJam2021/Advanced/Lobby", "a-01"),
             CreateTestPlayer(cOther, "idk_others_too222", "Celeste/9-Core", "f-0j"),
         ];
-        for (int i = 0; i < 80; i++)
+        for (int i = 0; i < 16; i++)
             otherChannel2PlayerList.Add(CreateTestPlayer(cOther, $"P {i}", "Celeste/9-Core", "f-0j"));
         foreach (var item in otherChannel2PlayerList)
             cOther2.Players.Add(item.Player.ID, item.Player);
         channelPlayerList.AddRange([
-            (cMain, mainChannelPlayerList),
-            (cOther, otherChannelPlayerList),
-            (cOther2, otherChannel2PlayerList)
+            new(cMain, mainChannelPlayerList),
+            new(cOther, otherChannelPlayerList),
+            new(cOther2, otherChannel2PlayerList)
         ]);
         SortPlayerList();
         return;
 
-        PlayerListItem CreateTestPlayer(OnlineChannel channel, string name, string sid, string room)
+        PlayerListEntry CreateTestPlayer(OnlineChannel channel, string name, string sid, string room)
         {
             id++;
-            return new PlayerListItem(new OnlinePlayer(channel, id, new PlayerInfo(name, string.Empty, string.Empty, Color.AntiqueWhite), PlayerGlobalFlags.None)
+            return new PlayerListEntry(new OnlinePlayer(
+                channel, id, new PlayerInfo(id, name, string.Empty, string.Empty, Color.AntiqueWhite),
+                PlayerGlobalFlags.None
+            )
             {
-                Location = new PlayerLocation(sid, Random.Shared.Next(0, 3) switch { 0 => AreaMode.Normal, 1 => AreaMode.BSide, 2 => AreaMode.CSide }, room),
+                Location = new PlayerLocation(sid, (AreaMode)Random.Shared.Next(0, 3), room),
                 LastPing = Random.Shared.Next(20, Random.Shared.Next(20, Random.Shared.Next(20, 2000)))
-            });
+            }, false, ClipType);
         }
 #else
         channelPlayerList.Clear();
@@ -108,12 +124,17 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
         foreach (var (_, channel) in state.Channels)
         {
-            var playerList = new List<PlayerListItem>();
+            var playerListEntries = new List<PlayerListEntry>();
+
+            // add self
             if (channel == state.SelfChannel)
-                playerList.Add(new PlayerListItem(state.Self, context.ShowAvatar));
+                playerListEntries.Add(new PlayerListEntry(state.Self, context.ShowAvatar, ClipType));
+
+            // add other players
             foreach (var (_, player) in channel.Players)
-                playerList.Add(new PlayerListItem(player, context.ShowAvatar));
-            channelPlayerList.Add((channel, playerList));
+                playerListEntries.Add(new PlayerListEntry(player, context.ShowAvatar, ClipType));
+
+            channelPlayerList.Add((new(channel, playerListEntries)));
         }
         SortPlayerList();
 #endif
@@ -121,8 +142,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
     private void Context_PingDataReceived()
     {
-        foreach (var pair in channelPlayerList)
-            foreach (var item in pair.Item2)
+        foreach (var channel in channelPlayerList)
+            foreach (var item in channel.Players)
                 item.UpdatePing();
     }
 
@@ -131,10 +152,9 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 #if MOCK_DATA
         return;
 #endif
-        var channel = player.Channel;
-        var pair = channelPlayerList.Find(p => p.Item1 == channel);
-        var item = pair.Item2.Find(i => i.Player == player);
-        item!.Update();
+        var channel = channelPlayerList.Find(c => c.Channel == player.Channel);
+        var item = channel!.Players.Find(i => i.Player == player);
+        item!.Update(ClipType);
         SortPlayerList();
         return;
     }
@@ -142,18 +162,16 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     private void Context_ClientInitialized(ClientState state)
     {
         BuildPlayerList();
-        state.SelfLocationChanged += State_SelfLocationChanged;
-    }
+        state.SelfLocationChanged += new(State_SelfLocationChanged);
 
-    private void State_SelfLocationChanged()
-    {
-        UpdatePlayer(ClientState.Self);
+        void State_SelfLocationChanged()
+            => UpdatePlayer(ClientState.Self);
     }
 
     private void SortPlayerList()
     {
-        foreach (var (_, list) in channelPlayerList)
-            list.Sort((x, y) => pComparer.Compare(x.Player, y.Player));
+        foreach (var c in channelPlayerList)
+            c.Players.Sort(pComparer.Compare);
     }
 
     public override void OnDisconnected()
@@ -187,12 +205,16 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         {
             if (wantsTo)
             {
-                if (MiaoNetContext.IsSuitableToOpenUI)
+                if (context.IsSuitableToOpenUI)
+                {
                     Active = true;
+                    context.HasComponentFocus = true;
+                }
             }
             else
             {
                 Active = false;
+                context.HasComponentFocus = false;
                 scrollTarget = 0f;
                 scroll = 0f;
             }
@@ -215,6 +237,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         }
     }
 
+    // TODO this can still be optimized
     public override void Render()
     {
         if (!Active)
@@ -269,8 +292,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             float curY = -scroll;
             for (int i = 0; i < channelPlayerList.Count; i++)
             {
-                var channel = channelPlayerList[i].Item1;
-                float headerWidth = MiaoNetFont.Measure($"#{channel.Name}   {channel.Players.Count} Players").X * scale;
+                var channel = channelPlayerList[i];
+                float headerWidth = MiaoNetFont.Measure(channel.Header).X * scale;
                 maxLineWidth = Math.Max(maxLineWidth, headerWidth);
 
                 curY += RectYMargin;
@@ -278,7 +301,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 curY += RectYPadding;
                 curY += lineHeight; // channel header
 
-                foreach (var item in channelPlayerList[i].Item2)
+                foreach (var item in channelPlayerList[i].Players)
                 {
                     var player = item.Player;
 
@@ -330,7 +353,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                         itemWidth += colonWidth;
                         if (!player.Location.IsInDebugMap)
                         {
-                            itemWidth += MiaoNetFont.Measure(liveMode ? "*" : player.Location.MapRoom).X * scale;
+                            itemWidth += MiaoNetFont.Measure(liveMode ? "*" : item.MapRoom!).X * scale;
                         }
                         else
                         {
@@ -346,7 +369,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                         }
 
                         itemWidth += spaceWidth;
-                        itemWidth += MiaoNetFont.Measure(item.MapName ?? (liveMode ? "*" : player.Location.MapSid)).X * scale;
+                        string mapName = item.IsLocallyKnownMap ? item.MapName! : liveMode ? "*" : item.MapName!;
+                        itemWidth += MiaoNetFont.Measure(mapName).X * scale;
 
                         if (item.AreaSideText is not null)
                         {
@@ -377,28 +401,37 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         // draw background
         for (int i = 0; i < channelPlayerList.Count; i++)
         {
-            float yOffset = channelYOffsets[i];
-            Draw.Rect(
-                RectXMargin + 4f, yOffset + 4f,
-                totalMaxLineWidth + 2 * RectXPadding, channelHeights[i],
-                Color.Gray with { A = 0x77 }
-            );
-            Draw.Rect(
-                RectXMargin, yOffset,
-                totalMaxLineWidth + 2 * RectXPadding, channelHeights[i],
-                Color.Black with { A = 0x77 }
-            );
+            float dstX = RectXMargin, dstY = channelYOffsets[i];
+            float dstWidth = totalMaxLineWidth + 2 * RectXPadding, dstHeight = channelHeights[i];
+
+            Draw.Rect(dstX, dstY, dstWidth, dstHeight, Color.Black * (0xcc / 255f));
+            Draw.Rect(dstX, dstY, dstWidth, 3f, Color.CornflowerBlue);
+            Draw.Rect(dstX, dstY, 3f, dstHeight, Color.Cyan);
+
+            var players = channelPlayerList[i].Players;
+            float curY = dstY + RectYPadding + lineHeight;
+            for (int j = 0; j < players.Count; j++)
+            {
+                Color c = (j % 2) switch
+                {
+                    0 => new Color(0x00, 0x00, 0x00, 0x22),
+                    1 => new Color(0x22, 0x22, 0x22, 0x88),
+                };
+                Draw.Rect(dstX + RectXPadding, curY, dstWidth - 2 * RectXPadding, lineHeight, c);
+                curY += lineHeight;
+            }
         }
 
         // draw channels
         for (int i = 0; i < channelPlayerList.Count; i++)
         {
-            (OnlineChannel channel, List<PlayerListItem> itemList) = channelPlayerList[i];
+            PlayerListChannelEntry channel = channelPlayerList[i];
+            List<PlayerListEntry> playerEntries = channel.Players;
             float xOffset = RectXMargin + RectXPadding;
             float curY = channelYOffsets[i] + RectYPadding;
             // draw header
             MiaoNetFont.Draw(
-                $"#{channel.Name}   {itemList.Count} Players",
+                channel.Header,
                 position: new(xOffset, curY),
                 justify: Vector2.Zero,
                 scale: Vector2.One * scale,
@@ -406,7 +439,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             );
             curY += lineHeight;
             // draw players
-            foreach (var item in itemList)
+            foreach (var item in playerEntries)
             {
                 var player = item.Player;
 
@@ -526,7 +559,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     // draw name or sid
                     bool liveMode = MiaoNetModule.Settings.LiveMode;
 
-                    string mapName = item.MapName ?? (liveMode ? "*" : loc.MapSid);
+                    string mapName = item.IsLocallyKnownMap ? item.MapName! : liveMode ? "*" : item.MapName!;
                     MiaoNetFont.Draw(
                         mapName,
                         position: new(x, curY),
@@ -551,13 +584,13 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     if (!loc.IsInDebugMap)
                     {
                         MiaoNetFont.Draw(
-                            liveMode ? "*" : loc.MapRoom,
+                            liveMode ? "*" : item.MapRoom!,
                             position: new(x, curY),
                             justify: Vector2.UnitX,
                             scale: Vector2.One * scale,
                             Color.LightGray
                         );
-                        x -= MiaoNetFont.Measure(loc.MapRoom).X * scale;
+                        x -= MiaoNetFont.Measure(item.MapRoom!).X * scale;
                     }
                     else
                     {

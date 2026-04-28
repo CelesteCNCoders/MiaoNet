@@ -1,9 +1,11 @@
-﻿namespace Celeste.Mod.MiaoNet;
+﻿global using LT = Celeste.Mod.MiaoNet.LogTags;
 
-// Log Tags
-internal class LT
+namespace Celeste.Mod.MiaoNet;
+
+internal class LogTags
 {
     public const string MiaoNet = "MiaoNet";
+    public const string MiaoNetSync = "MiaoNet/Sync";
     public const string MiaoNetAvatar = "MiaoNet/Avatar";
     public const string MiaoNetConnection = "MiaoNet/Connection";
     public const string MiaoNetEmoteData = "MiaoNet/EmoteData";

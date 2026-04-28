@@ -8,6 +8,8 @@ public sealed class MockPlayer : IPlayerListEntry
 {
     public PlayerInfo PlayerInfo { get; set; }
 
+    public bool IsLocallyKnownMap => true;
+
     public PlayerLocation Location { get; set; }
 
     public MockPlayer(PlayerInfo playerInfo, PlayerLocation location)
@@ -54,6 +56,6 @@ public class PlayerListComparerTest
         );
 
         static PlayerInfo CreatePlayerInfo(string name)
-            => new(name, string.Empty, string.Empty, Color.White);
+            => new(-1, name, string.Empty, string.Empty, Color.White);
     }
 }

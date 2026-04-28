@@ -19,7 +19,11 @@ public sealed partial class ChatComponent : MiaoNetComponent
                 if (e.Active && e is not TextMenu)
                     e.Update();
 
-            level.HudRenderer.BackgroundFade = Calc.Approach(level.HudRenderer.BackgroundFade, level.Paused ? 1f : 0f, 8f * Engine.RawDeltaTime);
+            level.HudRenderer.BackgroundFade = Calc.Approach(
+                level.HudRenderer.BackgroundFade, 
+                level.Paused ? 1f : 0f,
+                8f * Engine.RawDeltaTime
+            );
         }
     }
 
@@ -60,13 +64,34 @@ public sealed partial class ChatComponent : MiaoNetComponent
         context.ChatMessageReceived += Context_ChatMessageReceived;
         context.PlayerJoined += Context_PlayerJoined;
         context.PlayerLeft += Context_PlayerLeft;
+
+        var settings = MiaoNetModule.Settings;
+        MiaoNetModule.Settings.SettingsChanged += Settings_SettingsChanged;
+        Settings_SettingsChanged(settings, SettingsCategory.VisualsUI);
+    }
+
+    private void Settings_SettingsChanged(MiaoNetModuleSettings settings, SettingsCategory category)
+    {
+        if (category is not SettingsCategory.VisualsUI)
+            return;
+        chatView.BackgroundOpacity = settings.ChatBackgroundOpacityValue;
+        chatView.TextOpacity = settings.ChatTextOpacityValue;
+        chatView.ShowDuration = settings.ChatDisplayDuration;
+        chatView.NoNewMessagesShowing = settings.NoNewMessagesShowing;
+        // TODO explain this factor
+        float factor = 32f / 10f / (settings.ChatUIScaleValue * 24f / 10f);
+        chatView.IdleMaxCount = (int)(factor * settings.IdleChatHeight);
+        chatView.ActiveMaxCount = (int)(factor * settings.ActiveChatHeight);
+        float scale = settings.ChatUIScaleValue;
+        textRenderer.Scale = scale;
+        textRenderer.LineHeight = MiaoNetFont.ENZhsLineHeight * scale;
     }
 
     private void Context_PlayerJoined(OnlinePlayer player)
     {
         if (!MiaoNetModule.Settings.PlayerPresenceMessages)
             return;
-        string text = Dialog.Clean("miaonet_context_player_joined").Replace("(0)", player.GetDisplayName(false, context.ShowAvatar));
+        string text = PFormat.Format(Dialog.Clean("miaonet_context_player_joined"), player.GetDisplayName(false, context.ShowAvatar));
         AddLocalChat(MiaoNetChatText.CreateAnnouncement(text));
     }
 
@@ -74,7 +99,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     {
         if (!MiaoNetModule.Settings.PlayerPresenceMessages)
             return;
-        string text = Dialog.Clean("miaonet_context_player_left").Replace("(0)", player.GetDisplayName(false, context.ShowAvatar));
+        string text = PFormat.Format(Dialog.Clean("miaonet_context_player_left"), player.GetDisplayName(false, context.ShowAvatar));
         AddLocalChat(MiaoNetChatText.CreateAnnouncement(text));
     }
 
@@ -120,23 +145,6 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
         var settings = MiaoNetModule.Settings;
 
-        // apply settings
-        // any better ways?
-        // or we can use sth like INotifyPropertyChanged
-        {
-            chatView.BackgroundOpacity = settings.ChatBackgroundOpacityValue;
-            chatView.TextOpacity = settings.ChatTextOpacityValue;
-            chatView.ShowDuration = settings.ChatDisplayDuration;
-            chatView.NoNewMessagesShowing = settings.NoNewMessagesShowing;
-            // TODO explain this factor
-            float factor = 32f / 10f / (settings.ChatUIScaleValue * 24f / 10f);
-            chatView.IdleMaxCount = (int)(factor * settings.IdleChatHeight);
-            chatView.ActiveMaxCount = (int)(factor * settings.ActiveChatHeight);
-            float scale = settings.ChatUIScaleValue;
-            textRenderer.Scale = scale;
-            textRenderer.LineHeight = MiaoNetFont.ENZhsLineHeight * scale;
-        }
-
         if (!active)
         {
             var btn = settings.ChatButton;
@@ -144,13 +152,13 @@ public sealed partial class ChatComponent : MiaoNetComponent
             if (btn.Pressed)
             {
                 btn.ConsumePress();
-                if (MiaoNetContext.IsSuitableToOpenUI)
+                if (context.IsSuitableToOpenUI)
                     Activate();
             }
             else if (btnCmd.Pressed)
             {
                 btnCmd.ConsumePress();
-                if (MiaoNetContext.IsSuitableToOpenUI)
+                if (context.IsSuitableToOpenUI)
                 {
                     Activate();
                     inputBox.SetText(CommandParser.CommandPrefix);
@@ -203,6 +211,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
                         if (historyIndex == history.Count)
                             lastInput = inputBox.Text;
                         historyIndex = i;
+                        inputBox.SetSuppressCompletions();
                         inputBox.SetText(history[i]);
                     }
                 }
@@ -216,9 +225,15 @@ public sealed partial class ChatComponent : MiaoNetComponent
                     {
                         historyIndex = i;
                         if (i == history.Count)
+                        {
+                            inputBox.SetSuppressCompletions();
                             inputBox.SetText(lastInput);
+                        }
                         else
+                        {
+                            inputBox.SetSuppressCompletions();
                             inputBox.SetText(history[i]);
+                        }
                     }
                 }
             }
@@ -266,18 +281,11 @@ public sealed partial class ChatComponent : MiaoNetComponent
             string msg = result switch
             {
                 CommandParser.ParseResult.NoSuchCommand =>
-                    Dialog.Clean("miaonet_command_status_no_such_command")
-                    .Replace("(0)", cmdName),
+                    PFormat.Format(Dialog.Clean("miaonet_command_status_no_such_command"), cmdName),
                 CommandParser.ParseResult.MissingArguments =>
-                    Dialog.Clean("miaonet_command_status_missing_arguments")
-                    .Replace("(0)", cmdName)
-                    .Replace("(1)", cmd!.Segments.Count.ToString())
-                    .Replace("(2)", argc.ToString()),
+                    PFormat.Format(Dialog.Clean("miaonet_command_status_missing_arguments"), cmdName, cmd!.Segments.Count, argc),
                 CommandParser.ParseResult.TooManyArguments =>
-                    Dialog.Clean("miaonet_command_status_too_many_arguments")
-                    .Replace("(0)", cmdName)
-                    .Replace("(1)", cmd!.Segments.Count.ToString())
-                    .Replace("(2)", argc.ToString()),
+                    PFormat.Format(Dialog.Clean("miaonet_command_status_too_many_arguments"), cmdName, cmd!.Segments.Count, argc),
             };
             AddLocalChat(MiaoNetChatText.CreateCommandError(msg));
         }
@@ -310,6 +318,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
             level.Add(dummyOverlay);
             level.AllowHudHide = false;
         }
+        context.HasComponentFocus = true;
     }
 
     private void Deactivate()
@@ -328,6 +337,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
             level.Remove(dummyOverlay);
             level.AllowHudHide = previousAllowHudHide;
         }
+        context.HasComponentFocus = false;
     }
 
     public override void Render()

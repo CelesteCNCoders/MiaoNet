@@ -1,6 +1,7 @@
 using FMOD.Studio;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Graphics;
+using Mono.Cecil.Cil;
 using MonoMod.Cil;
 using MonoMod.ModInterop;
 using MonoMod.RuntimeDetour;
@@ -48,6 +49,8 @@ public sealed class MiaoNetModule : EverestModule
         Instance = this;
 #if DEBUG
         Logger.SetLogLevel(LT.MiaoNetAvatar, LogLevel.Verbose);
+        // TODO prevent those warnings server-side
+        Logger.SetLogLevel(LT.MiaoNetSync, LogLevel.Error);
 #endif
         using (new DetourConfigContext(RootConfig).Use())
         {
@@ -66,6 +69,7 @@ public sealed class MiaoNetModule : EverestModule
             On.Celeste.Player.Die += Player_Die;
             On.Celeste.PlayerCollider.Check += PlayerCollider_Check;
             On.Celeste.Player.TransitionTo += Player_TransitionTo;
+            IL.Celeste.LanguageSelectUI.SetNextLanguage += LanguageSelectUI_SetNextLanguage;
         }
         using (new DetourConfigContext(RootBeforeAllConfig).Use())
         {
@@ -101,6 +105,7 @@ public sealed class MiaoNetModule : EverestModule
         On.Celeste.Player.Die -= Player_Die;
         On.Celeste.PlayerCollider.Check -= PlayerCollider_Check;
         On.Celeste.Player.TransitionTo -= Player_TransitionTo;
+        IL.Celeste.LanguageSelectUI.SetNextLanguage -= LanguageSelectUI_SetNextLanguage;
 
         On.Celeste.PlayerSprite.ctor -= PlayerSprite_ctor;
 
@@ -129,6 +134,29 @@ public sealed class MiaoNetModule : EverestModule
     {
         foreach (var item in Settings.GetButtonBindings())
             item.Button?.Deregister();
+    }
+
+    // do not dispose schinese textures
+    private void LanguageSelectUI_SetNextLanguage(ILContext il)
+    {
+        VariableDefinition vdSChineseLang = new VariableDefinition(il.Import(typeof(Language)));
+        il.Body.Variables.Add(vdSChineseLang);
+        ILCursor cur = new(il);
+
+        cur.GotoNext(
+            MoveType.After,
+            ins => ins.MatchLdsfld("Celeste.Dialog", "Languages"),
+            ins => ins.MatchLdstr("english"),
+            ins => ins.MatchCallvirt<Dictionary<string, Language>>("get_Item"),
+            ins => ins.MatchStloc1()
+        );
+        cur.EmitDelegate(static () => Dialog.Languages["schinese"]);
+        cur.EmitStloc(vdSChineseLang);
+        cur.GotoNext(MoveType.Before, ins => ins.MatchBrfalse(out _));
+        cur.EmitLdloc0();
+        cur.EmitLdloc(vdSChineseLang);
+        cur.EmitDelegate(static (Language lang, Language langZhs) => lang.FontFace != langZhs.FontFace);
+        cur.EmitAnd();
     }
 
     private static void Leader_GainFollower(ILContext il)
@@ -226,8 +254,8 @@ public sealed class MiaoNetModule : EverestModule
     private static void Engine_RenderCore(ILContext il)
     {
         ILCursor cur = new(il);
-        // FIXME evil render position
-        cur.Index = cur.Instrs.Count - 1;
+
+        cur.GotoNext(ins => ins.MatchRet());
         cur.EmitDelegate(static () => Instance.miaoNetContext?.Render());
     }
 

@@ -34,6 +34,7 @@ miaonet_options_ui= UI
 miaonet_options_player_list_ui_scale= Player List UI Scale
 miaonet_options_chat_ui_scale= Chat UI Scale
 miaonet_options_chat_background_opacity= Chat Background Opacity
+miaonet_options_chat_text_opacity= Chat Text Opacity
 miaonet_options_chat_display_duration= Chat Display Duration
 miaonet_options_idle_chat_height= Chat Height
 miaonet_options_active_chat_height= Active Chat Height
@@ -47,6 +48,7 @@ miaonet_options_group_photo_platform_type= Group Photo Platform Type
 miaonet_options_followers_sync_mode= Player Followers
 miaonet_options_followers_sync_mode_tip= 
 	Entities that follow player, like strawberries and keys.
+miaonet_options_player_list_map_name_clip_type= Player List Long Map Name Clipping
 
 miaonet_options_audio= Audio
 miaonet_options_player_audio_sync_mode= Sync Audio
@@ -110,6 +112,20 @@ miaonet_options_sync_mode_receive= Receive Only
 miaonet_options_sync_mode_send= Send Only
 miaonet_options_sync_mode_both= ON
 
+miaonet_options_clip_type_none= None
+miaonet_options_clip_type_keepprefix= Keep Prefix
+miaonet_options_clip_type_keepsuffix= Keep Suffix
+
+miaonet_platform_type_default= Default
+miaonet_platform_type_wood= Wood
+miaonet_platform_type_cliffside= Cliffside
+miaonet_platform_type_temple= Temple
+miaonet_platform_type_templeb= Temple (Mirror)
+miaonet_platform_type_dream= Dream
+miaonet_platform_type_reflection= Reflection
+miaonet_platform_type_core= Core
+miaonet_platform_type_moon= Moon
+
 miaonet_connection_status_connecting= Connecting...
 miaonet_connection_status_authenticating= Authenticating...
 miaonet_connection_status_version_not_match= Local version (0) mismatches server version (1)
@@ -132,6 +148,8 @@ miaonet_connection_status_revocation_check_failed= Connection establishment fail
 
 miaonet_context_player_joined= (0) joined MiaoNet
 miaonet_context_player_left= (0) left MiaoNet
+
+miaonet_player_list_channel_header= #(0) | (1) Player(s)
 
 miaonet_chat_disabled= Chat has been set to disabled
 
@@ -207,6 +225,7 @@ miaonet_commands_interactions_on= Player interactions is on
 miaonet_commands_interactions_off= Player interactions is off
 miaonet_commands_locate_message= Player (0) is in map (1)
 miaonet_commands_watch_watching= Watching player (0)
+miaonet_commands_watch_others_watching= Player (0) is already watching others
 miaonet_commands_watch_not_same_map= You're not in map (1) where (0) in
 miaonet_commands_unwatch_none_unwatched= No player being watched currently
 miaonet_commands_unwatch_unwatched= Stop watching player (0)

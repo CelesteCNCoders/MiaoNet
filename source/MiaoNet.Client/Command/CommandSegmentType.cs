@@ -8,5 +8,6 @@ public enum CommandSegmentType : byte
     Text,
     Emote,
     Player,
+    PlayerSameMap,
     Channel
 }

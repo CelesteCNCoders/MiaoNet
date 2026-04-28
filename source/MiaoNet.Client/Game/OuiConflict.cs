@@ -12,9 +12,11 @@ internal sealed class OuiConflict : Oui
 
     private TextMenu CreateMenu()
     {
-        string desc = Dialog.Clean("miaonet_oui_conflict_description")
-            .Replace("(0)", VersionMiaoNet)
-            .Replace("(1)", VersionCelesteNet);
+        string desc = PFormat.Format(
+            Dialog.Clean("miaonet_oui_conflict_description"),
+            VersionMiaoNet,
+            VersionCelesteNet
+        );
         var menu = new TextMenu();
         menu.BatchMode = true;
         menu.Add(new TextMenu.Header(Dialog.Get("miaonet_oui_conflict_title")));

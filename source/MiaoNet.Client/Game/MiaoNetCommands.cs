@@ -27,4 +27,13 @@ public static class MiaoNetCommands
         MiaoNetModule.Settings.AvatarUrl = url;
     }
 #endif
+
+#if DEBUG
+    [Command("mn_status", "Show a MiaoNet status message.")]
+    public static void ShowStatus(string text, bool spin = false)
+    {
+        var ctx = MiaoNetModule.Instance.MiaoNetContext;
+        ctx.StatusComponent.ShowStatusMessage(text, spin);
+    }
+#endif
 }
