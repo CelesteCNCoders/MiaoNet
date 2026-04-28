@@ -67,7 +67,8 @@ public sealed class IdleHover : MiaoNetEntity
         hoverTexture.DrawJustified(
             pos,
             new Vector2(0.5f, 1f),
-            Color.White, scale
+            Color.White * MiaoNetModule.Settings.PlayerOpacityValue, 
+            scale
         );
     }
 }
