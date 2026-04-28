@@ -82,7 +82,6 @@ public sealed class TextBuffer
         string newText = string.Concat(Text.AsSpan(0, CaretPosition - remove), text, Text.AsSpan(CaretPosition));
         Text = newText;
         SetCaretPositionAndClamp(CaretPosition + text.Length);
-        UpdateTextBeforeAfterCaret();
     }
 
     public void Clear()
