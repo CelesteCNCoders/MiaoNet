@@ -222,6 +222,7 @@ miaonet_commands_interactions_on= 已开启玩家交互
 miaonet_commands_interactions_off= 已关闭玩家交互
 miaonet_commands_locate_message= 玩家 (0) 位于地图 (1) 中
 miaonet_commands_watch_watching= 正在观看玩家 (0)
+miaonet_commands_watch_others_watching= 玩家 (0) 已在观看其他玩家
 miaonet_commands_watch_not_same_map= 当前不在玩家 (0) 所在地图 (1) 中
 miaonet_commands_unwatch_none_unwatched= 当前不在观看任何玩家
 miaonet_commands_unwatch_unwatched= 停止观看玩家 (0)

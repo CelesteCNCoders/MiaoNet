@@ -225,6 +225,7 @@ miaonet_commands_interactions_on= Player interactions is on
 miaonet_commands_interactions_off= Player interactions is off
 miaonet_commands_locate_message= Player (0) is in map (1)
 miaonet_commands_watch_watching= Watching player (0)
+miaonet_commands_watch_others_watching= Player (0) is already watching others
 miaonet_commands_watch_not_same_map= You're not in map (1) where (0) in
 miaonet_commands_unwatch_none_unwatched= No player being watched currently
 miaonet_commands_unwatch_unwatched= Stop watching player (0)

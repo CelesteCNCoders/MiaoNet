@@ -1,4 +1,6 @@
-﻿namespace Celeste.Mod.MiaoNet;
+﻿using MiaoNet.Shared;
+
+namespace Celeste.Mod.MiaoNet;
 
 public sealed partial class MainComponent
 {
@@ -16,6 +18,19 @@ public sealed partial class MainComponent
                 StopWatching();
                 return;
             }
+
+            if (playerWatching.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching))
+            {
+                context.ChatComponent.AddLocalChat(MiaoNetChatText.CreateCommandTip(
+                    PFormat.Format(
+                        Dialog.Get("miaonet_commands_watch_others_watching"),
+                        playerWatching.Info.Name
+                    )
+                ));
+                StopWatching();
+                return;
+            }
+
             var selfLoc = ClientState.Self.Location;
             var otherLoc = playerWatching.Location;
             if (selfLoc.MapRoom != otherLoc.MapRoom && !otherLoc.IsInDebugMap && level.transition is null)
