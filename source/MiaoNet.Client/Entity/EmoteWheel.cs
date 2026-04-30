@@ -73,6 +73,12 @@ public sealed class EmoteWheel : MiaoNetEntity
 
         if (active && aim != Vector2.Zero)
         {
+            if (previews.Count == 0 || emotes is null || emotes.Count == 0)
+            {
+                OnShouldInactive();
+                return;
+            }
+
             previewTimer += Engine.RawDeltaTime;
             previewPopupTimer += Engine.RawDeltaTime * 2f;
             if (previewPopupTimer >= 1f)
@@ -83,27 +89,43 @@ public sealed class EmoteWheel : MiaoNetEntity
             float radiansPerPreview = MathF.Tau / previews.Count;
 
             int curSelected = (int)(aimRadians / radiansPerPreview);
-            curSelected = Math.Clamp(curSelected, 0, previews.Count);
+            curSelected = Math.Clamp(curSelected, 0, previews.Count - 1);
+
+            // 当某一页只有 1 个表情时 curSelected 会一直是 0
+            // 但玩家仍然应该能通过跨越 0 度方向来翻页
+            // 防止玩家在第二页只有一个表情时无法正常翻回第一页
+            bool pageChanged = false;
+            float radiansDelta = aimRadians - lastAimRadians;
+            if (radiansDelta < -MathF.PI)
+            {
+                if (emotes!.Count - (page + 1) * EmotesCountPerPage > 0)
+                {
+                    page++;
+                    BuildPreviews();
+                    pageChanged = true;
+                }
+            }
+            else if (radiansDelta > MathF.PI)
+            {
+                if (page != 0)
+                {
+                    page--;
+                    BuildPreviews();
+                    pageChanged = true;
+                }
+            }
+
+            if (pageChanged)
+            {
+                radiansPerPreview = MathF.Tau / previews.Count;
+                curSelected = (int)(aimRadians / radiansPerPreview);
+                curSelected = Math.Clamp(curSelected, 0, previews.Count - 1);
+                previewTimer = 0f;
+                previewPopupTimer = 0f;
+            }
+
             if (curSelected != selected)
             {
-                float radiansDelta = aimRadians - lastAimRadians;
-                if (radiansDelta < -MathF.PI)
-                {
-                    if (emotes!.Count - (page + 1) * EmotesCountPerPage > 0)
-                    {
-                        page++;
-                        BuildPreviews();
-                    }
-                }
-                else if (radiansDelta > MathF.PI)
-                {
-                    if (page != 0)
-                    {
-                        page--;
-                        BuildPreviews();
-                    }
-                }
-
                 previewTimer = 0f;
                 previewPopupTimer = 0f;
                 selected = curSelected;
@@ -143,8 +165,11 @@ public sealed class EmoteWheel : MiaoNetEntity
 
     private void OnShouldActive()
     {
-        active = true;
         emotes = MiaoNetModule.Settings.Emotes;
+        if (emotes.Count == 0)
+            return;
+
+        active = true;
         BuildPreviews();
         popupScale = 0.8f;
         popupAlpha = 0f;

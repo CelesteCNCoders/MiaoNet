@@ -28,14 +28,18 @@ public sealed class EmoteComponent : MiaoNetComponent
             return;
 
         var settings = MiaoNetModule.Settings;
+        var emotes = settings.Emotes;
         var emoteButtons = settings.EmoteButtons;
-        var minCount = Math.Min(emoteButtons.Count, settings.Emotes.Count);
+        if (emotes.Count == 0 || emoteButtons.Count == 0)
+            return;
+
+        var minCount = Math.Min(emoteButtons.Count, emotes.Count);
         for (int i = 0; i < minCount; i++)
         {
             if (emoteButtons[i].Pressed)
             {
                 emoteButtons[i].ConsumePress();
-                string content = settings.Emotes[i];
+                string content = emotes[i];
                 if (string.IsNullOrEmpty(content))
                     continue;
                 EmoteData? data = EmoteData.Parse(content);
