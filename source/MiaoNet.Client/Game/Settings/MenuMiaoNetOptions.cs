@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Net;
 using Celeste.Mod.UI;
 using MiaoNet.Shared;
@@ -497,7 +498,7 @@ public static class MenuMiaoNetOptions
             Add(new SubHeader(Dialog.Get("miaonet_options_button_emotes")));
             for (int i = 0; i < settings.Emotes.Count; i++)
                 AddMapForceLabel(
-                    PFormat.Format(Dialog.Get("miaonet_options_button_emote_i"), i + 1),
+                    PFormat.Format(CultureInfo.CurrentCulture, Dialog.Get("miaonet_options_button_emote_i"), i + 1),
                     settings.EmoteButtons[i].Binding
                 );
 

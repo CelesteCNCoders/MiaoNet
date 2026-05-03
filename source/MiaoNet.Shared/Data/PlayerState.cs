@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.Json.Serialization;
 
 namespace MiaoNet.Shared;
@@ -90,6 +91,7 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
         {
             throw new ArgumentException(
                 string.Format(
+                    CultureInfo.InvariantCulture,
                     SR.DeltasLengthMismatch,
                     followersDeltas.Length,
                     FollowerInfos.Length

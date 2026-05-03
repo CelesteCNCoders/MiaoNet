@@ -6,6 +6,7 @@
 using System.Collections.Immutable;
 #endif
 using System.Diagnostics;
+using System.Globalization;
 
 namespace MiaoNet.Shared;
 
@@ -69,7 +70,7 @@ public sealed class PooledStringManager
         if (idToString.TryGetValue(id, out string? firstFoundValue))
         {
             if (value is not null && firstFoundValue != value)
-                throw new InvalidDataException(string.Format(SR.PooledStringValueNotMatch, firstFoundValue, value));
+                throw new InvalidDataException(string.Format(CultureInfo.InvariantCulture, SR.PooledStringValueNotMatch, firstFoundValue, value));
             return firstFoundValue;
         }
         else
@@ -80,18 +81,18 @@ public sealed class PooledStringManager
                 if (idToString.TryGetValue(id, out string? laterFoundValue))
                 {
                     if (value is not null && laterFoundValue != value)
-                        throw new InvalidDataException(string.Format(SR.PooledStringValueNotMatch, laterFoundValue, value));
+                        throw new InvalidDataException(string.Format(CultureInfo.InvariantCulture, SR.PooledStringValueNotMatch, laterFoundValue, value));
                     return laterFoundValue;
                 }
 
                 if (value is null)
-                    throw new InvalidDataException(string.Format(SR.MissingPooledString, id));
+                    throw new InvalidDataException(string.Format(CultureInfo.InvariantCulture, SR.MissingPooledString, id));
                 idToString = idToString.Add(id, value);
                 return value;
             }
 #else
             if (value is null)
-                throw new InvalidDataException(string.Format(SR.MissingPooledString, id));
+                throw new InvalidDataException(string.Format(CultureInfo.InvariantCulture, SR.MissingPooledString, id));
             idToString.Add(id, value);
             return value;
 #endif

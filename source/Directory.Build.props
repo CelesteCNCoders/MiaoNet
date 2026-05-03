@@ -19,4 +19,8 @@
     <UseArtifactsOutput>true</UseArtifactsOutput>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <AnalysisModeGlobalization>All</AnalysisModeGlobalization>
+  </PropertyGroup>
+  
 </Project>

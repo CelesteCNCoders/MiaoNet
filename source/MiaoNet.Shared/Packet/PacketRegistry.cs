@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Globalization;
 using System.Reflection;
 
 namespace MiaoNet.Shared;
@@ -44,14 +45,14 @@ public static class PacketRegistry
     public static RefBinaryPacketReadHandler GetPacketReader(ushort id)
     {
         if (!idToReader.TryGetValue(id, out var handler))
-            throw new KeyNotFoundException(string.Format(SR.PacketNotFoundByID, id));
+            throw new KeyNotFoundException(string.Format(CultureInfo.InvariantCulture, SR.PacketNotFoundByID, id));
         return handler;
     }
 
     public static ushort GetPacketID(IContextualPacket packet)
     {
         if (!typeToId.TryGetValue(packet.GetType(), out ushort id))
-            throw new KeyNotFoundException(string.Format(SR.TypeIsNotRegisteredAsAPacket, packet.GetType().FullName));
+            throw new KeyNotFoundException(string.Format(CultureInfo.InvariantCulture, SR.TypeIsNotRegisteredAsAPacket, packet.GetType().FullName));
         return id;
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Collections;
+using System.Collections;
+using System.Globalization;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -13,6 +14,7 @@ internal sealed class OuiConflict : Oui
     private TextMenu CreateMenu()
     {
         string desc = PFormat.Format(
+            CultureInfo.CurrentCulture,
             Dialog.Clean("miaonet_oui_conflict_description"),
             VersionMiaoNet,
             VersionCelesteNet

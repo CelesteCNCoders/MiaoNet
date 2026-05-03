@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
@@ -259,11 +259,11 @@ partial class MiaoNetContext
 #if PACKET_TRACING
                             string typeName = packet.GetType().ToString();
                             if (
-                                !typeName.Contains("Frame")
-                                && !typeName.Contains("PingData")
-                                && !typeName.Contains("UpdateOnlineStatus")
-                                && !typeName.Contains("PlayedAudio")
-                                && !typeName.Contains("PacketPing")
+                                !typeName.Contains("Frame", StringComparison.Ordinal)
+                                && !typeName.Contains("PingData", StringComparison.Ordinal)
+                                && !typeName.Contains("UpdateOnlineStatus", StringComparison.Ordinal)
+                                && !typeName.Contains("PlayedAudio", StringComparison.Ordinal)
+                                && !typeName.Contains("PacketPing", StringComparison.Ordinal)
                             )
                             {
                                 var pColor = Console.ForegroundColor;

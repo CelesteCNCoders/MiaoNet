@@ -1,4 +1,5 @@
-﻿using MiaoNet.Shared;
+using System.Globalization;
+using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -23,6 +24,7 @@ public sealed partial class MainComponent
             {
                 context.ChatComponent.AddLocalChat(MiaoNetChatText.CreateCommandTip(
                     PFormat.Format(
+                        CultureInfo.CurrentCulture,
                         Dialog.Get("miaonet_commands_watch_others_watching"),
                         playerWatching.Info.Name
                     )

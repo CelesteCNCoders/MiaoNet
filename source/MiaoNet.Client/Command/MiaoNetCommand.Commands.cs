@@ -136,9 +136,11 @@ partial class MiaoNetCommand
     private static string CommandHelpTitle => Dialog.Clean("miaonet_command_help_title");
     private static string CommandHelpNotFound => Dialog.Clean("miaonet_command_help_not_found");
 
+#pragma warning disable CA1305
+
     private static string? Say(Context context)
     {
-        context.QueuePacket(new PacketSendChatMessage(context.Segments[0].Replace(@"\", @"\\")));
+        context.QueuePacket(new PacketSendChatMessage(context.Segments[0].Replace(@"\", @"\\", StringComparison.Ordinal)));
         return null;
     }
 
@@ -234,7 +236,6 @@ partial class MiaoNetCommand
                 );
                 return;
             }
-
             bool moveToDebugSave = MiaoNetModule.Settings.TeleportTempSave;
             var sessionData = response.Session;
             StartTeleportRoutine(
@@ -572,4 +573,6 @@ partial class MiaoNetCommand
     }
 
     #endregion
+
+#pragma warning restore CA1305
 }

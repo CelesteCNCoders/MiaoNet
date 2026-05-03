@@ -16,7 +16,7 @@ public readonly struct PlayerPlayedAudio : IContextualRefBinarySerializable<Play
 
     public PlayerPlayedAudio(string @event, string? param = null, float paramValue = 0f)
     {
-        if (!@event.StartsWith(EventPrefix))
+        if (!@event.StartsWith(EventPrefix, StringComparison.Ordinal))
             throw new ArgumentException(null, nameof(@event));
         Event = @event;
         Param = param is null ? null : new PooledString?(param);
@@ -25,7 +25,7 @@ public readonly struct PlayerPlayedAudio : IContextualRefBinarySerializable<Play
 
     public void Serialize(ref RefBinaryWriter writer, PooledStringManager context)
     {
-        string s = Event.StartsWith(EventMadelinePrefix)
+        string s = Event.StartsWith(EventMadelinePrefix, StringComparison.Ordinal)
             ? Event[EventMadelinePrefix.Length..]
             : Event[EventPrefix.Length..];
         writer.Write(new PooledString(s), context);
