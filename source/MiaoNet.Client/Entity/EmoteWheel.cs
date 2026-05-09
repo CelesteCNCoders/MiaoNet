@@ -67,7 +67,11 @@ public sealed class EmoteWheel : MiaoNetEntity
             else
             {
                 if (length >= ActiveThreshold * ActiveThreshold)
-                    OnShouldActive();
+                {
+                    var emotes = MiaoNetModule.Settings.Emotes;
+                    if (emotes.Count != 0)
+                        OnShouldActive(emotes);
+                }
             }
         }
 
@@ -163,11 +167,9 @@ public sealed class EmoteWheel : MiaoNetEntity
         }
     }
 
-    private void OnShouldActive()
+    private void OnShouldActive(List<string> emotes)
     {
-        emotes = MiaoNetModule.Settings.Emotes;
-        if (emotes.Count == 0)
-            return;
+        this.emotes = emotes;
 
         active = true;
         BuildPreviews();

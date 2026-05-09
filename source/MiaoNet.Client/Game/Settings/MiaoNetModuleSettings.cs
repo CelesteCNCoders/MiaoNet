@@ -13,9 +13,6 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 {
     public event SettingsChangedEventHandler<MiaoNetModuleSettings>? SettingsChanged;
 
-    private List<ButtonBinding>? emoteButtons;
-    private List<string>? emotes;
-
     #region Login State
 
 #if USE_CELEMIAO_AUTH
@@ -196,14 +193,14 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     // 使用方仍然需要继续处理空字符串/非法格式之类的
     public List<ButtonBinding> EmoteButtons
     {
-        get => emoteButtons ??= [];
-        set => emoteButtons = value;
+        get => field ??= [];
+        set => field = value;
     }
 
     public List<string> Emotes
     {
-        get => emotes ??= [];
-        set => emotes = value;
+        get => field ??= [];
+        set => field = value;
     }
 
     #endregion
