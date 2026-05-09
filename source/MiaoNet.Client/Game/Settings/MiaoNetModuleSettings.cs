@@ -186,9 +186,22 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     [YamlIgnore]
     public bool Fireworks { get; set; } = true;
 
-    public List<ButtonBinding> EmoteButtons { get; set; }
+    // emote 配置允许玩家手改 yaml, 所以反序列化后可能出现 null 之类的
+    // 比如玩家可能会直接把 EmoteButtons 写空 (除了 voidsd 之外真的会有人这么做吗)
+    // 目前 getter 会把 null 规范化成空列表
+    // 但这只保证列表对象非 null, 不保证其中的按键配置和 emote 配置一定完整或合法
+    // 使用方仍然需要继续处理空字符串/非法格式之类的
+    public List<ButtonBinding> EmoteButtons
+    {
+        get => field ??= [];
+        set => field = value;
+    }
 
-    public List<string> Emotes { get; set; }
+    public List<string> Emotes
+    {
+        get => field ??= [];
+        set => field = value;
+    }
 
     #endregion
 
