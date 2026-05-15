@@ -142,8 +142,10 @@ public sealed class EmoteWheel : MiaoNetEntity
                 string e = emotes![selected + EmotesCountPerPage * page];
                 if (string.IsNullOrEmpty(e))
                     return;
-                EmoteData? emoteData = EmoteData.Parse(e);
-                OnEmote?.Invoke((emoteData, emoteData is null ? e : null));
+                if (EmoteData.TryParse(e, out EmoteData d))
+                    OnEmote?.Invoke((d, null));
+                else
+                    OnEmote?.Invoke((null, e));
             }
         }
     }
@@ -159,9 +161,8 @@ public sealed class EmoteWheel : MiaoNetEntity
                 previews.Add((null, ""));
                 continue;
             }
-            EmoteData? data = EmoteData.Parse(e);
-            if (data is not null)
-                previews.Add((new BakedEmoteData((EmoteData)data), null));
+            if (EmoteData.TryParse(e, out EmoteData emoteData))
+                previews.Add((new BakedEmoteData(emoteData), null));
             else
                 previews.Add((null, e));
         }

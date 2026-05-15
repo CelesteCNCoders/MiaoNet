@@ -147,11 +147,10 @@ partial class MiaoNetCommand
     private static string? Emote(Context context)
     {
         string text = context.Segments[0];
-        EmoteData? data = EmoteData.Parse(text);
         var c = context.MiaoNetContext.EmoteComponent;
         bool success;
-        if (data is not null)
-            success = c.SendEmote(data.Value);
+        if (EmoteData.TryParse(text, out EmoteData emoteData))
+            success = c.SendEmote(emoteData);
         else
             success = c.SendEmote(text);
         if (!success)

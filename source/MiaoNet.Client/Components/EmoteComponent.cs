@@ -42,8 +42,7 @@ public sealed class EmoteComponent : MiaoNetComponent
                 string content = emotes[i];
                 if (string.IsNullOrEmpty(content))
                     continue;
-                EmoteData? data = EmoteData.Parse(content);
-                if (data is EmoteData emoteData)
+                if (EmoteData.TryParse(content, out EmoteData emoteData))
                     SendEmote(player, emoteData);
                 else
                     SendEmote(player, content);
