@@ -76,45 +76,45 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 
     #region UI
 
-    public int PlayerListUIScale 
+    public int PlayerListUIScale
     {
-        get => field; 
-        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } 
+        get;
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
     } = 4;
 
-    public int ChatUIScale 
+    public int ChatUIScale
     {
-        get => field; 
+        get;
         set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
     } = 4;
 
     public int ChatBackgroundOpacity
-    { 
-        get => field; 
-        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); } 
+    {
+        get;
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
     } = 8;
 
     public int ChatTextOpacity
     {
-        get => field; 
+        get;
         set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
     } = 10;
 
-    public int ChatDisplayDuration 
+    public int ChatDisplayDuration
     {
-        get => field; 
+        get;
         set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
     } = 8;
 
     public int IdleChatHeight
     {
-        get => field; 
+        get;
         set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
     } = 4;
 
-    public int ActiveChatHeight 
-    { 
-        get => field; 
+    public int ActiveChatHeight
+    {
+        get;
         set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
     } = 8;
 
@@ -137,8 +137,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     public SyncMode FollowersSyncMode { get; set; } = SyncMode.Both;
 
     public ClipType PlayerListMapNameClipType
-    { 
-        get => field; 
+    {
+        get;
         set { field = value; NotifySettingsChanged(SettingsCategory.PlayerList); }
     } = ClipType.None;
 
@@ -186,21 +186,10 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     [YamlIgnore]
     public bool Fireworks { get; set; } = true;
 
-    // emote 配置允许玩家手改 yaml, 所以反序列化后可能出现 null 之类的
-    // 比如玩家可能会直接把 EmoteButtons 写空 (除了 voidsd 之外真的会有人这么做吗)
-    // 目前 getter 会把 null 规范化成空列表
-    // 但这只保证列表对象非 null, 不保证其中的按键配置和 emote 配置一定完整或合法
-    // 使用方仍然需要继续处理空字符串/非法格式之类的
-    public List<ButtonBinding> EmoteButtons
-    {
-        get => field ??= [];
-        set => field = value;
-    }
-
     public List<string> Emotes
     {
         get => field ??= [];
-        set => field = value;
+        set;
     }
 
     #endregion
@@ -217,7 +206,12 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 
     public bool PlayerPresenceMessages { get; set; } = true;
 
-    [YamlIgnore] public bool NoNewMessagesShowing { get; set; }
+    [YamlIgnore]
+    public bool NoNewMessagesShowing
+    {
+        get;
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
+    }
 
     #endregion
 
@@ -228,6 +222,17 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     public ButtonBinding ChatCommandButton { get; set; }
 
     public ButtonBinding PlayerListButton { get; set; }
+
+    // emote 配置允许玩家手改 yaml, 所以反序列化后可能出现 null 之类的
+    // 比如玩家可能会直接把 EmoteButtons 写空 (除了 voidsd 之外真的会有人这么做吗)
+    // 目前 getter 会把 null 规范化成空列表
+    // 但这只保证列表对象非 null, 不保证其中的按键配置和 emote 配置一定完整或合法
+    // 使用方仍然需要继续处理空字符串/非法格式之类的
+    public List<ButtonBinding> EmoteButtons
+    {
+        get => field ??= [];
+        set;
+    }
 
     public ButtonBinding CreateFireworksButton { get; set; }
 
