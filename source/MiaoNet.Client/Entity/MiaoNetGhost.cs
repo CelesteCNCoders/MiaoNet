@@ -421,7 +421,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     private void CleanUpFollowers()
     {
         foreach (var follower in leader.Followers)
-            follower.Entity.RemoveSelf();
+            Scene?.CompletelyRemove(follower.Entity);
         leader.Followers.Clear();
     }
 
