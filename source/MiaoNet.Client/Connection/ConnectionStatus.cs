@@ -1,7 +1,10 @@
+using System.Globalization;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Celeste.Mod.MiaoNet;
+
+#pragma warning disable CA1305
 
 public static class ConnectionStatus
 {

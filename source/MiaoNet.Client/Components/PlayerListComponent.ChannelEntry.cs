@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -21,6 +22,7 @@ public sealed partial class PlayerListComponent
         public void Update()
         {
             Header = PFormat.Format(
+                CultureInfo.CurrentCulture,
                 Dialog.Get("miaonet_player_list_channel_header"),
                 Channel.Name,
                 Players.Count

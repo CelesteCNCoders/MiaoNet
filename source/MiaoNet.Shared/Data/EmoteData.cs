@@ -38,12 +38,12 @@ public readonly struct EmoteData : IRefBinarySerializable<EmoteData>
     #region Parsing
 
     // <category><fps?>:<prefix> <frame1> <frame2> ... <frameN> !
-    public static EmoteData? Parse(string text)
+    public static bool TryParse(string text, out EmoteData emoteData)
     {
         text = text.Trim();
 
         if (text.Length == 0)
-            return null;
+            goto Failed;
 
         ArraySegment<string> splitParts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
@@ -51,16 +51,17 @@ public readonly struct EmoteData : IRefBinarySerializable<EmoteData>
         char cateChar = part1[0];
 
         if (!TryParseCategory(cateChar, out var category))
-            return null;
+            goto Failed;
+
 
         int nextColonIndex = part1.Slice(0).IndexOf(':');
         if (nextColonIndex == -1)
-            return null;
+            goto Failed;
 
         ushort fps = DefaultFps;
         ReadOnlySpan<char> fpsCharSpan = part1[1..nextColonIndex];
         if (!(fpsCharSpan.IsEmpty || ushort.TryParse(fpsCharSpan, out fps)))
-            return null;
+            goto Failed;
 
         ReadOnlySpan<char> prefix = part1[(nextColonIndex + 1)..];
 
@@ -81,7 +82,11 @@ public readonly struct EmoteData : IRefBinarySerializable<EmoteData>
         }
 
         IReadOnlyList<string> frameList = frames.Count == 0 ? [string.Empty] : frames.ToList();
-        return new EmoteData(fps, loop, category, prefix.ToString(), frameList);
+        emoteData = new EmoteData(fps, loop, category, prefix.ToString(), frameList);
+        return true;
+    Failed:
+        emoteData = default;
+        return false;
     }
 
     private static bool TryParseCategory(char c, out EmoteAtlasCategory category)

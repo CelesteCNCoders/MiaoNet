@@ -4,6 +4,8 @@ using Microsoft.Xna.Framework.Input;
 
 namespace Celeste.Mod.MiaoNet;
 
+#pragma warning disable CA1305
+
 public sealed partial class ChatComponent : MiaoNetComponent
 {
     // from CelesteNet
@@ -20,7 +22,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
                     e.Update();
 
             level.HudRenderer.BackgroundFade = Calc.Approach(
-                level.HudRenderer.BackgroundFade, 
+                level.HudRenderer.BackgroundFade,
                 level.Paused ? 1f : 0f,
                 8f * Engine.RawDeltaTime
             );
@@ -183,7 +185,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
                 if (trimmedText != string.Empty)
                 {
                     history.Add(trimmedText);
-                    if (!trimmedText.StartsWith(CommandParser.CommandPrefix))
+                    if (!trimmedText.StartsWith(CommandParser.CommandPrefix, StringComparison.Ordinal))
                     {
                         if (!MiaoNetModule.Settings.LiveMode)
                             SendChat(trimmedText);

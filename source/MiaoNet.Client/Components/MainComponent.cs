@@ -10,6 +10,7 @@ namespace Celeste.Mod.MiaoNet;
 /// </summary>
 public sealed partial class MainComponent : MiaoNetComponent
 {
+    private const int MaxFollowersCount = 12;
     private const float SendFireworksCooldown = 0.5f;
     private float sendFireworksTimer;
 
@@ -224,7 +225,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         FollowerInfoDelta[]? followerDeltas = null;
 
         List<Follower> currentFollowers = sendFollowers ? player.Leader.Followers : [];
-        followerInitials = FetchFollowerInitialsIfNeeded(selfState.FollowerInfos, player.Leader.Entity, currentFollowers);
+        followerInitials = FetchFollowerInitialsIfNeeded(selfState.FollowerInfos, player.Leader.Entity, currentFollowers, MaxFollowersCount);
         if (followerInitials is not null)
         {
             flags |= FFlags.HasFollowerInitials;
@@ -232,7 +233,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         else if (currentFollowers.Count > 0)
         {
             flags |= FFlags.HasFollowerDeltas;
-            followerDeltas = FetchFollowerDeltas(player.Leader);
+            followerDeltas = FetchFollowerDeltas(player.Leader.Entity.Position, player.Leader.Followers, MaxFollowersCount);
         }
         SafeGuard.Assert(!(flags.HasFlag(FFlags.HasFollowerInitials) && flags.HasFlag(FFlags.HasFollowerDeltas)));
 
@@ -309,16 +310,18 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
-    private static FollowerInfo[]? FetchFollowerInitialsIfNeeded(FollowerInfo[] previous, Entity leader, List<Follower> followers)
+    private static FollowerInfo[]? FetchFollowerInitialsIfNeeded(FollowerInfo[] previous, Entity leader, List<Follower> followers, int take)
     {
-        if (previous.Length != followers.Count || !AllSameType(previous, followers))
-            return FetchFollowerInitials(leader, followers);
+        int count = Math.Min(followers.Count, take);
+        if (previous.Length != count || !AllSameType(previous, followers, take))
+            return FetchFollowerInitials(leader, followers, take);
         return null;
 
-        static bool AllSameType(FollowerInfo[] previous, List<Follower> followers)
+        static bool AllSameType(FollowerInfo[] previous, List<Follower> followers, int take)
         {
-            SafeGuard.Assert(previous.Length == followers.Count);
-            for (int i = 0; i < previous.Length; i++)
+            int count = Math.Min(followers.Count, take);
+            SafeGuard.Assert(previous.Length == count);
+            for (int i = 0; i < count; i++)
             {
                 if (previous[i].Type != GetFollowerType(followers[i].Entity))
                     return false;
@@ -327,11 +330,11 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
-    private static FollowerInfo[] FetchFollowerInitials(Entity leader, List<Follower> followers)
+    private static FollowerInfo[] FetchFollowerInitials(Entity leader, List<Follower> followers, int take)
     {
-        int count = followers.Count;
-        count = Math.Min(12, count);
+        int count = Math.Min(followers.Count, take);
         var array = new FollowerInfo[count];
+
         for (int i = 0; i < array.Length; i++)
             array[i] = FetchFollowerInitial(leader.Position, followers[i]);
         return array;
@@ -361,13 +364,13 @@ public sealed partial class MainComponent : MiaoNetComponent
     };
 
     // TODO pool?
-    private static FollowerInfoDelta[] FetchFollowerDeltas(Leader leader)
+    private static FollowerInfoDelta[] FetchFollowerDeltas(Vector2 leaderEntityPosition, List<Follower> allFollowers, int take)
     {
-        int count = leader.Followers.Count;
-        count = Math.Min(12, count);
+        int count = Math.Min(allFollowers.Count, take);
         var array = new FollowerInfoDelta[count];
+
         for (int i = 0; i < array.Length; i++)
-            array[i] = FetchFollowerDelta(leader.Entity.Position, leader.Followers[i]);
+            array[i] = FetchFollowerDelta(leaderEntityPosition, allFollowers[i]);
         return array;
 
         static FollowerInfoDelta FetchFollowerDelta(Vector2 leaderEntityPosition, Follower follower)
@@ -399,7 +402,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         PlayerState initialState = new PlayerState(player.Position, (byte)player.Dashes, Engine.DeltaTime)
         {
             PlayerSpriteMode = player.Sprite.Mode,
-            FollowerInfos = FetchFollowerInitials(player.Leader.Entity, player.Leader.Followers),
+            FollowerInfos = FetchFollowerInitials(player.Leader.Entity, player.Leader.Followers, MaxFollowersCount),
             Dashing = player.StateMachine.State is Player.StDash,
             Dead = body is not null,
             FacingLeft = player.Facing == Facings.Left,

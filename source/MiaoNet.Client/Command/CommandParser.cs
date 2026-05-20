@@ -35,13 +35,13 @@ public sealed class CommandParser
         out IReadOnlyList<string>? segments
     )
     {
-        SafeGuard.Assert(commandText.StartsWith(CommandPrefix));
+        SafeGuard.Assert(commandText.StartsWith(CommandPrefix, StringComparison.Ordinal));
         matchedCommand = null;
         segments = null;
 
-        int firstSpaceIndex = commandText.IndexOf(' ');
+        int firstSpaceIndex = commandText.IndexOf(' ', StringComparison.Ordinal);
         if (firstSpaceIndex == -1) firstSpaceIndex = commandText.Length;
-        
+
         string parsedCmdName = commandText[CommandPrefix.Length..firstSpaceIndex];
         commandName = parsedCmdName;
 

@@ -8,7 +8,7 @@ public sealed class LocalMiaoCertificateService : IMiaoCertificateService
 
     public LocalMiaoCertificateService()
     {
-        var certStream = typeof(MiaoCertificateService).Assembly.GetManifestResourceStream("localhost.pfx")!;
+        using var certStream = typeof(MiaoCertificateService).Assembly.GetManifestResourceStream("localhost.pfx")!;
         byte[] certRawData = new byte[certStream.Length];
         certStream.ReadExactly(certRawData, 0, certRawData.Length);
         cert = X509CertificateLoader.LoadPkcs12(certRawData, null);

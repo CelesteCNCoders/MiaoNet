@@ -24,6 +24,8 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     private ClientState? clientState;
 
+    private bool hasComponentFocus;
+
     /// <summary>Update on Connect() call.</summary>
     public bool ShowAvatar { get; private set; }
 
@@ -37,8 +39,8 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public bool HasComponentFocus
     {
-        get => field;
-        set { SafeGuard.Assert(field != value); field = value; }
+        get => hasComponentFocus;
+        set { SafeGuard.Assert(hasComponentFocus != value); hasComponentFocus = value; }
     }
 
     public bool IsSuitableToOpenUI
@@ -150,6 +152,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         receiveQueue.Clear();
         pendingRequests.Clear();
         clientState = null;
+        hasComponentFocus = false;
         PooledStringManager = null;
         components?.ForEach(c => c.OnDisconnected());
         if (connection is null)

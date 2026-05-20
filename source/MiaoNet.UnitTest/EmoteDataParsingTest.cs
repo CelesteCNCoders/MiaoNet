@@ -8,23 +8,22 @@ namespace MiaoNet.UnitTest;
 public class EmoteDataParsingTest
 {
     [TestMethod]
-    public void Parse_ValidFullFormat_ReturnsCorrectEmoteData()
+    public void TryParse_ValidFullFormat_ReturnsCorrectEmoteData()
     {
-        var result = EmoteData.Parse("p24:theo/yolo 03 02 01 02 !");
-        Assert.IsNotNull(result);
-        Assert.AreEqual(EmoteAtlasCategory.Portrait, result.Value.Category);
-        Assert.AreEqual(24, result.Value.Fps);
-        Assert.AreEqual("theo/yolo", result.Value.Prefix);
-        CollectionAssert.AreEqual(new[] { "03", "02", "01", "02" }, result.Value.Frames.ToList());
-        Assert.IsFalse(result.Value.Loop);
+        var success = EmoteData.TryParse("p24:theo/yolo 03 02 01 02 !", out var result);
+        Assert.IsTrue(success);
+        Assert.AreEqual(EmoteAtlasCategory.Portrait, result.Category);
+        Assert.AreEqual(24, result.Fps);
+        Assert.AreEqual("theo/yolo", result.Prefix);
+        CollectionAssert.AreEqual(new[] { "03", "02", "01", "02" }, result.Frames.ToList());
+        Assert.IsFalse(result.Loop);
     }
 
     [TestMethod]
-    public void Parse_DefaultFpsAndLoopTrue()
+    public void TryParse_DefaultFpsAndLoopTrue()
     {
-        var result = EmoteData.Parse("p:theo/yolo0 3 2 1 2");
-        Assert.IsTrue(result.HasValue);
-        var emote = result.Value;
+        var success = EmoteData.TryParse("p:theo/yolo0 3 2 1 2", out var emote);
+        Assert.IsTrue(success);
         Assert.AreEqual(EmoteData.DefaultFps, emote.Fps);
         Assert.IsTrue(emote.Loop);
         Assert.AreEqual("theo/yolo0", emote.Prefix);
@@ -32,11 +31,10 @@ public class EmoteDataParsingTest
     }
 
     [TestMethod]
-    public void Parse_SingleFrameWithEmptyString()
+    public void TryParse_SingleFrameWithEmptyString()
     {
-        var result = EmoteData.Parse("i:strawberry");
-        Assert.IsTrue(result.HasValue);
-        var emote = result.Value;
+        var success = EmoteData.TryParse("i:strawberry", out var emote);
+        Assert.IsTrue(success);
         Assert.AreEqual(EmoteAtlasCategory.Gui, emote.Category);
         Assert.AreEqual("strawberry", emote.Prefix);
         Assert.HasCount(1, emote.Frames);
@@ -45,11 +43,10 @@ public class EmoteDataParsingTest
     }
 
     [TestMethod]
-    public void Parse_SingleFrameWithExplicitFpsAndNoLoop()
+    public void TryParse_SingleFrameWithExplicitFpsAndNoLoop()
     {
-        var result = EmoteData.Parse("i10:spike !");
-        Assert.IsTrue(result.HasValue);
-        var emote = result.Value;
+        var success = EmoteData.TryParse("i10:spike !", out var emote);
+        Assert.IsTrue(success);
         Assert.AreEqual(10, emote.Fps);
         Assert.AreEqual("spike", emote.Prefix);
         Assert.HasCount(1, emote.Frames);
@@ -58,51 +55,49 @@ public class EmoteDataParsingTest
     }
 
     [TestMethod]
-    public void Parse_EmptyOrWhitespaceInput_ReturnsNull()
+    public void TryParse_EmptyOrWhitespaceInput_ReturnsFalse()
     {
-        Assert.IsNull(EmoteData.Parse(""));
-        Assert.IsNull(EmoteData.Parse("   "));
-        Assert.IsNull(EmoteData.Parse("\t\n"));
+        Assert.IsFalse(EmoteData.TryParse("", out _));
+        Assert.IsFalse(EmoteData.TryParse("   ", out _));
+        Assert.IsFalse(EmoteData.TryParse("\t\n", out _));
     }
 
     [TestMethod]
-    public void Parse_InvalidCategory_ReturnsNull()
+    public void TryParse_InvalidCategory_ReturnsFalse()
     {
-        Assert.IsNull(EmoteData.Parse("x:strawberry"));
-        Assert.IsNull(EmoteData.Parse("2:strawberry !"));
+        Assert.IsFalse(EmoteData.TryParse("x:strawberry", out _));
+        Assert.IsFalse(EmoteData.TryParse("2:strawberry !", out _));
     }
 
     [TestMethod]
-    public void Parse_MissingColon_ReturnsNull()
+    public void TryParse_MissingColon_ReturnsFalse()
     {
-        Assert.IsNull(EmoteData.Parse("pno_colon"));
-        Assert.IsNull(EmoteData.Parse("i"));
+        Assert.IsFalse(EmoteData.TryParse("pno_colon", out _));
+        Assert.IsFalse(EmoteData.TryParse("i", out _));
     }
 
     [TestMethod]
-    public void Parse_InvalidFps_ReturnsNull()
+    public void TryParse_InvalidFps_ReturnsFalse()
     {
-        Assert.IsNull(EmoteData.Parse("pabc:prefix"));
-        Assert.IsNull(EmoteData.Parse("p-5:prefix"));
-        Assert.IsNull(EmoteData.Parse("p99999:prefix")); // out of ushort range
+        Assert.IsFalse(EmoteData.TryParse("pabc:prefix", out _));
+        Assert.IsFalse(EmoteData.TryParse("p-5:prefix", out _));
+        Assert.IsFalse(EmoteData.TryParse("p99999:prefix", out _)); // out of ushort range
     }
 
     [TestMethod]
-    public void Parse_PrefixCannotContainSpace_ButParserTreatsFirstTokenAsPrefix()
+    public void TryParse_NoPrefixProvided()
     {
-        var result = EmoteData.Parse("p:test a b c");
-        Assert.IsTrue(result.HasValue);
-        var emote = result.Value;
-        Assert.AreEqual("test", emote.Prefix);
-        CollectionAssert.AreEqual(new[] { "a", "b", "c" }, emote.Frames.ToList());
+        var success = EmoteData.TryParse("p: test a b c", out var emote);
+        Assert.IsTrue(success);
+        Assert.AreEqual(string.Empty, emote.Prefix);
+        CollectionAssert.AreEqual(new[] { "test", "a", "b", "c" }, emote.Frames.ToList());
     }
 
     [TestMethod]
-    public void Parse_EmptyPrefix_IsCurrentlyAllowed()
+    public void TryParse_EmptyPrefix_IsCurrentlyAllowed()
     {
-        var result = EmoteData.Parse("p:");
-        Assert.IsTrue(result.HasValue);
-        var emote = result.Value;
+        var success = EmoteData.TryParse("p:", out var emote);
+        Assert.IsTrue(success);
         Assert.AreEqual("", emote.Prefix);
         Assert.HasCount(1, emote.Frames);
         Assert.AreEqual(string.Empty, emote.Frames[0]);
@@ -110,11 +105,10 @@ public class EmoteDataParsingTest
     }
 
     [TestMethod]
-    public void Parse_GameplayCategoryWithBang()
+    public void TryParse_GameplayCategoryWithBang()
     {
-        var result = EmoteData.Parse("g5:explosion boom crash !");
-        Assert.IsTrue(result.HasValue);
-        var emote = result.Value;
+        var success = EmoteData.TryParse("g5:explosion boom crash !", out var emote);
+        Assert.IsTrue(success);
         Assert.AreEqual(EmoteAtlasCategory.Gameplay, emote.Category);
         Assert.AreEqual(5, emote.Fps);
         Assert.AreEqual("explosion", emote.Prefix);
@@ -123,22 +117,20 @@ public class EmoteDataParsingTest
     }
 
     [TestMethod]
-    public void Parse_NoFramesButHasBang_ResultsInEmptyStringFrame()
+    public void TryParse_NoFramesButHasBang_ResultsInEmptyStringFrame()
     {
-        var result = EmoteData.Parse("i:icon !");
-        Assert.IsTrue(result.HasValue);
-        var emote = result.Value;
+        var success = EmoteData.TryParse("i:icon !", out var emote);
+        Assert.IsTrue(success);
         Assert.HasCount(1, emote.Frames);
         Assert.AreEqual(string.Empty, emote.Frames[0]);
         Assert.IsFalse(emote.Loop);
     }
 
     [TestMethod]
-    public void Parse_OnlyCategoryAndFpsColonButNoPrefix_ReturnsNonNull()
+    public void TryParse_OnlyCategoryAndFpsColonButNoPrefix_ReturnsTrue()
     {
-        var result = EmoteData.Parse("p10:");
-        Assert.IsTrue(result.HasValue);
-        var emote = result.Value;
+        var success = EmoteData.TryParse("p10:", out var emote);
+        Assert.IsTrue(success);
         Assert.AreEqual("", emote.Prefix);
         Assert.HasCount(1, emote.Frames);
         Assert.AreEqual(string.Empty, emote.Frames[0]);
@@ -146,10 +138,10 @@ public class EmoteDataParsingTest
     }
 
     [TestMethod]
-    public void Parse_TrailingSpacesAreIgnored()
+    public void TryParse_TrailingSpacesAreIgnored()
     {
-        var result = EmoteData.Parse(" i:strawberry  ");
-        Assert.IsTrue(result.HasValue);
-        Assert.AreEqual("strawberry", result.Value.Prefix);
+        var success = EmoteData.TryParse(" i:strawberry  ", out var emote);
+        Assert.IsTrue(success);
+        Assert.AreEqual("strawberry", emote.Prefix);
     }
 }

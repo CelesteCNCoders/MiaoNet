@@ -109,7 +109,7 @@ public static class ClientRC
         else if (endPoint == "/success")
         {
             const string FileName = "ClientRC.success.html";
-            var resStream = typeof(ClientRC).Assembly.GetManifestResourceStream(FileName)
+            using var resStream = typeof(ClientRC).Assembly.GetManifestResourceStream(FileName)
                 ?? throw new FileNotFoundException(null, FileName);
             resStream.CopyTo(res.OutputStream);
             res.ContentType = "text/html; charset=utf-8";

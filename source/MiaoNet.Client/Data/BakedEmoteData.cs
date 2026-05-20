@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Globalization;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
@@ -54,7 +55,7 @@ public sealed class BakedEmoteData
             else
             {
                 builder.Add(GFX.Game.GetFallback());
-                Logger.Warn(LT.MiaoNetEmoteData, string.Format(SR.FrameNotFound, fullFrameName));
+                Logger.Warn(LT.MiaoNetEmoteData, string.Format(CultureInfo.InvariantCulture, SR.FrameNotFound, fullFrameName));
                 continue;
             }
         }

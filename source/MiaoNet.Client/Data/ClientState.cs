@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
@@ -63,7 +64,7 @@ public sealed class ClientState
     {
         if (players.TryGetValue(playerID, out var player))
             return player;
-        throw new KeyNotFoundException(string.Format(SR.PlayerNotFound, playerID));
+        throw new KeyNotFoundException(string.Format(CultureInfo.InvariantCulture, SR.PlayerNotFound, playerID));
     }
 
     public bool TryGetPlayerOrSelf(int playerID, [NotNullWhen(true)] out OnlinePlayer? player)
@@ -85,7 +86,7 @@ public sealed class ClientState
             return player;
         if (Self.ID == playerID)
             return Self;
-        throw new KeyNotFoundException(string.Format(SR.PlayerNotFound, playerID));
+        throw new KeyNotFoundException(string.Format(CultureInfo.InvariantCulture, SR.PlayerNotFound, playerID));
     }
 
     public PlayerLocation.ChangeResult OnPlayerLocationChanged(PlayerLocation location)

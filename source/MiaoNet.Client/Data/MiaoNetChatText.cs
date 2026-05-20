@@ -40,7 +40,11 @@ public static class MiaoNetChatText
             new(ColorTime, FormatDateTime(dateTime)),
             new(
                 ColorPrivateChatReceived,
-                PFormat.Format(Dialog.Clean("miaonet_chat_whisper_received"), sender.GetDisplayName(false, avatar))
+                PFormat.Format(
+                    CultureInfo.CurrentCulture,
+                    Dialog.Clean("miaonet_chat_whisper_received"),
+                    sender.GetDisplayName(false, avatar)
+                )
             ),
             new( ColorPrivateChat, ": "),
             ..ChatText.Parse(text, ColorPrivateChat)
@@ -51,7 +55,12 @@ public static class MiaoNetChatText
             new( ColorTime, FormatDateTime(dateTime)),
             new(
                  ColorPrivateChatReceived,
-                PFormat.Format(Dialog.Clean("miaonet_chat_whisper_sent"), other.GetDisplayName(false, avatar), self.GetDisplayName(false, avatar))
+                PFormat.Format(
+                    CultureInfo.CurrentCulture, 
+                    Dialog.Clean("miaonet_chat_whisper_sent"), 
+                    other.GetDisplayName(false, avatar), 
+                    self.GetDisplayName(false, avatar)
+                )
             ),
             new( ColorPrivateChat, ": "),
             ..ChatText.Parse(text, ColorPrivateChat)

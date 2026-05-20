@@ -62,11 +62,13 @@ public sealed class ChatCompletionProvider : ICompletionProvider
         bool endsWithSpace = input.EndsWith(' ');
         CommandParser.ParseResult result = parser.Parse(input, out string commandName, out MiaoNetCommand? matchedCommand, out var segments);
 
+        // everest forced InvariantCulture, so the followings are actually equivalent to InvariantCultureIgnoreCase
+        // we'll keep using CurrentCultureIgnoreCase to keep semantics
         if (!endsWithSpace && segments is null or { Count: 0 })
         {
             return from cmd in parser.Commands
-                   where cmd.Name.Contains(commandName, StringComparison.OrdinalIgnoreCase)
-                   || cmd.Aliases?.Any(a => a.Contains(commandName, StringComparison.OrdinalIgnoreCase)) == true
+                   where cmd.Name.Contains(commandName, StringComparison.CurrentCultureIgnoreCase)
+                   || cmd.Aliases?.Any(a => a.Contains(commandName, StringComparison.CurrentCultureIgnoreCase)) == true
                    select new Completion(cmd.Name, cmd.Name, commandName.Length);
         }
 
@@ -86,12 +88,12 @@ public sealed class ChatCompletionProvider : ICompletionProvider
                 case CommandSegmentType.Player:
                     return from pair in context.ClientState!.Players
                            let i = pair.Value.Info
-                           where i.Name.Contains(part, StringComparison.OrdinalIgnoreCase)
+                           where i.Name.Contains(part, StringComparison.CurrentCultureIgnoreCase)
                            select new Completion(i.Name, i.DisplayName, remove);
                 case CommandSegmentType.PlayerSameMap:
                     return from pair in context.ClientState!.Players
                            let i = pair.Value.Info
-                           where i.Name.Contains(part, StringComparison.OrdinalIgnoreCase)
+                           where i.Name.Contains(part, StringComparison.CurrentCultureIgnoreCase)
                            where pair.Value.ShouldSyncFrom(context.ClientState.Self)
                            select new Completion(i.Name, i.DisplayName, remove);
                 }
