@@ -694,10 +694,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
     public override void Removed(Scene scene)
     {
-        base.Removed(scene);
         scene.Remove(nameTag);
         idleHover?.RemoveSelf();
         CleanUpFollowers();
+        base.Removed(scene);
     }
 
     public void OnCreatedFireworks(Color color, float initialSpeed)
