@@ -198,7 +198,11 @@ partial class MiaoNetCommand
         if (error is not null)
             return error;
 
-        error = EnsurePlayerInExistedMap(player!, out AreaData? area);
+        return TeleportNoSessionTo(context, player!);
+    }
+    private static string? TeleportNoSessionTo(Context context, OnlinePlayer player)
+    {
+    string? error = EnsurePlayerInExistedMap(player!, out AreaData? area);
         if (error is not null)
             return error;
 
@@ -224,7 +228,12 @@ partial class MiaoNetCommand
         if (error is not null)
             return error;
 
-        error = EnsurePlayerInExistedMap(player!, out AreaData? area);
+        return TeleportWithSessionTo(context, player!);
+    }
+    
+    private static string? TeleportWithSessionTo(Context context, OnlinePlayer player)
+    {
+    string? error = EnsurePlayerInExistedMap(player!, out AreaData? area);
         if (error is not null)
             return error;
 
