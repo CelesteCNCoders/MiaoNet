@@ -175,21 +175,22 @@ partial class MiaoNetCommand
     }
 
     #region Teleport
-    private static void NotifyTeleportBehaviour(Context context)
+    private static bool NotifyTeleportBehaviourOnce(Context context)
     {
+        if (MiaoNetModule.Settings.TippedTeleport)
+            return false;
+
+        MiaoNetModule.Settings.TippedTeleport = true;
+        MiaoNetModule.Instance.SaveSettings();
         foreach (var item in Dialog.Clean("miaonet_commands_teleport_notice").EnumerateLines())
             context.TipMessage(item.ToString());
+        return true;
     }
 
     private static string? TeleportNoSession(Context context)
     {
-        if (!MiaoNetModule.Settings.TippedTeleport)
-        {
-            MiaoNetModule.Settings.TippedTeleport = true;
-            MiaoNetModule.Instance.SaveSettings();
-            NotifyTeleportBehaviour(context);
+        if (NotifyTeleportBehaviourOnce(context))
             return null;
-        }
 
         string? error;
 
@@ -214,13 +215,8 @@ partial class MiaoNetCommand
 
     private static string? TeleportWithSession(Context context)
     {
-        if (!MiaoNetModule.Settings.TippedTeleport)
-        {
-            MiaoNetModule.Settings.TippedTeleport = true;
-            MiaoNetModule.Instance.SaveSettings();
-            NotifyTeleportBehaviour(context);
+        if (NotifyTeleportBehaviourOnce(context))
             return null;
-        }
 
         string? error;
 
