@@ -234,6 +234,34 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
             packetQueue.Enqueue(new PacketPong() { RequestID = packetPing.RequestID });
             return;
         }
+
+        if (packet is PacketBeTeleportedRequest teleportRequest)
+        {
+            Log($"Received teleport request from player {teleportRequest.SourcePlayerID}");
+            var session = new PlayerSessionData(
+                position: position,
+                respawnPoint: position,
+                inventory: new PlayerSessionData.PlayerInventory(1, false, true, false),
+                stringFlags: Array.Empty<string>(),
+                levelStringFlags: Array.Empty<string>(),
+                strawberries: Array.Empty<PlayerSessionData.StringIntPair>(),
+                doNotLoad: Array.Empty<PlayerSessionData.StringIntPair>(),
+                keys: Array.Empty<PlayerSessionData.StringIntPair>(),
+                counters: Array.Empty<PlayerSessionData.StringIntPair>(),
+                startCheckpoint: null,
+                colorGrade: null,
+                summitGems: 0,
+                flags: PlayerSessionData.SessionFlags.FirstLevel,
+                lightingAlphaAdd: 0f,
+                bloomBaseAdd: 0f,
+                darkRoomAlpha: 0f,
+                time: 0,
+                coreMode: CoreModes.None
+            );
+            var response = new PacketBeTeleportedResponse(session) { RequestID = teleportRequest.RequestID };
+            packetQueue.Enqueue(response);
+            return;
+        }
     }
 
     private void Log(string msg)
