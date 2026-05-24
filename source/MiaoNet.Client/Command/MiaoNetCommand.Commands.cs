@@ -378,13 +378,16 @@ partial class MiaoNetCommand
 
     private static string? RandomTeleport(Context context)
     {
-        var error = GetRandomNotSelfPlayer(context, out var randomPlayer);
+        var error = GetRandomNotSelfPlayer(context, out var player);
         if (error is not null)
-        {
             return error;
-        }
-        // TODO waiting for modifying teleport logic.
-        return null;
+
+        return MiaoNetModule.Settings.TeleportBehaviour switch
+        {
+            TeleportBehaviour.NoSession => TeleportNoSessionTo(context, player!),
+            TeleportBehaviour.WithSession => TeleportWithSessionTo(context, player!),
+            _ => null,
+        };
     }
     #endregion
 
