@@ -159,6 +159,7 @@ miaonet_command_status_player_not_found= 未找到玩家 "(0)"
 miaonet_command_status_player_not_in_map= 玩家 "(0)" 不在地图内
 miaonet_command_status_player_is_self= "(0)" 是你自己！
 miaonet_command_status_player_map_missing= 本地不存在玩家 "(0)" 所在的地图 "(1)"
+miaonet_command_status_no_available_player= 没有在地图内且未持有金草莓的玩家可作为目标
 miaonet_command_status_channel_not_found= 未找到频道 "(0)"
 miaonet_command_help_title= == MiaoNet 指令帮助 ((0)) ==
 miaonet_command_help_not_found= 未找到指令 "(0)"
