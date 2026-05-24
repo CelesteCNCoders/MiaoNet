@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Runtime.InteropServices;
 using Celeste.Mod.ChatInputBox;
 using MiaoNet.Shared;
@@ -126,6 +127,13 @@ partial class MiaoNetCommand
                 onExecute: new ExecuteHandler(MapChat)
             ),
             new MiaoNetCommand(
+                name: "random-teleport",
+                aliases: [ "rtp" ],
+                segments: [],
+                captureRestSegments: false,
+                onExecute: new ExecuteHandler(RandomTeleport)
+            ),
+            new MiaoNetCommand(
                 name: "channel",
                 aliases: [ "join" ],
                 segments: [CommandSegmentType.Channel],
@@ -139,6 +147,7 @@ partial class MiaoNetCommand
     private static string PlayerNotFound => Dialog.Clean("miaonet_command_status_player_not_found");
     private static string PlayerNotInMap => Dialog.Clean("miaonet_command_status_player_not_in_map");
     private static string PlayerMapMissing => Dialog.Clean("miaonet_command_status_player_map_missing");
+    private static string NoAvailablePlayer => Dialog.Clean("miaonet_command_status_no_available_player");
     private static string NeedInMap => Dialog.Clean("miaonet_command_status_need_in_level");
     private static string CommandHelpTitle => Dialog.Clean("miaonet_command_help_title");
     private static string CommandHelpNotFound => Dialog.Clean("miaonet_command_help_not_found");
@@ -361,6 +370,17 @@ partial class MiaoNetCommand
             TeleportBehaviour.WithSession => TeleportWithSession(context),
             _ => null,
         };
+
+    private static string? RandomTeleport(Context context)
+    {
+        var error = GetRandomNotSelfPlayer(context, out var randomPlayer);
+        if (error is not null)
+        {
+            return error;
+        }
+        // TODO waiting for modifying teleport logic.
+        return null;
+    }
     #endregion
 
     #region Help
@@ -596,6 +616,23 @@ partial class MiaoNetCommand
         return null;
     }
 
+
+    private static string? GetRandomNotSelfPlayer(Context context, out OnlinePlayer? player)
+    {
+        player = null;
+        var clientState = context.MiaoNetContext.ClientState!;
+        var allPlayers = from pair in clientState.SelfChannel.Players select pair.Value;
+        var candidates = allPlayers                                                                                                                                                                  
+            .Where(p => EnsurePlayerInExistedMap(p, out _) is null)                 // Teleportable
+            .Where(p => !p.GlobalFlags.HasFlag(PlayerGlobalFlags.TakingGolden))     // Not taking golden
+            .ToList();
+        if (candidates.Count == 0)
+        {
+            return PFormat.Format(NoAvailablePlayer);
+        }
+        player = candidates.ElementAt(Random.Shared.Next(candidates.Count));
+        return null;
+    }
     #endregion
 
 #pragma warning restore CA1305
