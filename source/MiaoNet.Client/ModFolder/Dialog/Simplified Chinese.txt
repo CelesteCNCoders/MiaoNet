@@ -180,6 +180,7 @@ miaonet_commands_teleport_no_session_s0_description= 要传送到的玩家。
 miaonet_commands_teleport_with_session_description= 携带存档信息地传送到另一个玩家。
 miaonet_commands_teleport_with_session_s0_name= 玩家名称
 miaonet_commands_teleport_with_session_s0_description= 要传送到的玩家。
+miaonet_commands_random_teleport_description= 随机传送到一个未带金的图内玩家
 miaonet_commands_whisper_description= 发送一条私聊信息。
 miaonet_commands_whisper_s0_name= 玩家名称
 miaonet_commands_whisper_s0_description= 私聊的玩家。

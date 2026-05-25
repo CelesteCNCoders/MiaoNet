@@ -183,6 +183,7 @@ miaonet_commands_teleport_no_session_s0_description= The player that teleported 
 miaonet_commands_teleport_with_session_description= Teleport to a player and fetch their session.
 miaonet_commands_teleport_with_session_s0_name= Player
 miaonet_commands_teleport_with_session_s0_description= The player that teleported to.
+miaonet_commands_random_teleport_description= Teleport to a random player in map and isn't carrying a golden strawberry.
 miaonet_commands_whisper_description= Whipser a message to a player.
 miaonet_commands_whisper_s0_name= Player
 miaonet_commands_whisper_s0_description= The player that will be whispered to.
