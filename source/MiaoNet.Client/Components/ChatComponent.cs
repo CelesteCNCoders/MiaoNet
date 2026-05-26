@@ -336,7 +336,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
         if (Engine.Scene is Level level)
         {
-            Engine.Scene.CompletelyRemove(dummyOverlay);
+            level.CompletelyRemove(dummyOverlay);
             level.AllowHudHide = previousAllowHudHide;
         }
         context.HasComponentFocus = false;
