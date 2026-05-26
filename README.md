@@ -45,6 +45,33 @@ CelesteNet 的一个重写, 以应对数以百计的蔚蓝联机玩家.
 
 [见该 Issue](https://github.com/CelesteCNCoders/MiaoNet/issues/2)
 
+## 构建MiaoNet
+
+### 环境配置
+- Celeste的Mod管理器安装（Everest / Olympus / CeleMod)
+- .NET 8.0+ SDK
+
+- MSBuild构建工具
+
+### 1. 下载MiaoNet
+从Github克隆：
+```bash
+git clone git@github.com:CelesteCNCoders/MiaoNet.git
+cd MiaoNet
+```
+或下载.zip压缩包并解压。
+
+### 2. 构建MiaoNet
+以Beta版游玩测试服仅需要构建MiaoNet.Client。在构造前，确认您的Celeste安装路径是否和项目预设的`C:\Program Files (x86)\Steam\steamapps\common\Celeste`相符。如若这不是您的Celeste安装路径，则需要在构建时手动指定。
+
+> ⚠️ 如何获取Celeste安装路径：如果您的Celeste通过Steam平台安装，可在“库”中右键“Celeste”条目，选择“管理” > “浏览本地文件”以获取安装路径。
+
+```bash
+dotnet build source/MiaoNet.Client/MiaoNet.Client.csproj\
+  -p:CelesteRootPath=/path/to/Celeste
+```
+构建完成后`MiaoNet_Link`文件链接将在游戏Mod目录下生成，此时使用Mod加载器选中即可游玩测试服。
+
 ## LICENSE
 
 本项目部分借鉴了 [CelesteNet](https://github.com/0x0ade/CelesteNet)([MIT](https://github.com/0x0ade/CelesteNet/blob/e962823cf9666024fd255db9cb5d72a3a5c4d7c6/LICENSE))
