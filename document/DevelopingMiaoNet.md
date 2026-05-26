@@ -107,11 +107,16 @@ dotnet build source/MiaoNet.Client/MiaoNet.Client.csproj -c Release
 - 功能讨论、Bug报告：通过 GitHub Issues 提交
 - 设计讨论、开放性问题：通过 GitHub Discussions 进行
 
+在着手实现之前，请先与项目管理者确认你的计划，尤其涉及对项目的部分重构——处理
+### 编码规范
+你的[编码风格](CodingStyle.md)需要尽量和项目一直，这样能长久保持项目的可读性。
+
 ### PR流程
-1. 从 `wip` 主分支创建功能分支，命名建议：`feat/功能名`、`fix/问题描述`、`refactor/重构内容`
-2. 开发完成后向 `wip` 分支提交 Pull Request
-3. PR标题简洁明了，描述中说明改动内容和测试情况
-4. 确保构建通过后再请求审查
+1. 从Github fork一份MiaoNet源码
+2. 从 `wip` 主分支创建功能分支，命名建议：`feat/功能名`、`fix/问题描述`、`refactor/重构内容`
+3. 开发完成后向 `wip` 分支提交 Pull Request
+4. PR标题简洁明了，描述中说明改动内容和测试情况
+5. 确保构建和测试通过后再请求审查
 
 ### 代码审查
 - 所有合入 `wip` 的代码需要至少一位维护者审查

@@ -14,7 +14,8 @@
     <File Path="document/Connection.md" />
     <File Path="document/Design.md" />
     <File Path="document/DevelopingMiaoNet.md" />
-    <File Path="document\HowToIssue.md" />
+    <File Path="document/HowToIssue.md" />
+    <File Path="document/CodingStyle.md" />
   </Folder>
   <Project Path="source/MiaoNet.Client/MiaoNet.Client.csproj" />
   <Project Path="source/MiaoNet.Server/MiaoNet.Server.csproj" />
