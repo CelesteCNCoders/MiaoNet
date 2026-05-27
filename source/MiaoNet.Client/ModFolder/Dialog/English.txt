@@ -206,6 +206,9 @@ miaonet_commands_unwatch_description= Stop watching a player.
 miaonet_commands_map_chat_description= Send a map chat.
 miaonet_commands_map_chat_s0_name= Text
 miaonet_commands_map_chat_s0_description= Chat message.
+miaonet_commands_channel_description= Join or create a channel.
+miaonet_commands_channel_s0_name= Name
+miaonet_commands_channel_s0_description= The name of channel to join or create.
 
 miaonet_commands_teleport_notice=
 	By default, using the Teleport command saves your current progress and switches to a temporary save file.
