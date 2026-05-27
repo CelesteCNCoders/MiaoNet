@@ -44,14 +44,14 @@ partial class MiaoNetCommand
             new MiaoNetCommand(
                 name: "teleport-no-session",
                 aliases: [ "tp-ns", "tpns" ],
-                segments: [CommandSegmentType.Player],
+                segments: [CommandSegmentType.PlayerSameChannel],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(TeleportNoSession)
             ),
             new MiaoNetCommand(
                 name: "teleport-with-session",
                 aliases: [ "tp-ws", "tpws" ],
-                segments: [CommandSegmentType.Player],
+                segments: [CommandSegmentType.PlayerSameChannel],
                 captureRestSegments:false,
                 onExecute: new ExecuteHandler(TeleportWithSession)
             ),
@@ -65,7 +65,7 @@ partial class MiaoNetCommand
             new MiaoNetCommand(
                 name: "teleport",
                 aliases: [ "tp" ],
-                segments: [CommandSegmentType.Player],
+                segments: [CommandSegmentType.PlayerSameChannel],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(Teleport)
             ),
@@ -125,6 +125,13 @@ partial class MiaoNetCommand
                 captureRestSegments: true,
                 onExecute: new ExecuteHandler(MapChat)
             ),
+            new MiaoNetCommand(
+                name: "channel",
+                aliases: [ "join" ],
+                segments: [CommandSegmentType.Channel],
+                captureRestSegments: true,
+                onExecute: new ExecuteHandler(Channel)
+            )
         ];
     }
 
@@ -186,10 +193,10 @@ partial class MiaoNetCommand
             return error;
 
         PlayerLocation loc = player!.Location;
-        AreaKey areaKey = new(area!.ID, loc.Side);
+        AreaKey areaKey = new(area!.ID, loc.Map.AreaMode);
         bool moveToDebugSave = MiaoNetModule.Settings.TeleportTempSave;
         StartTeleportRoutine(
-            context, moveToDebugSave, null, areaKey, loc.MapRoom,
+            context, moveToDebugSave, null, areaKey, loc.Room,
             () => NoticeTeleportFinished(context, moveToDebugSave, true, player.Info.Name)
         );
 
@@ -217,7 +224,7 @@ partial class MiaoNetCommand
             return error;
 
         PlayerLocation loc = player!.Location;
-        AreaKey areaKey = new(area!.ID, loc.Side);
+        AreaKey areaKey = new(area!.ID, loc.Map.AreaMode);
 
         context.TipMessage(PFormat.Format(Dialog.Get("miaonet_commands_teleport_tip"), player.Info.Name));
 
@@ -238,7 +245,7 @@ partial class MiaoNetCommand
             bool moveToDebugSave = MiaoNetModule.Settings.TeleportTempSave;
             var sessionData = response.Session;
             StartTeleportRoutine(
-                context, moveToDebugSave, sessionData, areaKey, loc.MapRoom,
+                context, moveToDebugSave, sessionData, areaKey, loc.Room,
                 () => NoticeTeleportFinished(context, moveToDebugSave, false, player.Info.Name)
             );
         }
@@ -537,6 +544,24 @@ partial class MiaoNetCommand
         return null;
     }
 
+    private static string? Channel(Context context)
+    {
+        string channelName = context.Segments[0];
+        var channel = context.MiaoNetContext.ClientState
+            !.Channels.FirstOrDefault(p => p.Value.Info.Name == channelName);
+
+        if (channel.Value is null)
+        {
+            context.QueuePacket(new PacketChannelCreateAndJoin(new ChannelInfo(channelName)));
+        }
+        else
+        {
+            context.QueuePacket(new PacketPlayerChannelMove(channel.Value.ID));
+        }
+
+        return null;
+    }
+
     #region helpers
 
     private static string? MatchNotSelfPlayer(Context context, string playerName, out OnlinePlayer? player)
@@ -563,9 +588,9 @@ partial class MiaoNetCommand
             return PFormat.Format(PlayerNotInMap, player.Info.Name);
 
         bool liveMode = MiaoNetModule.Settings.LiveMode;
-        var area = AreaData.Get(loc.MapSid);
-        if (area is null || area.Mode.Length <= (int)loc.Side)
-            return PFormat.Format(PlayerMapMissing, player.Info.Name, liveMode ? "*" : loc.ToString());
+        var area = AreaData.Get(loc.Map.Sid);
+        if (area is null || area.Mode.Length <= (int)loc.Map.AreaMode)
+            return PFormat.Format(PlayerMapMissing, player.Info.Name, liveMode ? "*" : loc.Map.Sid);
 
         othersArea = area;
         return null;

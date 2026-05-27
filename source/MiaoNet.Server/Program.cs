@@ -50,8 +50,8 @@ public static class Program
         );
 
         builder.Services.AddSingleton<MiaoClientConnectionFactory>(p =>
-            (id, con, player, server) => new MiaoClientConnection(
-                id, con, player,
+            (con, player, server) => new MiaoClientConnection(
+                con, player,
                 p.GetRequiredService<ILogger<MiaoClientConnection>>(),
                 server,
                 p.GetRequiredService<MiaoMetricsService>()
@@ -59,8 +59,9 @@ public static class Program
         );
 
         builder.Services.AddSingleton<MiaoServerService>();
-        builder.Services.AddSingleton<MiaoMetricsService>();
+        builder.Services.AddSingleton<IMiaoServerService, MiaoServerService>(p => p.GetRequiredService<MiaoServerService>());
         builder.Services.AddHostedService(s => s.GetRequiredService<MiaoServerService>());
+        builder.Services.AddSingleton<MiaoMetricsService>();
 #if USE_LOCALHOST_PFX
         builder.Services.AddSingleton<IMiaoCertificateService, LocalMiaoCertificateService>();
 #else

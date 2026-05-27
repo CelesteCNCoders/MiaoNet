@@ -4,15 +4,13 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class OnlinePlayer
 {
-    private PlayerLocation location;
-
     public int ID { get; }
 
     public OnlineChannel Channel { get; set; }
 
     public PlayerInfo Info { get; set; }
 
-    public ref PlayerLocation Location => ref location;
+    public PlayerLocation Location { get; set; }
 
     public PlayerState? State { get; set; }
 
@@ -30,13 +28,10 @@ public sealed class OnlinePlayer
         Channel = channel;
         ID = id;
         Info = info;
-        location = PlayerLocation.Empty;
+        Location = PlayerLocation.Empty;
         GlobalFlags = globalFlags;
         LastPing = -1;
     }
-
-    public override string ToString()
-        => $"{Info} at {Location}";
 
     public string GetDisplayName(bool includePrefix, bool includeAvatarEmoji)
     {

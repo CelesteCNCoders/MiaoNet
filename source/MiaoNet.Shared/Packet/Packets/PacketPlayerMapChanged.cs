@@ -2,6 +2,7 @@ using System.Diagnostics;
 
 namespace MiaoNet.Shared;
 
+// client to server
 public sealed class PacketPlayerMapChanged : IContextualPacket<PacketPlayerMapChanged>
 {
     public PlayerLocation Location { get; set; }
@@ -38,6 +39,7 @@ public sealed class PacketPlayerMapChanged : IContextualPacket<PacketPlayerMapCh
         );
 }
 
+// server to client
 public sealed class PacketPlayerMapChangedNotification : PacketPlayerNotification,
     IContextualPacket<PacketPlayerMapChangedNotification>
 {
@@ -46,7 +48,7 @@ public sealed class PacketPlayerMapChangedNotification : PacketPlayerNotificatio
     {
         None = 0,
         HasGraphicsInfo = 1 << 0,
-        HasInitialStats = 1 << 1
+        HasInitialState = 1 << 1
     }
 
     public PlayerLocation Location { get; set; }
@@ -64,11 +66,11 @@ public sealed class PacketPlayerMapChangedNotification : PacketPlayerNotificatio
     public PacketPlayerMapChangedNotification(
         int playerID, PlayerLocation location,
         PlayerGraphicsInfo? graphicsInfo,
-        PlayerState? initialStats
+        PlayerState? initialState
     ) : this(playerID, location)
     {
         GraphicsInfo = graphicsInfo;
-        InitialState = initialStats;
+        InitialState = initialState;
     }
 
     public void Serialize(ref RefBinaryWriter writer, IPacketSerializationContext context)
@@ -77,7 +79,7 @@ public sealed class PacketPlayerMapChangedNotification : PacketPlayerNotificatio
 
         DataFlags flags = DataFlags.None;
         if (GraphicsInfo is not null) flags |= DataFlags.HasGraphicsInfo;
-        if (InitialState is not null) flags |= DataFlags.HasInitialStats;
+        if (InitialState is not null) flags |= DataFlags.HasInitialState;
 
         writer.Write((byte)flags);
         writer.Write(Location);
@@ -100,7 +102,7 @@ public sealed class PacketPlayerMapChangedNotification : PacketPlayerNotificatio
 
         if (dataFlags.HasFlag(DataFlags.HasGraphicsInfo))
             graphicsInfo = reader.Read<PlayerGraphicsInfo>();
-        if (dataFlags.HasFlag(DataFlags.HasInitialStats))
+        if (dataFlags.HasFlag(DataFlags.HasInitialState))
             initialStats = reader.Read<PlayerState, PooledStringManager>(context.PooledStringManager);
 
         return new(playerID, location, graphicsInfo, initialStats);

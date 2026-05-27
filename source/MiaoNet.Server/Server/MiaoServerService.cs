@@ -16,7 +16,7 @@ using System.Security.Authentication;
 
 namespace MiaoNet.Server;
 
-public sealed partial class MiaoServerService : BackgroundService
+public sealed partial class MiaoServerService : BackgroundService, IMiaoServerService
 {
     private static readonly ArrayPool<byte> pool = ArrayPool<byte>.Shared;
 
@@ -33,14 +33,13 @@ public sealed partial class MiaoServerService : BackgroundService
     private readonly PeriodicTimer pingTimer;
     private readonly Stopwatch stopwatch;
 
-    // all state data, for example, player infos, channel infos
+    private readonly ReaderWriterLockSlim stateLock;
     private readonly ServerState serverState;
 
     public ServerState ServerState => serverState;
 
     public int DisconnectTimeout => options.DisconnectTimeout;
 
-    // TODO refactor
     public MiaoServerService(
         ILogger<MiaoServerService> logger,
         IOptions<MiaoServerOptions> options,
@@ -50,6 +49,7 @@ public sealed partial class MiaoServerService : BackgroundService
         MiaoMetricsService miaoMetricsService
     )
     {
+        stateLock = new();
         serverState = new();
 
         PacketHandlerRegister register = new();
@@ -92,191 +92,10 @@ public sealed partial class MiaoServerService : BackgroundService
         pingTimer.Dispose();
     }
 
-    private async Task HandlePendingConnectionAsync(IPendingNetworkConnection pendingConnection, CancellationToken token)
-    {
-        string addr = pendingConnection.RemoteAddress;
-        INetworkConnection? networkConnection = null;
-        HandshakeResult? handshakeResult;
-
-        CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-        cts.CancelAfter(options.HandshakeTimeout);
-        var localToken = cts.Token;
-        try
-        {
-            networkConnection = await pendingConnection.CompleteAsync(localToken);
-            if (networkConnection is null)
-            {
-                logger.LogInformation(AppEvents.Connection, "{addr} is not a MiaoNet client.", addr);
-                return;
-            }
-            bool result;
-
-            // we've finished TLS handshake and MiaoNet client check
-            // now do version check
-            result = await DoVersionCheckAsync(networkConnection, localToken);
-            if (!result)
-            {
-                networkConnection.Shutdown();
-                networkConnection.Dispose();
-                return;
-            }
-
-            // version check finished, now make our own handshake
-            handshakeResult = await DoHandshakeAsync(networkConnection, localToken);
-            if (handshakeResult is null)
-            {
-                networkConnection.Shutdown();
-                networkConnection.Dispose();
-                return;
-            }
-        }
-        catch (OperationCanceledException e)
-        when (e.CancellationToken == cts.Token)
-        {
-            networkConnection?.Dispose();
-            pendingConnection.Dispose();
-            logger.LogInformation(AppEvents.Connection, "{addr} Handshake timeouted.", addr);
-            return;
-        }
-        catch (Exception e)
-        {
-            networkConnection?.Dispose();
-            pendingConnection.Dispose();
-            logger.LogError(
-                AppEvents.Connection, e,
-                "Error when completing pending connection({addr}).",
-                addr
-            );
-            return;
-        }
-        finally
-        {
-            cts.Dispose();
-        }
-
-        // now it's not "pending" for us
-        await HandleConnectionAsync(networkConnection, handshakeResult);
-
-        // maybe we could improve our serialization implement...
-        // this is ugly
-        async Task<bool> DoVersionCheckAsync(INetworkConnection networkConnection, CancellationToken token)
-        {
-            var stream = networkConnection.Stream;
-
-            var version = options.ExpectedVersion;
-            ushort major = (ushort)version.Major, minor = (ushort)version.Minor, build = (ushort)version.Build;
-            ushort majorClient, minorClient, buildClient;
-
-            const int VersionLength = 3 * sizeof(ushort);
-            byte[] buffer = pool.Rent(VersionLength);
-            bool passed;
-            try
-            {
-                var memory = buffer.AsMemory(0, VersionLength);
-
-                await stream.ReadExactlyAsync(memory, token);
-                var span = memory.Span;
-                majorClient = BinaryPrimitives.ReadUInt16LittleEndian(span[0..2]);
-                minorClient = BinaryPrimitives.ReadUInt16LittleEndian(span[2..4]);
-                buildClient = BinaryPrimitives.ReadUInt16LittleEndian(span[4..6]);
-
-                passed = major == majorClient && minor == minorClient && build == buildClient;
-            }
-            finally
-            {
-                pool.Return(buffer);
-            }
-
-            buffer = pool.Rent(1 + VersionLength);
-            try
-            {
-                var memory = buffer.AsMemory(0, 1 + VersionLength);
-                var span = memory.Span;
-                if (!passed)
-                {
-                    span[0] = 0;
-                    BinaryPrimitives.WriteUInt16LittleEndian(span[1..3], major);
-                    BinaryPrimitives.WriteUInt16LittleEndian(span[3..5], minor);
-                    BinaryPrimitives.WriteUInt16LittleEndian(span[5..7], build);
-                    logger.LogInformation(
-                        AppEvents.Connection,
-                        "{addr} version {v1}.{v2}.{v3} does not match current version.",
-                        networkConnection.RemoteAddress, majorClient, minorClient, buildClient
-                    );
-                    await stream.WriteAsync(memory[0..(1 + VersionLength)], token);
-                    return false;
-                }
-                else
-                {
-                    span[0] = 1;
-                    await stream.WriteAsync(memory[0..1], token);
-                    return true;
-                }
-            }
-            finally
-            {
-                pool.Return(buffer);
-            }
-        }
-
-        async Task<HandshakeResult?> DoHandshakeAsync(INetworkConnection networkConnection, CancellationToken token)
-        {
-            var stream = networkConnection.Stream;
-            ushort size;
-
-            var buffer = pool.Rent(sizeof(ushort));
-            try
-            {
-                var memory = buffer.AsMemory(0, sizeof(ushort));
-                await stream.ReadExactlyAsync(memory, token);
-                size = BinaryPrimitives.ReadUInt16LittleEndian(memory.Span);
-            }
-            finally
-            {
-                pool.Return(buffer);
-            }
-
-            HandshakeData handshakeData;
-            buffer = pool.Rent(size);
-            try
-            {
-                var memory = buffer.AsMemory(0, size);
-                await stream.ReadExactlyAsync(memory, token);
-                var span = memory.Span;
-                RefBinaryReader reader = new(span);
-                handshakeData = reader.Read<HandshakeData>();
-            }
-            finally
-            {
-                pool.Return(buffer);
-            }
-
-            var authResult = await authenticator.AuthenticateAsync(
-                handshakeData.AuthenticationData,
-                handshakeData.IsAuthorize,
-                token
-            );
-
-            string? failedReason = authResult.IsFailed ? authResult.SuspendMessage : null;
-            HandshakeAckData ack = new(authResult.Type, authResult.TokenData, failedReason);
-
-            MemoryStream ms = new(32);
-            ms.Seek(2, SeekOrigin.Begin);
-            RefBinaryWriter writer = new(ms);
-            writer.Write(ack);
-            ushort ackSize = (ushort)(ms.Position - sizeof(ushort));
-            ms.Seek(0, SeekOrigin.Begin);
-            writer.Write(ackSize);
-            Memory<byte> memoryToSend = ms.GetBuffer().AsMemory(0, ackSize + sizeof(ushort));
-            await stream.WriteAsync(memoryToSend, token);
-
-            return authResult.IsFailed ? null : new HandshakeResult(authResult.PlayerInfo, handshakeData, ack);
-        }
-    }
-
     private async Task HandleConnectionAsync(INetworkConnection connection, HandshakeResult handshakeResult)
     {
         miaoMetricsService.RecordSession();
+
         string addr = connection.RemoteAddress;
         try
         {
@@ -291,20 +110,23 @@ public sealed partial class MiaoServerService : BackgroundService
             );
 
             // create the connection
-            MiaoClientConnection newConnection = connectionFactory(newPlayer.ID, connection, newPlayer, this);
+            MiaoClientConnection newConnection = connectionFactory(connection, newPlayer, this);
 
             // send the new player initial data
             PlayerInfo clientPlayerInfo = newConnection.Player.Info;
 
             ValueTask sendStateTask;
             Task tellOthersOneJoinedTask;
-            ServerState.StateLock.EnterWriteLock();
-            try
+
+            // we need consistent players+channels list and also to modify it
+            // so acquire a write lock here
+            using (stateLock.AcquireWriteLock())
             {
                 // fetch online players infos
-                List<ChannelInfo> channels = serverState.AllChannels.Select(c => c.Value.StateInfo).ToList();
+                var channels = serverState.Channels
+                    .Select(c => new PacketClientInitial.Channel(c.Value.ID, c.Value.Info));
                 var playerInfos =
-                    from pair in serverState.AllPlayers
+                    from pair in serverState.Players
                     let p = pair.Value.Player
                     select new PacketClientInitial.Player(
                         p.Channel.ID, p.ID, p.Info, p.Location, p.GlobalFlags
@@ -314,7 +136,7 @@ public sealed partial class MiaoServerService : BackgroundService
                     newPlayer.Channel.ID,
                     newPlayer.ID,
                     clientPlayerInfo,
-                    channels,
+                    channels.ToList(),
                     playerInfos.ToList()
                 );
 
@@ -322,16 +144,12 @@ public sealed partial class MiaoServerService : BackgroundService
                 sendStateTask = newConnection.QueuePacketAsync(packetClientInitial);
 
                 // other connections can see this player now
-                serverState.AddPlayer(newPlayer, newConnection);
+                serverState.AddPlayer(newConnection);
 
                 // and then tell other clients a new player came
                 tellOthersOneJoinedTask = BroadcastOthersAsync(
                     new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.ID, newPlayer.Info), newPlayer.ID
                 );
-            }
-            finally
-            {
-                ServerState.StateLock.ExitWriteLock();
             }
 
             await sendStateTask;
@@ -341,11 +159,10 @@ public sealed partial class MiaoServerService : BackgroundService
             await newConnection.HandleClientConnectAsync();
 
             // TODO don't do removing stuffs here
-
-            // exchange finished, remove this player
-            // this operation is lock-free
-            serverState.RemovePlayer(newPlayer);
-
+            using (stateLock.AcquireWriteLock())
+            {
+                serverState.RemovePlayer(newConnection);
+            }
             // then, tell other clients this player left
             logger.LogInformation(AppEvents.Connection, "Client id {id} handle finished.", newPlayer.ID);
             await BroadcastAsync(new PacketPlayerLeft(newPlayer.ID));
@@ -366,7 +183,7 @@ public sealed partial class MiaoServerService : BackgroundService
             List<Task> taskList = new();
             while (await pingTimer.WaitForNextTickAsync(token))
             {
-                foreach (var (_, (_, connection)) in ServerState.AllPlayers)
+                foreach (var (_, connection) in serverState.Players)
                     list.Add((PingFor(connection, options.HeartbeatTimeoutThreshold), connection));
 
                 foreach (var item in list) taskList.Add(item.Item1);
@@ -427,6 +244,8 @@ public sealed partial class MiaoServerService : BackgroundService
 
     #region tons of broadcasting
 
+    // TODO avoid closure in predicate
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Task BroadcastAsync(IContextlessPacket packet)
         => BroadcastToAsync(packet, _ => true);
@@ -439,122 +258,46 @@ public sealed partial class MiaoServerService : BackgroundService
     public Task BroadcastContextuallyOthersAsync(IContextualPacket packet, int selfID)
         => BroadcastContextuallyToAsync(
             packet,
-            ServerState.AllPlayers.Select(p => p.Value.Connection),
+            serverState.Players.Select(p => p.Value),
             c => c.ID != selfID
         );
 
-    /// <inheritdoc cref="BroadcastToAsync(IPacket, IEnumerable{MiaoClientConnection}, Predicate{MiaoClientConnection}, int)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Task BroadcastToAsync(IContextlessPacket packet, Predicate<MiaoClientConnection> predicate)
-    {
-        var players = serverState.AllPlayers;
-        return BroadcastToAsync(packet, players.Select(p => p.Value.Connection), predicate, players.Count);
-    }
+        => BroadcastToAsync(packet, serverState.Players.Select(p => p.Value), predicate);
 
-    /// <inheritdoc cref="BroadcastToAsync(IPacket, IEnumerable{MiaoClientConnection}, Predicate{MiaoClientConnection}, int)"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Task BroadcastToOthersAsync(IContextlessPacket packet, Predicate<MiaoClientConnection> predicate, int selfID)
-    {
-        var players = serverState.AllPlayers;
-        return BroadcastToAsync(
+        => BroadcastToAsync(
             packet,
-            players.Select(p => p.Value.Connection),
-            c => c.ID != selfID && predicate(c),
-            players.Count
+            serverState.Players.Select(p => p.Value),
+            c => c.ID != selfID && predicate(c)
         );
-    }
-
-    /// <inheritdoc cref="BroadcastToAsync(IPacket, IEnumerable{MiaoClientConnection}, Predicate{MiaoClientConnection}, int)"/>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Task BroadcastToAsync(IContextlessPacket packet, ServerChannel channel, Predicate<MiaoClientConnection> predicate)
-    {
-        Debug.Assert(serverState.AllChannels.ContainsValue(channel));
-
-        var players = channel.Players;
-        return BroadcastToAsync(packet, players.Select(p => p.Value.Connection), predicate, players.Count);
-    }
-
-    /// <inheritdoc cref="BroadcastToAsync(IPacket, IEnumerable{MiaoClientConnection}, Predicate{MiaoClientConnection}, int)"/>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Task BroadcastToOthersAsync(
-        IContextlessPacket packet,
-        ServerChannel channel,
-        Predicate<MiaoClientConnection> predicate,
-        int selfID
-    )
-    {
-        Debug.Assert(serverState.AllChannels.ContainsValue(channel));
-
-        var players = channel.Players;
-        return BroadcastToAsync(
-            packet,
-            players.Select(p => p.Value.Connection),
-            c => c.ID != selfID && predicate(c),
-            players.Count
-        );
-    }
 
     public Task BroadcastContextuallyToOthersAsync(
         IContextualPacket packet,
         Predicate<MiaoClientConnection> predicate,
         int selfID
-    )
-    {
-        return BroadcastContextuallyToAsync(
+    ) => BroadcastContextuallyToAsync(
             packet,
-            ServerState.AllPlayers.Select(p => p.Value.Connection),
+            serverState.Players.Select(p => p.Value),
             c => c.ID != selfID && predicate(c)
         );
-    }
 
-    public Task BroadcastContextuallyToOthersAsync(
+    public Task BroadcastContextuallyToAsync(
         IContextualPacket packet,
-        ServerChannel channel,
-        Predicate<MiaoClientConnection> predicate,
-        int selfID
-    )
-    {
-        Debug.Assert(serverState.AllChannels.ContainsValue(channel));
-
-        return BroadcastContextuallyToAsync(
+        Predicate<MiaoClientConnection> predicate
+    ) => BroadcastContextuallyToAsync(
             packet,
-            channel.Players.Select(p => p.Value.Connection),
-            c => c.ID != selfID && predicate(c)
+            serverState.Players.Select(p => p.Value),
+            predicate
         );
-    }
 
-    /// <summary>
-    /// Broadcast a packet to all clients that meet <paramref name="predicate"/>.
-    /// All predicate will be tested before the first <see langword="await"/>.
-    /// </summary>
     private static Task BroadcastToAsync(
         IContextlessPacket packet,
         IEnumerable<MiaoClientConnection> connections,
-        Predicate<MiaoClientConnection> predicate,
-        int connectionsCount
-    )
-    {
-        SerializedPacket serializedPacket = new(packet, connectionsCount);
-        List<Task>? bounded = null;
-        int notMeetCount = 0;
-        foreach (var connection in connections)
-        {
-            if (predicate(connection))
-            {
-                bool tryResult = connection.TryQueuePacket(serializedPacket);
-                if (!tryResult)
-                    (bounded ??= new()).Add(connection.QueuePacketAsync(serializedPacket).AsTask());
-            }
-            else
-            {
-                notMeetCount++;
-            }
-        }
-        serializedPacket.OnConsumed(notMeetCount);
-        if (bounded is not null)
-            return Task.WhenAll(bounded);
-        return Task.CompletedTask;
-    }
+        Predicate<MiaoClientConnection> predicate
+    ) => BroadcastContextuallyToAsync(packet, connections, predicate);
 
     private static Task BroadcastContextuallyToAsync(
         IContextualPacket packet,

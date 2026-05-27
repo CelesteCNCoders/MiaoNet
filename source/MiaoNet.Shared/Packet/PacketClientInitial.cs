@@ -20,20 +20,11 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
             PlayerGlobalFlags globalFlags
         )
         {
-            PlayerID = playerID;
             ChannelID = channelID;
+            PlayerID = playerID;
             PlayerInfo = playerInfo;
             Location = location;
             GlobalFlags = globalFlags;
-        }
-
-        public static Player Deserialize(ref RefBinaryReader reader)
-        {
-            return new(
-                reader.ReadInt32(), reader.ReadInt32(),
-                reader.Read<PlayerInfo>(), reader.Read<PlayerLocation>(),
-                (PlayerGlobalFlags)reader.ReadUInt16()
-            );
         }
 
         public void Serialize(ref RefBinaryWriter writer)
@@ -44,6 +35,37 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
             writer.Write(Location);
             writer.Write((ushort)GlobalFlags);
         }
+
+        public static Player Deserialize(ref RefBinaryReader reader)
+        {
+            return new(
+                reader.ReadInt32(), reader.ReadInt32(),
+                reader.Read<PlayerInfo>(), reader.Read<PlayerLocation>(),
+                (PlayerGlobalFlags)reader.ReadUInt16()
+            );
+        }
+    }
+
+    public readonly struct Channel : IRefBinarySerializable<Channel>
+    {
+        public int ID { get; }
+
+        public ChannelInfo ChannelInfo { get; }
+
+        public Channel(int id, ChannelInfo channelInfo)
+        {
+            ID = id;
+            ChannelInfo = channelInfo;
+        }
+
+        public void Serialize(ref RefBinaryWriter writer)
+        {
+            writer.Write(ID);
+            writer.Write(ChannelInfo);
+        }
+
+        public static Channel Deserialize(ref RefBinaryReader reader)
+            => new(reader.ReadInt32(), reader.Read<ChannelInfo>());
     }
 
     public int ChannelID { get; }
@@ -52,14 +74,14 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
 
     public PlayerInfo SelfPlayerInfo { get; }
 
-    public IReadOnlyCollection<ChannelInfo> Channels { get; }
-
+    public IReadOnlyCollection<Channel> Channels { get; }
+    
     public IReadOnlyCollection<Player> Players { get; }
 
     public PacketClientInitial(
         int channelID, int playerID,
         PlayerInfo selfPlayerInfo,
-        IReadOnlyCollection<ChannelInfo> channels,
+        IReadOnlyCollection<Channel> channels,
         IReadOnlyCollection<Player> players
     )
     {
@@ -70,11 +92,11 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
         Players = players;
     }
 
-    static PacketClientInitial IRefBinarySerializable<PacketClientInitial>.Deserialize(ref RefBinaryReader reader)
-        => new(
+    public static PacketClientInitial Deserialize(ref RefBinaryReader reader)
+        => new PacketClientInitial(
             reader.ReadInt32(), reader.ReadInt32(),
             reader.Read<PlayerInfo>(),
-            reader.ReadArray<ChannelInfo>(),
+            reader.ReadArray<Channel>(),
             reader.ReadArray<Player>()
         );
 

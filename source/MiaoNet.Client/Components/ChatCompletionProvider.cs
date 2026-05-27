@@ -83,19 +83,24 @@ public sealed class ChatCompletionProvider : ICompletionProvider
                 var segType = matchedCommand.Segments[ind];
                 string part = ind >= segments.Count ? string.Empty : segments[ind];
                 int remove = part.Length;
+                var state = context.ClientState!;
                 switch (segType)
                 {
-                case CommandSegmentType.Player:
-                    return from pair in context.ClientState!.Players
+                case CommandSegmentType.PlayerSameChannel:
+                    return from pair in state.SelfChannel.Players
                            let i = pair.Value.Info
                            where i.Name.Contains(part, StringComparison.CurrentCultureIgnoreCase)
                            select new Completion(i.Name, i.DisplayName, remove);
                 case CommandSegmentType.PlayerSameMap:
-                    return from pair in context.ClientState!.Players
+                    return from pair in state.Players
                            let i = pair.Value.Info
                            where i.Name.Contains(part, StringComparison.CurrentCultureIgnoreCase)
-                           where pair.Value.ShouldSyncFrom(context.ClientState.Self)
+                           where pair.Value.ShouldSyncFrom(state.Self)
                            select new Completion(i.Name, i.DisplayName, remove);
+                case CommandSegmentType.Channel:
+                    return from pair in state.Channels
+                           let i = pair.Value.Info
+                           select new Completion(i.Name, i.Name, remove);
                 }
             }
         }

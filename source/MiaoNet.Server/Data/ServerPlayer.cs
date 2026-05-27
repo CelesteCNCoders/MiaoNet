@@ -3,20 +3,18 @@ using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
 
-[DebuggerDisplay("{Info} at {location}")]
+[DebuggerDisplay("{Info} at {Location}")]
 public sealed class ServerPlayer
 {
     private readonly TokenBucket fireworksTokenBucket;
 
-    private PlayerLocation location;
-
-    public ServerChannel Channel { get; }
+    public ServerChannel Channel { get; set; }
 
     public int ID { get; }
 
-    public PlayerInfo Info { get; set; }
+    public PlayerInfo Info { get; }
 
-    public ref PlayerLocation Location => ref location;
+    public PlayerLocation Location { get; set; }
 
     public PlayerState? State { get; set; }
 

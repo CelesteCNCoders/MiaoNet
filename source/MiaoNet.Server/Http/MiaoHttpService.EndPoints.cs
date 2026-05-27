@@ -25,21 +25,21 @@ public partial class MiaoHttpService
             }
             if (int.TryParse(query["cid"], CultureInfo.InvariantCulture, out int cid))
             {
-                if (!miaoServerService.ServerState.AllPlayers.TryGetValue(cid, out var client))
+                if (!miaoServerService.Players.TryGetValue(cid, out var client))
                 {
                     context.Response.StatusCode = (int)HttpStatusCode.NotFound;
                     break;
                 }
-                await client.Connection.DisconnectAsync(DisconnectReason.Kicked, reason);
+                await client.DisconnectAsync(DisconnectReason.Kicked, reason);
                 context.Response.StatusCode = (int)HttpStatusCode.NoContent;
                 break;
             }
             else if (int.TryParse(query["aid"], CultureInfo.InvariantCulture, out int aid))
             {
-                foreach (var p in miaoServerService.ServerState.AllPlayers)
+                foreach (var p in miaoServerService.Players)
                 {
                     if (p.Value.Player.Info.AuthID == aid)
-                        await p.Value.Connection.DisconnectAsync(DisconnectReason.Kicked, reason);
+                        await p.Value.DisconnectAsync(DisconnectReason.Kicked, reason);
                 }
                 context.Response.StatusCode = (int)HttpStatusCode.NoContent;
                 break;
@@ -62,21 +62,19 @@ public partial class MiaoHttpService
     {
         context.Response.ContentType = MediaTypeNames.Application.Json;
 
-        var state = miaoServerService.ServerState;
-
 #pragma warning disable IDE0037
         var response = new
         {
-            PlayersCount = state.AllPlayers.Count,
-            Channels = state.AllChannels.Select(static c => new
+            PlayersCount = miaoServerService.Players.Count,
+            Channels = miaoServerService.Channels.Select(static c => new
             {
                 ID = c.Key,
-                Name = c.Value.StateInfo.Name,
-                Players = c.Value.Players.Select(static p => new
+                Name = c.Value.Info.Name,
+                Players = c.Value.Players.Select(static c => new
                 {
-                    ID = p.Key,
-                    Name = p.Value.Player.Info.Name,
-                    Location = p.Value.Player.Location.ToString()
+                    ID = c.ID,
+                    Name = c.Player.Info.Name,
+                    Location = c.Player.Location.ToString()
                 })
             })
         };
@@ -95,9 +93,7 @@ public partial class MiaoHttpService
             return;
         }
 
-        var players = miaoServerService.ServerState.AllPlayers;
-        foreach (var (_, (p, c)) in players)
-            await c.QueuePacketAsync(new PacketChatMessage(DateTime.UtcNow, ChatMessageType.Server, null, message));
+        await miaoServerService.BroadcastAsync(new PacketChatMessage(DateTime.UtcNow, ChatMessageType.Server, null, message));
 
         context.Response.StatusCode = (int)HttpStatusCode.NoContent;
     }
@@ -117,7 +113,7 @@ public partial class MiaoHttpService
         var values = miaoMetricsService.Get();
         var ret = new
         {
-            OnlinePlayersCount = miaoServerService.ServerState.AllPlayers.Count,
+            OnlinePlayersCount = miaoServerService.Players.Count,
             Metrics = values,
             GC = new
             {

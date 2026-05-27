@@ -1,5 +1,6 @@
 ﻿using System.Buffers.Binary;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Security;
@@ -12,12 +13,12 @@ namespace MiaoNet.MockClient;
 
 public sealed class MockInstance : IPacketSerializationContext, IDisposable
 {
-    private static readonly Version ClientVersion = new(0, 4, 3);
+    private static readonly Version ClientVersion = new(0, 4, 4);
 
     private Vector2 position;
 
     private ConcurrentQueue<IContextualPacket> packetQueue;
-    private TeeStream teeStream = null!;
+    private Stream stream = null!;
     private readonly string name;
 
     public PooledStringManager PooledStringManager { get; }
@@ -114,7 +115,8 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
         NetworkStream netStream = new(socket);
         await netStream.WriteAsync(Connection.HandshakeHead);
         var sslStream = new SslStream(netStream, false, (_, _, _, _) => true);
-        teeStream = new(sslStream, new FileStream($"{name}.bin", FileMode.Create, FileAccess.Write));
+        //stream = new TeeStream(sslStream, new FileStream($"{name}.bin", FileMode.Create, FileAccess.Write));
+        stream = sslStream;
         SslClientAuthenticationOptions options = new()
         {
             TargetHost = host,
@@ -136,16 +138,16 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
         BinaryPrimitives.WriteUInt16LittleEndian(span[0..2], major);
         BinaryPrimitives.WriteUInt16LittleEndian(span[2..4], minor);
         BinaryPrimitives.WriteUInt16LittleEndian(span[4..6], build);
-        await teeStream.WriteAsync(buffer);
+        await stream.WriteAsync(buffer);
 
         byte[] passedBuffer = new byte[1];
-        await teeStream.ReadExactlyAsync(passedBuffer);
+        await stream.ReadExactlyAsync(passedBuffer);
         bool passed = passedBuffer[0] != 0;
         if (passed)
             return null;
 
         byte[] serverVersionBuffer = new byte[VersionLength];
-        await teeStream.ReadExactlyAsync(serverVersionBuffer);
+        await stream.ReadExactlyAsync(serverVersionBuffer);
         var serverSpan = serverVersionBuffer.AsSpan();
         ushort majorServer = BinaryPrimitives.ReadUInt16LittleEndian(serverSpan[0..2]);
         ushort minorServer = BinaryPrimitives.ReadUInt16LittleEndian(serverSpan[2..4]);
@@ -162,16 +164,16 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
         ushort size = (ushort)(ms.Position - 2);
         ms.Seek(0, SeekOrigin.Begin);
         writer.Write(size);
-        await teeStream.WriteAsync(ms.GetBuffer().AsMemory().Slice(0, size + 2));
+        await stream.WriteAsync(ms.GetBuffer().AsMemory().Slice(0, size + 2));
     }
 
     private async Task<HandshakeAckData> ReceiveHandshakeAckAsync()
     {
         byte[] head = new byte[2];
-        await teeStream.ReadExactlyAsync(head);
+        await stream.ReadExactlyAsync(head);
         ushort size = BinaryPrimitives.ReadUInt16LittleEndian(head);
         byte[] payload = new byte[size];
-        await teeStream.ReadExactlyAsync(payload);
+        await stream.ReadExactlyAsync(payload);
         RefBinaryReader reader = new(payload);
         HandshakeAckData data = reader.Read<HandshakeAckData>();
         return data;
@@ -192,8 +194,8 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
                 ms.Seek(0, SeekOrigin.Begin);
                 writer.Write(size);
                 writer.Write(type);
-                await teeStream.WriteAsync(ms.GetBuffer().AsMemory().Slice(0, size + 4), token);
-                await teeStream.FlushAsync(token);
+                await stream.WriteAsync(ms.GetBuffer().AsMemory().Slice(0, size + 4), token);
+                await stream.FlushAsync(token);
             }
             await Task.Delay(100, token);
         }
@@ -204,14 +206,23 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
         byte[] headBuffer = new byte[4];
         while (true)
         {
-            await teeStream.ReadAtLeastAsync(headBuffer, 4, true, token);
+            await stream.ReadAtLeastAsync(headBuffer, 4, true, token);
             ushort size = BinaryPrimitives.ReadUInt16LittleEndian(headBuffer.AsSpan()[0..2]);
             ushort type = BinaryPrimitives.ReadUInt16LittleEndian(headBuffer.AsSpan()[2..4]);
             byte[] payloadBuffer = new byte[size];
-            await teeStream.ReadAtLeastAsync(payloadBuffer, size, true, token);
+            await stream.ReadAtLeastAsync(payloadBuffer, size, true, token);
             RefBinaryReader reader = new(payloadBuffer);
             var readHandler = PacketRegistry.GetPacketReader(type);
-            var packet = readHandler(ref reader, this);
+            IContextualPacket packet;
+            try
+            {
+                packet = readHandler(ref reader, this);
+            }
+            catch (Exception)
+            {
+                Log($"Read failed, raw payload: {Convert.ToBase64String(payloadBuffer)}");
+                throw;
+            }
             HandlePacket(packet);
         }
     }
@@ -232,6 +243,6 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
 
     public void Dispose()
     {
-        ((IDisposable)teeStream).Dispose();
+        ((IDisposable)stream).Dispose();
     }
 }

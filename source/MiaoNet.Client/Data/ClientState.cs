@@ -28,7 +28,7 @@ public sealed class ClientState
         channels = new();
 
         foreach (var channel in clientInitial.Channels)
-            channels.Add(channel.ID, new OnlineChannel(channel.ID, channel.Name));
+            channels.Add(channel.ID, new OnlineChannel(channel.ID, channel.ChannelInfo));
         foreach (var player in clientInitial.Players)
         {
             var p = AddNewPlayer(player.ChannelID, player.PlayerID, player.PlayerInfo, player.GlobalFlags);
@@ -49,12 +49,49 @@ public sealed class ClientState
         return player;
     }
 
+    public OnlineChannel OnNewChannelCreated(int channelID, ChannelInfo channelInfo)
+    {
+        var channel = new OnlineChannel(channelID, channelInfo);
+        channels.Add(channelID, channel);
+        return channel;
+    }
+
     public void OnPlayerLeft(int playerID)
     {
         var player = players[playerID];
         var channel = player.Channel;
         channel.Players.Remove(playerID);
         players.Remove(playerID);
+    }
+
+    public void OnChannelRemoved(int channelID)
+    {
+        var channel = channels[channelID];
+        SafeGuard.Assert(channel.Players.Count == 0);
+        channels.Remove(channelID);
+    }
+
+    public void OnSelfChannelMove(int channelID, out OnlineChannel previous, out OnlineChannel current)
+    {
+        var c = GetChannel(channelID);
+        previous = Self.Channel;
+        Self.Channel = c;
+        current = c;
+        return;
+    }
+
+    public void OnPlayerChannelMove(int playerID, int channelID, out OnlinePlayer player, out OnlineChannel previous, out OnlineChannel current)
+    {
+        player = GetPlayer(playerID);
+        previous = player.Channel;
+        current = GetChannel(channelID);
+
+        bool result = player.Channel.Players.Remove(player.ID);
+        SafeGuard.Assert(result);
+        player.Channel = current;
+        current.Players.Add(player.ID, player);
+
+        return;
     }
 
     public bool TryGetPlayer(int playerID, [NotNullWhen(true)] out OnlinePlayer? player)
@@ -79,6 +116,9 @@ public sealed class ClientState
         player = null;
         return false;
     }
+
+    public OnlineChannel GetChannel(int channelID)
+        => channels[channelID];
 
     public OnlinePlayer GetPlayerOrSelf(int playerID)
     {

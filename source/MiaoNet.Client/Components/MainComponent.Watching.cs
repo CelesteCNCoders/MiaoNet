@@ -35,11 +35,11 @@ public sealed partial class MainComponent
 
             var selfLoc = ClientState.Self.Location;
             var otherLoc = playerWatching.Location;
-            if (selfLoc.MapRoom != otherLoc.MapRoom && !otherLoc.IsInDebugMap && level.transition is null)
+            if (selfLoc.Room != otherLoc.Room && !otherLoc.IsInDebugMap && level.transition is null)
             {
                 var otherPos = playerWatching.State.Position;
                 var session = level.Session;
-                var data = session.MapData.Get(otherLoc.MapRoom);
+                var data = session.MapData.Get(otherLoc.Room);
                 Vector2 newRoomSpawnPoint = data.Spawns.ClosestTo(otherPos);
                 session.RespawnPoint = newRoomSpawnPoint;
                 var p = player.Position;
