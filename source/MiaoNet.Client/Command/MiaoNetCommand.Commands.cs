@@ -194,7 +194,7 @@ partial class MiaoNetCommand
 
         string? error;
 
-        error = MatchNotSelfPlayer(context, context.Segments[0], out var player);
+        error = GetNotSelfPlayer(context, context.Segments[0], out var player);
         if (error is not null)
             return error;
 
@@ -202,7 +202,7 @@ partial class MiaoNetCommand
     }
     private static string? TeleportNoSessionTo(Context context, OnlinePlayer player)
     {
-    string? error = EnsurePlayerInExistedMap(player!, out AreaData? area);
+        string? error = EnsurePlayerInExistedMap(player!, out AreaData? area);
         if (error is not null)
             return error;
 
@@ -224,16 +224,16 @@ partial class MiaoNetCommand
 
         string? error;
 
-        error = MatchNotSelfPlayer(context, context.Segments[0], out var player);
+        error = GetNotSelfPlayer(context, context.Segments[0], out var player);
         if (error is not null)
             return error;
 
         return TeleportWithSessionTo(context, player!);
     }
-    
+
     private static string? TeleportWithSessionTo(Context context, OnlinePlayer player)
     {
-    string? error = EnsurePlayerInExistedMap(player!, out AreaData? area);
+        string? error = EnsurePlayerInExistedMap(player!, out AreaData? area);
         if (error is not null)
             return error;
 
@@ -409,13 +409,7 @@ partial class MiaoNetCommand
     private static string? HelpCommand(Context context)
     {
         string name = context.Segments[0];
-        MiaoNetCommand? command = UniqueMatcher.MatchBy(
-            Commands,
-            c => c.Aliases is null
-                ? [c.Name]
-                : c.Aliases.Append(c.Name),
-            name
-        );
+        MiaoNetCommand? command = Commands.FirstOrDefault(c => c.Name == name || c.Aliases?.Any(a => a == name) == true);
 
         if (command == null)
             return PFormat.Format(CommandHelpNotFound, name);
@@ -455,7 +449,7 @@ partial class MiaoNetCommand
         string playerName = context.Segments[0];
         string content = context.Segments[1];
 
-        string? error = MatchNotSelfPlayer(context, playerName, out OnlinePlayer? player);
+        string? error = GetNotSelfPlayer(context, playerName, out OnlinePlayer? player);
         if (error is not null)
             return error;
 
@@ -509,7 +503,7 @@ partial class MiaoNetCommand
 
     private static string? Locate(Context context)
     {
-        string? error = MatchNotSelfPlayer(context, context.Segments[0], out OnlinePlayer? player);
+        string? error = GetNotSelfPlayer(context, context.Segments[0], out OnlinePlayer? player);
         if (error is not null)
             return error;
 
@@ -526,7 +520,7 @@ partial class MiaoNetCommand
 
     private static string? Watch(Context context)
     {
-        string? error = MatchNotSelfPlayer(context, context.Segments[0], out OnlinePlayer? player);
+        string? error = GetNotSelfPlayer(context, context.Segments[0], out OnlinePlayer? player);
         if (error is not null)
             return error;
 
@@ -592,18 +586,20 @@ partial class MiaoNetCommand
 
     #region helpers
 
-    private static string? MatchNotSelfPlayer(Context context, string playerName, out OnlinePlayer? player)
+    private static string? GetNotSelfPlayer(Context context, string playerName, out OnlinePlayer? player)
     {
         player = null;
         var clientState = context.MiaoNetContext.ClientState!;
         var allPlayers = from pair in clientState.SelfChannel.Players select pair.Value;
-        var matchedPlayer = UniqueMatcher.MatchBy(allPlayers.Append(clientState.Self), p => p.Info.Name, playerName);
-        if (matchedPlayer is null)
-            return PFormat.Format(PlayerNotFound, playerName);
-        if (matchedPlayer == clientState.Self)
-            return PFormat.Format(PlayerIsSelf, matchedPlayer.Info.Name);
+        var foundPlayer = allPlayers.FirstOrDefault(p => p.Info.Name == playerName);
+        if (foundPlayer is null)
+        {
+            return clientState.Self.Info.Name == playerName
+                ? PFormat.Format(PlayerIsSelf, clientState.Self.Info.Name)
+                : PFormat.Format(PlayerNotFound, playerName);
+        }
 
-        player = matchedPlayer;
+        player = foundPlayer;
         return null;
     }
 
@@ -630,7 +626,7 @@ partial class MiaoNetCommand
         player = null;
         var clientState = context.MiaoNetContext.ClientState!;
         var allPlayers = from pair in clientState.SelfChannel.Players select pair.Value;
-        var candidates = allPlayers                                                                                                                                                                  
+        var candidates = allPlayers
             .Where(p => EnsurePlayerInExistedMap(p, out _) is null)                 // Teleportable
             .Where(p => !p.GlobalFlags.HasFlag(PlayerGlobalFlags.TakingGolden))     // Not taking golden
             .ToList();
