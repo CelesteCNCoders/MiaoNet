@@ -162,6 +162,7 @@ miaonet_command_status_player_not_found= Player "(0)" not found
 miaonet_command_status_player_not_in_map= Player "(0)" is not in a map
 miaonet_command_status_player_is_self= "(0)" is yourself!
 miaonet_command_status_player_map_missing= Map "(1)" where player "(0)" is in is missing
+miaonet_command_status_no_available_player= No player in map & not taking golden strawberry
 miaonet_command_status_channel_not_found= Channel "(0)" not found
 miaonet_command_help_title= == MiaoNet Command Help ((0)) ==
 miaonet_command_help_not_found= Command "(0)" not found
@@ -182,6 +183,7 @@ miaonet_commands_teleport_no_session_s0_description= The player that teleported 
 miaonet_commands_teleport_with_session_description= Teleport to a player and fetch their session.
 miaonet_commands_teleport_with_session_s0_name= Player
 miaonet_commands_teleport_with_session_s0_description= The player that teleported to.
+miaonet_commands_random_teleport_description= Teleport to a random player in map and isn't carrying a golden strawberry.
 miaonet_commands_whisper_description= Whipser a message to a player.
 miaonet_commands_whisper_s0_name= Player
 miaonet_commands_whisper_s0_description= The player that will be whispered to.
