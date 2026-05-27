@@ -3,8 +3,9 @@ namespace MiaoNet.Shared;
 public enum ChatMessageType : byte
 {
     Chat,
-    PrivateMessage,
     MapChat,
+    ChannelChat,
+    PrivateMessage,
     Server,
     ServerChat
 }
@@ -56,30 +57,24 @@ public sealed class PacketChatMessage : IContextlessPacket<PacketChatMessage>
 
 public sealed class PacketSendChatMessage : IContextlessPacket<PacketSendChatMessage>
 {
+    public ChatChannel ChatChannel { get; }
+
     public string Content { get; }
 
-    public PacketSendChatMessage(string content)
-        => Content = content;
+    public PacketSendChatMessage(ChatChannel chatChannel, string content)
+    {
+        ChatChannel = chatChannel;
+        Content = content;
+    }
 
     public void Serialize(ref RefBinaryWriter writer)
-        => writer.Write(Content);
+    {
+        writer.Write((byte)ChatChannel);
+        writer.Write(Content);
+    }
 
     public static PacketSendChatMessage Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadString());
-}
-
-public sealed class PacketSendMapChatMessage : IContextlessPacket<PacketSendMapChatMessage>
-{
-    public string Content { get; }
-
-    public PacketSendMapChatMessage(string content)
-        => Content = content;
-
-    public void Serialize(ref RefBinaryWriter writer)
-        => writer.Write(Content);
-
-    public static PacketSendMapChatMessage Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadString());
+        => new((ChatChannel)reader.ReadByte(), reader.ReadString());
 }
 
 public sealed class PacketSendPrivateChatMessage :

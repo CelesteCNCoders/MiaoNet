@@ -203,12 +203,21 @@ miaonet_commands_watch_description= Watch a player.
 miaonet_commands_watch_s0_name= Player
 miaonet_commands_watch_s0_description= The player to be watched.
 miaonet_commands_unwatch_description= Stop watching a player.
-miaonet_commands_map_chat_description= Send a map chat.
-miaonet_commands_map_chat_s0_name= Text
-miaonet_commands_map_chat_s0_description= Chat message.
 miaonet_commands_channel_description= Join or create a channel.
 miaonet_commands_channel_s0_name= Name
 miaonet_commands_channel_s0_description= The name of channel to join or create.
+miaonet_commands_chat_description= Set default chat channel type.
+miaonet_commands_chat_s0_name= Type
+miaonet_commands_chat_s0_description= Chat channel type (global/g channel/c map/m).
+miaonet_commands_global_chat_description= Send a global chat.
+miaonet_commands_global_chat_s0_name= Text
+miaonet_commands_global_chat_s0_description= Chat message.
+miaonet_commands_channel_chat_description= Send a channel chat.
+miaonet_commands_channel_chat_s0_name= Text
+miaonet_commands_channel_chat_s0_description= Chat message.
+miaonet_commands_map_chat_description= Send a map chat.
+miaonet_commands_map_chat_s0_name= Text
+miaonet_commands_map_chat_s0_description= Chat message.
 
 miaonet_commands_teleport_notice=
 	By default, using the Teleport command saves your current progress and switches to a temporary save file.
@@ -234,12 +243,15 @@ miaonet_commands_watch_others_watching= Player (0) is already watching others
 miaonet_commands_watch_not_same_map= You're not in map (1) where (0) in
 miaonet_commands_unwatch_none_unwatched= No player being watched currently
 miaonet_commands_unwatch_unwatched= Stop watching player (0)
+miaonet_commands_chat_chat_channel_switched= Chat channel type switched to (0)
+miaonet_commands_chat_chat_channel_type_not_found= Unknown chat channel type "(0)"
 
 miaonet_lb= [
 miaonet_rb= ]
-miaonet_chat_map_chat= {+ miaonet_lb}Map Chat{+ miaonet_rb}
 miaonet_chat_whisper_sent= {+ miaonet_lb}whisper to (0){+ miaonet_rb} (1)
 miaonet_chat_whisper_received= {+ miaonet_lb}whisper{+ miaonet_rb} (0)
+miaonet_chat_map_chat= {+ miaonet_lb}Map Chat{+ miaonet_rb}
+miaonet_chat_channel_chat= {+ miaonet_lb}Channel Chat{+ miaonet_rb}
 
 miaonet_oui_conflict_title= MiaoNet Mod Conflict
 miaonet_oui_conflict_description=

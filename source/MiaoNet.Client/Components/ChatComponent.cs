@@ -114,6 +114,10 @@ public sealed partial class ChatComponent : MiaoNetComponent
             if (!chatDisabled)
                 chatView.AddChatMessage(MiaoNetChatText.CreatePublicChat(packet.DateTime, player!, packet.Content, context.ShowAvatar));
             break;
+        case ChatMessageType.ChannelChat:
+            if (!chatDisabled)
+                chatView.AddChatMessage(MiaoNetChatText.CreateChannelChat(packet.DateTime, player!, packet.Content, context.ShowAvatar));
+            break;
         case ChatMessageType.MapChat:
             if (!chatDisabled)
                 chatView.AddChatMessage(MiaoNetChatText.CreateMapChat(packet.DateTime, player!, packet.Content, context.ShowAvatar));
@@ -251,7 +255,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     }
 
     public void SendChat(string text)
-        => context.QueuePacket(new PacketSendChatMessage(text));
+        => context.QueuePacket(new PacketSendChatMessage(MiaoNetModule.Settings.ChatChannel, text));
 
     public void AddLocalChat(ChatText message)
         => chatView.AddChatMessage(message);

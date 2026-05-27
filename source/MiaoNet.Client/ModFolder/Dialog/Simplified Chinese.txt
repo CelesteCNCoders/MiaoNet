@@ -200,12 +200,21 @@ miaonet_commands_watch_description= 观看一个玩家。
 miaonet_commands_watch_s0_name= 玩家名称
 miaonet_commands_watch_s0_description= 要观看的玩家。
 miaonet_commands_unwatch_description= 停止观看玩家。
-miaonet_commands_map_chat_description= 发送一个地图聊天。
-miaonet_commands_map_chat_s0_name= 文本
-miaonet_commands_map_chat_s0_description= 聊天内容。
 miaonet_commands_channel_description= 加入或创建一个频道。
 miaonet_commands_channel_s0_name= 频道名称
 miaonet_commands_channel_s0_description= 要加入或创建的频道名称。
+miaonet_commands_chat_description= 设置默认聊天频道类型。
+miaonet_commands_chat_s0_name= 类型
+miaonet_commands_chat_s0_description= 聊天频道类型（全局：global/g，频道：channel/c，地图: map/m）。
+miaonet_commands_global_chat_description= 发送全局聊天消息。
+miaonet_commands_global_chat_s0_name= 文本
+miaonet_commands_global_chat_s0_description= 聊天内容。
+miaonet_commands_channel_chat_description= 发送频道聊天消息。
+miaonet_commands_channel_chat_s0_name= 文本
+miaonet_commands_channel_chat_s0_description= 聊天内容。
+miaonet_commands_map_chat_description= 发送地图聊天消息。
+miaonet_commands_map_chat_s0_name= 文本
+miaonet_commands_map_chat_s0_description= 聊天内容。
 
 miaonet_commands_teleport_notice= 
 	使用 Teleport 指令默认会保存你的当前游戏进度并将存档切换至一个临时存档。
@@ -231,12 +240,15 @@ miaonet_commands_watch_others_watching= 玩家 (0) 已在观看其他玩家
 miaonet_commands_watch_not_same_map= 当前不在玩家 (0) 所在地图 (1) 中
 miaonet_commands_unwatch_none_unwatched= 当前不在观看任何玩家
 miaonet_commands_unwatch_unwatched= 停止观看玩家 (0)
+miaonet_commands_chat_chat_channel_switched= 聊天频道已切换至 (0)
+miaonet_commands_chat_chat_channel_type_not_found= 未知的聊天频道类型 "(0)"
 
 miaonet_lb= [
 miaonet_rb= ]
 miaonet_chat_whisper_sent= {+ miaonet_lb}私聊 (0){+ miaonet_rb} (1)
 miaonet_chat_whisper_received= {+ miaonet_lb}私聊{+ miaonet_rb} (0)
 miaonet_chat_map_chat= {+ miaonet_lb}地图聊天{+ miaonet_rb}
+miaonet_chat_channel_chat= {+ miaonet_lb}频道聊天{+ miaonet_rb}
 
 miaonet_oui_conflict_title= MiaoNet Mod 冲突
 miaonet_oui_conflict_description= 

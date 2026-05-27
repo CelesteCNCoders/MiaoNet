@@ -25,7 +25,6 @@ public sealed partial class MiaoServerService
         r.Register<PacketPlayerGrabPlayer>(HandlePacketAsync);
         r.Register<PacketPlayerGrabJumpOut>(HandlePacketAsync);
         r.Register<PacketCreateFireworks>(HandlePacketAsync);
-        r.Register<PacketSendMapChatMessage>(HandlePacketAsync);
     }
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerFrame packet)
@@ -342,29 +341,35 @@ public sealed partial class MiaoServerService
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketSendChatMessage packet)
     {
-        logger.LogInformation(AppEvents.GameChat, "{player}: {msg}", connection.Player.Info, packet.Content);
+        logger.LogInformation(AppEvents.GameChat, "[{channel}] {player}: {msg}", packet.ChatChannel, connection.Player.Info, packet.Content);
         if (packet.Content.Length > 64)
         {
             logger.LogWarning(AppEvents.GameChat, "{player} is sending a large chat!", connection.Player.Info);
             await connection.DisconnectAsync(DisconnectReason.Kicked, "Chat too long.");
             return;
         }
-        await BroadcastAsync(new PacketChatMessage(DateTime.UtcNow, ChatMessageType.Chat, connection.Player.ID, packet.Content));
-    }
-
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketSendMapChatMessage packet)
-    {
-        logger.LogInformation(AppEvents.GameChat, "{player}: {msg}", connection.Player.Info, packet.Content);
-        if (packet.Content.Length > 64)
+        ChatMessageType type = packet.ChatChannel switch
         {
-            logger.LogWarning(AppEvents.GameChat, "{player} is sending a large chat!", connection.Player.Info);
-            await connection.DisconnectAsync(DisconnectReason.Kicked, "Chat too long.");
-            return;
+            ChatChannel.Global => ChatMessageType.Chat,
+            ChatChannel.Channel => ChatMessageType.ChannelChat,
+            ChatChannel.Map => ChatMessageType.MapChat,
+            _ => ChatMessageType.Chat
+        };
+        var toSend = new PacketChatMessage(DateTime.UtcNow, type, connection.Player.ID, packet.Content);
+        switch (type)
+        {
+        case ChatMessageType.Chat:
+            await BroadcastAsync(toSend);
+            break;
+        case ChatMessageType.ChannelChat:
+            await BroadcastToAsync(toSend, connection.Player.Channel.Players, _ => true);
+            break;
+        case ChatMessageType.MapChat:
+            await BroadcastToAsync(toSend, connection.Player.Channel.Players, c => c.Player.Location.Map == connection.Player.Location.Map);
+            break;
+        default:
+            goto case ChatMessageType.Chat;
         }
-        await BroadcastToAsync(
-            new PacketChatMessage(DateTime.UtcNow, ChatMessageType.MapChat, connection.Player.ID, packet.Content),
-            con => con.PlayerShouldSyncFrom(connection)
-        );
     }
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketSendEmote packet)

@@ -51,8 +51,6 @@ using MiaoNet.Shared;
     typeof(PacketCreateFireworks),
     typeof(PacketPlayerNotification<PacketCreateFireworks>),
 
-    typeof(PacketSendMapChatMessage),
-
     typeof(PacketPlayerChannelMove),
     typeof(PacketPlayerChannelMovedResponse),
     typeof(PacketPlayerChannelMovedNotification),

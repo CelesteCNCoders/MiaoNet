@@ -10,5 +10,7 @@ public enum CommandSegmentType : byte
     Player,
     PlayerSameChannel,
     PlayerSameMap,
-    Channel
+    Channel,
+    ChatChannelType,
+    CommandName
 }

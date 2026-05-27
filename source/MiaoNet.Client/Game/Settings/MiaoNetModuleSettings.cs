@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Input;
 using YamlDotNet.Serialization;
 
@@ -212,6 +213,9 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
         get;
         set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
     }
+
+    [YamlIgnore]
+    public ChatChannel ChatChannel { get; set; } = ChatChannel.Global;
 
     #endregion
 
