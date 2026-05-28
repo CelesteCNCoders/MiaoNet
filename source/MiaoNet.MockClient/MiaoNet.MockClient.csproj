@@ -14,4 +14,8 @@
              LinkBase="0-Shared" />
   </ItemGroup>
 
+	<PropertyGroup>
+		<AnalysisModeGlobalization>None</AnalysisModeGlobalization>
+	</PropertyGroup>
+
 </Project>

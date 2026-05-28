@@ -1,12 +1,20 @@
 namespace MiaoNet.Shared;
 
-public sealed class PlayerGraphicsInfo : IRefBinarySerializable<PlayerGraphicsInfo>
+// TODO this is not actually sent currently
+// it should be used when it comes to SkinSyncing
+public sealed class PlayerGraphicsInfo : IRefBinarySerializable<PlayerGraphicsInfo>, ICloneable
 {
-    public struct HairInfo(byte length, Color color) : IRefBinarySerializable<HairInfo>
+    public readonly struct HairInfo : IRefBinarySerializable<HairInfo>
     {
-        public byte Length { get; set; } = length;
+        public byte Length { get; }
 
-        public Color Color { get; set; } = color;
+        public Color Color { get; }
+
+        public HairInfo(byte length, Color color)
+        {
+            Length = length;
+            Color = color;
+        }
 
         public static HairInfo Deserialize(ref RefBinaryReader reader)
             => new(reader.ReadByte(), reader.ReadColor());
@@ -44,8 +52,12 @@ public sealed class PlayerGraphicsInfo : IRefBinarySerializable<PlayerGraphicsIn
         HairInfo dash2HairInfo,
         HairInfo featherHairInfo
     )
-        => (Dash0HairInfo, Dash1HairInfo, Dash2HairInfo, FeatherHairInfo) =
-           (dash0HairInfo, dash1HairInfo, dash2HairInfo, featherHairInfo);
+    {
+        Dash0HairInfo = dash0HairInfo;
+        Dash1HairInfo = dash1HairInfo;
+        Dash2HairInfo = dash2HairInfo;
+        FeatherHairInfo = featherHairInfo;
+    }
 
     public void Serialize(ref RefBinaryWriter writer)
     {
@@ -70,4 +82,10 @@ public sealed class PlayerGraphicsInfo : IRefBinarySerializable<PlayerGraphicsIn
         2 => Dash2HairInfo,
         > 2 => Dash2HairInfo
     };
+
+    public PlayerGraphicsInfo Clone() 
+        => new(Dash0HairInfo, Dash1HairInfo, Dash2HairInfo, FeatherHairInfo);
+
+    object ICloneable.Clone()
+        => Clone();
 }

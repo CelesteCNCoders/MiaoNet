@@ -13,9 +13,10 @@ public static class Program
 
         for (int i = 0; i < count; i++)
         {
-            string name = GenerateRandomString();
+            string name = GenerateRandomString(Random.Shared.Next(4, 14));
             Console.WriteLine($"Created client {name}");
             instances.Add(new MockInstance(name));
+            //Thread.Sleep(500);
         }
 
         Console.WriteLine("Press enter to exit...");

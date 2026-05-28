@@ -19,10 +19,12 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     public const int UdpBufferSize = 1344;
     public const int MaxPacketPartSize = 4096;
     public const int PacketChannelSize = 64;
+    public const int PacketBatchSize = 1344;
 
     // TODO timeout of request
     public delegate Task ResponseHandler(PacketResponse response);
     public delegate Task ResponseHandler<in TResponse>(TResponse response) where TResponse : PacketResponse;
+
     private int currentRequestID;
     private readonly ConcurrentDictionary<int, ResponseHandler> pendingRequests;
 
@@ -34,36 +36,36 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     private readonly CancellationTokenSource cts;
     private readonly Pipe pipe;
 
-    public int ID { get; private set; }
+    public int ID { get; }
 
-    public ServerPlayer Player { get; private set; }
+    public ServerPlayer Player { get; }
 
     public PooledStringManager PooledStringManager { get; }
 
-    private readonly Channel<(SerializedPacket?, IContextualPacket?)> sendChannel;
+    private readonly Channel<IContextualPacket> sendChannel;
 
     // TODO refactor
     public MiaoClientConnection(
-        int id, INetworkConnection networkConnection,
-        ServerPlayer onlinePlayer,
+        INetworkConnection networkConnection,
+        ServerPlayer serverPlayer,
         ILogger<MiaoClientConnection> logger,
         MiaoServerService server,
         MiaoMetricsService metricsService
     )
     {
-        ID = id;
         this.logger = logger;
         this.server = server;
         this.metricsService = metricsService;
         this.networkConnection = networkConnection;
-        Player = onlinePlayer;
+        ID = serverPlayer.ID;
+        Player = serverPlayer;
 
         cts = new CancellationTokenSource();
         pipe = new();
         pendingRequests = new();
 
         UnboundedChannelOptions options = new() { SingleReader = true };
-        sendChannel = Channel.CreateUnbounded<(SerializedPacket?, IContextualPacket?)>(options);
+        sendChannel = Channel.CreateUnbounded<IContextualPacket>(options);
         PooledStringManager = new(KnownPooledStrings.All);
     }
 
@@ -76,11 +78,27 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
         try
         {
-            await Task.WhenAll(receivingTask, processingTask, sendingTask);
+            Task completed = await Task.WhenAny(receivingTask, processingTask, sendingTask);
+            await cts.CancelAsync();
+            //sendChannel.Writer.Complete();
+            await completed;
+        }
+        catch (IOException ioe)
+        when (ioe.InnerException is SocketException { SocketErrorCode: SocketError.ConnectionReset or SocketError.ConnectionAborted } e)
+        {
+            logger.LogInformation(AppEvents.Connection, "Connection aborted, id {id}.", ID);
+        }
+        catch (OperationCanceledException)
+        {
+            networkConnection.Shutdown();
+            logger.LogDebug(AppEvents.Connection, "Connection id {id} handling cancelled.", ID);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(AppEvents.Connection, e, "Exception when handling connection id {id}.", ID);
         }
         finally
         {
-            networkConnection.Shutdown();
             networkConnection.Dispose();
             logger.LogInformation(AppEvents.Connection, "Connection id {id} closed.", ID);
         }
@@ -95,16 +113,10 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     #region Packet
 
     public ValueTask QueuePacketAsync(IContextualPacket packet)
-        => sendChannel.Writer.WriteAsync((null, packet));
-
-    public ValueTask QueuePacketAsync(SerializedPacket packet)
-        => sendChannel.Writer.WriteAsync((packet, null));
+        => sendChannel.Writer.WriteAsync(packet);
 
     public bool TryQueuePacket(IContextualPacket packet)
-        => sendChannel.Writer.TryWrite((null, packet));
-
-    public bool TryQueuePacket(SerializedPacket packet)
-        => sendChannel.Writer.TryWrite((packet, null));
+        => sendChannel.Writer.TryWrite(packet);
 
     // TODO maybe we can add a UserParam parameter to avoid closure
     // TODO timeout
@@ -147,121 +159,73 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     private async Task HandleClientReceivingAsync(CancellationToken token)
     {
         var pipeWriter = pipe.Writer;
-        try
+        while (true)
         {
-            while (true)
-            {
-                var mem = pipeWriter.GetMemory(TcpBufferSize);
-                int received = await networkConnection.Stream.ReadAsync(mem, token);
-                if (received is 0 || token.IsCancellationRequested)
-                    break;
+            var mem = pipeWriter.GetMemory(TcpBufferSize);
+            int received = await networkConnection.Stream.ReadAsync(mem, token);
+            if (received is 0 || token.IsCancellationRequested)
+                break;
 
-                pipeWriter.Advance(received);
+            pipeWriter.Advance(received);
 
-                FlushResult flushResult = await pipeWriter.FlushAsync(token);
-                if (flushResult.IsCompleted)
-                    break;
-            }
+            FlushResult flushResult = await pipeWriter.FlushAsync(token);
+            if (flushResult.IsCompleted)
+                break;
         }
-        catch (IOException ioe)
-        when (ioe.InnerException is SocketException { SocketErrorCode: SocketError.ConnectionReset or SocketError.ConnectionAborted } e)
-        {
-            logger.LogInformation(AppEvents.Connection, "Connection aborted, id {id}.", ID);
-            await pipeWriter.CompleteAsync();
-        }
-        catch (OperationCanceledException)
-        {
-            logger.LogTrace(AppEvents.Connection, "Connection id {id} receiving cancelled.", ID);
-            await pipeWriter.CompleteAsync();
-        }
-        catch (Exception e)
-        {
-            logger.LogError(AppEvents.Connection, e, "Exception when receiving from id {id}.", ID);
-            await pipeWriter.CompleteAsync(e);
-        }
-        finally
-        {
-            cts.Cancel();
-        }
+        await pipeWriter.CompleteAsync();
+        logger.LogDebug("Receiving task of id {id} finished.", ID);
     }
 
     private async Task HandleClientProcessingAsync(CancellationToken token)
     {
         var pipeReader = pipe.Reader;
-        try
+        while (true)
         {
-            while (true)
-            {
-                var result = await pipeReader.ReadAsync(token);
-                var oldBuffer = result.Buffer;
-                var buffer = result.Buffer;
-                while (TryParsePacket(ref buffer, out IContextualPacket? packet, this))
-                {
-                    metricsService.RecordPacketTcpDownload((int)(oldBuffer.Length - buffer.Length));
-                    await server.HandlePacketAsync(this, packet);
-                }
+            var result = await pipeReader.ReadAsync(token);
+            if (result.IsCompleted)
+                break;
 
-                pipeReader.AdvanceTo(buffer.Start, buffer.End);
-                if (result.IsCompleted)
-                {
-                    await pipeReader.CompleteAsync();
-                    return;
-                }
+            var oldBuffer = result.Buffer;
+            var buffer = result.Buffer;
+            while (TryParsePacket(ref buffer, out IContextualPacket? packet, this))
+            {
+                metricsService.RecordPacketTcpDownload((int)(oldBuffer.Length - buffer.Length));
+                await server.HandlePacketAsync(this, packet);
+            }
+
+            pipeReader.AdvanceTo(buffer.Start, buffer.End);
+            if (result.IsCompleted)
+            {
+                await pipeReader.CompleteAsync();
+                break;
             }
         }
-        catch (OperationCanceledException)
-        {
-            logger.LogTrace(AppEvents.Connection, "Connection id {id} processing cancelled.", ID);
-            await pipeReader.CompleteAsync();
-        }
-        catch (Exception e)
-        {
-            logger.LogError(AppEvents.Connection, e, "Exception when processing id: {id}.", ID);
-            await pipeReader.CompleteAsync(e);
-        }
-        finally
-        {
-            cts.Cancel();
-        }
+        await pipeReader.CompleteAsync();
+        logger.LogDebug("Processing task of id {id} finished.", ID);
     }
 
     private async Task HandleClientSendingAsync(CancellationToken token)
     {
+        // TODO avoid using MemoryStream
+        MemoryStream ms = new(512);
         var channelReader = sendChannel.Reader;
-        try
+        while (await channelReader.WaitToReadAsync(token))
         {
-            await foreach (var (s, p) in channelReader.ReadAllAsync(token))
-            {
-                var packet = s is not null ? s : new SerializedPacket(p!, this);
-                await networkConnection.Stream.WriteAsync(packet.ArraySegment, token);
-                metricsService.RecordPacketTcpUpload(packet.ArraySegment.Count);
-                // TODO packet is not always "consumed"
-                packet.OnConsumed();
-            }
+            while (channelReader.TryRead(out var packet) && ms.Position < PacketBatchSize)
+                WritePacket(ms, packet, this);
+
+            int size = checked((int)ms.Position);
+            var buffer = ms.GetBuffer().AsMemory(0, size);
+
+            await networkConnection.Stream.WriteAsync(buffer, token);
+            metricsService.RecordPacketTcpUpload(size);
+
+            ms.Seek(0, SeekOrigin.Begin);
         }
-        catch (OperationCanceledException)
-        {
-            logger.LogTrace(AppEvents.Connection, "Connection id {id} processing cancelled.", ID);
-        }
-        catch (SocketException e)
-        when (e.SocketErrorCode is SocketError.ConnectionReset or SocketError.ConnectionAborted)
-        {
-            logger.LogInformation(AppEvents.Connection, "Connection aborted, id {id}.", ID);
-        }
-        catch (Exception e)
-        {
-            logger.LogError(AppEvents.Connection, e, "Error occurred when process sending client id {id}.", ID);
-        }
-        finally
-        {
-            cts.Cancel();
-            // TODO currently there'll be still packets remaining after this
-            while (channelReader.TryRead(out var item))
-                item.Item1?.OnConsumed();
-        }
+        logger.LogDebug("Sending task of id {id} finished.", ID);
     }
 
-    private bool TryParsePacket(
+    private static bool TryParsePacket(
         ref ReadOnlySequence<byte> sequence,
         [NotNullWhen(true)] out IContextualPacket? packet,
         IPacketSerializationContext context
@@ -276,7 +240,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         Span<byte> headSpan = stackalloc byte[HeadSize];
         sequence.Slice(0, HeadSize).CopyTo(headSpan);
         ushort size = BinaryPrimitives.ReadUInt16LittleEndian(headSpan);
-        ushort typeID = BinaryPrimitives.ReadUInt16LittleEndian(headSpan.Slice(sizeof(ushort)));
+        ushort id = BinaryPrimitives.ReadUInt16LittleEndian(headSpan.Slice(sizeof(ushort)));
 
         ReadOnlySequence<byte> payloadSequence = sequence.Slice(HeadSize);
         if (payloadSequence.Length < size)
@@ -285,15 +249,32 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
             return false;
         }
 
-        // TODO stackalloc
         Span<byte> payloadSpan = stackalloc byte[size];
 
         payloadSequence.Slice(0, size).CopyTo(payloadSpan);
         sequence = payloadSequence.Slice(size);
 
         RefBinaryReader reader = new(payloadSpan);
-        var readHandler = PacketRegistry.GetPacketReader(typeID);
+        var readHandler = PacketRegistry.GetPacketReader(id);
         packet = readHandler(ref reader, context);
         return true;
+    }
+
+    private static void WritePacket(
+        MemoryStream stream,
+        IContextualPacket packet,
+        IPacketSerializationContext context
+    )
+    {
+        stream.Seek(sizeof(ushort) + sizeof(ushort), SeekOrigin.Current);
+        long start = stream.Position;
+        RefBinaryWriter w = new(stream);
+        packet.Serialize(ref w, context);
+        ushort size = checked((ushort)(stream.Position - start));
+        ushort id = PacketRegistry.GetPacketID(packet);
+        stream.Seek(-size - sizeof(ushort) - sizeof(ushort), SeekOrigin.Current);
+        w.Write(size);
+        w.Write(id);
+        stream.Seek(size, SeekOrigin.Current);
     }
 }

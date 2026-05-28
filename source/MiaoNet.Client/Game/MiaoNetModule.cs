@@ -47,10 +47,17 @@ public sealed class MiaoNetModule : EverestModule
     public override void Load()
     {
         Instance = this;
+        Logger.SetLogLevel(LT.MiaoNetSync, LogLevel.Error);
 #if DEBUG
         Logger.SetLogLevel(LT.MiaoNetAvatar, LogLevel.Verbose);
         // TODO prevent those warnings server-side
-        Logger.SetLogLevel(LT.MiaoNetSync, LogLevel.Error);
+        Logger.SetLogLevel(LT.MiaoNet, LogLevel.Verbose);
+        Logger.SetLogLevel(LT.MiaoNetRC, LogLevel.Verbose);
+        Logger.SetLogLevel(LT.MiaoNetSync, LogLevel.Verbose);
+        Logger.SetLogLevel(LT.MiaoNetConnection, LogLevel.Verbose);
+        Logger.SetLogLevel(LT.MiaoNetPacketReading, LogLevel.Verbose);
+        Logger.SetLogLevel(LT.MiaoNetEmoteComponent, LogLevel.Verbose);
+        Logger.SetLogLevel(LT.MiaoNetEmoteData, LogLevel.Verbose);
 #endif
         using (new DetourConfigContext(RootConfig).Use())
         {

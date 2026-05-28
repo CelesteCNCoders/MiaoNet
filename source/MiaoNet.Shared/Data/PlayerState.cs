@@ -7,7 +7,8 @@ namespace MiaoNet.Shared;
 /// <summary>
 /// Player's position, dashes and so on.
 /// </summary>
-public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, PooledStringManager>
+public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, PooledStringManager>,
+    ICloneable
 {
     public Vector2 Position { get; set; }
 
@@ -37,6 +38,8 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
 
     public int HeldByPlayerID { get; set; }
 
+    // REMIND update Clone() if there're new deep-clone needed props
+
     public PlayerState(Vector2 position, byte dashes, float deltaTime)
     {
         Position = position;
@@ -51,34 +54,6 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
         HoldableInfo = new(HoldableType.None, null);
         HeldByPlayerID = 0;
     }
-
-    public void Serialize(ref RefBinaryWriter writer, PooledStringManager pooledStringManager)
-    {
-        writer.Write(Position);
-        writer.Write(Dashes);
-        writer.Write(DeltaTime);
-        writer.Write(FacingLeft);
-        writer.Write((int)PlayerSpriteMode);
-        writer.Write(FollowerInfos, pooledStringManager);
-        writer.Write(WindDirection);
-        writer.Write(Interactions);
-        writer.Write(Ducking);
-        writer.Write(HoldableInfo, pooledStringManager);
-        writer.Write(HeldByPlayerID);
-    }
-
-    public static PlayerState Deserialize(ref RefBinaryReader reader, PooledStringManager pooledStringManager)
-        => new(reader.ReadVector2(), reader.ReadByte(), reader.ReadSingle())
-        {
-            FacingLeft = reader.ReadBoolean(),
-            PlayerSpriteMode = (PlayerSpriteMode)reader.ReadInt32(),
-            FollowerInfos = reader.ReadArray<FollowerInfo, PooledStringManager>(pooledStringManager),
-            WindDirection = reader.ReadVector2(),
-            Interactions = reader.ReadBoolean(),
-            Ducking = reader.ReadBoolean(),
-            HoldableInfo = reader.Read<HoldableInfo, PooledStringManager>(pooledStringManager),
-            HeldByPlayerID = reader.ReadInt32()
-        };
 
     public void ApplyFollowersInitials(FollowerInfo[] followerInitials)
     {
@@ -119,6 +94,40 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
         HoldableInfo = holdableInfo with { Offset = offset };
     }
 
-    public override string ToString()
-        => $"({Position.X}, {Position.Y})";
+    public void Serialize(ref RefBinaryWriter writer, PooledStringManager pooledStringManager)
+    {
+        writer.Write(Position);
+        writer.Write(Dashes);
+        writer.Write(DeltaTime);
+        writer.Write(FacingLeft);
+        writer.Write((int)PlayerSpriteMode);
+        writer.Write(FollowerInfos, pooledStringManager);
+        writer.Write(WindDirection);
+        writer.Write(Interactions);
+        writer.Write(Ducking);
+        writer.Write(HoldableInfo, pooledStringManager);
+        writer.Write(HeldByPlayerID);
+    }
+
+    public static PlayerState Deserialize(ref RefBinaryReader reader, PooledStringManager pooledStringManager)
+        => new(reader.ReadVector2(), reader.ReadByte(), reader.ReadSingle())
+        {
+            FacingLeft = reader.ReadBoolean(),
+            PlayerSpriteMode = (PlayerSpriteMode)reader.ReadInt32(),
+            FollowerInfos = reader.ReadArray<FollowerInfo, PooledStringManager>(pooledStringManager),
+            WindDirection = reader.ReadVector2(),
+            Interactions = reader.ReadBoolean(),
+            Ducking = reader.ReadBoolean(),
+            HoldableInfo = reader.Read<HoldableInfo, PooledStringManager>(pooledStringManager),
+            HeldByPlayerID = reader.ReadInt32()
+        };
+
+    public PlayerState Clone()
+    {
+        PlayerState shallow = (PlayerState)MemberwiseClone();
+        shallow.FollowerInfos = (FollowerInfo[])FollowerInfos.Clone();
+        return shallow;
+    }
+
+    object ICloneable.Clone() => Clone();
 }

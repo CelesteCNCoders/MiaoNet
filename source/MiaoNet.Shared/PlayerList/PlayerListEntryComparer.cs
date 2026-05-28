@@ -18,8 +18,8 @@ public sealed class PlayerListEntryComparer : IComparer<IPlayerListEntry>
         if (xIsEmpty && yIsEmpty)
             return string.Compare(x.PlayerInfo.Name, y.PlayerInfo.Name, StringComparison.Ordinal);
 
-        bool xSp = x.Location.MapSid.StartsWith(CelesteMapSetPrefix, StringComparison.Ordinal);
-        bool ySp = y.Location.MapSid.StartsWith(CelesteMapSetPrefix, StringComparison.Ordinal);
+        bool xSp = x.Location.Map.Sid.StartsWith(CelesteMapSetPrefix, StringComparison.Ordinal);
+        bool ySp = y.Location.Map.Sid.StartsWith(CelesteMapSetPrefix, StringComparison.Ordinal);
 
         if (xSp && !ySp) return -1;
         if (!xSp && ySp) return 1;
@@ -29,15 +29,15 @@ public sealed class PlayerListEntryComparer : IComparer<IPlayerListEntry>
         if (!x.IsLocallyKnownMap && y.IsLocallyKnownMap)
             return 1;
 
-        int locationComparison = string.Compare(x.Location.MapSid, y.Location.MapSid, StringComparison.Ordinal);
+        int locationComparison = string.Compare(x.Location.Map.Sid, y.Location.Map.Sid, StringComparison.Ordinal);
         if (locationComparison != 0)
             return locationComparison;
 
-        int sideComparison = x.Location.Side.CompareTo(y.Location.Side);
+        int sideComparison = x.Location.Map.AreaMode.CompareTo(y.Location.Map.AreaMode);
         if (sideComparison != 0)
             return sideComparison;
 
-        int roomComparison = string.Compare(x.Location.MapRoom, y.Location.MapRoom, StringComparison.Ordinal);
+        int roomComparison = string.Compare(x.Location.Room, y.Location.Room, StringComparison.Ordinal);
         if (roomComparison != 0)
             return roomComparison;
         return string.Compare(x.PlayerInfo.Name, y.PlayerInfo.Name, StringComparison.Ordinal);

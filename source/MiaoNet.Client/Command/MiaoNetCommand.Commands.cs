@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Runtime.InteropServices;
 using Celeste.Mod.ChatInputBox;
 using MiaoNet.Shared;
@@ -43,15 +44,15 @@ partial class MiaoNetCommand
             ),
             new MiaoNetCommand(
                 name: "teleport-no-session",
-                aliases: [ "tp-ns", "tpns" ],
-                segments: [CommandSegmentType.Player],
+                aliases: [ "tpns" ],
+                segments: [CommandSegmentType.PlayerSameChannel],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(TeleportNoSession)
             ),
             new MiaoNetCommand(
                 name: "teleport-with-session",
-                aliases: [ "tp-ws", "tpws" ],
-                segments: [CommandSegmentType.Player],
+                aliases: [ "tpws" ],
+                segments: [CommandSegmentType.PlayerSameChannel],
                 captureRestSegments:false,
                 onExecute: new ExecuteHandler(TeleportWithSession)
             ),
@@ -65,7 +66,7 @@ partial class MiaoNetCommand
             new MiaoNetCommand(
                 name: "teleport",
                 aliases: [ "tp" ],
-                segments: [CommandSegmentType.Player],
+                segments: [CommandSegmentType.PlayerSameChannel],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(Teleport)
             ),
@@ -85,7 +86,7 @@ partial class MiaoNetCommand
             ),
             new MiaoNetCommand(
                 name: "group-photo-mode",
-                aliases: [ "gpm", "HeYing", "hy" ],
+                aliases: [ "gpm", "hy" ],
                 segments: [],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(GroupPhotoMode)
@@ -125,6 +126,41 @@ partial class MiaoNetCommand
                 captureRestSegments: true,
                 onExecute: new ExecuteHandler(MapChat)
             ),
+            new MiaoNetCommand(
+                name: "channel-chat",
+                aliases: [ "cc" ],
+                segments: [CommandSegmentType.Text],
+                captureRestSegments: true,
+                onExecute: new ExecuteHandler(ChannelChat)
+            ),
+            new MiaoNetCommand(
+                name: "global-chat",
+                aliases: [ "gc" ],
+                segments: [CommandSegmentType.Text],
+                captureRestSegments: true,
+                onExecute: new ExecuteHandler(GlobalChat)
+            ),
+            new MiaoNetCommand(
+                name: "chat",
+                aliases: [ "c" ],
+                segments: [CommandSegmentType.ChatChannelType],
+                captureRestSegments: false,
+                onExecute: new ExecuteHandler(ChatType)
+            ),
+            new MiaoNetCommand(
+                name: "random-teleport",
+                aliases: [ "rtp" ],
+                segments: [],
+                captureRestSegments: false,
+                onExecute: new ExecuteHandler(RandomTeleport)
+            ),
+            new MiaoNetCommand(
+                name: "channel",
+                aliases: [ "join" ],
+                segments: [CommandSegmentType.Channel],
+                captureRestSegments: true,
+                onExecute: new ExecuteHandler(Channel)
+            )
         ];
     }
 
@@ -132,6 +168,7 @@ partial class MiaoNetCommand
     private static string PlayerNotFound => Dialog.Clean("miaonet_command_status_player_not_found");
     private static string PlayerNotInMap => Dialog.Clean("miaonet_command_status_player_not_in_map");
     private static string PlayerMapMissing => Dialog.Clean("miaonet_command_status_player_map_missing");
+    private static string NoAvailablePlayer => Dialog.Clean("miaonet_command_status_no_available_player");
     private static string NeedInMap => Dialog.Clean("miaonet_command_status_need_in_level");
     private static string CommandHelpTitle => Dialog.Clean("miaonet_command_help_title");
     private static string CommandHelpNotFound => Dialog.Clean("miaonet_command_help_not_found");
@@ -140,7 +177,8 @@ partial class MiaoNetCommand
 
     private static string? Say(Context context)
     {
-        context.QueuePacket(new PacketSendChatMessage(context.Segments[0].Replace(@"\", @"\\", StringComparison.Ordinal)));
+        string content = context.Segments[0].Replace(@"\", @"\\", StringComparison.Ordinal);
+        SendChat(context, MiaoNetModule.Settings.ChatChannel, content);
         return null;
     }
 
@@ -159,37 +197,42 @@ partial class MiaoNetCommand
     }
 
     #region Teleport
-    private static void NotifyTeleportBehaviour(Context context)
+    private static bool NotifyTeleportBehaviourOnce(Context context)
     {
+        if (MiaoNetModule.Settings.TippedTeleport)
+            return false;
+
+        MiaoNetModule.Settings.TippedTeleport = true;
+        MiaoNetModule.Instance.SaveSettings();
         foreach (var item in Dialog.Clean("miaonet_commands_teleport_notice").EnumerateLines())
             context.TipMessage(item.ToString());
+        return true;
     }
 
     private static string? TeleportNoSession(Context context)
     {
-        if (!MiaoNetModule.Settings.TippedTeleport)
-        {
-            MiaoNetModule.Settings.TippedTeleport = true;
-            MiaoNetModule.Instance.SaveSettings();
-            NotifyTeleportBehaviour(context);
+        if (NotifyTeleportBehaviourOnce(context))
             return null;
-        }
 
         string? error;
 
-        error = MatchNotSelfPlayer(context, context.Segments[0], out var player);
+        error = GetNotSelfPlayer(context, context.Segments[0], out var player);
         if (error is not null)
             return error;
 
-        error = EnsurePlayerInExistedMap(player!, out AreaData? area);
+        return TeleportNoSessionTo(context, player!);
+    }
+    private static string? TeleportNoSessionTo(Context context, OnlinePlayer player)
+    {
+        string? error = EnsurePlayerInExistedMap(player!, out AreaData? area);
         if (error is not null)
             return error;
 
         PlayerLocation loc = player!.Location;
-        AreaKey areaKey = new(area!.ID, loc.Side);
+        AreaKey areaKey = new(area!.ID, loc.Map.AreaMode);
         bool moveToDebugSave = MiaoNetModule.Settings.TeleportTempSave;
         StartTeleportRoutine(
-            context, moveToDebugSave, null, areaKey, loc.MapRoom,
+            context, moveToDebugSave, null, areaKey, loc.Room,
             () => NoticeTeleportFinished(context, moveToDebugSave, true, player.Info.Name)
         );
 
@@ -198,26 +241,26 @@ partial class MiaoNetCommand
 
     private static string? TeleportWithSession(Context context)
     {
-        if (!MiaoNetModule.Settings.TippedTeleport)
-        {
-            MiaoNetModule.Settings.TippedTeleport = true;
-            MiaoNetModule.Instance.SaveSettings();
-            NotifyTeleportBehaviour(context);
+        if (NotifyTeleportBehaviourOnce(context))
             return null;
-        }
 
         string? error;
 
-        error = MatchNotSelfPlayer(context, context.Segments[0], out var player);
+        error = GetNotSelfPlayer(context, context.Segments[0], out var player);
         if (error is not null)
             return error;
 
-        error = EnsurePlayerInExistedMap(player!, out AreaData? area);
+        return TeleportWithSessionTo(context, player!);
+    }
+
+    private static string? TeleportWithSessionTo(Context context, OnlinePlayer player)
+    {
+        string? error = EnsurePlayerInExistedMap(player!, out AreaData? area);
         if (error is not null)
             return error;
 
         PlayerLocation loc = player!.Location;
-        AreaKey areaKey = new(area!.ID, loc.Side);
+        AreaKey areaKey = new(area!.ID, loc.Map.AreaMode);
 
         context.TipMessage(PFormat.Format(Dialog.Get("miaonet_commands_teleport_tip"), player.Info.Name));
 
@@ -238,7 +281,7 @@ partial class MiaoNetCommand
             bool moveToDebugSave = MiaoNetModule.Settings.TeleportTempSave;
             var sessionData = response.Session;
             StartTeleportRoutine(
-                context, moveToDebugSave, sessionData, areaKey, loc.MapRoom,
+                context, moveToDebugSave, sessionData, areaKey, loc.Room,
                 () => NoticeTeleportFinished(context, moveToDebugSave, false, player.Info.Name)
             );
         }
@@ -354,6 +397,20 @@ partial class MiaoNetCommand
             TeleportBehaviour.WithSession => TeleportWithSession(context),
             _ => null,
         };
+
+    private static string? RandomTeleport(Context context)
+    {
+        var error = GetRandomNotSelfPlayer(context, out var player);
+        if (error is not null)
+            return error;
+
+        return MiaoNetModule.Settings.TeleportBehaviour switch
+        {
+            TeleportBehaviour.NoSession => TeleportNoSessionTo(context, player!),
+            TeleportBehaviour.WithSession => TeleportWithSessionTo(context, player!),
+            _ => null,
+        };
+    }
     #endregion
 
     #region Help
@@ -374,13 +431,7 @@ partial class MiaoNetCommand
     private static string? HelpCommand(Context context)
     {
         string name = context.Segments[0];
-        MiaoNetCommand? command = UniqueMatcher.MatchBy(
-            Commands,
-            c => c.Aliases is null
-                ? [c.Name]
-                : c.Aliases.Append(c.Name),
-            name
-        );
+        MiaoNetCommand? command = Commands.FirstOrDefault(c => c.Name == name || c.Aliases?.Any(a => a == name) == true);
 
         if (command == null)
             return PFormat.Format(CommandHelpNotFound, name);
@@ -420,7 +471,7 @@ partial class MiaoNetCommand
         string playerName = context.Segments[0];
         string content = context.Segments[1];
 
-        string? error = MatchNotSelfPlayer(context, playerName, out OnlinePlayer? player);
+        string? error = GetNotSelfPlayer(context, playerName, out OnlinePlayer? player);
         if (error is not null)
             return error;
 
@@ -474,7 +525,7 @@ partial class MiaoNetCommand
 
     private static string? Locate(Context context)
     {
-        string? error = MatchNotSelfPlayer(context, context.Segments[0], out OnlinePlayer? player);
+        string? error = GetNotSelfPlayer(context, context.Segments[0], out OnlinePlayer? player);
         if (error is not null)
             return error;
 
@@ -491,7 +542,7 @@ partial class MiaoNetCommand
 
     private static string? Watch(Context context)
     {
-        string? error = MatchNotSelfPlayer(context, context.Segments[0], out OnlinePlayer? player);
+        string? error = GetNotSelfPlayer(context, context.Segments[0], out OnlinePlayer? player);
         if (error is not null)
             return error;
 
@@ -499,7 +550,8 @@ partial class MiaoNetCommand
         if (error is not null)
             return error;
 
-        if (Engine.Scene is not Level level || level.Session.Area.SID != othersArea!.SID)
+        var self = context.MiaoNetContext.ClientState!.Self;
+        if (self.Location.Map != player!.Location.Map)
         {
             string m = PFormat.Format(Dialog.Get("miaonet_commands_watch_not_same_map"), player!.Info.Name, Dialog.Get(othersArea!.Name));
             return m;
@@ -527,30 +579,76 @@ partial class MiaoNetCommand
         return null;
     }
 
+    private static string? ChatType(Context context)
+    {
+        string name = context.Segments[0];
+        var settings = MiaoNetModule.Settings;
+        ChatChannel type = ChatChannelMatcher.Match(name);
+        if (type != (ChatChannel)(-1))
+        {
+            settings.ChatChannel = type;
+            string msg = PFormat.Format(Dialog.Get("miaonet_commands_chat_chat_channel_switched"), type);
+            context.AddLocalChat(MiaoNetChatText.CreateCommandTip(msg));
+        }
+        else
+        {
+            return PFormat.Format(Dialog.Get("miaonet_commands_chat_chat_channel_type_not_found"), name);
+        }
+        return null;
+    }
+
+    private static string? GlobalChat(Context context)
+        => SendChat(context, ChatChannel.Global, context.Segments[0]);
+
+    private static string? ChannelChat(Context context)
+        => SendChat(context, ChatChannel.Channel, context.Segments[0]);
+
     private static string? MapChat(Context context)
+        => SendChat(context, ChatChannel.Map, context.Segments[0]);
+
+    private static string? SendChat(Context context, ChatChannel chatChannel, string content)
     {
         if (MiaoNetModule.Settings.LiveMode)
             return Dialog.Get("miaonet_chat_disabled");
 
-        context.QueuePacket(new PacketSendMapChatMessage(context.Segments[0]));
+        context.QueuePacket(new PacketSendChatMessage(chatChannel, content));
+        return null;
+    }
+
+    private static string? Channel(Context context)
+    {
+        string channelName = context.Segments[0];
+        var channel = context.MiaoNetContext.ClientState
+            !.Channels.FirstOrDefault(p => p.Value.Info.Name == channelName);
+
+        if (channel.Value is null)
+        {
+            context.QueuePacket(new PacketChannelCreateAndJoin(new ChannelInfo(channelName)));
+        }
+        else
+        {
+            context.QueuePacket(new PacketPlayerChannelMove(channel.Value.ID));
+        }
 
         return null;
     }
 
     #region helpers
 
-    private static string? MatchNotSelfPlayer(Context context, string playerName, out OnlinePlayer? player)
+    private static string? GetNotSelfPlayer(Context context, string playerName, out OnlinePlayer? player)
     {
         player = null;
         var clientState = context.MiaoNetContext.ClientState!;
-        var allPlayers = from pair in clientState.SelfChannel.Players select pair.Value;
-        var matchedPlayer = UniqueMatcher.MatchBy(allPlayers.Append(clientState.Self), p => p.Info.Name, playerName);
-        if (matchedPlayer is null)
-            return PFormat.Format(PlayerNotFound, playerName);
-        if (matchedPlayer == clientState.Self)
-            return PFormat.Format(PlayerIsSelf, matchedPlayer.Info.Name);
+        var foundPlayer = clientState.SelfChannel.Players
+            .FirstOrDefault(p => p.Info.Name == playerName);
+        if (foundPlayer is null)
+        {
+            return clientState.Self.Info.Name == playerName
+                ? PFormat.Format(PlayerIsSelf, clientState.Self.Info.Name)
+                : PFormat.Format(PlayerNotFound, playerName);
+        }
 
-        player = matchedPlayer;
+        player = foundPlayer;
         return null;
     }
 
@@ -563,14 +661,43 @@ partial class MiaoNetCommand
             return PFormat.Format(PlayerNotInMap, player.Info.Name);
 
         bool liveMode = MiaoNetModule.Settings.LiveMode;
-        var area = AreaData.Get(loc.MapSid);
-        if (area is null || area.Mode.Length <= (int)loc.Side)
-            return PFormat.Format(PlayerMapMissing, player.Info.Name, liveMode ? "*" : loc.ToString());
+        var area = AreaData.Get(loc.Map.Sid);
+        if (area is null || area.Mode.Length <= (int)loc.Map.AreaMode)
+            return PFormat.Format(PlayerMapMissing, player.Info.Name, liveMode ? "*" : loc.Map.Sid);
 
         othersArea = area;
         return null;
     }
 
+    private static bool IsPlayerInExistedMap(OnlinePlayer player)
+    {
+        PlayerLocation loc = player.Location;
+        if (!loc.IsInMap)
+            return false;
+
+        var area = AreaData.Get(loc.Map.Sid);
+        if (area is null || area.Mode.Length <= (int)loc.Map.AreaMode)
+            return false;
+
+        return true;
+    }
+
+    private static string? GetRandomNotSelfPlayer(Context context, out OnlinePlayer? player)
+    {
+        player = null;
+        var clientState = context.MiaoNetContext.ClientState!;
+        var candidates = clientState.SelfChannel.Players
+            .Where(p => IsPlayerInExistedMap(p)) // Teleportable
+            .Where(p => !p.GlobalFlags.HasFlag(PlayerGlobalFlags.TakingGolden)) // Not taking golden
+            .ToList();
+
+        if (candidates.Count == 0)
+            return PFormat.Format(NoAvailablePlayer);
+
+        int index = Random.Shared.Next(candidates.Count);
+        player = candidates[index];
+        return null;
+    }
     #endregion
 
 #pragma warning restore CA1305

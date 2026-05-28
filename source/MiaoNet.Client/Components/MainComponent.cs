@@ -40,6 +40,8 @@ public sealed partial class MainComponent : MiaoNetComponent
         context.PlayerAudioPlayed += Context_PlayerAudioPlayed;
         context.PlayerGrabPlayer += Context_PlayerGrabPlayer;
         context.PlayerGrabJumpOut += Context_PlayerGrabJumpOut;
+        context.SelfChannelMoved += Context_SelfChannelMoved;
+        context.PlayerChannelMoved += Context_PlayerChannelMoved;
 
         MiaoNetModule.PlayerLocationChanged += MiaoNetModule_OnPlayerLocationChanged;
         MiaoNetModule.PlayerSoundPlayed += MiaoNetModule_PlayerSoundPlayed;
@@ -90,8 +92,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Interactions, settings.PlayerInteractions);
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.GroupPhotoMode, settings.GroupPhotoMode);
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Watching, playerWatching is not null);
-            bool hasGolden = player?.Leader.Followers.Any(f => f.Entity is Strawberry { Golden: true }) == true;
-            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.TakingGolden, hasGolden);
+            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.TakingGolden, level?.Session.GrabbedGolden == true);
             if (previousGlobalFlags != globalFlags)
             {
                 self.GlobalFlags = globalFlags;
@@ -468,7 +469,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         {
             TryDisableGroupPhotoModeAndTip();
 
-            PacketPlayerMapRoomChanged p = new(location.MapRoom);
+            PacketPlayerMapRoomChanged p = new(location.Room);
             context.QueuePacket(p);
         }
 
@@ -482,25 +483,40 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
+    private void CleanUpGhosts(Level level)
+    {
+        foreach (var g in ghosts)
+            level.CompletelyRemove(g.Value);
+        
+        ghosts.Clear();
+    }
+
     private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotification packet)
     {
         Logger.Debug(LT.MiaoNet, $"Player map changed: {player}, state: {packet.InitialState}.");
-        HandleLocationChanging(player, packet.GraphicsInfo, packet.InitialState);
+        if (Engine.Scene is not Level level)
+            return;
+        HandleLocationChanging(level, player, packet.GraphicsInfo, packet.InitialState);
     }
 
     private void Context_PlayerMapRoomChanged(OnlinePlayer player, string room)
     {
         Logger.Debug(LT.MiaoNet, $"Player map room changed: {player}.");
-        HandleLocationChanging(player, null, null);
+        if (Engine.Scene is not Level level)
+            return;
+        HandleLocationChanging(level, player, null, null);
     }
 
     private void Context_PlayerMapChangeResponded(PacketPlayerMapChangedResponse packet)
     {
-        Logger.Debug(LT.MiaoNet, $"Map changed responded, players count: {packet.PlayersInMap.Length}");
-        foreach (var item in packet.PlayersInMap)
+        if (Engine.Scene is not Level level)
+            return;
+        Logger.Debug(LT.MiaoNet, $"Player move responded, players count: {packet.Players.Count}");
+        CleanUpGhosts(level);
+        foreach (var item in packet.Players)
         {
             OnlinePlayer player = ClientState.GetPlayer(item.PlayerID);
-            HandleLocationChanging(player, player.GraphicsInfo, player.State);
+            HandleLocationChanging(level, player, player.GraphicsInfo, player.State);
         }
     }
 
@@ -672,13 +688,29 @@ public sealed partial class MainComponent : MiaoNetComponent
             ghost.OnPlayAudio(audio.Event);
     }
 
-    #endregion
-
-    private void HandleLocationChanging(OnlinePlayer other, PlayerGraphicsInfo? graphicsInfo, PlayerState? initialState)
+    private void Context_PlayerChannelMoved(OnlinePlayer player, PacketPlayerChannelMovedNotification notification)
     {
         if (Engine.Scene is not Level level)
             return;
+        HandleLocationChanging(level, player, notification.GraphicsInfo, notification.InitialState);
+    }
 
+    private void Context_SelfChannelMoved(PacketPlayerChannelMovedResponse response)
+    {
+        if (Engine.Scene is not Level level)
+            return;
+        CleanUpGhosts(level);
+        if (response.Players is not null)
+        {
+            foreach (var p in response.Players)
+                HandleLocationChanging(level, ClientState.GetPlayer(p.PlayerID), p.GraphicsInfo, p.InitialState);
+        }
+    }
+
+    #endregion
+
+    private void HandleLocationChanging(Level level, OnlinePlayer other, PlayerGraphicsInfo? graphicsInfo, PlayerState? initialState)
+    {
         bool needGhost = ClientState.Self.ShouldSyncFrom(other);
         Logger.Debug(LT.MiaoNet, $"needGhost of {other.Info} = {needGhost}");
 

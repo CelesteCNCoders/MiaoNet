@@ -1,5 +1,6 @@
 //#define MOCK_DATA
 
+using System.Diagnostics;
 using System.Text;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Input;
@@ -42,6 +43,10 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         context.PlayerMapChanged += (p, _) => UpdatePlayer(p);
         context.PlayerMapRoomChanged += (p, _) => UpdatePlayer(p);
         context.PingDataReceived += Context_PingDataReceived;
+        context.SelfChannelMoved += _ => BuildPlayerList();
+        context.PlayerChannelMoved += (_, _) => BuildPlayerList();
+        context.ChannelCreated += _ => BuildPlayerList();
+        context.ChannelRemoved += _ => BuildPlayerList();
 
         texPlayerDebugMap = GFX.Gui["miaonet/debug_map"];
         texPlayerPaused = GFX.Gui["miaonet/paused"];
@@ -131,11 +136,15 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 playerListEntries.Add(new PlayerListEntry(state.Self, context.ShowAvatar, ClipType));
 
             // add other players
-            foreach (var (_, player) in channel.Players)
+            foreach (var player in channel.Players)
                 playerListEntries.Add(new PlayerListEntry(player, context.ShowAvatar, ClipType));
 
-            channelPlayerList.Add((new(channel, playerListEntries)));
+            channelPlayerList.Add(new PlayerListChannelEntry(channel, playerListEntries));
         }
+        var selfChannelEntryIndex = channelPlayerList.FindIndex(e => e.Channel == state.SelfChannel);
+        var selfChannelEntry = channelPlayerList[selfChannelEntryIndex];
+        channelPlayerList.RemoveAt(selfChannelEntryIndex);
+        channelPlayerList.Insert(0, selfChannelEntry);
         SortPlayerList();
 #endif
     }
@@ -372,10 +381,10 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                         string mapName = item.IsLocallyKnownMap ? item.MapName! : liveMode ? "*" : item.MapName!;
                         itemWidth += MiaoNetFont.Measure(mapName).X * scale;
 
-                        if (item.AreaSideText is not null)
+                        if (item.AreaModeText is not null)
                         {
                             itemWidth += spaceWidth;
-                            itemWidth += MiaoNetFont.Measure(item.AreaSideText).X * scale;
+                            itemWidth += MiaoNetFont.Measure(item.AreaModeText).X * scale;
                         }
                     }
 
@@ -543,16 +552,16 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
 
                     // draw side
-                    if (item.AreaSideText is not null)
+                    if (item.AreaModeText is not null)
                     {
                         MiaoNetFont.Draw(
-                            item.AreaSideText,
+                            item.AreaModeText,
                             position: new(x, curY),
                             justify: Vector2.UnitX,
                             scale: Vector2.One * scale,
                             item.MapSideColor
                         );
-                        x -= MiaoNetFont.Measure(item.AreaSideText).X * scale;
+                        x -= MiaoNetFont.Measure(item.AreaModeText).X * scale;
                         x -= spaceWidth;
                     }
 

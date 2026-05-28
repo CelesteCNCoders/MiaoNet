@@ -2,25 +2,16 @@ namespace MiaoNet.Shared;
 
 public struct ChannelInfo : IRefBinarySerializable<ChannelInfo>
 {
-    public int ID { get; }
-
     public string Name { get; set; }
 
-    public ChannelInfo(int id, string name)
-    {
-        Name = name;
-        ID = id;
-    }
+    // Color?
 
-    public readonly override string ToString()
-        => $"{Name}:{ID}";
+    public ChannelInfo(string name) 
+        => Name = name;
 
     public readonly void Serialize(ref RefBinaryWriter writer)
-    {
-        writer.Write(ID);
-        writer.Write(Name);
-    }
+        => writer.Write(Name);
 
     public static ChannelInfo Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadInt32(), reader.ReadString());
+        => new(reader.ReadString());
 }

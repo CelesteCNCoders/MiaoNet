@@ -14,13 +14,13 @@ public sealed class DebugMapComponent : MiaoNetComponent
     {
         if (Engine.Scene is not MapEditor)
             return;
-        foreach (var (_, player) in ClientState.SelfChannel.Players)
+        foreach (var player in ClientState.SelfChannel.Players)
         {
             if (ClientState.Self.ShouldSyncFrom(player))
             {
                 if (player.State is null)
                 {
-                    Logger.Warn(LT.MiaoNet, $"Debug map detected null PlayerState of a should be synced player.");
+                    Logger.Warn(LT.MiaoNetSync, $"Debug map detected null PlayerState of a should be synced player.");
                     continue;
                 }
                 Vector2 rPos = player.State!.Position;

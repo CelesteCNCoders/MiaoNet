@@ -6,71 +6,81 @@ using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
 
-// TODO make the entire class immutable?
-[DebuggerDisplay("Players count = {allPlayers.Count}, Channels count = {allChannels.Count}")]
+[DebuggerDisplay("Players count = {players.Count}, Channels count = {channels.Count}")]
 public sealed class ServerState
 {
-    [DebuggerDisplay("{Player}")]
-    public readonly record struct Client(ServerPlayer Player, MiaoClientConnection Connection);
+    private int nextPlayerID;
+    private int nextChannelID;
 
-    private readonly ReaderWriterLockSlim stateLock = new();
+    private ImmutableDictionary<int, MiaoClientConnection> players;
+    private ImmutableDictionary<int, ServerChannel> channels;
 
-    private int currentPlayerID;
-    private int currentChannelID;
-    private ImmutableDictionary<int, Client> allPlayers;
-    private ImmutableDictionary<int, ServerChannel> allChannels;
+    public ImmutableDictionary<int, MiaoClientConnection> Players => players;
 
-    public ImmutableDictionary<int, Client> AllPlayers => allPlayers;
-
-    public ImmutableDictionary<int, ServerChannel> AllChannels => allChannels;
-
-    public ReaderWriterLockSlim StateLock => stateLock;
+    public ImmutableDictionary<int, ServerChannel> Channels => channels;
 
     public ServerState()
     {
-        allPlayers = ImmutableDictionary<int, Client>.Empty;
-        allChannels = ImmutableDictionary<int, ServerChannel>.Empty.Add(0, new ServerChannel(new ChannelInfo(0, "main")));
-        currentPlayerID = currentChannelID = 0;
+        nextPlayerID = nextChannelID = 0;
+
+        players = ImmutableDictionary<int, MiaoClientConnection>.Empty;
+        channels = ImmutableDictionary<int, ServerChannel>.Empty
+            .Add(0, new ServerChannel(0, new ChannelInfo("main")));
     }
 
     public ServerPlayer CreateNewPlayer(PlayerInfo playerInfo)
     {
-        int id = Interlocked.Increment(ref currentPlayerID);
-        ServerChannel channel = AllChannels[0];
+        int id = Interlocked.Increment(ref nextPlayerID);
+        ServerChannel channel = channels[0];
         ServerPlayer player = new(channel, id, playerInfo);
         return player;
     }
 
-    public ServerChannel CreateNewChannel(string channelName)
+    public ServerChannel CreateNewChannel(ChannelInfo channelInfo)
     {
-        int id = Interlocked.Increment(ref currentChannelID);
-        ServerChannel channel = new(new ChannelInfo(id, channelName));
+        int id = Interlocked.Increment(ref nextChannelID);
+        ServerChannel channel = new(id, channelInfo);
         return channel;
     }
 
-    public void AddPlayer(ServerPlayer player, MiaoClientConnection connection)
+    public void AddPlayer(MiaoClientConnection connection)
     {
-        bool result = ImmutableInterlocked.Update(ref allPlayers, d => d.SetItem(player.ID, new(player, connection)));
+        bool result = ImmutableInterlocked.Update(ref players, (d, c) => d.Add(c.ID, c), connection);
         Debug.Assert(result);
-        player.Channel.OnAddPlayer(player, connection);
+        connection.Player.Channel.OnAddPlayer(connection);
     }
 
     public void AddChannel(ServerChannel channel)
     {
-        bool result = ImmutableInterlocked.Update(ref allChannels, d => d.SetItem(channel.ID, channel));
+        bool result = ImmutableInterlocked.Update(ref channels, (d, c) => d.Add(c.ID, c), channel);
         Debug.Assert(result);
     }
 
-    public void RemovePlayer(ServerPlayer player)
+    public void RemovePlayer(MiaoClientConnection connection)
     {
-        bool result = ImmutableInterlocked.Update(ref allPlayers, d => d.Remove(player.ID));
+        bool result = ImmutableInterlocked.Update(ref players, (d, c) => d.Remove(c.ID), connection);
         Debug.Assert(result);
-        player.Channel.OnRemovePlayer(player);
+        connection.Player.Channel.OnRemovePlayer(connection);
+        RemoveChannelIfEmpty(connection.Player.Channel);
     }
 
-    public void RemoveChannel(ServerChannel channel)
+    public void PlayerChannelMove(MiaoClientConnection connection, ServerChannel from, ServerChannel to)
     {
-        // TODO
-        throw new NotImplementedException();
+        Debug.Assert(channels.ContainsValue(from));
+        Debug.Assert(channels.ContainsValue(to));
+
+        from.OnRemovePlayer(connection);
+        connection.Player.Channel = to;
+        to.OnAddPlayer(connection);
+        RemoveChannelIfEmpty(from);
+    }
+
+    private void RemoveChannelIfEmpty(ServerChannel channel)
+    {
+        if (channel.Players.Count == 0 && channel.ID != 0)
+        {
+            bool result = ImmutableInterlocked.Update(ref channels, (d, c) => d.Remove(c.ID), channel);
+            Debug.Assert(result);
+        }
     }
 }
