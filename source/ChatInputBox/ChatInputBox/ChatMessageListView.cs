@@ -20,6 +20,11 @@ public sealed class ChatMessageListView
 
     public bool Active { get; set; }
 
+    public ChatTabManager? TabManager { get; set; }
+
+    private Func<ChatText, bool>? MessageFilter
+        => Active ? TabManager?.ActiveTab?.Filter : null;
+
     public float Scroll
     {
         get;
@@ -42,8 +47,13 @@ public sealed class ChatMessageListView
         chatLog.Clear();
     }
 
-    public float ClampScrollValue(float value)
-        => Math.Clamp(value, 0f, Math.Max((chatLog.Count - ActiveMaxCount) * textRenderer.LineHeight, 0));
+    public float ClampScrollValue(float value)                                                                                                                                                                               
+    {                                                                                                                                                                                                                        
+        int count = MessageFilter is null                                                                                                                                                                                    
+            ? chatLog.Count                                                                                                                                                                                                  
+            : chatLog.Count(item => MessageFilter(item.Message));                                                                                                                                                            
+        return Math.Clamp(value, 0f, Math.Max((count - ActiveMaxCount) * textRenderer.LineHeight, 0));                                                                                                                       
+    }
 
     public void Update()
     {
@@ -88,7 +98,7 @@ public sealed class ChatMessageListView
         const float Margin = 16f;
         const float Padding = 8f;
 
-        Vector2 baseLoc = new Vector2(Margin, Engine.Height - Margin - textRenderer.LineHeight * 1.5f - Padding);
+        Vector2 baseLoc = new Vector2(Margin, Engine.Height - Margin - textRenderer.LineHeight * 2.5f - Padding);
 
         float curY = baseLoc.Y;
         int firstVisibleMessageIndex = chatLog.Count - 1;
@@ -98,6 +108,9 @@ public sealed class ChatMessageListView
 
             for (int i = chatLog.Count - 1; i >= 0; i--)
             {
+                if (MessageFilter is not null && !MessageFilter(chatLog[i].Message))
+                    continue;
+                
                 if (curY > baseLoc.Y)
                 {
                     curY -= textRenderer.LineHeight;
@@ -108,17 +121,26 @@ public sealed class ChatMessageListView
             }
         }
 
-        if (firstVisibleMessageIndex + 1 < chatLog.Count)
+        int nextBelow = -1;                                                                                                                                                                                                      
+        for (int i = firstVisibleMessageIndex + 1; i < chatLog.Count; i++)
+        {
+            if (MessageFilter is null || MessageFilter(chatLog[i].Message))
+            { nextBelow = i; break; }
+        }
+        if (nextBelow >= 0)
         {
             float pCurY = curY + textRenderer.LineHeight;
             float alpha = 1f - (pCurY - baseLoc.Y) / textRenderer.LineHeight;
-            DrawSingleMessage(chatLog[firstVisibleMessageIndex + 1], baseLoc.X, pCurY, alpha);
+            DrawSingleMessage(chatLog[nextBelow], baseLoc.X, pCurY, alpha);
         }
 
         int maxCount = Active ? ActiveMaxCount : IdleMaxCount;
         int nextInvisibleMessageIndex = -1;
         for (int i = firstVisibleMessageIndex; i >= 0; i--)
         {
+            if (MessageFilter is not null && !MessageFilter(chatLog[i].Message))
+                continue;
+            
             if (curY < baseLoc.Y - maxCount * textRenderer.LineHeight)
             {
                 nextInvisibleMessageIndex = i;
@@ -132,8 +154,15 @@ public sealed class ChatMessageListView
         }
         if (nextInvisibleMessageIndex > 0)
         {
-            float alpha = 1f - ((baseLoc.Y - maxCount * textRenderer.LineHeight) - curY) / textRenderer.LineHeight;
-            DrawSingleMessage(chatLog[nextInvisibleMessageIndex], baseLoc.X, curY, alpha);
+            while (nextInvisibleMessageIndex > 0                                                                                                                                                                                 
+                && MessageFilter is not null                                                                                                                                                                                     
+                && !MessageFilter(chatLog[nextInvisibleMessageIndex].Message))                                                                                                                                                   
+                nextInvisibleMessageIndex--;
+            if (nextInvisibleMessageIndex > 0)
+            {
+                float alpha = 1f - ((baseLoc.Y - maxCount * textRenderer.LineHeight) - curY) / textRenderer.LineHeight;
+                DrawSingleMessage(chatLog[nextInvisibleMessageIndex], baseLoc.X, curY, alpha);
+            }
         }
     }
 
