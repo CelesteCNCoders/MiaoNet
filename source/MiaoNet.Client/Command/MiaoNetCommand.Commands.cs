@@ -639,8 +639,9 @@ partial class MiaoNetCommand
     {
         player = null;
         var clientState = context.MiaoNetContext.ClientState!;
-        var allPlayers = from pair in clientState.SelfChannel.Players select pair.Value;
-        var foundPlayer = allPlayers.FirstOrDefault(p => p.Info.Name == playerName);
+        var foundPlayer = clientState.SelfChannel.Players
+            .Select(p => p.Value)
+            .FirstOrDefault(p => p.Info.Name == playerName);
         if (foundPlayer is null)
         {
             return clientState.Self.Info.Name == playerName
@@ -669,21 +670,34 @@ partial class MiaoNetCommand
         return null;
     }
 
+    private static bool IsPlayerInExistedMap(OnlinePlayer player)
+    {
+        PlayerLocation loc = player.Location;
+        if (!loc.IsInMap)
+            return false;
+
+        var area = AreaData.Get(loc.Map.Sid);
+        if (area is null || area.Mode.Length <= (int)loc.Map.AreaMode)
+            return false;
+
+        return true;
+    }
 
     private static string? GetRandomNotSelfPlayer(Context context, out OnlinePlayer? player)
     {
         player = null;
         var clientState = context.MiaoNetContext.ClientState!;
-        var allPlayers = from pair in clientState.SelfChannel.Players select pair.Value;
-        var candidates = allPlayers
-            .Where(p => EnsurePlayerInExistedMap(p, out _) is null)                 // Teleportable
-            .Where(p => !p.GlobalFlags.HasFlag(PlayerGlobalFlags.TakingGolden))     // Not taking golden
+        var candidates = clientState.SelfChannel.Players
+            .Select(p => p.Value)
+            .Where(p => IsPlayerInExistedMap(p)) // Teleportable
+            .Where(p => !p.GlobalFlags.HasFlag(PlayerGlobalFlags.TakingGolden)) // Not taking golden
             .ToList();
+
         if (candidates.Count == 0)
-        {
             return PFormat.Format(NoAvailablePlayer);
-        }
-        player = candidates.ElementAt(Random.Shared.Next(candidates.Count));
+
+        int index = Random.Shared.Next(candidates.Count);
+        player = candidates[index];
         return null;
     }
     #endregion
