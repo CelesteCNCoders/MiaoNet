@@ -92,8 +92,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Interactions, settings.PlayerInteractions);
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.GroupPhotoMode, settings.GroupPhotoMode);
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Watching, playerWatching is not null);
-            bool hasGolden = player?.Leader.Followers.Any(f => f.Entity is Strawberry { Golden: true }) == true;
-            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.TakingGolden, hasGolden);
+            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.TakingGolden, level?.Session.GrabbedGolden == true);
             if (previousGlobalFlags != globalFlags)
             {
                 self.GlobalFlags = globalFlags;
