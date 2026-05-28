@@ -109,9 +109,7 @@ partial class MiaoNetContext
         }
         else
         {
-            Logger.Warn(nameof(MiaoNetContext), $"No initial state but received frame notification for {player.Info}!");
-            // TODO this is a potential bug
-            //Disconnect();
+            Logger.Warn(LT.MiaoNetSync, $"No initial state but received frame notification for {player.Info}!");
             return;
         }
         PlayerFrameNotification?.Invoke(player, packet.Packet);
@@ -184,7 +182,7 @@ partial class MiaoNetContext
             }
             else
             {
-                Logger.Warn(nameof(MiaoNetContext), $"No initial state but received live state notification for {player.Info}!");
+                Logger.Warn(LT.MiaoNetSync, $"No initial state but received live state notification for {player.Info}!");
             }
         }
         PlayerLiveStateNotification?.Invoke(player, packet.Packet.Type, packet.Packet.Vector2);
