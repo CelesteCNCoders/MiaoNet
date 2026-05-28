@@ -68,7 +68,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
     public override Task StartAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("MiaoNet Server v{v} starting...", options.ExpectedVersion.ToString(3));
+        logger.LogInformation("MiaoNet Server v{v} starting...", Connection.Version.ToString(3));
         logger.LogInformation("Start to listen on {ep}.", options.Network.ListenEndPoint);
         networkListener.Listen();
         _ = HandleConnectionsHeartbeats(cancellationToken);

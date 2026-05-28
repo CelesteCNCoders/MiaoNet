@@ -77,7 +77,7 @@ partial class MiaoServerService
         {
             var stream = networkConnection.Stream;
 
-            var version = options.ExpectedVersion;
+            var version = Connection.Version;
             ushort major = (ushort)version.Major, minor = (ushort)version.Minor, build = (ushort)version.Build;
             ushort majorClient, minorClient, buildClient;
 

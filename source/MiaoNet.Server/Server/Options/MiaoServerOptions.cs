@@ -10,8 +10,6 @@ public sealed class MiaoServerOptions
 
     public int HeartbeatTimeoutThreshold { get; set; } = 15000;
 
-    public required Version ExpectedVersion { get; set; }
-
     public int DisconnectTimeout { get; set; } = 3000;
 
     public required CertificateOptions Certificate { get; set; }
