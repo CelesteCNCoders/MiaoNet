@@ -44,14 +44,14 @@ partial class MiaoNetCommand
             ),
             new MiaoNetCommand(
                 name: "teleport-no-session",
-                aliases: [ "tp-ns", "tpns" ],
+                aliases: [ "tpns" ],
                 segments: [CommandSegmentType.PlayerSameChannel],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(TeleportNoSession)
             ),
             new MiaoNetCommand(
                 name: "teleport-with-session",
-                aliases: [ "tp-ws", "tpws" ],
+                aliases: [ "tpws" ],
                 segments: [CommandSegmentType.PlayerSameChannel],
                 captureRestSegments:false,
                 onExecute: new ExecuteHandler(TeleportWithSession)
@@ -86,7 +86,7 @@ partial class MiaoNetCommand
             ),
             new MiaoNetCommand(
                 name: "group-photo-mode",
-                aliases: [ "gpm", "HeYing", "hy" ],
+                aliases: [ "gpm", "hy" ],
                 segments: [],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(GroupPhotoMode)
