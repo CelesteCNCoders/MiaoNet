@@ -11,6 +11,7 @@ public sealed class ChatInputBoxEntity : Entity
     private bool active;
     private readonly ChatMessageListView msgListView;
     private readonly InputBox inputBox;
+    private readonly ChatTabManager tabManager;
 
     public ChatInputBoxEntity()
     {
@@ -22,6 +23,10 @@ public sealed class ChatInputBoxEntity : Entity
         };
         inputBox = new(r, new TestCompletionProvider());
         msgListView = new(r);
+        tabManager = new ChatTabManager(r);
+        msgListView.TabManager = tabManager;
+        tabManager.AddTab("Channel", chatText => chatText.Channel == "Channel");
+        
         List<string> randomMsgs = [
             @"\uThis entire sentence is underlined.\r",
             @"\aThis text is red until reset.\r Normal text follows.",
@@ -95,8 +100,10 @@ public sealed class ChatInputBoxEntity : Entity
         ];
         foreach (var msg in randomMsgs)
         {
-            msgListView.AddChatMessage(ChatText.Create(msg, Color.White));
+            msgListView.AddChatMessage(ChatText.Create(msg, Color.White, "Global"));
         }
+        
+        msgListView.AddChatMessage(ChatText.Create("This is a Channel message.", Color.White, "Channel"));
 
         lastMouseScroll = Mouse.GetState().ScrollWheelValue;
     }
@@ -135,10 +142,13 @@ public sealed class ChatInputBoxEntity : Entity
                 scroll,
                 Math.Max(Math.Abs(scroll - msgListView.Scroll), 24f) * 8f * Engine.DeltaTime
             );
-
+            if (MInput.Keyboard.Pressed(Keys.LeftShift))
+            {
+                tabManager.CycleTab();
+            }
             if (MInput.Keyboard.Pressed(Keys.Enter))
             {
-                msgListView.AddChatMessage(ChatText.Create(inputBox.Text, Color.White));
+                msgListView.AddChatMessage(ChatText.Create(inputBox.Text, Color.White, "Global"));
                 Deactivate();
                 MInput.VirtualInputs.ForEach(i => (i as VirtualButton)?.ConsumePress());
             }
@@ -158,6 +168,9 @@ public sealed class ChatInputBoxEntity : Entity
     {
         msgListView.Render();
         if (active)
+        {
+            tabManager.Render();
             inputBox.Render();
+        }
     }
 }
