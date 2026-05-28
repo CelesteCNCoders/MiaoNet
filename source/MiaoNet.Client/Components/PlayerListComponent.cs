@@ -136,7 +136,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 playerListEntries.Add(new PlayerListEntry(state.Self, context.ShowAvatar, ClipType));
 
             // add other players
-            foreach (var (_, player) in channel.Players)
+            foreach (var player in channel.Players)
                 playerListEntries.Add(new PlayerListEntry(player, context.ShowAvatar, ClipType));
 
             channelPlayerList.Add(new PlayerListChannelEntry(channel, playerListEntries));

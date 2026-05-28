@@ -640,7 +640,6 @@ partial class MiaoNetCommand
         player = null;
         var clientState = context.MiaoNetContext.ClientState!;
         var foundPlayer = clientState.SelfChannel.Players
-            .Select(p => p.Value)
             .FirstOrDefault(p => p.Info.Name == playerName);
         if (foundPlayer is null)
         {
@@ -688,7 +687,6 @@ partial class MiaoNetCommand
         player = null;
         var clientState = context.MiaoNetContext.ClientState!;
         var candidates = clientState.SelfChannel.Players
-            .Select(p => p.Value)
             .Where(p => IsPlayerInExistedMap(p)) // Teleportable
             .Where(p => !p.GlobalFlags.HasFlag(PlayerGlobalFlags.TakingGolden)) // Not taking golden
             .ToList();

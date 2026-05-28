@@ -45,7 +45,7 @@ public sealed class ClientState
         var channel = channels[channelID];
         var player = new OnlinePlayer(channel, playerID, playerInfo, globalFlags);
         players.Add(player.ID, player);
-        channel.Players.Add(player.ID, player);
+        channel.Players.Add(player);
         return player;
     }
 
@@ -60,7 +60,7 @@ public sealed class ClientState
     {
         var player = players[playerID];
         var channel = player.Channel;
-        channel.Players.Remove(playerID);
+        channel.Players.Remove(player);
         players.Remove(playerID);
     }
 
@@ -86,10 +86,10 @@ public sealed class ClientState
         previous = player.Channel;
         current = GetChannel(channelID);
 
-        bool result = player.Channel.Players.Remove(player.ID);
+        bool result = player.Channel.Players.Remove(player);
         SafeGuard.Assert(result);
         player.Channel = current;
-        current.Players.Add(player.ID, player);
+        current.Players.Add(player);
 
         return;
     }

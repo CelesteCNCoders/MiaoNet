@@ -84,11 +84,11 @@ public sealed class ChatCompletionProvider : ICompletionProvider
                 switch (segType)
                 {
                 case CommandSegmentType.Player:
-                    return GetPlayerNameCompletions(state.Players, part);
+                    return GetPlayerNameCompletions(state.Players.Select(p => p.Value), part);
                 case CommandSegmentType.PlayerSameChannel:
                     return GetPlayerNameCompletions(state.SelfChannel.Players, part);
                 case CommandSegmentType.PlayerSameMap:
-                    return GetPlayerNameCompletions(state.SelfChannel.Players.Where(p => p.Value.ShouldSyncFrom(state.Self)), part);
+                    return GetPlayerNameCompletions(state.SelfChannel.Players.Where(p => p.ShouldSyncFrom(state.Self)), part);
                 case CommandSegmentType.Channel:
                     return from pair in state.Channels
                            let i = pair.Value.Info
@@ -112,9 +112,9 @@ public sealed class ChatCompletionProvider : ICompletionProvider
                || cmd.Aliases?.Any(a => a.Contains(commandName, sc)) == true
                select new Completion(cmd.Name, cmd.Name, commandName.Length);
 
-        static IEnumerable<Completion>? GetPlayerNameCompletions(IEnumerable<KeyValuePair<int, OnlinePlayer>> players, string part)
-            => from pair in players
-               let i = pair.Value.Info
+        static IEnumerable<Completion>? GetPlayerNameCompletions(IEnumerable<OnlinePlayer> players, string part)
+            => from p in players
+               let i = p.Info
                where i.Name.Contains(part, sc)
                select new Completion(i.Name, i.DisplayName, part.Length);
     }

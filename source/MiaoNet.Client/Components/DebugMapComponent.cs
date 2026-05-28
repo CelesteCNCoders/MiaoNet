@@ -14,7 +14,7 @@ public sealed class DebugMapComponent : MiaoNetComponent
     {
         if (Engine.Scene is not MapEditor)
             return;
-        foreach (var (_, player) in ClientState.SelfChannel.Players)
+        foreach (var player in ClientState.SelfChannel.Players)
         {
             if (ClientState.Self.ShouldSyncFrom(player))
             {
