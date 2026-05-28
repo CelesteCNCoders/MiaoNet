@@ -550,7 +550,8 @@ partial class MiaoNetCommand
         if (error is not null)
             return error;
 
-        if (Engine.Scene is not Level level || level.Session.Area.SID != othersArea!.SID)
+        var self = context.MiaoNetContext.ClientState!.Self;
+        if (self.Location.Map != player!.Location.Map)
         {
             string m = PFormat.Format(Dialog.Get("miaonet_commands_watch_not_same_map"), player!.Info.Name, Dialog.Get(othersArea!.Name));
             return m;
