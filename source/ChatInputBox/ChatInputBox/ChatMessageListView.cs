@@ -1,3 +1,5 @@
+using Microsoft.Xna.Framework.Input;
+
 namespace Celeste.Mod.ChatInputBox;
 
 public sealed class ChatMessageListView
@@ -5,6 +7,12 @@ public sealed class ChatMessageListView
     private record struct ChatItem(ChatText Message, float ShowTimer, float FadeOut = 1f);
     private readonly List<ChatItem> chatLog;
     private readonly ITextRenderer textRenderer;
+
+    private bool active;
+
+    private float lastMouseScrollWheelValue;
+    private float targetScroll;
+    private float scroll;
 
     public float BackgroundOpacity { get; set; } = 0.5f;
 
@@ -17,14 +25,6 @@ public sealed class ChatMessageListView
     public float ShowDuration { get; set; } = 8f;
 
     public bool NoNewMessagesShowing { get; set; }
-
-    public bool Active { get; set; }
-
-    public float Scroll
-    {
-        get;
-        set => field = ClampScrollValue(value);
-    }
 
     public ChatMessageListView(ITextRenderer textRenderer)
     {
@@ -45,8 +45,37 @@ public sealed class ChatMessageListView
     public float ClampScrollValue(float value)
         => Math.Clamp(value, 0f, Math.Max((chatLog.Count - ActiveMaxCount) * textRenderer.LineHeight, 0));
 
+    public void Activate()
+    {
+        active = true;
+    }
+
+    public void Deactivate()
+    {
+        active = false;
+        targetScroll = 0f;
+        scroll = 0f;
+    }
+
     public void Update()
     {
+        // this seems an fna bug...
+        // we need to manually call `MouseState.Get()`
+        float currentScrollWheelValue = Mouse.GetState().ScrollWheelValue;
+        float scrollDelta = currentScrollWheelValue - lastMouseScrollWheelValue;
+        lastMouseScrollWheelValue = currentScrollWheelValue;
+
+        const float KeyboardScrollSpeed = 1024f;
+        if (MInput.Keyboard.Check(Keys.PageUp))
+            scrollDelta += KeyboardScrollSpeed * Engine.RawDeltaTime;
+        else if (MInput.Keyboard.Check(Keys.PageDown))
+            scrollDelta -= KeyboardScrollSpeed * Engine.RawDeltaTime;
+
+        targetScroll += scrollDelta;
+        targetScroll = ClampScrollValue(targetScroll);
+        float maxMove = Math.Max(Math.Abs(targetScroll - scroll), 8f) * 8f * Engine.RawDeltaTime;
+        scroll = Calc.Approach(scroll, targetScroll, maxMove);
+
         for (int i = chatLog.Count - 1; i >= 0; i--)
         {
             var item = chatLog[i];
@@ -92,9 +121,9 @@ public sealed class ChatMessageListView
 
         float curY = baseLoc.Y;
         int firstVisibleMessageIndex = chatLog.Count - 1;
-        if (Active)
+        if (active)
         {
-            curY += Scroll;
+            curY += scroll;
 
             for (int i = chatLog.Count - 1; i >= 0; i--)
             {
@@ -115,7 +144,7 @@ public sealed class ChatMessageListView
             DrawSingleMessage(chatLog[firstVisibleMessageIndex + 1], baseLoc.X, pCurY, alpha);
         }
 
-        int maxCount = Active ? ActiveMaxCount : IdleMaxCount;
+        int maxCount = active ? ActiveMaxCount : IdleMaxCount;
         int nextInvisibleMessageIndex = -1;
         for (int i = firstVisibleMessageIndex; i >= 0; i--)
         {
@@ -137,6 +166,8 @@ public sealed class ChatMessageListView
         }
     }
 
+
+    // TODO introducing ChatText.Render?
     private bool DrawSingleMessage(ChatItem item, float x, float curY, float alpha)
     {
         const float Padding = 8f;
@@ -144,7 +175,7 @@ public sealed class ChatMessageListView
         var (msg, _, msgFade) = item;
 
         float fade = msgFade;
-        if (Active)
+        if (active)
             fade = 1f;
         else if (fade == 0f)
             return false;

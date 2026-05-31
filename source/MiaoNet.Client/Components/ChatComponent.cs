@@ -40,7 +40,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     private bool active;
     private readonly InputBox inputBox;
     private readonly ChatMessageListView chatView;
-    private float targetChatViewScroll;
+
     private readonly CommandParser cmdParser;
 
     private readonly MiaoNetChatTextRenderer textRenderer;
@@ -137,18 +137,6 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
     public override void Update()
     {
-        // this seems an fna bug...
-        // we need to manually call `MouseState.Get()`
-        float currentScrollWheelValue = Mouse.GetState().ScrollWheelValue;
-        float scrollDelta = currentScrollWheelValue - lastMouseScrollWheelValue;
-        lastMouseScrollWheelValue = currentScrollWheelValue;
-
-        const float KeyboardScrollSpeed = 1024f;
-        if (MInput.Keyboard.Check(Keys.PageUp))
-            scrollDelta += KeyboardScrollSpeed * Engine.RawDeltaTime;
-        else if (MInput.Keyboard.Check(Keys.PageDown))
-            scrollDelta -= KeyboardScrollSpeed * Engine.RawDeltaTime;
-
         var settings = MiaoNetModule.Settings;
 
         if (!active)
@@ -244,11 +232,6 @@ public sealed partial class ChatComponent : MiaoNetComponent
                 }
             }
 
-            targetChatViewScroll += scrollDelta;
-            targetChatViewScroll = chatView.ClampScrollValue(targetChatViewScroll);
-            float maxMove = Math.Max(Math.Abs(targetChatViewScroll - chatView.Scroll), 8f) * 8f * Engine.RawDeltaTime;
-            chatView.Scroll = Calc.Approach(chatView.Scroll, targetChatViewScroll, maxMove);
-
             inputBox.Update();
         }
         chatView.Update();
@@ -312,7 +295,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         active = true;
         historyIndex = history.Count;
         inputBox.Activate();
-        chatView.Active = true;
+        chatView.Activate();
         previousCommandsEnabled = Engine.Commands.Enabled;
         Engine.Commands.Enabled = false;
         previousScenePaused = Engine.Scene.Paused;
@@ -332,9 +315,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         active = false;
         inputBox.Deactivate();
         lastInput = string.Empty;
-        chatView.Active = false;
-        targetChatViewScroll = 0f;
-        chatView.Scroll = 0f;
+        chatView.Deactivate();
         Engine.Commands.Enabled = previousCommandsEnabled;
         Engine.Scene.Paused = previousScenePaused;
 
