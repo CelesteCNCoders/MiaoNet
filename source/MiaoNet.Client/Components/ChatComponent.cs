@@ -29,8 +29,6 @@ public sealed partial class ChatComponent : MiaoNetComponent
         }
     }
 
-    private float lastMouseScrollWheelValue;
-
     // i hate these "previous" things
     private bool previousCommandsEnabled = false;
     private bool previousScenePaused = false;
@@ -61,7 +59,6 @@ public sealed partial class ChatComponent : MiaoNetComponent
         cmdParser = new(MiaoNetCommand.Commands);
         inputBox = new InputBox(textRenderer, new ChatCompletionProvider(context, cmdParser));
         chatView = new(textRenderer);
-        lastMouseScrollWheelValue = Mouse.GetState().ScrollWheelValue;
 
         context.ChatMessageReceived += Context_ChatMessageReceived;
         context.PlayerJoined += Context_PlayerJoined;
