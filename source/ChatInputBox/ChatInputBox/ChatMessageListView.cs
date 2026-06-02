@@ -1,3 +1,5 @@
+using Microsoft.Xna.Framework.Input;
+
 namespace Celeste.Mod.ChatInputBox;
 
 public sealed class ChatMessageListView
@@ -5,6 +7,12 @@ public sealed class ChatMessageListView
     private record struct ChatItem(ChatText Message, float ShowTimer, float FadeOut = 1f);
     private readonly List<ChatItem> chatLog;
     private readonly ITextRenderer textRenderer;
+
+    private bool active;
+
+    private float lastMouseScrollWheelValue;
+    private float targetScroll;
+    private float scroll;
 
     public float BackgroundOpacity { get; set; } = 0.5f;
 
@@ -17,19 +25,6 @@ public sealed class ChatMessageListView
     public float ShowDuration { get; set; } = 8f;
 
     public bool NoNewMessagesShowing { get; set; }
-
-    public bool Active { get; set; }
-
-    public ChatTabManager? TabManager { get; set; }
-
-    private Func<ChatText, bool>? MessageFilter
-        => Active ? TabManager?.ActiveTab?.Filter : null;
-
-    public float Scroll
-    {
-        get;
-        set => field = ClampScrollValue(value);
-    }
 
     public ChatMessageListView(ITextRenderer textRenderer)
     {
@@ -47,16 +42,40 @@ public sealed class ChatMessageListView
         chatLog.Clear();
     }
 
-    public float ClampScrollValue(float value)                                                                                                                                                                               
-    {                                                                                                                                                                                                                        
-        int count = MessageFilter is null                                                                                                                                                                                    
-            ? chatLog.Count                                                                                                                                                                                                  
-            : chatLog.Count(item => MessageFilter(item.Message));                                                                                                                                                            
-        return Math.Clamp(value, 0f, Math.Max((count - ActiveMaxCount) * textRenderer.LineHeight, 0));                                                                                                                       
+    public float ClampScrollValue(float value)
+        => Math.Clamp(value, 0f, Math.Max((chatLog.Count - ActiveMaxCount) * textRenderer.LineHeight, 0));
+
+    public void Activate()
+    {
+        active = true;
+    }
+
+    public void Deactivate()
+    {
+        active = false;
+        targetScroll = 0f;
+        scroll = 0f;
     }
 
     public void Update()
     {
+        // this seems an fna bug...
+        // we need to manually call `MouseState.Get()`
+        float currentScrollWheelValue = Mouse.GetState().ScrollWheelValue;
+        float scrollDelta = currentScrollWheelValue - lastMouseScrollWheelValue;
+        lastMouseScrollWheelValue = currentScrollWheelValue;
+
+        const float KeyboardScrollSpeed = 1024f;
+        if (MInput.Keyboard.Check(Keys.PageUp))
+            scrollDelta += KeyboardScrollSpeed * Engine.RawDeltaTime;
+        else if (MInput.Keyboard.Check(Keys.PageDown))
+            scrollDelta -= KeyboardScrollSpeed * Engine.RawDeltaTime;
+
+        targetScroll += scrollDelta;
+        targetScroll = ClampScrollValue(targetScroll);
+        float maxMove = Math.Max(Math.Abs(targetScroll - scroll), 8f) * 8f * Engine.RawDeltaTime;
+        scroll = Calc.Approach(scroll, targetScroll, maxMove);
+
         for (int i = chatLog.Count - 1; i >= 0; i--)
         {
             var item = chatLog[i];
@@ -98,19 +117,16 @@ public sealed class ChatMessageListView
         const float Margin = 16f;
         const float Padding = 8f;
 
-        Vector2 baseLoc = new Vector2(Margin, Engine.Height - Margin - textRenderer.LineHeight * 2.5f - Padding);
+        Vector2 baseLoc = new Vector2(Margin, Engine.Height - Margin - textRenderer.LineHeight * 1.5f - Padding);
 
         float curY = baseLoc.Y;
         int firstVisibleMessageIndex = chatLog.Count - 1;
-        if (Active)
+        if (active)
         {
-            curY += Scroll;
+            curY += scroll;
 
             for (int i = chatLog.Count - 1; i >= 0; i--)
             {
-                if (MessageFilter is not null && !MessageFilter(chatLog[i].Message))
-                    continue;
-                
                 if (curY > baseLoc.Y)
                 {
                     curY -= textRenderer.LineHeight;
@@ -121,26 +137,17 @@ public sealed class ChatMessageListView
             }
         }
 
-        int nextBelow = -1;                                                                                                                                                                                                      
-        for (int i = firstVisibleMessageIndex + 1; i < chatLog.Count; i++)
-        {
-            if (MessageFilter is null || MessageFilter(chatLog[i].Message))
-            { nextBelow = i; break; }
-        }
-        if (nextBelow >= 0)
+        if (firstVisibleMessageIndex + 1 < chatLog.Count)
         {
             float pCurY = curY + textRenderer.LineHeight;
             float alpha = 1f - (pCurY - baseLoc.Y) / textRenderer.LineHeight;
-            DrawSingleMessage(chatLog[nextBelow], baseLoc.X, pCurY, alpha);
+            DrawSingleMessage(chatLog[firstVisibleMessageIndex + 1], baseLoc.X, pCurY, alpha);
         }
 
-        int maxCount = Active ? ActiveMaxCount : IdleMaxCount;
+        int maxCount = active ? ActiveMaxCount : IdleMaxCount;
         int nextInvisibleMessageIndex = -1;
         for (int i = firstVisibleMessageIndex; i >= 0; i--)
         {
-            if (MessageFilter is not null && !MessageFilter(chatLog[i].Message))
-                continue;
-            
             if (curY < baseLoc.Y - maxCount * textRenderer.LineHeight)
             {
                 nextInvisibleMessageIndex = i;
@@ -154,18 +161,13 @@ public sealed class ChatMessageListView
         }
         if (nextInvisibleMessageIndex > 0)
         {
-            while (nextInvisibleMessageIndex > 0                                                                                                                                                                                 
-                && MessageFilter is not null                                                                                                                                                                                     
-                && !MessageFilter(chatLog[nextInvisibleMessageIndex].Message))                                                                                                                                                   
-                nextInvisibleMessageIndex--;
-            if (nextInvisibleMessageIndex > 0)
-            {
-                float alpha = 1f - ((baseLoc.Y - maxCount * textRenderer.LineHeight) - curY) / textRenderer.LineHeight;
-                DrawSingleMessage(chatLog[nextInvisibleMessageIndex], baseLoc.X, curY, alpha);
-            }
+            float alpha = 1f - ((baseLoc.Y - maxCount * textRenderer.LineHeight) - curY) / textRenderer.LineHeight;
+            DrawSingleMessage(chatLog[nextInvisibleMessageIndex], baseLoc.X, curY, alpha);
         }
     }
 
+
+    // TODO introducing ChatText.Render?
     private bool DrawSingleMessage(ChatItem item, float x, float curY, float alpha)
     {
         const float Padding = 8f;
@@ -173,7 +175,7 @@ public sealed class ChatMessageListView
         var (msg, _, msgFade) = item;
 
         float fade = msgFade;
-        if (Active)
+        if (active)
             fade = 1f;
         else if (fade == 0f)
             return false;

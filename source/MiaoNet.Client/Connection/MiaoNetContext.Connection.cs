@@ -113,7 +113,7 @@ partial class MiaoNetContext
                 bool revocationCheck = !MiaoNetModule.Settings.IgnoreCertRevocationStatus;
                 connection = await MiaoServerConnection.CreateAsync(ep, TargetServer, revocationCheck, token);
 
-                Version localVersion = MiaoNetModule.Instance.Metadata.Version;
+                Version localVersion = Connection.Version;
                 Version? version = await connection.MakeVersionCheck(localVersion, token);
                 if (version is not null)
                 {

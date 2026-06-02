@@ -13,8 +13,6 @@ namespace MiaoNet.MockClient;
 
 public sealed class MockInstance : IPacketSerializationContext, IDisposable
 {
-    private static readonly Version ClientVersion = new(0, 4, 4);
-
     private Vector2 position;
 
     private ConcurrentQueue<IContextualPacket> packetQueue;
@@ -53,7 +51,7 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
     private async Task ProcessAsync(string name)
     {
         await ConnectAsync("127.0.0.1", 21473);
-        var serverVersion = await DoVersionCheckAsync(ClientVersion);
+        var serverVersion = await DoVersionCheckAsync(Connection.Version);
         if (serverVersion is not null)
         {
             Log($"Version mismatch. Server requires {serverVersion.ToString(3)}");

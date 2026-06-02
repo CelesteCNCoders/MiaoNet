@@ -5,13 +5,9 @@ namespace Celeste.Mod.ChatInputBoxExample;
 [Tracked]
 public sealed class ChatInputBoxEntity : Entity
 {
-    // this is an fna bug...
-    private float lastMouseScroll = 0f;
-    private float scroll = 0f;
     private bool active;
     private readonly ChatMessageListView msgListView;
     private readonly InputBox inputBox;
-    private readonly ChatTabManager tabManager;
 
     public ChatInputBoxEntity()
     {
@@ -23,10 +19,6 @@ public sealed class ChatInputBoxEntity : Entity
         };
         inputBox = new(r, new TestCompletionProvider());
         msgListView = new(r);
-        tabManager = new ChatTabManager(r);
-        msgListView.TabManager = tabManager;
-        tabManager.AddTab("Channel", chatText => chatText.Channel == "Channel");
-        
         List<string> randomMsgs = [
             @"\uThis entire sentence is underlined.\r",
             @"\aThis text is red until reset.\r Normal text follows.",
@@ -100,19 +92,15 @@ public sealed class ChatInputBoxEntity : Entity
         ];
         foreach (var msg in randomMsgs)
         {
-            msgListView.AddChatMessage(ChatText.Create(msg, Color.White, "Global"));
+            msgListView.AddChatMessage(ChatText.Create(msg, Color.White));
         }
-        
-        msgListView.AddChatMessage(ChatText.Create("This is a Channel message.", Color.White, "Channel"));
-
-        lastMouseScroll = Mouse.GetState().ScrollWheelValue;
     }
 
     public void Activate()
     {
         active = true;
         inputBox.Activate();
-        msgListView.Active = true;
+        msgListView.Activate();
         Scene.Paused = true;
     }
 
@@ -120,9 +108,7 @@ public sealed class ChatInputBoxEntity : Entity
     {
         active = false;
         inputBox.Deactivate();
-        msgListView.Scroll = 0f;
-        msgListView.Active = false;
-        scroll = 0f;
+        msgListView.Deactivate();
         Scene.Paused = false;
     }
 
@@ -132,23 +118,10 @@ public sealed class ChatInputBoxEntity : Entity
         if (active)
         {
             inputBox.Update();
-            float scrollWheelValue = Mouse.GetState().ScrollWheelValue;
-            scroll += scrollWheelValue - lastMouseScroll;
-            lastMouseScroll = scrollWheelValue;
 
-            scroll = msgListView.ClampScrollValue(scroll);
-            msgListView.Scroll = Calc.Approach(
-                msgListView.Scroll,
-                scroll,
-                Math.Max(Math.Abs(scroll - msgListView.Scroll), 24f) * 8f * Engine.DeltaTime
-            );
-            if (MInput.Keyboard.Pressed(Keys.LeftShift))
-            {
-                tabManager.CycleTab();
-            }
             if (MInput.Keyboard.Pressed(Keys.Enter))
             {
-                msgListView.AddChatMessage(ChatText.Create(inputBox.Text, Color.White, "Global"));
+                msgListView.AddChatMessage(ChatText.Create(inputBox.Text, Color.White));
                 Deactivate();
                 MInput.VirtualInputs.ForEach(i => (i as VirtualButton)?.ConsumePress());
             }
@@ -168,9 +141,6 @@ public sealed class ChatInputBoxEntity : Entity
     {
         msgListView.Render();
         if (active)
-        {
-            tabManager.Render();
             inputBox.Render();
-        }
     }
 }
