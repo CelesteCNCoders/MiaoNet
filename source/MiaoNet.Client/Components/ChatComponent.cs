@@ -46,7 +46,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     private readonly MiaoNetChatTextRenderer textRenderer;
 
     private string lastInput = string.Empty;
-    private readonly List<string> history;
+    private readonly List<string> inputHistory;
     private int historyIndex;
 
     public bool Active => active;
@@ -54,13 +54,14 @@ public sealed partial class ChatComponent : MiaoNetComponent
     public ChatComponent(MiaoNetContext context)
         : base(context)
     {
-        history = new();
+        inputHistory = new();
         float scale = MiaoNetModule.Settings.ChatUIScaleValue;
         textRenderer = new MiaoNetChatTextRenderer(scale, MiaoNetFont.ENZhsLineHeight * scale);
         dummyOverlay = new();
         cmdParser = new(MiaoNetCommand.Commands);
         inputBox = new InputBox(textRenderer, new ChatCompletionProvider(context, cmdParser));
         chatView = new(textRenderer);
+        chatViewSetUp();
         lastMouseScrollWheelValue = Mouse.GetState().ScrollWheelValue;
 
         context.ChatMessageReceived += Context_ChatMessageReceived;
@@ -116,7 +117,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
             break;
         case ChatMessageType.ChannelChat:
             if (!chatDisabled)
-                chatView.AddChatMessage(MiaoNetChatText.CreateChannelChat(packet.DateTime, player!, packet.Content, context.ShowAvatar), "Global");
+                chatView.AddChatMessage(MiaoNetChatText.CreateChannelChat(packet.DateTime, player!, packet.Content, context.ShowAvatar), "Channel");
             break;
         case ChatMessageType.MapChat:
             if (!chatDisabled)
@@ -176,7 +177,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
                 string trimmedText = text.Trim();
                 if (trimmedText != string.Empty)
                 {
-                    history.Add(trimmedText);
+                    inputHistory.Add(trimmedText);
                     if (!trimmedText.StartsWith(CommandParser.CommandPrefix, StringComparison.Ordinal))
                     {
                         if (!MiaoNetModule.Settings.LiveMode)
@@ -196,6 +197,13 @@ public sealed partial class ChatComponent : MiaoNetComponent
             if (MInput.Keyboard.Pressed(Keys.Tab))
             {
                 chatView.chatTabManager.CycleTab();
+                // TODO：Private Chat Switch
+                var chatTabName = chatView.chatTabManager.ActiveTab?.Name ?? "";
+                var chatChannel = ChatChannelMatcher.Match(chatTabName);
+                if (chatChannel != (ChatChannel)(-1))
+                {
+                    settings.ChatChannel = chatChannel;
+                }
             }
 
             if (!inputBox.HasCompletions)
@@ -207,23 +215,23 @@ public sealed partial class ChatComponent : MiaoNetComponent
                     if (i < 0) i = 0;
                     if (i != historyIndex)
                     {
-                        if (historyIndex == history.Count)
+                        if (historyIndex == inputHistory.Count)
                             lastInput = inputBox.Text;
                         historyIndex = i;
                         inputBox.SetSuppressCompletions();
-                        inputBox.SetText(history[i]);
+                        inputBox.SetText(inputHistory[i]);
                     }
                 }
                 else if (MInput.Keyboard.Pressed(Keys.Down))
                 {
                     int i = historyIndex;
                     i += 1;
-                    if (i > history.Count)
-                        i = history.Count;
+                    if (i > inputHistory.Count)
+                        i = inputHistory.Count;
                     if (i != historyIndex)
                     {
                         historyIndex = i;
-                        if (i == history.Count)
+                        if (i == inputHistory.Count)
                         {
                             inputBox.SetSuppressCompletions();
                             inputBox.SetText(lastInput);
@@ -231,7 +239,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
                         else
                         {
                             inputBox.SetSuppressCompletions();
-                            inputBox.SetText(history[i]);
+                            inputBox.SetText(inputHistory[i]);
                         }
                     }
                 }
@@ -290,15 +298,25 @@ public sealed partial class ChatComponent : MiaoNetComponent
     {
         if (active)
             Deactivate();
-        chatView.CleanUp();
-        history.Clear();
+        chatViewSetUp();
+        inputHistory.Clear();
         historyIndex = 0;
+    }
+
+    private void chatViewSetUp()
+    {
+        chatView.CleanUp();
+        List<string> tabNames = ["Global", "Channel", "Map"];
+        foreach (var tabName in tabNames)
+        {
+            chatView.chatTabManager.AddTab(tabName);
+        }
     }
 
     private void Activate()
     {
         active = true;
-        historyIndex = history.Count;
+        historyIndex = inputHistory.Count;
         inputBox.Activate();
         chatView.Activate();
         previousCommandsEnabled = Engine.Commands.Enabled;

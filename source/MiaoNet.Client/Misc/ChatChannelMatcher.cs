@@ -21,4 +21,6 @@ public static class ChatChannelMatcher
 
         return (ChatChannel)(-1);
     }
+    
+    // TODO: Private Chat Matching
 }

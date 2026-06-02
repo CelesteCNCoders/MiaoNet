@@ -127,8 +127,10 @@ public sealed class ChatMessageListView
 
     public void Render()
     {
-        if (showingChatLog.Count == 0)
-            return;
+        if (active)
+            chatTabManager.Render();
+        // if (showingChatLog.Count == 0)
+        //     return;
 
         const float Margin = 16f;
         const float Padding = 8f;
@@ -137,9 +139,6 @@ public sealed class ChatMessageListView
 
         float curY = baseLoc.Y;
         int firstVisibleMessageIndex = showingChatLog.Count - 1;
-        
-        if (active)
-            chatTabManager.Render();
         
         if (active)
         {
