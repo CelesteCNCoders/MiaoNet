@@ -4,7 +4,6 @@ namespace Celeste.Mod.ChatInputBox;
 
 public sealed class ChatMessageListView
 {
-    private record struct ChatItem(ChatText Message, float ShowTimer, float FadeOut = 1f);
     private readonly List<ChatItem> chatLog;
     private readonly ITextRenderer textRenderer;
 
@@ -14,6 +13,11 @@ public sealed class ChatMessageListView
     private float targetScroll;
     private float scroll;
 
+    private List<ChatItem> tabChatLog => chatTabManager.ActiveTab?.chatLog ?? [];
+    private List<ChatItem> showingChatLog => active && !chatTabManager.ShowAll  ? tabChatLog : chatLog;
+    
+    public ChatTabManager chatTabManager { get; }
+    
     public float BackgroundOpacity { get; set; } = 0.5f;
 
     public float TextOpacity { get; set; } = 1f;
@@ -25,25 +29,31 @@ public sealed class ChatMessageListView
     public float ShowDuration { get; set; } = 8f;
 
     public bool NoNewMessagesShowing { get; set; }
+    
+    public string? ActiveTabName => chatTabManager.ActiveTab?.Name;
 
     public ChatMessageListView(ITextRenderer textRenderer)
     {
         this.textRenderer = textRenderer;
+        chatTabManager = new ChatTabManager(textRenderer);
         chatLog = new();
     }
 
-    public void AddChatMessage(ChatText chatMessage)
+    public void AddChatMessage(ChatText chatMessage, string tabName)
     {
-        chatLog.Add(new(chatMessage, ShowDuration));
+        ChatItem chatItem = new(chatMessage, ShowDuration);
+        chatLog.Add(chatItem);
+        chatTabManager.AddChatItem(chatItem, tabName);
     }
 
     public void CleanUp()
     {
         chatLog.Clear();
+        chatTabManager.CleanUp();
     }
 
     public float ClampScrollValue(float value)
-        => Math.Clamp(value, 0f, Math.Max((chatLog.Count - ActiveMaxCount) * textRenderer.LineHeight, 0));
+        => Math.Clamp(value, 0f, Math.Max((showingChatLog.Count - ActiveMaxCount) * textRenderer.LineHeight, 0));
 
     public void Activate()
     {
@@ -111,21 +121,25 @@ public sealed class ChatMessageListView
 
     public void Render()
     {
-        if (chatLog.Count == 0)
+        if (showingChatLog.Count == 0)
             return;
 
         const float Margin = 16f;
         const float Padding = 8f;
 
-        Vector2 baseLoc = new Vector2(Margin, Engine.Height - Margin - textRenderer.LineHeight * 1.5f - Padding);
+        Vector2 baseLoc = new Vector2(Margin, Engine.Height - Margin - textRenderer.LineHeight * 2.5f - Padding);
 
         float curY = baseLoc.Y;
-        int firstVisibleMessageIndex = chatLog.Count - 1;
+        int firstVisibleMessageIndex = showingChatLog.Count - 1;
+        
+        if (active)
+            chatTabManager.Render();
+        
         if (active)
         {
             curY += scroll;
 
-            for (int i = chatLog.Count - 1; i >= 0; i--)
+            for (int i = showingChatLog.Count - 1; i >= 0; i--)
             {
                 if (curY > baseLoc.Y)
                 {
@@ -137,11 +151,11 @@ public sealed class ChatMessageListView
             }
         }
 
-        if (firstVisibleMessageIndex + 1 < chatLog.Count)
+        if (firstVisibleMessageIndex + 1 < showingChatLog.Count)
         {
             float pCurY = curY + textRenderer.LineHeight;
             float alpha = 1f - (pCurY - baseLoc.Y) / textRenderer.LineHeight;
-            DrawSingleMessage(chatLog[firstVisibleMessageIndex + 1], baseLoc.X, pCurY, alpha);
+            DrawSingleMessage(showingChatLog[firstVisibleMessageIndex + 1], baseLoc.X, pCurY, alpha);
         }
 
         int maxCount = active ? ActiveMaxCount : IdleMaxCount;
@@ -154,7 +168,7 @@ public sealed class ChatMessageListView
                 break;
             }
 
-            if (!DrawSingleMessage(chatLog[i], baseLoc.X, curY, 1f))
+            if (!DrawSingleMessage(showingChatLog[i], baseLoc.X, curY, 1f))
                 break;
 
             curY -= textRenderer.LineHeight;
@@ -162,7 +176,7 @@ public sealed class ChatMessageListView
         if (nextInvisibleMessageIndex > 0)
         {
             float alpha = 1f - ((baseLoc.Y - maxCount * textRenderer.LineHeight) - curY) / textRenderer.LineHeight;
-            DrawSingleMessage(chatLog[nextInvisibleMessageIndex], baseLoc.X, curY, alpha);
+            DrawSingleMessage(showingChatLog[nextInvisibleMessageIndex], baseLoc.X, curY, alpha);
         }
     }
 
@@ -172,7 +186,8 @@ public sealed class ChatMessageListView
     {
         const float Padding = 8f;
 
-        var (msg, _, msgFade) = item;
+        var msg = item.Message;
+        var msgFade = item.FadeOut;
 
         float fade = msgFade;
         if (active)

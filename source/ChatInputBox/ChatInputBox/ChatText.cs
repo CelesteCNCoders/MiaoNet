@@ -5,11 +5,10 @@ using System.Text;
 
 namespace Celeste.Mod.ChatInputBox;
 
+
 [DebuggerDisplay("Count = {Segments.Count}")]
 public sealed class ChatText
 {
-    public string Channel { get; }
-
     public static readonly ImmutableArray<Color> CommonColors;
     
     public ImmutableArray<ChatTextSegment> Segments { get; }
@@ -35,16 +34,8 @@ public sealed class ChatText
             new Color(0xFF, 0xFF, 0xFF, 0xFF), // f white
         ];
     }
-
-    //FIXME ：Remove this Wrap
     public ChatText(ImmutableArray<ChatTextSegment> segments)
-        : this("Global", segments)
     {
-    }
-
-    public ChatText(string channel, ImmutableArray<ChatTextSegment> segments)
-    {
-        Channel = channel;
         Segments = segments;
     }
 
@@ -204,6 +195,6 @@ public sealed class ChatText
         #endregion
     }
 
-    public static ChatText Create(ReadOnlySpan<char> input, Color defaultColor, string channel)
-        => new(channel, Parse(input, defaultColor));
+    public static ChatText Create(ReadOnlySpan<char> input, Color defaultColor)
+        => new(Parse(input, defaultColor));
 }

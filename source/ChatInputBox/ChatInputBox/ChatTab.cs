@@ -5,11 +5,21 @@ namespace Celeste.Mod.ChatInputBox;
 public class ChatTab
 {
     public string Name { get; }
-    public Func<ChatText, bool>? Filter { get; }
+    public List<ChatItem> chatLog;
 
-    public ChatTab(string name,  Func<ChatText, bool>? filter)
+    public ChatTab(string name)
     {
         Name = name;
-        Filter = filter;
+        chatLog = new();
+    }
+    
+    public void AddChatItem(ChatItem chatItem)
+    {
+        chatLog.Add(chatItem);
+    }
+
+    public void CleanUp()
+    {
+        chatLog.Clear();
     }
 }

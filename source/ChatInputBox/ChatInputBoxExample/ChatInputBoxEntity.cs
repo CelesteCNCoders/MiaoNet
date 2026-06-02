@@ -92,8 +92,12 @@ public sealed class ChatInputBoxEntity : Entity
         ];
         foreach (var msg in randomMsgs)
         {
-            msgListView.AddChatMessage(ChatText.Create(msg, Color.White));
+            msgListView.AddChatMessage(ChatText.Create(msg, Color.White), "Global");
         }
+        
+        msgListView.AddChatMessage(ChatText.Create("This is a global text", Color.White), "Global");
+        msgListView.AddChatMessage(ChatText.Create("This is a channel text", Color.Yellow), "Channel");
+        msgListView.AddChatMessage(ChatText.Create("This is a map text", Color.Green), "Map");
     }
 
     public void Activate()
@@ -121,7 +125,7 @@ public sealed class ChatInputBoxEntity : Entity
 
             if (MInput.Keyboard.Pressed(Keys.Enter))
             {
-                msgListView.AddChatMessage(ChatText.Create(inputBox.Text, Color.White));
+                msgListView.AddChatMessage(ChatText.Create(inputBox.Text, Color.White), msgListView.ActiveTabName ?? "Global");
                 Deactivate();
                 MInput.VirtualInputs.ForEach(i => (i as VirtualButton)?.ConsumePress());
             }
@@ -129,6 +133,10 @@ public sealed class ChatInputBoxEntity : Entity
             {
                 Deactivate();
                 MInput.VirtualInputs.ForEach(i => (i as VirtualButton)?.ConsumePress());
+            }
+            else if (MInput.Keyboard.Pressed(Keys.LeftShift))
+            {
+                msgListView.chatTabManager.CycleTab();
             }
         }
         else if (MInput.Keyboard.Pressed(Keys.T))
