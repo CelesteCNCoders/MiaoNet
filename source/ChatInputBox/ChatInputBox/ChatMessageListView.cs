@@ -5,6 +5,12 @@ namespace Celeste.Mod.ChatInputBox;
 public sealed class ChatMessageListView
 {
     private record struct ChatItem(ChatText Message, float ShowTimer, float FadeOut = 1f);
+
+    const float Margin = 16f;
+    const float Padding = 8f;
+    const float MessageXPadding = 8f;
+    const float MessageYPadding = 8f;
+
     private readonly List<ChatItem> chatLog;
     private readonly ITextRenderer textRenderer;
 
@@ -43,7 +49,7 @@ public sealed class ChatMessageListView
     }
 
     public float ClampScrollValue(float value)
-        => Math.Clamp(value, 0f, Math.Max((chatLog.Count - ActiveMaxCount) * textRenderer.LineHeight, 0));
+        => Math.Clamp(value, 0f, Math.Max((chatLog.Count - ActiveMaxCount) * (textRenderer.LineHeight + 2 * MessageYPadding), 0));
 
     public void Activate()
     {
@@ -114,10 +120,10 @@ public sealed class ChatMessageListView
         if (chatLog.Count == 0)
             return;
 
-        const float Margin = 16f;
-        const float Padding = 8f;
+        float lineHeight = textRenderer.LineHeight;
+        float messageLineHeight = lineHeight + 2 * MessageYPadding;
 
-        Vector2 baseLoc = new Vector2(Margin, Engine.Height - Margin - textRenderer.LineHeight * 1.5f - Padding);
+        Vector2 baseLoc = new Vector2(Margin, Engine.Height - Margin - lineHeight * 1.5f - Padding);
 
         float curY = baseLoc.Y;
         int firstVisibleMessageIndex = chatLog.Count - 1;
@@ -129,7 +135,7 @@ public sealed class ChatMessageListView
             {
                 if (curY > baseLoc.Y)
                 {
-                    curY -= textRenderer.LineHeight;
+                    curY -= messageLineHeight;
                     continue;
                 }
                 firstVisibleMessageIndex = i;
@@ -139,8 +145,8 @@ public sealed class ChatMessageListView
 
         if (firstVisibleMessageIndex + 1 < chatLog.Count)
         {
-            float pCurY = curY + textRenderer.LineHeight;
-            float alpha = 1f - (pCurY - baseLoc.Y) / textRenderer.LineHeight;
+            float pCurY = curY + messageLineHeight;
+            float alpha = 1f - (pCurY - baseLoc.Y) / messageLineHeight;
             DrawSingleMessage(chatLog[firstVisibleMessageIndex + 1], baseLoc.X, pCurY, alpha);
         }
 
@@ -148,7 +154,7 @@ public sealed class ChatMessageListView
         int nextInvisibleMessageIndex = -1;
         for (int i = firstVisibleMessageIndex; i >= 0; i--)
         {
-            if (curY < baseLoc.Y - maxCount * textRenderer.LineHeight)
+            if (curY < baseLoc.Y - maxCount * messageLineHeight)
             {
                 nextInvisibleMessageIndex = i;
                 break;
@@ -157,21 +163,19 @@ public sealed class ChatMessageListView
             if (!DrawSingleMessage(chatLog[i], baseLoc.X, curY, 1f))
                 break;
 
-            curY -= textRenderer.LineHeight;
+            curY -= messageLineHeight;
         }
         if (nextInvisibleMessageIndex > 0)
         {
-            float alpha = 1f - ((baseLoc.Y - maxCount * textRenderer.LineHeight) - curY) / textRenderer.LineHeight;
+            float alpha = 1f - ((baseLoc.Y - maxCount * messageLineHeight) - curY) / messageLineHeight;
             DrawSingleMessage(chatLog[nextInvisibleMessageIndex], baseLoc.X, curY, alpha);
         }
     }
 
 
     // TODO introducing ChatText.Render?
-    private bool DrawSingleMessage(ChatItem item, float x, float curY, float alpha)
+    private bool DrawSingleMessage(ChatItem item, float x, float y, float alpha)
     {
-        const float Padding = 8f;
-
         var (msg, _, msgFade) = item;
 
         float fade = msgFade;
@@ -183,16 +187,18 @@ public sealed class ChatMessageListView
         fade *= alpha;
 
         float lineHeight = textRenderer.LineHeight;
+        float messageLineHeight = lineHeight + 2 * MessageYPadding;
         float lineWidth = MeasureSingleMessage(msg);
         DrawSnappedRect(
             x,
-            curY - lineHeight,
-            lineWidth + 2 * Padding,
-            lineHeight,
+            y - messageLineHeight,
+            lineWidth + 2 * MessageXPadding,
+            messageLineHeight,
             Color.Black * fade * BackgroundOpacity
         );
 
-        float curX = x + Padding;
+        float curX = x + MessageXPadding;
+        float curY = y - MessageYPadding;
         foreach (var seg in msg.Segments)
         {
             Vector2 size = textRenderer.Measure(seg.Text);
