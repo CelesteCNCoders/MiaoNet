@@ -17,7 +17,7 @@ public static class MiaoNetChatText
     private static readonly Color ColorCommandError = Color.IndianRed;
     private static readonly Color ColorAnnouncements = Color.Yellow;
 
-    public static ChatText CreatePublicChat(DateTime dateTime, OnlinePlayer sender, string text, bool avatar)
+    public static ChatText CreateGlobalChat(DateTime dateTime, OnlinePlayer sender, string text, bool avatar)
         => new ChatText([
             new(ColorTime, FormatDateTime(dateTime)),
             new(sender.Info.Color, sender.GetDisplayName(true, avatar)),

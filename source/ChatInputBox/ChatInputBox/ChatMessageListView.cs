@@ -39,17 +39,23 @@ public sealed class ChatMessageListView
         chatLog = new();
     }
 
-    public void AddChatMessage(ChatText chatMessage, string tabName)
+    public void AddChatMessage(ChatText chatMessage, string? tabName = null)
     {
         ChatItem chatItem = new(chatMessage, ShowDuration);
         chatLog.Add(chatItem);
-        chatTabManager.AddChatItem(chatItem, tabName);
+        chatTabManager.AddChatItem(chatItem, tabName!);
     }
 
     public void CleanUp()
     {
         chatLog.Clear();
         chatTabManager.CleanUp();
+    }
+
+    public void CleanHistory()
+    {
+        chatLog.Clear();
+        chatTabManager.CleanHistory();
     }
 
     public float ClampScrollValue(float value)

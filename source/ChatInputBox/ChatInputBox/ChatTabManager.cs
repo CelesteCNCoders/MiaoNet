@@ -54,8 +54,18 @@ public class ChatTabManager
         activeTabIndex = targetTabIndex;
     }
 
-    public void AddChatItem(ChatItem chatItem, string tabName)
+    // Add to all Tabs while tabName == null (For Local Announcement）
+    public void AddChatItem(ChatItem chatItem, string? tabName)
     {
+        if (tabName == null)
+        {
+            foreach (var chatTab in tabs)
+            {
+                chatTab.AddChatItem(chatItem);
+            }
+
+            return;
+        } 
         var tab = GetOrAddTab(tabName);
         tab.AddChatItem(chatItem);
     }
@@ -63,6 +73,15 @@ public class ChatTabManager
     public void CleanUp()
     {
         tabs.Clear();
+        activeTabIndex = -1;
+    }
+
+    public void CleanHistory()
+    {
+        foreach (var chatTab in tabs)
+        {
+            chatTab.CleanUp();
+        }
     }
 
     public void Render() 

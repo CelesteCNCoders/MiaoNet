@@ -112,25 +112,25 @@ public sealed partial class ChatComponent : MiaoNetComponent
         {
         case ChatMessageType.Chat:
             if (!chatDisabled)
-                chatView.AddChatMessage(MiaoNetChatText.CreatePublicChat(packet.DateTime, player!, packet.Content, context.ShowAvatar));
+                chatView.AddChatMessage(MiaoNetChatText.CreateGlobalChat(packet.DateTime, player!, packet.Content, context.ShowAvatar), "Global");
             break;
         case ChatMessageType.ChannelChat:
             if (!chatDisabled)
-                chatView.AddChatMessage(MiaoNetChatText.CreateChannelChat(packet.DateTime, player!, packet.Content, context.ShowAvatar));
+                chatView.AddChatMessage(MiaoNetChatText.CreateChannelChat(packet.DateTime, player!, packet.Content, context.ShowAvatar), "Global");
             break;
         case ChatMessageType.MapChat:
             if (!chatDisabled)
-                chatView.AddChatMessage(MiaoNetChatText.CreateMapChat(packet.DateTime, player!, packet.Content, context.ShowAvatar));
+                chatView.AddChatMessage(MiaoNetChatText.CreateMapChat(packet.DateTime, player!, packet.Content, context.ShowAvatar),"Map");
             break;
         case ChatMessageType.Server:
-            chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.DateTime, packet.Content));
+            chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.DateTime, packet.Content), "Server");
             break;
         case ChatMessageType.PrivateMessage:
             if (!chatDisabled)
-                chatView.AddChatMessage(MiaoNetChatText.CreatePrivateChat(packet.DateTime, player!, packet.Content, context.ShowAvatar));
+                chatView.AddChatMessage(MiaoNetChatText.CreatePrivateChat(packet.DateTime, player!, packet.Content, context.ShowAvatar), string.Format("[(0)]", player!.GetDisplayName(false, false)));
             break;
         case ChatMessageType.ServerChat:
-            chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.DateTime, packet.Content));
+            chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.DateTime, packet.Content), "ServerChat");
             break;
         }
     }
@@ -189,8 +189,13 @@ public sealed partial class ChatComponent : MiaoNetComponent
                         HandleCommand(trimmedText);
                     }
                 }
+
                 Deactivate();
                 return;
+            }
+            if (MInput.Keyboard.Pressed(Keys.Tab))
+            {
+                chatView.chatTabManager.CycleTab();
             }
 
             if (!inputBox.HasCompletions)
@@ -247,7 +252,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         => chatView.AddChatMessage(MiaoNetChatText.CreateSentPrivateChat(dateTime, other, context.ClientState!.Self, text, context.ShowAvatar));
 
     public void ClearChat()
-        => chatView.CleanUp();
+        => chatView.CleanHistory();
 
     public void HandleCommand(string text)
     {
