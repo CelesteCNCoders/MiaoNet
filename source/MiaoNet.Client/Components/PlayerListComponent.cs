@@ -80,24 +80,24 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             CreateTestPlayer(cMain, "Admin", "Celeste/LostLevels", "end-golden"),
             CreateTestPlayer(cMain, "eeee", "eeee/eeee", ""),
             CreateTestPlayer(cMain, "David", "Celeste/1-ForsakenCity", "b-0c"),
-            CreateTestPlayer(cMain, "voidsd", "SpringCollab2020/Expert/ZZ-HeartSide", "idk-a"),
-            CreateTestPlayer(cMain, "mo_fish", "", ""),
+            CreateTestPlayer(cMain, "Voidsd", "SpringCollab2020/Expert/ZZ-HeartSide", "idk-a"),
+            CreateTestPlayer(cMain, "Mo_fish", "", ""),
+            CreateTestPlayer(cMain, "Dilant", "", "")
         ];
         foreach (var item in mainChannelPlayerList)
             cMain.Players.Add(item.Player);
         OnlineChannel cOther = new(1, new ChannelInfo("xinzhan"));
         List<PlayerListEntry> otherChannelPlayerList = [
             CreateTestPlayer(cOther, "O5DZ", "StrawberryJam2021/Advanced/Lobby", "a-00"),
-            CreateTestPlayer(cOther, "idk_others", "StrawberryJam2021/Advanced/Lobby", "a-01"),
-            CreateTestPlayer(cOther, "idk_others_too", "Celeste/9-Core", "f-0j"),
+            CreateTestPlayer(cOther, "Feng_Luo", "StrawberryJam2021/Advanced/Lobby", "a-01"),
+            CreateTestPlayer(cOther, "someone1", "Celeste/9-Core", "f-0j"),
         ];
         foreach (var item in otherChannelPlayerList)
             cOther.Players.Add(item.Player);
         OnlineChannel cOther2 = new(2, new ChannelInfo("xinzhan2"));
         List<PlayerListEntry> otherChannel2PlayerList = [
-            CreateTestPlayer(cOther, "O5DZ222", "StrawberryJam2021/Advanced/Lobby", "a-00"),
-            CreateTestPlayer(cOther, "idk_others222", "StrawberryJam2021/Advanced/Lobby", "a-01"),
-            CreateTestPlayer(cOther, "idk_others_too222", "Celeste/9-Core", "f-0j"),
+            CreateTestPlayer(cOther, "someone2", "StrawberryJam2021/Advanced/Lobby", "a-01"),
+            CreateTestPlayer(cOther, "someone3", "Celeste/9-Core", "f-0j"),
         ];
         for (int i = 0; i < 16; i++)
             otherChannel2PlayerList.Add(CreateTestPlayer(cOther, $"P {i}", "Celeste/9-Core", "f-0j"));
