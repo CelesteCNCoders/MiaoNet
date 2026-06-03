@@ -163,6 +163,10 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 
     [YamlIgnore] public float ChatTextOpacityValue => ChatTextOpacity / 10f;
 
+    [YamlIgnore] public float IdleChatHeightValue => IdleChatHeight / 10f;
+
+    [YamlIgnore] public float ActiveChatHeightValue => ActiveChatHeight / 10f;
+
     #endregion
 
     #endregion

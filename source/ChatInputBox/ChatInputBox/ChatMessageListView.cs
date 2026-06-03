@@ -24,9 +24,9 @@ public sealed class ChatMessageListView
 
     public float TextOpacity { get; set; } = 1f;
 
-    public int IdleMaxCount { get; set; } = 12;
+    public float IdleHeight { get; set; } = 0.2f;
 
-    public int ActiveMaxCount { get; set; } = 18;
+    public float ActiveHeight { get; set; } = 0.8f;
 
     public float ShowDuration { get; set; } = 8f;
 
@@ -48,8 +48,19 @@ public sealed class ChatMessageListView
         chatLog.Clear();
     }
 
-    public float ClampScrollValue(float value)
-        => Math.Clamp(value, 0f, Math.Max((chatLog.Count - ActiveMaxCount) * (textRenderer.LineHeight + 2 * MessageYPadding), 0));
+    private float ClampScrollValue(float value)
+    {
+        // can we avoid recalculating these?
+        float messageLineHeight = (textRenderer.LineHeight + 2 * MessageYPadding);
+        float totalMessagesHeight = chatLog.Count * messageLineHeight;
+
+        float lineHeight = textRenderer.LineHeight;
+        float baseY = Engine.Height - Margin - lineHeight * 1.5f - Padding;
+        float maxHeightV = (active ? ActiveHeight : IdleHeight) * baseY;
+        maxHeightV = (int)(maxHeightV / messageLineHeight) * messageLineHeight;
+
+        return Math.Clamp(value, 0f, Math.Max(totalMessagesHeight - maxHeightV, 0f));
+    }
 
     public void Activate()
     {
@@ -123,7 +134,8 @@ public sealed class ChatMessageListView
         float lineHeight = textRenderer.LineHeight;
         float messageLineHeight = lineHeight + 2 * MessageYPadding;
 
-        Vector2 baseLoc = new Vector2(Margin, Engine.Height - Margin - lineHeight * 1.5f - Padding);
+        float baseY = Engine.Height - Margin - lineHeight * 1.5f - Padding;
+        Vector2 baseLoc = new Vector2(Margin, baseY);
 
         float curY = baseLoc.Y;
         int firstVisibleMessageIndex = chatLog.Count - 1;
@@ -150,11 +162,12 @@ public sealed class ChatMessageListView
             DrawSingleMessage(chatLog[firstVisibleMessageIndex + 1], baseLoc.X, pCurY, alpha);
         }
 
-        int maxCount = active ? ActiveMaxCount : IdleMaxCount;
+        float maxHeightV = (active ? ActiveHeight : IdleHeight) * baseY;
+        maxHeightV = (int)(maxHeightV / messageLineHeight) * messageLineHeight;
         int nextInvisibleMessageIndex = -1;
         for (int i = firstVisibleMessageIndex; i >= 0; i--)
         {
-            if (curY < baseLoc.Y - maxCount * messageLineHeight)
+            if (curY < baseLoc.Y - maxHeightV)
             {
                 nextInvisibleMessageIndex = i;
                 break;
@@ -167,7 +180,7 @@ public sealed class ChatMessageListView
         }
         if (nextInvisibleMessageIndex > 0)
         {
-            float alpha = 1f - ((baseLoc.Y - maxCount * messageLineHeight) - curY) / messageLineHeight;
+            float alpha = 1f - (baseLoc.Y - maxHeightV - curY) / messageLineHeight;
             DrawSingleMessage(chatLog[nextInvisibleMessageIndex], baseLoc.X, curY, alpha);
         }
     }

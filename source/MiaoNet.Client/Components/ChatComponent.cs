@@ -77,11 +77,8 @@ public sealed partial class ChatComponent : MiaoNetComponent
         chatView.TextOpacity = settings.ChatTextOpacityValue;
         chatView.ShowDuration = settings.ChatDisplayDuration;
         chatView.NoNewMessagesShowing = settings.NoNewMessagesShowing;
-        // TODO move these impl to pixel-based value
-        // since we don't care how chat messages will be rendered
-        float factor = 22f / 10f / (settings.ChatUIScaleValue * 24f / 10f);
-        chatView.IdleMaxCount = (int)(factor * settings.IdleChatHeight);
-        chatView.ActiveMaxCount = (int)(factor * settings.ActiveChatHeight);
+        chatView.IdleHeight = settings.IdleChatHeightValue;
+        chatView.ActiveHeight = settings.ActiveChatHeightValue;
         float scale = settings.ChatUIScaleValue;
         textRenderer.Scale = scale;
         textRenderer.LineHeight = MiaoNetFont.ENZhsLineHeight * scale;
