@@ -15,7 +15,7 @@ public static class MiaoNetChatText
     private static readonly Color ColorCommand = Color.LightGray;
     private static readonly Color ColorCommandEcho = Color.DodgerBlue;
     private static readonly Color ColorCommandError = Color.IndianRed;
-    private static readonly Color ColorAnnouncements = Color.Yellow;
+    private static readonly Color ColorAnnouncements = new Color(0x1b, 0xc2, 0xff);
 
     public static ChatText CreatePublicChat(DateTime dateTime, OnlinePlayer sender, string text, bool avatar)
         => new ChatText([

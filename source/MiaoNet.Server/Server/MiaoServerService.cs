@@ -132,12 +132,15 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                         p.Channel.ID, p.ID, p.Info, p.Location, p.GlobalFlags
                     );
 
+                var strings = options.Announcements[handshakeResult.HandshakeData.LanguageCode];
                 PacketClientInitial packetClientInitial = new PacketClientInitial(
                     newPlayer.Channel.ID,
                     newPlayer.ID,
                     clientPlayerInfo,
                     channels.ToList(),
-                    playerInfos.ToList()
+                    playerInfos.ToList(),
+                    new(strings.PlayerJoined, strings.PlayerLeft),
+                    strings.PlayerJoinMessage
                 );
 
                 // then send

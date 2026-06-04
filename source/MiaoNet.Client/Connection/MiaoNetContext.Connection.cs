@@ -74,7 +74,7 @@ partial class MiaoNetContext
                 ? new IPEndPoint(ipa, Port)
                 : new DnsEndPoint(host, Port);
 
-            byte langCode = 0;
+            LanguageCode langCode = GameLanguage.GetLanguageCode(Dialog.Language.Id);
             HandshakeData.NetMod[] netMods = [];
 
             HandshakeData handshakeData;
@@ -175,14 +175,7 @@ partial class MiaoNetContext
                     TaskCompletionSource ackTaskSource = new();
                     mainThreadQueue.Enqueue(() =>
                     {
-#if USE_CELEMIAO_AUTH
-                        MiaoNetModule.Settings.LastName = clientInitial.SelfPlayerInfo.Name;
-#endif
-                        clientState = new(clientInitial);
-                        this.connection = connection;
-                        ClientInitialized?.Invoke(clientState);
-                        StatusComponent.ShowStatusMessage(ConnectionStatus.Connected);
-                        OnConnected();
+                        OnInitialized(connection, clientInitial);
                         ackTaskSource.SetResult();
                     });
                     // wait until the main thread ack we've finished connecting

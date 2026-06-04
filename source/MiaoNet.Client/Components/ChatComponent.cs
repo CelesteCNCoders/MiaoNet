@@ -88,7 +88,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     {
         if (!MiaoNetModule.Settings.PlayerPresenceMessages)
             return;
-        string text = PFormat.Format(Dialog.Clean("miaonet_context_player_joined"), player.GetDisplayName(false, context.ShowAvatar));
+        string text = PFormat.Format(context.PlayerPresenceMessage.PlayerJoined, player.GetDisplayName(false, context.ShowAvatar));
         AddLocalChat(MiaoNetChatText.CreateAnnouncement(text));
     }
 
@@ -96,7 +96,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     {
         if (!MiaoNetModule.Settings.PlayerPresenceMessages)
             return;
-        string text = PFormat.Format(Dialog.Clean("miaonet_context_player_left"), player.GetDisplayName(false, context.ShowAvatar));
+        string text = PFormat.Format(context.PlayerPresenceMessage.PlayerLeft, player.GetDisplayName(false, context.ShowAvatar));
         AddLocalChat(MiaoNetChatText.CreateAnnouncement(text));
     }
 

@@ -31,7 +31,8 @@ public static class Program
 
         builder.Configuration
             .AddJsonFile("appsettings.json", false)
-            .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true);
+            .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
+            .AddJsonFile("content.json", false);
 
         builder.Configuration.AddEnvironmentVariables("MIAONET:");
 
