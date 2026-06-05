@@ -6,7 +6,7 @@ namespace Celeste.Mod.ChatInputBoxExample;
 public sealed class ChatInputBoxEntity : Entity
 {
     private bool active;
-    private readonly ChatMessageListView msgListView;
+    private readonly ChatMessageBox msgBox;
     private readonly InputBox inputBox;
 
     public ChatInputBoxEntity()
@@ -18,7 +18,7 @@ public sealed class ChatInputBoxEntity : Entity
             Scale = 2f / 3f
         };
         inputBox = new(r, new TestCompletionProvider());
-        msgListView = new(r);
+        msgBox = new(r);
         List<string> randomMsgs = [
             @"\uThis entire sentence is underlined.\r",
             @"\aThis text is red until reset.\r Normal text follows.",
@@ -92,19 +92,19 @@ public sealed class ChatInputBoxEntity : Entity
         ];
         foreach (var msg in randomMsgs)
         {
-            msgListView.AddChatMessage(ChatText.Create(msg, Color.White), "Global");
+            msgBox.AddChatMessage(ChatText.Create(msg, Color.White), "Global");
         }
         
-        msgListView.AddChatMessage(ChatText.Create("This is a global text", Color.White), "Global");
-        msgListView.AddChatMessage(ChatText.Create("This is a channel text", Color.Yellow), "Channel");
-        msgListView.AddChatMessage(ChatText.Create("This is a map text", Color.Green), "Map");
+        msgBox.AddChatMessage(ChatText.Create("This is a global text", Color.White), "Global");
+        msgBox.AddChatMessage(ChatText.Create("This is a channel text", Color.Yellow), "Channel");
+        msgBox.AddChatMessage(ChatText.Create("This is a map text", Color.Green), "Map");
     }
 
     public void Activate()
     {
         active = true;
         inputBox.Activate();
-        msgListView.Activate();
+        msgBox.Activate();
         Scene.Paused = true;
     }
 
@@ -112,20 +112,20 @@ public sealed class ChatInputBoxEntity : Entity
     {
         active = false;
         inputBox.Deactivate();
-        msgListView.Deactivate();
+        msgBox.Deactivate();
         Scene.Paused = false;
     }
 
     public override void Update()
     {
-        msgListView.Update();
+        msgBox.Update();
         if (active)
         {
             inputBox.Update();
 
             if (MInput.Keyboard.Pressed(Keys.Enter))
             {
-                msgListView.AddChatMessage(ChatText.Create(inputBox.Text, Color.White), msgListView.ActiveTabName ?? "Global");
+                msgBox.AddChatMessage(ChatText.Create(inputBox.Text, Color.White), msgBox.ActiveTabName ?? "Global");
                 Deactivate();
                 MInput.VirtualInputs.ForEach(i => (i as VirtualButton)?.ConsumePress());
             }
@@ -136,7 +136,7 @@ public sealed class ChatInputBoxEntity : Entity
             }
             else if (MInput.Keyboard.Pressed(Keys.LeftShift))
             {
-                msgListView.chatTabManager.CycleTab();
+                msgBox.CycleTab();
             }
         }
         else if (MInput.Keyboard.Pressed(Keys.T))
@@ -147,7 +147,7 @@ public sealed class ChatInputBoxEntity : Entity
 
     public override void Render()
     {
-        msgListView.Render();
+        msgBox.Render();
         if (active)
             inputBox.Render();
     }

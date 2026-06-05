@@ -4,7 +4,11 @@ namespace Celeste.Mod.ChatInputBox;
 
 public sealed class ChatMessageListView
 {
-    private readonly List<ChatItem> chatLog;
+    private record struct ChatMessageViewState(float ShowTimer, float FadeOut = 1f);
+    private readonly Dictionary<ChatText, ChatMessageViewState> viewStates = new();
+    
+
+    private ChatMessageManager chatMessageManager;
     private readonly ITextRenderer textRenderer;
 
     private bool active;
@@ -13,10 +17,9 @@ public sealed class ChatMessageListView
     private float targetScroll;
     private float scroll;
 
-    private List<ChatItem> tabChatLog => chatTabManager.ActiveTab?.chatLog ?? [];
-    private List<ChatItem> showingChatLog => active && !chatTabManager.ShowAll  ? tabChatLog : chatLog;
-    
-    public ChatTabManager chatTabManager { get; }
+    private List<ChatText> chatLog => chatMessageManager.ActiveChatLog;
+    private List<ChatText> fullChatLog => chatMessageManager.ChatLog;
+
     
     public float BackgroundOpacity { get; set; } = 0.5f;
 
@@ -30,36 +33,25 @@ public sealed class ChatMessageListView
 
     public bool NoNewMessagesShowing { get; set; }
     
-    public string? ActiveTabName => chatTabManager.ActiveTab?.Name;
+    public string? ActiveTabName => chatMessageManager.ActiveTabName;
 
-    public ChatMessageListView(ITextRenderer textRenderer)
+    private ChatMessageViewState getOrInitViewState(ChatText key)
     {
+        if (!viewStates.TryGetValue(key, out var viewState))
+        {
+            viewState = new(ShowDuration);
+        }
+        return viewState;
+    }
+    
+    public ChatMessageListView(ChatMessageManager chatMessageManager, ITextRenderer textRenderer)
+    {
+        this.chatMessageManager = chatMessageManager;
         this.textRenderer = textRenderer;
-        chatTabManager = new ChatTabManager(textRenderer);
-        chatLog = new();
-    }
-
-    public void AddChatMessage(ChatText chatMessage, string? tabName = null)
-    {
-        ChatItem chatItem = new(chatMessage, ShowDuration);
-        chatLog.Add(chatItem);
-        chatTabManager.AddChatItem(chatItem, tabName!);
-    }
-
-    public void CleanUp()
-    {
-        chatLog.Clear();
-        chatTabManager.CleanUp();
-    }
-
-    public void CleanHistory()
-    {
-        chatLog.Clear();
-        chatTabManager.CleanHistory();
     }
 
     public float ClampScrollValue(float value)
-        => Math.Clamp(value, 0f, Math.Max((showingChatLog.Count - ActiveMaxCount) * textRenderer.LineHeight, 0));
+        => Math.Clamp(value, 0f, Math.Max((chatLog.Count - ActiveMaxCount) * textRenderer.LineHeight, 0));
 
     public void Activate()
     {
@@ -75,7 +67,7 @@ public sealed class ChatMessageListView
 
     public void Update()
     {
-        // this seems an fna bug...
+        // this seems a fna bug...
         // we need to manually call `MouseState.Get()`
         float currentScrollWheelValue = Mouse.GetState().ScrollWheelValue;
         float scrollDelta = currentScrollWheelValue - lastMouseScrollWheelValue;
@@ -92,43 +84,42 @@ public sealed class ChatMessageListView
         float maxMove = Math.Max(Math.Abs(targetScroll - scroll), 8f) * 8f * Engine.RawDeltaTime;
         scroll = Calc.Approach(scroll, targetScroll, maxMove);
 
-        for (int i = chatLog.Count - 1; i >= 0; i--)
+        for (int i = fullChatLog.Count - 1; i >= 0; i--)
         {
-            var item = chatLog[i];
-            if (item.ShowTimer > 0f)
+            var item = fullChatLog[i];
+            var state = getOrInitViewState(item);
+            if (state.ShowTimer > 0f)
             {
                 if (NoNewMessagesShowing)
                 {
-                    item.ShowTimer = 0f;
-                    item.FadeOut = 0f;
+                    state.ShowTimer = 0f;
+                    state.FadeOut = 0f;
                 }
                 else
                 {
-                    item.ShowTimer -= Engine.RawDeltaTime;
+                    state.ShowTimer -= Engine.RawDeltaTime;
                 }
             }
             else
             {
-                if (item.FadeOut > 0f)
+                if (state.FadeOut > 0f)
                 {
                     const float DisappearDuration = 0.25f;
-                    item.FadeOut -= (1f / DisappearDuration) * Engine.RawDeltaTime;
-                    if (item.FadeOut < 0f)
-                        item.FadeOut = 0f;
+                    state.FadeOut -= (1f / DisappearDuration) * Engine.RawDeltaTime;
+                    if (state.FadeOut < 0f)
+                        state.FadeOut = 0f;
                 }
                 else
                 {
                     break;
                 }
             }
-            chatLog[i] = item;
+            viewStates[item] = state;
         }
     }
 
     public void Render()
     {
-        if (active)
-            chatTabManager.Render();
         // if (showingChatLog.Count == 0)
         //     return;
 
@@ -138,13 +129,13 @@ public sealed class ChatMessageListView
         Vector2 baseLoc = new Vector2(Margin, Engine.Height - Margin - textRenderer.LineHeight * 2.5f - Padding);
 
         float curY = baseLoc.Y;
-        int firstVisibleMessageIndex = showingChatLog.Count - 1;
+        int firstVisibleMessageIndex = chatLog.Count - 1;
         
         if (active)
         {
             curY += scroll;
 
-            for (int i = showingChatLog.Count - 1; i >= 0; i--)
+            for (int i = chatLog.Count - 1; i >= 0; i--)
             {
                 if (curY > baseLoc.Y)
                 {
@@ -156,11 +147,11 @@ public sealed class ChatMessageListView
             }
         }
 
-        if (firstVisibleMessageIndex + 1 < showingChatLog.Count)
+        if (firstVisibleMessageIndex + 1 < chatLog.Count)
         {
             float pCurY = curY + textRenderer.LineHeight;
             float alpha = 1f - (pCurY - baseLoc.Y) / textRenderer.LineHeight;
-            DrawSingleMessage(showingChatLog[firstVisibleMessageIndex + 1], baseLoc.X, pCurY, alpha);
+            DrawSingleMessage(chatLog[firstVisibleMessageIndex + 1], baseLoc.X, pCurY, alpha);
         }
 
         int maxCount = active ? ActiveMaxCount : IdleMaxCount;
@@ -173,7 +164,7 @@ public sealed class ChatMessageListView
                 break;
             }
 
-            if (!DrawSingleMessage(showingChatLog[i], baseLoc.X, curY, 1f))
+            if (!DrawSingleMessage(chatLog[i], baseLoc.X, curY, 1f))
                 break;
 
             curY -= textRenderer.LineHeight;
@@ -181,20 +172,17 @@ public sealed class ChatMessageListView
         if (nextInvisibleMessageIndex > 0)
         {
             float alpha = 1f - ((baseLoc.Y - maxCount * textRenderer.LineHeight) - curY) / textRenderer.LineHeight;
-            DrawSingleMessage(showingChatLog[nextInvisibleMessageIndex], baseLoc.X, curY, alpha);
+            DrawSingleMessage(chatLog[nextInvisibleMessageIndex], baseLoc.X, curY, alpha);
         }
     }
 
 
     // TODO introducing ChatText.Render?
-    private bool DrawSingleMessage(ChatItem item, float x, float curY, float alpha)
+    private bool DrawSingleMessage(ChatText msg, float x, float curY, float alpha)
     {
         const float Padding = 8f;
 
-        var msg = item.Message;
-        var msgFade = item.FadeOut;
-
-        float fade = msgFade;
+        float fade = getOrInitViewState(msg).FadeOut;
         if (active)
             fade = 1f;
         else if (fade == 0f)

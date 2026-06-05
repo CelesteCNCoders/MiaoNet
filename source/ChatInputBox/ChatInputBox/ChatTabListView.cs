@@ -1,89 +1,20 @@
-using AsmResolver.DotNet.Builder;
-
 namespace Celeste.Mod.ChatInputBox;
 
-public class ChatTabManager
+public class ChatTabListView
 {
-    private List<ChatTab> tabs;
-    private int activeTabIndex;
+    
+    private readonly ChatMessageManager _chatMessageManager;
     private readonly ITextRenderer textRenderer;
     
-    public IReadOnlyList<ChatTab> Tabs => tabs;
-    
-    public ChatTab? ActiveTab => activeTabIndex < 0 ? null : tabs[activeTabIndex];
-    public bool ShowAll => activeTabIndex < 0;
-    
-    public ChatTabManager(ITextRenderer textRenderer)
-    {
-        tabs = new();
-        activeTabIndex = -1;
-        this.textRenderer = textRenderer;                                                                  
-    }
+    private List<ChatTab> tabs => _chatMessageManager.Tabs; 
+    private int  activeTabIndex => _chatMessageManager.ActiveTabIndex;
 
-    private ChatTab GetOrAddTab(string name)
+    public ChatTabListView(ChatMessageManager chatMessageManager, ITextRenderer textRenderer)
     {
-        var targetTabIdx = tabs.FindIndex(t => t.Name == name);
-        if (targetTabIdx < 0)
-        {
-            tabs.Add(new ChatTab(name));
-            targetTabIdx = tabs.Count - 1;
-        }
-        return tabs[targetTabIdx];
-    }
-    public void AddTab(string name)
-    {
-        tabs.Add(new ChatTab(name));
-    }
-
-    public void RemoveTab(string name)
-    {
-        var targetTabIdx = tabs.FindIndex(t => t.Name == name);
-        tabs.RemoveAt(targetTabIdx);
-        if (name == ActiveTab?.Name) activeTabIndex %= tabs.Count;
+        this._chatMessageManager = chatMessageManager;
+        this.textRenderer = textRenderer;
     }
     
-    public void CycleTab()
-    {
-        activeTabIndex = (activeTabIndex + 2) % (tabs.Count + 1) - 1;
-    }
-
-    public void SetActiveTab(string name)
-    {
-        var targetTabIndex = tabs.FindIndex(t => t.Name == name);
-        if  (targetTabIndex < 0) return;
-        activeTabIndex = targetTabIndex;
-    }
-
-    // Add to all Tabs while tabName == null (For Local Announcement）
-    public void AddChatItem(ChatItem chatItem, string? tabName)
-    {
-        if (tabName == null)
-        {
-            foreach (var chatTab in tabs)
-            {
-                chatTab.AddChatItem(chatItem);
-            }
-
-            return;
-        } 
-        var tab = GetOrAddTab(tabName);
-        tab.AddChatItem(chatItem);
-    }
-
-    public void CleanUp()
-    {
-        tabs.Clear();
-        activeTabIndex = -1;
-    }
-
-    public void CleanHistory()
-    {
-        foreach (var chatTab in tabs)
-        {
-            chatTab.CleanUp();
-        }
-    }
-
     public void Render() 
     {           
         const float Margin = 16f;
