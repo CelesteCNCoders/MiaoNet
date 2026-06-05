@@ -103,31 +103,22 @@ public sealed partial class ChatComponent : MiaoNetComponent
     private void Context_ChatMessageReceived(OnlinePlayer? player, PacketChatMessage packet)
     {
         var chatDisabled = MiaoNetModule.Settings.LiveMode;
-        switch (packet.Type)
+        if (chatDisabled && packet.Type is not ChatMessageType.Server and not ChatMessageType.ServerChat)
+            return;
+        ChatText? chatText = packet.Type switch
         {
-        case ChatMessageType.Chat:
-            if (!chatDisabled)
-                chatView.AddChatMessage(MiaoNetChatText.CreatePublicChat(packet.DateTime, player!, packet.Content, context.ShowAvatar));
-            break;
-        case ChatMessageType.ChannelChat:
-            if (!chatDisabled)
-                chatView.AddChatMessage(MiaoNetChatText.CreateChannelChat(packet.DateTime, player!, packet.Content, context.ShowAvatar));
-            break;
-        case ChatMessageType.MapChat:
-            if (!chatDisabled)
-                chatView.AddChatMessage(MiaoNetChatText.CreateMapChat(packet.DateTime, player!, packet.Content, context.ShowAvatar));
-            break;
-        case ChatMessageType.Server:
-            chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.DateTime, packet.Content));
-            break;
-        case ChatMessageType.PrivateMessage:
-            if (!chatDisabled)
-                chatView.AddChatMessage(MiaoNetChatText.CreatePrivateChat(packet.DateTime, player!, packet.Content, context.ShowAvatar));
-            break;
-        case ChatMessageType.ServerChat:
-            chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.DateTime, packet.Content));
-            break;
-        }
+            ChatMessageType.Chat => MiaoNetChatText.CreatePublicChat(player!, packet.Content, context.ShowAvatar),
+            ChatMessageType.ChannelChat => MiaoNetChatText.CreateChannelChat(player!, packet.Content, context.ShowAvatar),
+            ChatMessageType.MapChat => MiaoNetChatText.CreateMapChat(player!, packet.Content, context.ShowAvatar),
+            ChatMessageType.PrivateMessage => MiaoNetChatText.CreatePrivateChat(player!, packet.Content, context.ShowAvatar),
+            ChatMessageType.Server => MiaoNetChatText.CreateAnnouncement(packet.Content),
+            ChatMessageType.ServerChat => MiaoNetChatText.CreateAnnouncement(packet.Content),
+            _ => null
+        };
+        if (chatText is not null)
+            chatView.AddChatMessage(packet.DateTime, chatText);
+        else
+            Logger.Warn(LT.MiaoNet, $"Unknown chat message type {packet.Type}.");
     }
 
     public override void Update()
@@ -239,7 +230,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         => chatView.AddChatMessage(message);
 
     public void OnSentPrivateMessage(DateTime dateTime, OnlinePlayer other, string text)
-        => chatView.AddChatMessage(MiaoNetChatText.CreateSentPrivateChat(dateTime, other, context.ClientState!.Self, text, context.ShowAvatar));
+        => chatView.AddChatMessage(dateTime, MiaoNetChatText.CreateSentPrivateChat(other, context.ClientState!.Self, text, context.ShowAvatar));
 
     public void ClearChat()
         => chatView.CleanUp();

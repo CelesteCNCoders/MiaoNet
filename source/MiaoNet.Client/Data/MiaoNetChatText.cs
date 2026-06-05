@@ -6,7 +6,6 @@ namespace Celeste.Mod.MiaoNet;
 
 public static class MiaoNetChatText
 {
-    private static readonly Color ColorTime = Color.DimGray;
     private static readonly Color ColorChatContent = Color.White;
     private static readonly Color ColorMapChat = Color.Cyan;
     private static readonly Color ColorChannelChat = Color.LightGray;
@@ -17,17 +16,15 @@ public static class MiaoNetChatText
     private static readonly Color ColorCommandError = Color.IndianRed;
     private static readonly Color ColorAnnouncements = new Color(0x1b, 0xc2, 0xff);
 
-    public static ChatText CreatePublicChat(DateTime dateTime, OnlinePlayer sender, string text, bool avatar)
+    public static ChatText CreatePublicChat(OnlinePlayer sender, string text, bool avatar)
         => new ChatText([
-            new(ColorTime, FormatDateTime(dateTime)),
             new(sender.Info.Color, sender.GetDisplayName(true, avatar)),
             new(ColorChatContent, ": "),
             ..ChatText.Parse(text, ColorChatContent)
         ]);
 
-    public static ChatText CreateMapChat(DateTime dateTime, OnlinePlayer sender, string text, bool avatar)
+    public static ChatText CreateMapChat(OnlinePlayer sender, string text, bool avatar)
         => new ChatText([
-            new(ColorTime, FormatDateTime(dateTime)),
             new(ColorMapChat, Dialog.Clean("miaonet_chat_map_chat")),
             new(ColorChatContent, " "),
             new(sender.Info.Color, sender.GetDisplayName(true, avatar)),
@@ -35,9 +32,8 @@ public static class MiaoNetChatText
             ..ChatText.Parse(text, ColorChatContent)
         ]);
 
-    public static ChatText CreateChannelChat(DateTime dateTime, OnlinePlayer sender, string text, bool avatar)
+    public static ChatText CreateChannelChat(OnlinePlayer sender, string text, bool avatar)
         => new ChatText([
-            new(ColorTime, FormatDateTime(dateTime)),
             new(ColorChannelChat, Dialog.Clean("miaonet_chat_channel_chat")),
             new(ColorChatContent, " "),
             new(sender.Info.Color, sender.GetDisplayName(true, avatar)),
@@ -45,9 +41,8 @@ public static class MiaoNetChatText
             ..ChatText.Parse(text, ColorChatContent)
         ]);
 
-    public static ChatText CreatePrivateChat(DateTime dateTime, OnlinePlayer sender, string text, bool avatar)
+    public static ChatText CreatePrivateChat(OnlinePlayer sender, string text, bool avatar)
         => new ChatText([
-            new(ColorTime, FormatDateTime(dateTime)),
             new(
                 ColorPrivateChatReceived,
                 PFormat.Format(
@@ -60,11 +55,10 @@ public static class MiaoNetChatText
             ..ChatText.Parse(text, ColorPrivateChat)
         ]);
 
-    public static ChatText CreateSentPrivateChat(DateTime dateTime, OnlinePlayer other, OnlinePlayer self, string text, bool avatar)
+    public static ChatText CreateSentPrivateChat(OnlinePlayer other, OnlinePlayer self, string text, bool avatar)
         => new ChatText([
-            new( ColorTime, FormatDateTime(dateTime)),
             new(
-                 ColorPrivateChatReceived,
+                ColorPrivateChatReceived,
                 PFormat.Format(
                     CultureInfo.CurrentCulture,
                     Dialog.Clean("miaonet_chat_whisper_sent"),
@@ -81,12 +75,6 @@ public static class MiaoNetChatText
             new(ColorAnnouncements, text)
         ]);
 
-    public static ChatText CreateAnnouncement(DateTime dateTime, string text)
-        => new ChatText([
-            new( ColorTime, FormatDateTime(dateTime)),
-            new( ColorAnnouncements, text)
-        ]);
-
     public static ChatText CreateCommandTip(string text)
         => new ChatText([new(ColorCommand, text)]);
 
@@ -95,7 +83,4 @@ public static class MiaoNetChatText
 
     public static ChatText CreateCommandError(string text)
         => new ChatText([new(ColorCommandError, text)]);
-
-    private static string FormatDateTime(DateTime dateTime)
-        => $"[{dateTime.ToLocalTime():T}] ";
 }

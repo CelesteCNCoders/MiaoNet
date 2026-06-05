@@ -1,15 +1,19 @@
+using System.Globalization;
 using Microsoft.Xna.Framework.Input;
 
 namespace Celeste.Mod.ChatInputBox;
 
 public sealed class ChatMessageListView
 {
-    private record struct ChatItem(ChatText Message, float ShowTimer, float FadeOut = 1f);
+    private record struct ChatItem(string? DateTimeText, ChatText Message, float ShowTimer, float FadeOut = 1f);
 
-    const float Margin = 16f;
-    const float Padding = 8f;
-    const float MessageXPadding = 8f;
-    const float MessageYPadding = 8f;
+    private const float Margin = 16f;
+    private const float Padding = 8f;
+    private const float MessageXPadding = 8f;
+    private const float MessageYPadding = 8f;
+
+    // hm, magic number
+    private const float TimeTextWidthRatio = 3.25f;
 
     private readonly List<ChatItem> chatLog;
     private readonly ITextRenderer textRenderer;
@@ -38,9 +42,14 @@ public sealed class ChatMessageListView
         chatLog = new();
     }
 
+    public void AddChatMessage(DateTime dateTime, ChatText chatMessage)
+    {
+        chatLog.Add(new(FormatDateTime(dateTime), chatMessage, ShowDuration));
+    }
+
     public void AddChatMessage(ChatText chatMessage)
     {
-        chatLog.Add(new(chatMessage, ShowDuration));
+        chatLog.Add(new(null, chatMessage, ShowDuration));
     }
 
     public void CleanUp()
@@ -189,7 +198,7 @@ public sealed class ChatMessageListView
     // TODO introducing ChatText.Render?
     private bool DrawSingleMessage(ChatItem item, float x, float y, float alpha)
     {
-        var (msg, _, msgFade) = item;
+        var (dateTimeText, msg, _, msgFade) = item;
 
         float fade = msgFade;
         if (active)
@@ -201,7 +210,10 @@ public sealed class ChatMessageListView
 
         float lineHeight = textRenderer.LineHeight;
         float messageLineHeight = lineHeight + 2 * MessageYPadding;
+        float timeTextMaxWidth = TimeTextWidthRatio * lineHeight;
         float lineWidth = MeasureSingleMessage(msg);
+        if (dateTimeText is not null)
+            lineWidth += timeTextMaxWidth;
         DrawSnappedRect(
             x,
             y - messageLineHeight,
@@ -210,8 +222,17 @@ public sealed class ChatMessageListView
             Color.Black * fade * BackgroundOpacity
         );
 
+        float drawAlpha = fade * TextOpacity;
+
         float curX = x + MessageXPadding;
         float curY = y - MessageYPadding;
+
+        if (dateTimeText is not null)
+        {
+            textRenderer.Draw(dateTimeText, new Vector2(curX, curY), new Vector2(0f, 1f), Color.CornflowerBlue * drawAlpha);
+            curX += timeTextMaxWidth;
+        }
+
         foreach (var seg in msg.Segments)
         {
             Vector2 size = textRenderer.Measure(seg.Text);
@@ -222,7 +243,7 @@ public sealed class ChatMessageListView
                     seg.Text,
                     new Vector2(curX, curY),
                     new Vector2(0f, 1f),
-                    seg.Color * fade * TextOpacity
+                    seg.Color * drawAlpha
                 );
             }
             else
@@ -231,7 +252,7 @@ public sealed class ChatMessageListView
                     seg.Text,
                     new Vector2(curX, curY),
                     new Vector2(0f, 1f),
-                    seg.Color * fade * TextOpacity
+                    seg.Color * drawAlpha
                 );
             }
 
@@ -241,7 +262,7 @@ public sealed class ChatMessageListView
                 Draw.Line(
                     new Vector2(curX, curY),
                     new Vector2(curX + size.X, curY),
-                    seg.Color * fade * TextOpacity,
+                    seg.Color * drawAlpha,
                     thinkness
                 );
             }
@@ -252,7 +273,7 @@ public sealed class ChatMessageListView
                 Draw.Line(
                     new Vector2(curX, curY - lineHeight / 2f),
                     new Vector2(curX + size.X, curY - lineHeight / 2),
-                    seg.Color * fade * TextOpacity,
+                    seg.Color * drawAlpha,
                     thinkness
                 );
             }
@@ -274,4 +295,7 @@ public sealed class ChatMessageListView
 
     private float MeasureSingleMessage(ChatText chatText)
         => chatText.Segments.Aggregate(0f, (v, seg) => v += textRenderer.Measure(seg.Text).X);
+
+    private static string FormatDateTime(DateTime dateTime)
+        => dateTime.ToLocalTime().ToString("T", CultureInfo.InvariantCulture);
 }
