@@ -227,6 +227,11 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.PlayerNameOpacity = v);
         menu.Add(item);
 
+        item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_offscreen_player_name_opacity"), 0, 10, settings.OffScreenPlayerNameOpacity
+        ).Change(v => settings.OffScreenPlayerNameOpacity = v);
+        menu.Add(item);
+
         {
             TextMenuExt.IntSlider minPlayerOpacitySlider;
             minPlayerOpacitySlider = new TextMenuExt.IntSlider(

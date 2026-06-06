@@ -44,22 +44,31 @@ public sealed class GhostNameTag : MiaoNetEntity
 
         Vector2 worldPosition = Entity.Position;
         worldPosition.Y -= 16f;
-        float alpha = IsOnSelf
-            ? MiaoNetModule.Settings.SelfNameOpacityValue
-            : MiaoNetModule.Settings.PlayerNameOpacityValue;
         const float Scale = 1f / 2f;
         const float Margin = 8f;
+        const float FadeRadius = 128f;
 
-        Vector2 position = ScreenClamper.ClampIntoScreen(
-            SceneAs<Level>().WorldToScreen(worldPosition),
+        Vector2 position = SceneAs<Level>().WorldToScreen(worldPosition);
+        Vector2 clampedPosition = ScreenClamper.ClampIntoScreen(
+            position,
             MiaoNetFont.Measure(Text) * Scale,
             new Vector2(1f / 2f, 1f),
             Margin
         );
 
+        var settings = MiaoNetModule.Settings;
+        float alpha = IsOnSelf
+            ? settings.SelfNameOpacityValue
+            : position == clampedPosition
+                ? settings.PlayerNameOpacityValue
+                : Calc.LerpClamp(
+                    settings.PlayerNameOpacityValue,
+                    settings.OffScreenPlayerNameOpacityValue,
+                    Vector2.DistanceSquared(position, clampedPosition) / (FadeRadius * FadeRadius)
+                );
         MiaoNetFont.DrawOutlineBottomCentered(
             Text,
-            position,
+            clampedPosition,
             Vector2.One * Scale,
             Color * alpha
         );
