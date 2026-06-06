@@ -5,8 +5,17 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class MiaoNetGhost : MiaoNetGhostEntity
 {
+    // prevent it from being AfterUpdated by Level.Update
+    private sealed class GhostHair : PlayerHair
+    {
+        public GhostHair(PlayerSprite sprite)
+            : base(sprite)
+        {
+        }
+    }
+
     private PlayerSprite playerSprite;
-    private readonly PlayerHair playerHair;
+    private readonly GhostHair playerHair;
     private readonly GhostNameTag nameTag;
     private readonly Leader leader;
 
@@ -85,7 +94,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         Add(new MirrorReflection());
         UpdateLightSettings(MiaoNetModule.Settings.PlayerLight);
 
-        playerHair = new PlayerHair(playerSprite);
+        playerHair = new GhostHair(playerSprite);
 
         playerHair.Facing = facing;
         Add(playerHair);
@@ -125,8 +134,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
     public override void Update()
     {
-        base.Update();
-
         // Save Load issue
         if (selfHoldable.Holder?.Holding != selfHoldable)
             selfHoldable.Holder = null;
@@ -151,6 +158,8 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
         if (OnlinePlayer.IsPaused)
             return;
+
+        base.Update();
 
         if (dead)
             return;
@@ -218,6 +227,9 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             playerHair.StepYSinePerSegment = 0f;
             playerHair.StepPerSegment.Y += windDirection.Y * 0.5f;
         }
+
+        playerHair.AfterUpdate();
+
         if (!Scene.Paused)
         {
             if (dashing && !dead)
@@ -244,10 +256,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                     lastDashDirection
                 );
             }
-        }
-        else
-        {
-            playerHair.AfterUpdate();
         }
     }
 
@@ -482,6 +490,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                     Add(playerSprite);
                     if (vertexLight is not null)
                         Add(vertexLight);
+                    playerHair.Start();
                     lastBody = null;
                 }
             );
@@ -498,6 +507,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             Add(playerSprite);
             if (vertexLight is not null)
                 Add(vertexLight);
+            playerHair.Start();
             lastBody?.RemoveSelf();
         }
     }
@@ -668,7 +678,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     private void UpdateHairCount(int count)
     {
         playerSprite.HairCount = count;
-        playerHair.AfterUpdate();
     }
 
     private void UpdateHairCount()

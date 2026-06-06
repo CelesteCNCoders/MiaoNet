@@ -244,9 +244,6 @@ public sealed class MiaoNetModule : EverestModule
                 return;
             foreach (var entity in engine.scene.Tracker.GetEntities<MiaoNetEntity>())
                 entity.Update();
-            foreach (var hair in engine.scene.Tracker.GetComponents<PlayerHair>())
-                if (hair.Entity is MiaoNetGhost or GhostDeadBody)
-                    ((PlayerHair)hair).AfterUpdate();
         });
 
         cur.GotoNext(MoveType.After, ins => ins.MatchCall<Game>("Update"));
