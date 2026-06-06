@@ -7,8 +7,8 @@
         "PlayerJoinMessage": "[Server] 欢迎来到 MiaoNet dev 服务器\n[Server] 按下 T 打开聊天\n[Server] 使用 /help 获取所有指令帮助"
       },
       "English": {
-        "PlayerJoined": "(0) joined MiaoNet",
-        "PlayerLeft": "(0) left MiaoNet",
+        "PlayerJoined": "[Server] Welcome (0) to MiaoNet!",
+        "PlayerLeft": "[Server] Cya, (0)!",
         "PlayerJoinMessage": "[Server] Welcome to MiaoNet dev server\n[Server] Press T to chat\n[Server] Use /help to get all command help"
       }
     }
