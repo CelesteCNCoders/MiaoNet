@@ -94,7 +94,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         playerSprite = SafeCreatePlayerSprite(initialState.PlayerSpriteMode);
         Add(leader = new Leader(new Vector2(0f, -8f)));
         Add(new MirrorReflection());
-        UpdateLightSettings(MiaoNetModule.Settings.PlayerLight);
 
         playerHair = new GhostHair(playerSprite);
 
@@ -107,6 +106,8 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
         ApplyState(initialState);
         UpdateHairCount();
+
+        UpdateLightSettings(MiaoNetModule.Settings.PlayerLight);
 
         pDashA = new(Player.P_DashA);
         pDashB = new(Player.P_DashB);
@@ -308,8 +309,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         {
             if (vertexLight is null)
             {
-                // TODO player duck light offset
-                vertexLight = new VertexLight(new Vector2(0f, -8f), Color.White, 0.96f, 32, 64);
+                vertexLight = new VertexLight(GetLightOffset(ducking), Color.White, 0.96f, 32, 64);
                 Add(vertexLight);
             }
             vertexLight.Visible = true;
@@ -320,6 +320,9 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             vertexLight?.Visible = false;
         }
     }
+
+    private static Vector2 GetLightOffset(bool duck) 
+        => duck ? new Vector2(0f, -3f) : new Vector2(0f, -8f);
 
     #region state updates
 
@@ -346,6 +349,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         lastDashedDashes = dashes;
         Position = state.Position;
         windDirection = state.WindDirection;
+        ducking = state.Ducking;
         UpdateFacing(state.FacingLeft);
         OnFollowerInitials(state.FollowerInfos);
         UpdateDucking(state.Ducking);
@@ -616,6 +620,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         this.ducking = ducking;
         hitbox = ducking ? duckHitbox : normalHitbox;
         Collider = hitbox;
+        vertexLight?.Position = GetLightOffset(ducking);
     }
 
     public void UpdateTired(bool tired)
