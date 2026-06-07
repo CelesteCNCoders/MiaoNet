@@ -166,6 +166,8 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         if (dead)
             return;
 
+        Level level = SceneAs<Level>();
+
         // simulate hair color
         if (starFlying)
         {
@@ -188,7 +190,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         }
 
         // TODO apply others' delta time
-        if (Scene.OnRawInterval(0.05f))
+        if (level.OnRawInterval(0.05f))
             flash = !flash;
 
         if (flash && tired)
@@ -211,7 +213,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         else if (dashes > 1)
         {
             // TODO apply others' delta time
-            float timeActive = Scene.RawTimeActive;
+            float timeActive = level.RawTimeActive;
             playerHair.StepPerSegment = new Vector2(
                 MathF.Sin(timeActive * 2f) * 0.7f - ((float)facing * 3f),
                 MathF.Sin(timeActive * 1f)
@@ -232,9 +234,9 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
         playerHair.AfterUpdate();
 
-        if (!Scene.Paused)
+        if (!level.Paused)
         {
-            if (dashing && !dead)
+            if (dashing)
             {
                 float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
                 // TODO apply graphics info
@@ -253,12 +255,21 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                 }
 
                 // TODO apply others' delta time
-                if (lastPosition != Position && Scene.OnRawInterval(0.02f))
-                    SceneAs<Level>().ParticlesFG.Emit(
+                if (lastPosition != Position && level.OnRawInterval(0.02f))
+                    level.ParticlesFG.Emit(
                         type,
                         Position + Calc.Random.Range(Vector2.One * -2f, Vector2.One * 2f),
                         lastDashDirection
                     );
+            }
+            else if (starFlying)
+            {
+                // TODO apply others' delta time
+                if (level.OnRawInterval(0.02f))
+                {
+                    float angle = (Position - lastPosition).Angle();
+                    level.Particles.Emit(FlyFeather.P_Flying, 1, Center, Vector2.One * 2f, angle);
+                }
             }
         }
 
