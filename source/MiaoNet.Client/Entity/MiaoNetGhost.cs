@@ -19,6 +19,8 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     private readonly GhostNameTag nameTag;
     private readonly Leader leader;
 
+    private Vector2 lastPosition;
+
     private VertexLight? vertexLight;
 
     private Facings facing;
@@ -250,13 +252,17 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                     type.Color2 = pDashColorBaseB.Item2 * alpha;
                 }
 
-                SceneAs<Level>().ParticlesFG.Emit(
-                    type,
-                    Position + Calc.Random.Range(Vector2.One * -2f, Vector2.One * 2f),
-                    lastDashDirection
-                );
+                // TODO apply others' delta time
+                if (lastPosition != Position && Scene.OnRawInterval(0.02f))
+                    SceneAs<Level>().ParticlesFG.Emit(
+                        type,
+                        Position + Calc.Random.Range(Vector2.One * -2f, Vector2.One * 2f),
+                        lastDashDirection
+                    );
             }
         }
+
+        lastPosition = Position;
     }
 
     private void OnPlayer(Player player)
