@@ -261,7 +261,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                 if (lastPosition != Position && level.OnRawInterval(0.02f))
                     level.ParticlesFG.Emit(
                         type,
-                        Position + Calc.Random.Range(Vector2.One * -2f, Vector2.One * 2f),
+                        Position + Random.Shared.Range(Vector2.One * -2f, Vector2.One * 2f),
                         lastDashDirection
                     );
             }
