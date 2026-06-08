@@ -75,21 +75,18 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     [AllowNull]
     public PlayerGraphicsInfo GraphicsInfo
     {
-        get => field;
+        get;
         set => field = value ?? PlayerGraphicsInfo.Default;
     }
 
-    public MiaoNetGhost(
-        OnlinePlayer player,
-        PlayerGraphicsInfo? playerGraphicsInfo,
-        PlayerState initialState,
-        bool avatar
-    )
+    public MiaoNetGhost(OnlinePlayer player, bool avatar)
     {
         Tag = MiaoNetTag.Tag;
         Depth = Depths.Player + 1;
         OnlinePlayer = player;
-        GraphicsInfo = playerGraphicsInfo;
+        GraphicsInfo = player.GraphicsInfo;
+        var initialState = player.State!;
+
         facing = Facings.Right;
         playerSprite = SafeCreatePlayerSprite(initialState.PlayerSpriteMode);
         Add(leader = new Leader(new Vector2(0f, -8f)));
@@ -99,7 +96,15 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
         nameTag = new(this, player, avatar);
 
-        ApplyState(initialState);
+        dashes = initialState.Dashes;
+        lastDashedDashes = dashes;
+        Position = initialState.Position;
+        windDirection = initialState.WindDirection;
+        ducking = initialState.Ducking;
+        UpdateFacing(initialState.FacingLeft);
+        OnFollowerInitials(initialState.FollowerInfos);
+        UpdateDucking(initialState.Ducking);
+        UpdateWind(initialState.WindDirection);
 
         Add(playerHair);
         Add(playerSprite);
@@ -323,35 +328,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         => duck ? new Vector2(0f, -3f) : new Vector2(0f, -8f);
 
     #region state updates
-
-    [MemberNotNull(nameof(hitbox))]
-    public void ApplyState(PlayerState state)
-    {
-        if (playerSprite.Mode != state.PlayerSpriteMode)
-        {
-            var pAnim = playerSprite.CurrentAnimationID;
-            var pFrame = playerSprite.CurrentAnimationFrame;
-            playerSprite.RemoveSelf();
-            playerSprite = SafeCreatePlayerSprite(state.PlayerSpriteMode);
-            if (playerSprite.Has(pAnim))
-            {
-                playerSprite.Play(pAnim);
-                playerSprite.SetAnimationFrame(pFrame);
-            }
-            playerHair.Sprite = playerSprite;
-            Add(playerSprite);
-            UpdateHairCount();
-        }
-        dashes = state.Dashes;
-        lastDashedDashes = dashes;
-        Position = state.Position;
-        windDirection = state.WindDirection;
-        ducking = state.Ducking;
-        UpdateFacing(state.FacingLeft);
-        OnFollowerInitials(state.FollowerInfos);
-        UpdateDucking(state.Ducking);
-        UpdateWind(state.WindDirection);
-    }
 
     private static PlayerSprite SafeCreatePlayerSprite(PlayerSpriteMode spriteMode)
     {
