@@ -79,8 +79,6 @@ public static class Program
 
         builder.Services.AddHostedService<MiaoHttpService>();
 
-        builder.Services.AddMetrics();
-
         using (IHost host = builder.Build())
         {
             host.Run();
