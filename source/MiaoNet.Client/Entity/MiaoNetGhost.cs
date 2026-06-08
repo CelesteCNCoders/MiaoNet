@@ -90,7 +90,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         facing = Facings.Right;
         playerSprite = SafeCreatePlayerSprite(initialState.PlayerSpriteMode);
         Add(leader = new Leader(new Vector2(0f, -8f)));
-        Add(new MirrorReflection());
 
         playerHair = new GhostHair(playerSprite) { Facing = facing };
 

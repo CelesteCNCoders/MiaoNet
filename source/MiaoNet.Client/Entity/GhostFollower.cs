@@ -34,7 +34,6 @@ public sealed class GhostFollower : MiaoNetGhostEntity
         float scale = Math.Min(1f, SizeLimit / Math.Max(sprite.Width, sprite.Height));
         sprite.Scale = Vector2.One * scale;
         Add(sprite);
-        Add(new MirrorReflection());
         if (type is FollowerType.Strawberry or FollowerType.StrawberrySeed)
         {
             Add(bloomPoint = new BloomPoint(1f, 12f));
