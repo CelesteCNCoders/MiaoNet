@@ -95,17 +95,15 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         Add(leader = new Leader(new Vector2(0f, -8f)));
         Add(new MirrorReflection());
 
-        playerHair = new GhostHair(playerSprite);
+        playerHair = new GhostHair(playerSprite) { Facing = facing };
 
-        playerHair.Facing = facing;
-        Add(playerHair);
-
-        Add(playerSprite);
         nameTag = new(this, player, avatar);
-        playerHair.Start();
 
         ApplyState(initialState);
-        UpdateHairCount();
+
+        Add(playerHair);
+        Add(playerSprite);
+        ResetHair();
 
         UpdateLightSettings(MiaoNetModule.Settings.PlayerLight);
 
@@ -321,7 +319,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         }
     }
 
-    private static Vector2 GetLightOffset(bool duck) 
+    private static Vector2 GetLightOffset(bool duck)
         => duck ? new Vector2(0f, -3f) : new Vector2(0f, -8f);
 
     #region state updates
@@ -342,7 +340,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             }
             playerHair.Sprite = playerSprite;
             Add(playerSprite);
-            playerHair.Start();
             UpdateHairCount();
         }
         dashes = state.Dashes;
@@ -511,7 +508,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                     Add(playerSprite);
                     if (vertexLight is not null)
                         Add(vertexLight);
-                    playerHair.Start();
+                    Scene.OnEndOfFrame += new(ResetHair);
                     lastBody = null;
                 }
             );
@@ -528,7 +525,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             Add(playerSprite);
             if (vertexLight is not null)
                 Add(vertexLight);
-            playerHair.Start();
+            Scene.OnEndOfFrame += new(ResetHair);
             lastBody?.RemoveSelf();
         }
     }
@@ -705,6 +702,12 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     private void UpdateHairCount()
     {
         UpdateHairCount(GraphicsInfo.GetHairInfo(dashes).Length);
+    }
+
+    private void ResetHair()
+    {
+        playerHair.Start();
+        playerHair.AfterUpdate();
     }
 
     #endregion
