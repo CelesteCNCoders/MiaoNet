@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using MiaoNet.ClientShared;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Graphics;
 

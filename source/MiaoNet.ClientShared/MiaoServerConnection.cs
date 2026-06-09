@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -12,7 +13,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks.Sources;
 using MiaoNet.Shared;
 
-namespace Celeste.Mod.MiaoNet;
+namespace MiaoNet.ClientShared;
 
 public sealed partial class MiaoServerConnection : IDisposable
 {
@@ -188,13 +189,18 @@ public sealed partial class MiaoServerConnection : IDisposable
         }
     }
 
-    public void Dispose()
+    public void Close(bool shutdown)
     {
         sendSemaphore.Dispose();
         sslStream.Dispose();
-        if (socket.Connected)
+        if (shutdown)
             socket.Shutdown(SocketShutdown.Both);
         socket.Dispose();
+    }
+
+    public void Dispose()
+    {
+        Close(false);
     }
 
     public async Task SendPacketsLoopAsync(IPacketSerializationContext context, CancellationToken token)
@@ -250,13 +256,7 @@ public sealed partial class MiaoServerConnection : IDisposable
                 }
                 catch (Exception e)
                 {
-                    Logger.Error(
-                        LT.MiaoNetPacketReading,
-                        $"Read packet failed, size: {size}, type: {type}. Raw payload:\n" +
-                            Convert.ToBase64String(payloadMemory.ToArray())
-                    );
-                    Logger.LogDetailed(e, LT.MiaoNetPacketReading);
-                    throw;
+                    throw new InvalidPacketDataException(payloadMemory.ToArray(), e);
                 }
             }
             finally

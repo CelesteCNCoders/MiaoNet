@@ -12,10 +12,15 @@
     <Compile Include="../MiaoNet.Shared/**/*.cs"
              Exclude="../MiaoNet.Shared/PlayerExtensions.cs"
              LinkBase="0-Shared" />
-  </ItemGroup>
+		<Compile Include="../MiaoNet.ClientShared/**/*.cs" LinkBase="1-ClientShared" />
+	</ItemGroup>
 
 	<PropertyGroup>
 		<AnalysisModeGlobalization>None</AnalysisModeGlobalization>
 	</PropertyGroup>
+
+	<ItemGroup Condition="$(UseLocalhostPfx) == 'true'">
+		<EmbeddedResource Include="../localhost.pfx" LogicalName="localhost.pfx" Visible="false" />
+	</ItemGroup>
 
 </Project>
