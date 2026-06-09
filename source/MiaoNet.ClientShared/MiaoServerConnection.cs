@@ -189,6 +189,10 @@ public sealed partial class MiaoServerConnection : IDisposable
         }
     }
 
+    // TODO this method can interrupt send/receive Task and cause exceptions
+    // but we have to make it async if we're going to wait for it
+    // at least the usage in MiaoNet.Client ensure that token passed to send/receive Task
+    // is cancelled before this call
     public void Close(bool shutdown)
     {
         sendSemaphore.Dispose();
