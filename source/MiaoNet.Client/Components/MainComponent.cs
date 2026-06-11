@@ -343,12 +343,18 @@ public sealed partial class MainComponent : MiaoNetComponent
             Sprite spr = entity.Get<Sprite>();
 
             // TODO Strawberry Jam's RefillShard's sprite only contains Path
-            string sprID = SpriteIDTracker.LookupID(spr) ?? string.Empty;
-            return new FollowerInfo(
-                type, sprID,
-                spr.CurrentAnimationID, (ushort)spr.CurrentAnimationFrame,
-                offset: (Vector2S)(entity.Position - leaderEntityPosition)
-            );
+            Vector2S offset = (Vector2S)(entity.Position - leaderEntityPosition);
+            return spr is not null
+                ? new FollowerInfo(
+                    type, SpriteIDTracker.LookupID(spr) ?? string.Empty,
+                    spr.CurrentAnimationID, (ushort)spr.CurrentAnimationFrame,
+                    offset: (Vector2S)(entity.Position - leaderEntityPosition)
+                )
+                : new FollowerInfo(
+                    type, string.Empty,
+                    string.Empty, 0,
+                    offset
+                );
         }
     }
 
@@ -374,12 +380,10 @@ public sealed partial class MainComponent : MiaoNetComponent
         {
             Entity entity = follower.Entity;
             Sprite spr = entity.Get<Sprite>();
-            Vector2 offset = entity.Position - leaderEntityPosition;
-            return new(
-                spr.CurrentAnimationID,
-                (ushort)spr.CurrentAnimationFrame,
-                (Vector2S)offset
-            );
+            Vector2S offset = (Vector2S)(entity.Position - leaderEntityPosition);
+            return spr is not null
+                ? new FollowerInfoDelta(spr.CurrentAnimationID, (ushort)spr.CurrentAnimationFrame, offset)
+                : new FollowerInfoDelta(string.Empty, 0, offset);
         }
     }
     #endregion
