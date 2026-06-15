@@ -75,6 +75,7 @@ public sealed class MiaoNetModule : EverestModule
             On.Celeste.Player.Play += Player_Play;
             On.Celeste.Player.Die += Player_Die;
             On.Celeste.PlayerCollider.Check += PlayerCollider_Check;
+            On.Celeste.Level.Render += Level_Render;
             On.Celeste.Player.TransitionTo += Player_TransitionTo;
             IL.Celeste.LanguageSelectUI.SetNextLanguage += LanguageSelectUI_SetNextLanguage;
         }
@@ -111,6 +112,7 @@ public sealed class MiaoNetModule : EverestModule
         On.Celeste.Player.Play -= Player_Play;
         On.Celeste.Player.Die -= Player_Die;
         On.Celeste.PlayerCollider.Check -= PlayerCollider_Check;
+        On.Celeste.Level.Render -= Level_Render;
         On.Celeste.Player.TransitionTo -= Player_TransitionTo;
         IL.Celeste.LanguageSelectUI.SetNextLanguage -= LanguageSelectUI_SetNextLanguage;
 
@@ -222,6 +224,27 @@ public sealed class MiaoNetModule : EverestModule
         if (Instance.miaoNetContext?.MainComponent is { HeldByOthers: true } or { Watching: true })
             return true;
         return orig(self, target, direction);
+    }
+
+    private static void Level_Render(On.Celeste.Level.orig_Render orig, Level self)
+    {
+        if (Instance.miaoNetContext?.MainComponent.Watching == true && Engine.Scene.Paused)
+        {
+            bool wasScenePaused = Engine.Scene.Paused;
+            Engine.Scene.Paused = false;
+            try
+            {
+                orig(self);
+            }
+            finally
+            {
+                Engine.Scene.Paused = wasScenePaused;
+            }
+        }
+        else
+        {
+            orig(self);
+        }
     }
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot)

@@ -631,6 +631,17 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
     public void OnUpdateWatching()
     {
+        bool watching = OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching);
+        if (watching)
+        {
+            if (idleHover is not null)
+            {
+                playerHair.Active = true;
+                idleHover.StopAnimationAndRemove();
+                idleHover = null;
+                UpdateCollidable();
+            }
+        }
         UpdateVisible();
     }
 
