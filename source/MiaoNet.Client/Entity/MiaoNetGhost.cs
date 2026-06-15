@@ -117,7 +117,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         pDashColorBaseB = (pDashB.Color, pDashB.Color2);
 
         OnUpdatePaused(player.IsPaused);
-        OnUpdateWatching();
+        OnUpdateWatching(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
 
         selfHoldable = new(1f / 5f)
         {
@@ -443,7 +443,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         dead = true;
         selfHoldable.Holder?.Drop();
         Collidable = false;
-        UpdateVisible();
+        UpdateVisible(OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
         if (Scene is Level level)
         {
             Remove(playerHair);
@@ -466,7 +466,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         {
             respawning = true;
             deadEase = 1f;
-            UpdateVisible();
+            UpdateVisible(OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
             UpdateCollidable();
             var tween = Tween.Set(this, Tween.TweenMode.Oneshot, 0.6f, null,
                 t =>
@@ -477,7 +477,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                 {
                     respawning = false;
                     dead = false;
-                    UpdateVisible();
+                    UpdateVisible(OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
                     Depth = Depths.Player + 1;
                     Add(playerHair);
                     Add(playerSprite);
@@ -494,7 +494,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             UpdateCollidable();
             respawning = false;
             dead = false;
-            UpdateVisible();
+            UpdateVisible(OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
             Depth = Depths.Player + 1;
             Add(playerHair);
             Add(playerSprite);
@@ -611,7 +611,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             if (idleHover is null)
             {
                 playerHair.Active = false;
-                idleHover = new(this);
+                idleHover = new(this)
+                {
+                    Visible = Visible  // `Visible` 赋值本体的 `Visible`
+                };
                 if (Scene is not null)
                 {
                     Scene.Add(idleHover);
@@ -629,27 +632,17 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         }
     }
 
-    public void OnUpdateWatching()
+    public void OnUpdateWatching(bool watching)
     {
-        bool watching = OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching);
-        if (watching)
-        {
-            if (idleHover is not null)
-            {
-                playerHair.Active = true;
-                idleHover.StopAnimationAndRemove();
-                idleHover = null;
-                UpdateCollidable();
-            }
-        }
-        UpdateVisible();
+        UpdateVisible(watching);
     }
 
-    private void UpdateVisible()
+    private void UpdateVisible(bool watching)
     {
-        bool watching = OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching);
         Visible = (!dead || respawning) && !watching;
         nameTag.Visible = !watching;
+        if (idleHover is not null)
+            idleHover.Visible = Visible;
     }
 
     private void UpdateCollidable()

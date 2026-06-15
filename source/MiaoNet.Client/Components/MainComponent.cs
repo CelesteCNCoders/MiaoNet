@@ -636,7 +636,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (!ghosts.TryGetValue(player.ID, out var ghost))
             return;
         ghost.OnUpdatePaused(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Paused));
-        ghost.OnUpdateWatching();
+        ghost.OnUpdateWatching(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
     }
 
     private void Context_PlayerCreatedFireworks(OnlinePlayer player, Color color, float initialSpeed)
