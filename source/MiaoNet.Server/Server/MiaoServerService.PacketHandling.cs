@@ -2,11 +2,16 @@ using Microsoft.Extensions.Logging;
 using MiaoNet.Shared;
 using System.Diagnostics;
 using System.Buffers;
+using System.Runtime.CompilerServices;
 
 namespace MiaoNet.Server;
 
 public sealed partial class MiaoServerService
 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private ServerChannel GetChannel(ServerPlayer player)
+        => serverState.Channels[player.ChannelId];
+
     private void RegisterPacketHandlers(PacketHandlerRegister r)
     {
         r.Register<PacketPlayerFrame>(HandlePacketAsync);
@@ -57,7 +62,7 @@ public sealed partial class MiaoServerService
 
         // TODO we can actually using one Task for one Map
         // to handle these updates lock-free
-        ServerMapUnit u = player.Channel.MapUnits[player.Location.Map];
+        ServerMapUnit u = GetChannel(player).MapUnits[player.Location.Map];
         using (u.StateLock.AcquireReadLock())
         {
             var state = player.State;
@@ -94,7 +99,7 @@ public sealed partial class MiaoServerService
         {
             using (stateLock.AcquireWriteLock())
             {
-                player.Channel.OnPlayerMapMove(connection, player.Location.Map, packet.Location.Map);
+                GetChannel(player).OnPlayerMapMove(connection, player.Location.Map, packet.Location.Map);
 
                 player.Location = packet.Location;
                 player.State = null;
@@ -111,7 +116,7 @@ public sealed partial class MiaoServerService
         {
             using (stateLock.AcquireWriteLock())
             {
-                player.Channel.OnPlayerMapMove(connection, player.Location.Map, packet.Location.Map);
+                GetChannel(player).OnPlayerMapMove(connection, player.Location.Map, packet.Location.Map);
 
                 player.Location = packet.Location;
                 player.State = null;
@@ -148,7 +153,7 @@ public sealed partial class MiaoServerService
 
         using (stateLock.AcquireWriteLock())
         {
-            var c = player.Channel;
+            var c = GetChannel(player);
             c.MapUnits.TryGetValue(packet.Location.Map, out var unitTo);
 
             unitTo?.StateLock.EnterWriteLock();
@@ -229,7 +234,7 @@ public sealed partial class MiaoServerService
                 var othersPacket = new PacketPlayerChannelMovedNotification(player.ID, channel.ID);
                 othersTask = BroadcastContextuallyOthersAsync(othersPacket, player.ID);
 
-                serverState.PlayerChannelMove(connection, player.Channel, channel);
+                serverState.PlayerChannelMove(connection, GetChannel(player), channel);
             }
             await responseTask;
             await othersTask;
@@ -257,7 +262,7 @@ public sealed partial class MiaoServerService
                     tmu?.StateLock.ExitWriteLock();
                 }
 
-                serverState.PlayerChannelMove(connection, player.Channel, channel);
+                serverState.PlayerChannelMove(connection, GetChannel(player), channel);
             }
             await responseTask;
             await othersTask;
@@ -305,7 +310,7 @@ public sealed partial class MiaoServerService
                     unitTo?.StateLock.ExitWriteLock();
                 }
 
-                serverState.PlayerChannelMove(connection, player.Channel, channel);
+                serverState.PlayerChannelMove(connection, GetChannel(player), channel);
             }
 
             await responseTask;
@@ -324,7 +329,7 @@ public sealed partial class MiaoServerService
         {
             var channel = serverState.CreateNewChannel(packet.ChannelInfo);
             serverState.AddChannel(channel);
-            serverState.PlayerChannelMove(connection, connection.Player.Channel, channel);
+            serverState.PlayerChannelMove(connection, GetChannel(connection.Player), channel);
 
             createdTask = BroadcastAsync(new PacketChannelCreated(channel.ID, channel.Info));
             movedTask = BroadcastContextuallyOthersAsync(
@@ -362,10 +367,10 @@ public sealed partial class MiaoServerService
             await BroadcastAsync(toSend);
             break;
         case ChatMessageType.ChannelChat:
-            await BroadcastToAsync(toSend, connection.Player.Channel.Players, _ => true);
+            await BroadcastToAsync(toSend, GetChannel(connection.Player).Players, _ => true);
             break;
         case ChatMessageType.MapChat:
-            await BroadcastToAsync(toSend, connection.Player.Channel.Players, c => c.Player.Location.Map == connection.Player.Location.Map);
+            await BroadcastToAsync(toSend, GetChannel(connection.Player).Players, c => c.Player.Location.Map == connection.Player.Location.Map);
             break;
         default:
             goto case ChatMessageType.Chat;

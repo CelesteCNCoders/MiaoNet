@@ -17,7 +17,7 @@ public static class PlayerExtensions
     public static bool ShouldSyncFrom(this OnlinePlayer player, OnlinePlayer other)
 #endif
     {
-        if (player.Channel != other.Channel)
+        if (player.ChannelId != other.ChannelId)
             return false;
 
         if (player.Location.IsEmpty)

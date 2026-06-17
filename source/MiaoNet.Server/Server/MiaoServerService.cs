@@ -129,12 +129,12 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                     from pair in serverState.Players
                     let p = pair.Value.Player
                     select new PacketClientInitial.Player(
-                        p.Channel.ID, p.ID, p.Info, p.Location, p.GlobalFlags
+                        p.ChannelId, p.ID, p.Info, p.Location, p.GlobalFlags
                     );
 
                 var strings = options.Announcements[handshakeResult.HandshakeData.LanguageCode];
                 PacketClientInitial packetClientInitial = new PacketClientInitial(
-                    newPlayer.Channel.ID,
+                    newPlayer.ChannelId,
                     newPlayer.ID,
                     clientPlayerInfo,
                     channels.ToList(),
@@ -151,7 +151,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
                 // and then tell other clients a new player came
                 tellOthersOneJoinedTask = BroadcastOthersAsync(
-                    new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.ID, newPlayer.Info), newPlayer.ID
+                    new PacketPlayerJoined(newPlayer.ChannelId, newPlayer.ID, newPlayer.Info), newPlayer.ID
                 );
             }
 

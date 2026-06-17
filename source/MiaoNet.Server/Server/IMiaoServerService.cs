@@ -6,7 +6,7 @@ public interface IMiaoServerService
 {
     public IReadOnlyDictionary<int, MiaoClientConnection> Players { get; }
 
-    public IReadOnlyDictionary<int, ServerChannel> Channels { get; }
+    public IReadOnlyDictionary<int, IChannelView> Channels { get; }
 
     public Task BroadcastAsync(IContextlessPacket packet);
 }

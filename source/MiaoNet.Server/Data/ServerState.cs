@@ -31,8 +31,7 @@ public sealed class ServerState
     public ServerPlayer CreateNewPlayer(PlayerInfo playerInfo)
     {
         int id = Interlocked.Increment(ref nextPlayerID);
-        ServerChannel channel = channels[0];
-        ServerPlayer player = new(channel, id, playerInfo);
+        ServerPlayer player = new(0, id, playerInfo);
         return player;
     }
 
@@ -47,7 +46,7 @@ public sealed class ServerState
     {
         bool result = ImmutableInterlocked.Update(ref players, (d, c) => d.Add(c.ID, c), connection);
         Debug.Assert(result);
-        connection.Player.Channel.OnAddPlayer(connection);
+        channels[connection.Player.ChannelId].OnAddPlayer(connection);
     }
 
     public void AddChannel(ServerChannel channel)
@@ -60,8 +59,9 @@ public sealed class ServerState
     {
         bool result = ImmutableInterlocked.Update(ref players, (d, c) => d.Remove(c.ID), connection);
         Debug.Assert(result);
-        connection.Player.Channel.OnRemovePlayer(connection);
-        RemoveChannelIfEmpty(connection.Player.Channel);
+        var channel = channels[connection.Player.ChannelId];
+        channel.OnRemovePlayer(connection);
+        RemoveChannelIfEmpty(channel);
     }
 
     public void PlayerChannelMove(MiaoClientConnection connection, ServerChannel from, ServerChannel to)
@@ -70,7 +70,7 @@ public sealed class ServerState
         Debug.Assert(channels.ContainsValue(to));
 
         from.OnRemovePlayer(connection);
-        connection.Player.Channel = to;
+        connection.Player.ChannelId = to.ID;
         to.OnAddPlayer(connection);
         RemoveChannelIfEmpty(from);
     }

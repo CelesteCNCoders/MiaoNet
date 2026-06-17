@@ -8,6 +8,8 @@ public sealed class OnlinePlayer
 
     public OnlineChannel Channel { get; set; }
 
+    public int ChannelId => Channel.ID;
+
     public PlayerInfo Info { get; set; }
 
     public PlayerLocation Location { get; set; }

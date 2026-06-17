@@ -16,6 +16,22 @@
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <GarbageCollectionAdaptationMode>0</GarbageCollectionAdaptationMode>
   </PropertyGroup>
+
+  <PropertyGroup Condition="$(UseScopeTree) == 'true'">
+    <DefineConstants>$(DefineConstants);USE_SCOPE_TREE</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup Condition="$(UseScopeTree) == 'true'">
+    <Compile Remove="Server/MiaoServerService.PacketHandling.cs" />
+    <Compile Remove="Data/ServerState.cs" />
+    <Compile Remove="Data/ServerChannel.cs" />
+    <Compile Remove="Data/ServerMapUnit.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$(UseScopeTree) != 'true'">
+    <Compile Remove="Server/MiaoServerService.PacketHandling.Scoped.cs" />
+    <Compile Remove="Server/ScopeTree/**" />
+  </ItemGroup>
   
   <ItemGroup>
     <Compile Include="../MiaoNet.Shared/**/*.cs" LinkBase="0-Shared" />
