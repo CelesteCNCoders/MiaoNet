@@ -117,7 +117,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         pDashColorBaseB = (pDashB.Color, pDashB.Color2);
 
         OnUpdatePaused(player.IsPaused);
-        OnUpdateWatching();
+        OnUpdateWatching(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
 
         selfHoldable = new(1f / 5f)
         {
@@ -612,6 +612,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             {
                 playerHair.Active = false;
                 idleHover = new(this);
+                idleHover.Visible = this.Visible;
                 if (Scene is not null)
                 {
                     Scene.Add(idleHover);
@@ -629,7 +630,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         }
     }
 
-    public void OnUpdateWatching()
+    public void OnUpdateWatching(bool watching)
     {
         UpdateVisible();
     }
@@ -637,8 +638,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     private void UpdateVisible()
     {
         bool watching = OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching);
+
         Visible = (!dead || respawning) && !watching;
         nameTag.Visible = !watching;
+        idleHover?.Visible = this.Visible;
     }
 
     private void UpdateCollidable()
