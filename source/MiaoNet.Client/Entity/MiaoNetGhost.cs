@@ -443,7 +443,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         dead = true;
         selfHoldable.Holder?.Drop();
         Collidable = false;
-        UpdateVisible(OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
+        UpdateVisible();
         if (Scene is Level level)
         {
             Remove(playerHair);
@@ -466,7 +466,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         {
             respawning = true;
             deadEase = 1f;
-            UpdateVisible(OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
+            UpdateVisible();
             UpdateCollidable();
             var tween = Tween.Set(this, Tween.TweenMode.Oneshot, 0.6f, null,
                 t =>
@@ -477,7 +477,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                 {
                     respawning = false;
                     dead = false;
-                    UpdateVisible(OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
+                    UpdateVisible();
                     Depth = Depths.Player + 1;
                     Add(playerHair);
                     Add(playerSprite);
@@ -494,7 +494,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             UpdateCollidable();
             respawning = false;
             dead = false;
-            UpdateVisible(OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
+            UpdateVisible();
             Depth = Depths.Player + 1;
             Add(playerHair);
             Add(playerSprite);
@@ -611,10 +611,8 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             if (idleHover is null)
             {
                 playerHair.Active = false;
-                idleHover = new(this)
-                {
-                    Visible = Visible  // `Visible` 赋值本体的 `Visible`
-                };
+                idleHover = new(this);
+                idleHover.Visible = this.Visible;
                 if (Scene is not null)
                 {
                     Scene.Add(idleHover);
@@ -634,15 +632,16 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
     public void OnUpdateWatching(bool watching)
     {
-        UpdateVisible(watching);
+        UpdateVisible();
     }
 
-    private void UpdateVisible(bool watching)
+    private void UpdateVisible()
     {
+        bool watching = OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching);
+
         Visible = (!dead || respawning) && !watching;
         nameTag.Visible = !watching;
-        if (idleHover is not null)
-            idleHover.Visible = Visible;
+        idleHover?.Visible = this.Visible;
     }
 
     private void UpdateCollidable()
