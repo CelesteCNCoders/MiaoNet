@@ -32,6 +32,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         context.PlayerLeft += Context_PlayerLeft;
         context.PlayerFrameNotification += Context_PlayerFrameNotification;
         context.PlayerMapChanged += Context_PlayerMapChanged;
+        context.PlayerMapRoomChanged += Context_PlayerMapRoomChanged;
         context.PlayerMapChangeResponded += Context_PlayerMapChangeResponded;
         context.PlayerLiveStateNotification += Context_PlayerLiveStateNotification;
         context.PlayerGlobalFlagsChanged += Context_PlayerGlobalFlagsChanged;
@@ -498,6 +499,14 @@ public sealed partial class MainComponent : MiaoNetComponent
         HandleLocationChanging(level, player);
     }
 
+    private void Context_PlayerMapRoomChanged(OnlinePlayer player, string room)
+    {
+        Logger.Debug(LT.MiaoNet, $"MapRoomChanging: {player} to room {room}");
+        if (Engine.Scene is not Level level || room.Length != 0)
+            return;
+        HandleLocationChanging(level, player);
+    }
+
     private void Context_PlayerMapChangeResponded(PacketPlayerMapChangedResponse packet)
     {
         if (Engine.Scene is not Level level)
@@ -704,7 +713,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             level.CompletelyRemove(ghost);
             ghosts.Remove(other.ID);
         }
-        if (other.State is not null)
+        if (other.State is not null && other.Location.IsInMap)
         {
             ghosts[other.ID] = ghost = new(other, context.ShowAvatar);
             level.Add(ghost);
