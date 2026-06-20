@@ -86,6 +86,7 @@ public sealed class MiaoNetModule : EverestModule
 
         SpeedrunToolCompat.Load();
         typeof(CollabUtils2Interop).ModInterop();
+        typeof(ExtendedVariantInterop).ModInterop();
 
 #if DEBUG
         Engine.Instance.IsMouseVisible = true;

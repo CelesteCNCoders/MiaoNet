@@ -42,13 +42,19 @@ public sealed class GhostNameTag : MiaoNetEntity
     {
         base.Render();
 
-        Vector2 worldPosition = Entity.Position;
-        worldPosition.Y -= 16f;
         const float Scale = 1f / 2f;
         const float Margin = 8f;
         const float FadeRadius = 128f;
 
+        var f = ExtendedVariantInterop.GetCurrentVariantValue;
+        bool upsideDown = f is not null && (bool)f.Invoke("UpsideDown");
+
+        Vector2 worldPosition = Entity.Position;
+        worldPosition.Y -= 16f;
+
         Vector2 position = SceneAs<Level>().WorldToScreen(worldPosition);
+        if (upsideDown)
+            position.Y = Celeste.TargetHeight - position.Y;
         Vector2 clampedPosition = ScreenClamper.ClampIntoScreen(
             position,
             MiaoNetFont.Measure(Text) * Scale,
@@ -66,9 +72,10 @@ public sealed class GhostNameTag : MiaoNetEntity
                     settings.OffScreenPlayerNameOpacityValue,
                     Vector2.DistanceSquared(position, clampedPosition) / (FadeRadius * FadeRadius)
                 );
-        MiaoNetFont.DrawOutlineBottomCentered(
+        MiaoNetFont.DrawOutline(
             Text,
             clampedPosition,
+            new Vector2(1f / 2f, upsideDown ? 0f : 1f),
             Vector2.One * Scale,
             Color * alpha
         );
