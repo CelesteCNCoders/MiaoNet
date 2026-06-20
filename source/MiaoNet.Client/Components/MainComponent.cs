@@ -464,6 +464,9 @@ public sealed partial class MainComponent : MiaoNetComponent
                 PacketPlayerMapChanged p = new(location, null);
                 context.QueuePacket(p);
             }
+
+            foreach (var pair in ClientState.Players)
+                pair.Value.State = null;
         }
         else if (changeResult is PlayerLocation.ChangeResult.RoomOnly)
         {
