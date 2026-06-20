@@ -49,6 +49,8 @@ public sealed class GhostNameTag : MiaoNetEntity
         var f = ExtendedVariantInterop.GetCurrentVariantValue;
         bool upsideDown = f is not null && (bool)f.Invoke("UpsideDown");
 
+        Vector2 justify = new Vector2(1f / 2f, !upsideDown ? 1f : 0f);
+
         Vector2 worldPosition = Entity.Position;
         worldPosition.Y -= 16f;
 
@@ -58,7 +60,7 @@ public sealed class GhostNameTag : MiaoNetEntity
         Vector2 clampedPosition = ScreenClamper.ClampIntoScreen(
             position,
             MiaoNetFont.Measure(Text) * Scale,
-            new Vector2(1f / 2f, 1f),
+            justify,
             Margin
         );
 
@@ -75,7 +77,7 @@ public sealed class GhostNameTag : MiaoNetEntity
         MiaoNetFont.DrawOutline(
             Text,
             clampedPosition,
-            new Vector2(1f / 2f, upsideDown ? 0f : 1f),
+            justify,
             Vector2.One * Scale,
             Color * alpha
         );
