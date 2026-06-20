@@ -14,7 +14,7 @@ public sealed class GhostNameTag : MiaoNetEntity
 
     private GhostNameTag(Entity entity, string text, Color color)
     {
-        Tag = MiaoNetTag.Tag | TagsExt.SubHUD;
+        Tag = MiaoNetTag.Hud;
         Entity = entity;
         Text = text;
         Color = color;

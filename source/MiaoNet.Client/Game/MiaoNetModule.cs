@@ -122,7 +122,7 @@ public sealed class MiaoNetModule : EverestModule
     public override void LoadContent(bool firstLoad)
     {
         base.LoadContent(firstLoad);
-        GhostRenderLayerEntity.LoadContent();
+        MiaoNetGraphics.LoadContent();
     }
 
     public override void OnInputInitialize()

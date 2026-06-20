@@ -1,11 +1,11 @@
-﻿namespace Celeste.Mod.MiaoNet;
+namespace Celeste.Mod.MiaoNet;
 
 public sealed class Fireworks : MiaoNetGhostEntity
 {
     public Fireworks(Vector2 position, Color color, float initialSpeed)
         : base(position)
     {
-        Tag = MiaoNetTag.Tag;
+        Tag = MiaoNetTag.Normal;
 
         Add(new FireworksComponent(color, initialSpeed));
         Depth = Depths.Top;
@@ -21,7 +21,7 @@ public sealed class SelfFireworks : MiaoNetEntity
     public SelfFireworks(Vector2 position, Color color, float initialSpeed)
         : base(position)
     {
-        Tag = MiaoNetTag.Tag;
+        Tag = MiaoNetTag.Normal;
 
         Add(new FireworksComponent(color, initialSpeed));
         Depth = Depths.Top;

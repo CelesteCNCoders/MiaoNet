@@ -1,4 +1,4 @@
-﻿using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Graphics;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -6,18 +6,9 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
 {
     private readonly bool isHigh;
 
-    private static Effect radialAlphaMaskEffect = null!;
-
-    public static void LoadContent()
-    {
-        var asset = Everest.Content.Get("Effects/MiaoNet/RadialAlphaMask.cso")
-            ?? throw new KeyNotFoundException("RadialAlphaMask.cso is not found.");
-        radialAlphaMaskEffect = new Effect(Engine.Graphics.GraphicsDevice, asset.Data);
-    }
-
     public GhostRenderLayerEntity(bool isHigh)
     {
-        Tag = MiaoNetTag.Tag;
+        Tag = MiaoNetTag.Normal;
         Depth = isHigh ? Depths.Top : (Depths.Player + 1);
         this.isHigh = isHigh;
     }
@@ -49,7 +40,7 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
             Player? player = level.Tracker.GetEntity<Player>();
             if (player != null)
             {
-                effect = radialAlphaMaskEffect;
+                effect = MiaoNetGraphics.RadialAlphaMaskEffect;
                 // TODO scaling?
                 effect.Parameters["Dimensions"].SetValue(new Vector2(320f, 180f));
                 effect.Parameters["CenterPos"].SetValue(player.Center - level.Camera.Position);

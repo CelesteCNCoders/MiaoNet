@@ -81,7 +81,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
     public MiaoNetGhost(OnlinePlayer player, bool avatar)
     {
-        Tag = MiaoNetTag.Tag;
+        Tag = MiaoNetTag.Normal;
         Depth = Depths.Player + 1;
         OnlinePlayer = player;
         GraphicsInfo = player.GraphicsInfo;
