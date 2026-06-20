@@ -28,6 +28,7 @@ public sealed class MiaoNetModule : EverestModule
     // TODO this is ugly
     public static Vector2? NextPlayerSpawnPosition { get; set; }
 
+    // forceFullChange: the player may re-enter a map so we have to re-send full state
     public delegate void PlayerLocationChangedHandler(PlayerLocation location, bool forceFullChange);
     public static event PlayerLocationChangedHandler? PlayerLocationChanged;
 
