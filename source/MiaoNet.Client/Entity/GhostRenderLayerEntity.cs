@@ -15,8 +15,12 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
 
     public override void Render()
     {
-        var gd = Engine.Instance.GraphicsDevice;
         Level level = SceneAs<Level>();
+
+        if (level.Tracker.GetEntities<MiaoNetGhostEntity>().Count == 0)
+            return;
+
+        var gd = Engine.Instance.GraphicsDevice;
         var settings = MiaoNetModule.Settings;
 
         GameplayRenderer.End();
