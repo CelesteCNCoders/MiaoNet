@@ -2,13 +2,13 @@ using Celeste.Mod.ChatInputBox;
 
 namespace Celeste.Mod.MiaoNet;
 
-internal sealed class MiaoNetChatTextRenderer : ITextRenderer
+internal sealed class ScalelessChatTextRenderer : IScalelessTextRenderer
 {
     public float Scale { get; set; }
 
     public float LineHeight { get; set; }
 
-    public MiaoNetChatTextRenderer(float scale, float lineHeight)
+    public ScalelessChatTextRenderer(float scale, float lineHeight)
     {
         Scale = scale;
         LineHeight = lineHeight;
@@ -28,6 +28,13 @@ internal sealed class MiaoNetChatTextRenderer : ITextRenderer
             text, position, justify,
             Vector2.One * Scale, color,
             1f, (IsColorDark(color) ? Color.White : Color.Black)
+        );
+
+    public void Draw(ChatText text, Vector2 position, float yJustify, float alpha)
+        => MiaoNetFont.Draw(
+            text, position, yJustify, 
+            Vector2.One * Scale,
+            alpha
         );
 
     private static bool IsColorDark(Color color)
