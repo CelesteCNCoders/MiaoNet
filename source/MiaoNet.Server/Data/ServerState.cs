@@ -1,8 +1,8 @@
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
+using MiaoNet.Server.GameScope;
+using Microsoft.Extensions.Logging;
 
 namespace MiaoNet.Server;
 
@@ -11,47 +11,40 @@ public sealed class ServerState
 {
     private int nextPlayerID;
     private int nextChannelID;
+    private readonly ILogger scopeTreeLogger;
 
     private ImmutableDictionary<int, MiaoClientConnection> players;
     private ImmutableDictionary<int, ServerChannel> channels;
+    private readonly ServerChannel mainChannel;
 
     public ImmutableDictionary<int, MiaoClientConnection> Players => players;
 
     public ImmutableDictionary<int, ServerChannel> Channels => channels;
 
-    public ServerState()
+    public ScopeTree ScopeTree { get; }
+
+    public ServerState(ILogger<ScopeTree> scopeTreeLogger)
     {
         nextPlayerID = nextChannelID = 0;
+        this.scopeTreeLogger = scopeTreeLogger;
 
         players = ImmutableDictionary<int, MiaoClientConnection>.Empty;
-        channels = ImmutableDictionary<int, ServerChannel>.Empty
-            .Add(0, new ServerChannel(0, new ChannelInfo("main")));
+        channels = ImmutableDictionary<int, ServerChannel>.Empty;
+        ScopeTree = new ScopeTree(scopeTreeLogger);
+        mainChannel = CreateChannel(new ChannelInfo("main"));
     }
 
-    public ServerPlayer CreateNewPlayer(PlayerInfo playerInfo)
+    public ServerPlayer CreateAndAddPlayer(PlayerInfo playerInfo)
     {
         int id = Interlocked.Increment(ref nextPlayerID);
-        ServerPlayer player = new(0, id, playerInfo);
+        ServerPlayer player = new(id, playerInfo);
+        ScopeTree.AddPlayer(player, mainChannel.Scope!);
         return player;
     }
 
-    public ServerChannel CreateNewChannel(ChannelInfo channelInfo)
-    {
-        int id = Interlocked.Increment(ref nextChannelID);
-        ServerChannel channel = new(id, channelInfo);
-        return channel;
-    }
-
-    public void AddPlayer(MiaoClientConnection connection)
+    public void RegisterConnection(MiaoClientConnection connection)
     {
         bool result = ImmutableInterlocked.Update(ref players, (d, c) => d.Add(c.ID, c), connection);
-        Debug.Assert(result);
-        channels[connection.Player.ChannelId].OnAddPlayer(connection);
-    }
-
-    public void AddChannel(ServerChannel channel)
-    {
-        bool result = ImmutableInterlocked.Update(ref channels, (d, c) => d.Add(c.ID, c), channel);
         Debug.Assert(result);
     }
 
@@ -59,28 +52,28 @@ public sealed class ServerState
     {
         bool result = ImmutableInterlocked.Update(ref players, (d, c) => d.Remove(c.ID), connection);
         Debug.Assert(result);
-        var channel = channels[connection.Player.ChannelId];
-        channel.OnRemovePlayer(connection);
-        RemoveChannelIfEmpty(channel);
+        ScopeTree.RemovePlayer(connection.Player);
     }
 
-    public void PlayerChannelMove(MiaoClientConnection connection, ServerChannel from, ServerChannel to)
+    public ServerChannel CreateChannel(ChannelInfo channelInfo)
     {
-        Debug.Assert(channels.ContainsValue(from));
-        Debug.Assert(channels.ContainsValue(to));
-
-        from.OnRemovePlayer(connection);
-        connection.Player.ChannelId = to.ID;
-        to.OnAddPlayer(connection);
-        RemoveChannelIfEmpty(from);
+        int id = Interlocked.Increment(ref nextChannelID);
+        ServerChannel channel = new(id, channelInfo);
+        ScopeTree.AddChannel(channel);
+        ImmutableInterlocked.Update(ref channels, (d, c) => d.Add(c.ID, c), channel);
+        
+        return channel;
     }
 
-    private void RemoveChannelIfEmpty(ServerChannel channel)
-    {
-        if (channel.Players.Count == 0 && channel.ID != 0)
-        {
-            bool result = ImmutableInterlocked.Update(ref channels, (d, c) => d.Remove(c.ID), channel);
-            Debug.Assert(result);
-        }
-    }
+    public MoveResult MovePlayerToChannel(ServerPlayer player, ServerChannel channel)
+        => ScopeTree.MovePlayerToChannel(player, channel);
+
+    public MoveResult MovePlayerToMap(ServerPlayer player, PlayerMap map)
+        => ScopeTree.MovePlayerToMap(player, map);
+
+    //TODO: Use Room
+    // public MoveResult MovePlayerToRoom(ServerPlayer player, string room)
+    // {
+    // }
+    
 }

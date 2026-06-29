@@ -59,6 +59,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         this.networkConnection = networkConnection;
         ID = serverPlayer.ID;
         Player = serverPlayer;
+        serverPlayer.Connection = this;
 
         cts = new CancellationTokenSource();
         pipe = new();

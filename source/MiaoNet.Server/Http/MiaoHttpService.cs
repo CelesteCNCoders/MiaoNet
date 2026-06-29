@@ -14,7 +14,7 @@ public sealed partial class MiaoHttpService : BackgroundService
     private delegate Task RequestHandler(NameValueCollection query, HttpListenerContext context);
 
     private readonly ILogger<MiaoHttpService> logger;
-    private readonly IMiaoServerService miaoServerService;
+    private readonly MiaoServerService miaoServerService;
     private readonly MiaoMetricsService miaoMetricsService;
     private readonly HttpListener httpListener;
     private readonly Dictionary<string, RequestHandler> requestHandlers;
@@ -24,7 +24,7 @@ public sealed partial class MiaoHttpService : BackgroundService
     public MiaoHttpService(
         ILogger<MiaoHttpService> logger,
         IOptions<MiaoServerOptions> options,
-        IMiaoServerService miaoServerService,
+        MiaoServerService miaoServerService,
         MiaoMetricsService miaoMetricsService
     )
     {

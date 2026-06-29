@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using MiaoNet.Shared;
+using MiaoNet.Server.GameScope;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -16,7 +17,7 @@ using System.Security.Authentication;
 
 namespace MiaoNet.Server;
 
-public sealed partial class MiaoServerService : BackgroundService, IMiaoServerService
+public sealed partial class MiaoServerService : BackgroundService
 {
     private static readonly ArrayPool<byte> pool = ArrayPool<byte>.Shared;
 
@@ -46,11 +47,12 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         NetworkListenerFactory networkListenerFactory,
         MiaoClientConnectionFactory connectionFactory,
         IMiaoAuthenticator authenticator,
-        MiaoMetricsService miaoMetricsService
+        MiaoMetricsService miaoMetricsService,
+        ILogger<ScopeTree> scopeTreeLogger
     )
     {
         stateLock = new();
-        serverState = new();
+        serverState = new(scopeTreeLogger);
 
         PacketHandlerRegister register = new();
         RegisterPacketHandlers(register);
@@ -100,7 +102,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         try
         {
             // create the player
-            var newPlayer = serverState.CreateNewPlayer(handshakeResult.PlayerInfo);
+            var newPlayer = serverState.CreateAndAddPlayer(handshakeResult.PlayerInfo);
             logger.LogInformation(
                 AppEvents.Connection,
                 "Assign {ep}({player}) to id {id}.",
@@ -129,12 +131,12 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                     from pair in serverState.Players
                     let p = pair.Value.Player
                     select new PacketClientInitial.Player(
-                        p.ChannelId, p.ID, p.Info, p.Location, p.GlobalFlags
+                        serverState.ScopeTree.ChannelOf(p)?.Channel.ID ?? 0, p.ID, p.Info, p.Location, p.GlobalFlags
                     );
 
                 var strings = options.Announcements[handshakeResult.HandshakeData.LanguageCode];
                 PacketClientInitial packetClientInitial = new PacketClientInitial(
-                    newPlayer.ChannelId,
+                    serverState.ScopeTree.ChannelOf(newPlayer)?.Channel.ID ?? 0,
                     newPlayer.ID,
                     clientPlayerInfo,
                     channels.ToList(),
@@ -147,11 +149,11 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                 sendStateTask = newConnection.QueuePacketAsync(packetClientInitial);
 
                 // other connections can see this player now
-                serverState.AddPlayer(newConnection);
+                serverState.RegisterConnection(newConnection);
 
                 // and then tell other clients a new player came
                 tellOthersOneJoinedTask = BroadcastOthersAsync(
-                    new PacketPlayerJoined(newPlayer.ChannelId, newPlayer.ID, newPlayer.Info), newPlayer.ID
+                    new PacketPlayerJoined(serverState.ScopeTree.ChannelOf(newPlayer)?.Channel.ID ?? 0, newPlayer.ID, newPlayer.Info), newPlayer.ID
                 );
             }
 

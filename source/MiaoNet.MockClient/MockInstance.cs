@@ -38,6 +38,19 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
         Name = name;
     }
 
+    private async Task ChatLoop()
+    {
+        ChatChannel[] channels = [ChatChannel.Global, ChatChannel.Channel, ChatChannel.Map];
+        int i = 0;
+        while (true)
+        {
+            await Task.Delay(3000);
+            var ch = channels[i % channels.Length];
+            connection.QueuePacket(new PacketSendChatMessage(ch, $"[{ch}] hello from {Name}"));
+            i++;
+        }
+    }
+
     private async Task FrameLoop()
     {
         while (true)
@@ -91,6 +104,7 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
             )
         );
         _ = FrameLoop();
+        // _ = ChatLoop();
 
         CancellationTokenSource cts = new();
         Task sendingTask = connection.SendPacketsLoopAsync(this, cts.Token);

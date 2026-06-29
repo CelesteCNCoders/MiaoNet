@@ -1,99 +1,6 @@
-# RFC: Scope Tree — Unified State Management & Broadcasting
+# RFC: Scope Tree — 统一状态管理与广播
 
-> **Navigation / 导航**
-> - [English](#english)
-> - [中文](#中文)
-
----
-
-<a id="english"></a>
-
-# [EN] Scope Tree
-
-Status: Draft | Author: wheatEars | Date: 2026-06-15
-
-## Problem
-
-Player location is tracked in 4 places (`ServerPlayer.Channel`, `ServerChannel.players`, `ServerMapUnit.players`, `ServerPlayer.Location`) that must stay in sync manually. Each PacketHandler assembles broadcast targets ad-hoc with different predicate patterns. Adding a new scope level (e.g., Room) means auditing every handler.
-
-## Solution
-
-A single tree is the source of truth for "who is where." Broadcast targets are derived from tree queries.
-
-```
-RootScope
-├── ChannelScope "main" [permanent]
-│   ├── MapScope "forest" → {Alice, Bob}
-│   └── MapScope "town" → {Carol}
-└── ChannelScope "custom"
-    └── MapScope "forest" → {Dave}
-```
-
-Each connection has exactly one attachment point (deepest scope). Scope membership is implied by tree path, not stored separately.
-
-## Key Properties
-
-**Extensible.** New scope level = new node type inserted in hierarchy. Existing handlers work unchanged—`AllConnections` recurses automatically.
-
-```
-MapScope "forest"
-└── RoomScope "room-3"   ← new level, zero handler changes
-    └── {Alice}
-```
-
-**Lazy recomputation.** Tree mutates only on scope-changing packets (map switch, channel move, join, leave—low frequency). Frame sync (high frequency) reads a precomputed immutable set `scope.Connections`—O(1) lookup, no locking, no tree traversal.
-
-**Single mutation primitive.** Join, leave, switch channel, switch map all reduce to `Move(connection, targetScope)`. Side effects (empty node GC, group recomputation) happen in one place.
-
-## Implementation Shape
-
-```csharp
-public abstract class Scope { /* Parent, Children, Connections, AllConnections */ }
-public sealed class RootScope : Scope { }
-public sealed class ChannelScope : Scope { ChannelInfo Info; }
-public sealed class MapScope : Scope { PlayerMap Map; ReaderWriterLockSlim StateLock; }
-```
-
-```csharp
-public interface IPlayerScopeManager
-{
-    void AddPlayer(MiaoClientConnection connection);
-    void RemovePlayer(MiaoClientConnection connection);
-    MoveResult MoveToChannel(MiaoClientConnection connection, int channelId);
-    MoveResult MoveToMap(MiaoClientConnection connection, PlayerMap map);
-
-    IReadOnlyCollection<MiaoClientConnection> GetScopePeers(MiaoClientConnection connection);
-    IReadOnlyCollection<MiaoClientConnection> GetChannelMembers(MiaoClientConnection connection);
-}
-```
-
-`MoveResult` returns precomputed target sets (NewPeers, PreviousPeers, Others) so handlers don't assemble them manually.
-
-## Feature Flag
-
-Compile-time `.csproj` switch. Two `PacketHandling` files (old/new) never coexist in one build. Shared files (`Handshake`, `Connection`, `ServerPlayer`) stay untouched.
-
-```xml
-<DefineConstants Condition="$(UseScopeTree)=='true'">$(DefineConstants);USE_SCOPE_TREE</DefineConstants>
-```
-
-## Migration
-
-1. Extract `IPlayerScopeManager`, wrap existing logic as legacy impl
-2. Build ScopeTree core + unit tests
-3. Write new PacketHandling against `IPlayerScopeManager`
-4. Wire `.csproj` switch, validate both compile
-5. Integration test with MockClient, confirm identical broadcast behavior
-6. Delete old code
-
----
----
-
-<a id="中文"></a>
-
-# [中文] Scope Tree
-
-状态：Draft | 作者：wheatEars | 日期：2026-06-15
+状态：Implemented | 作者：wheatEars | 日期：2026-06-15 | 更新：2026-06-30
 
 ## 问题
 
@@ -104,67 +11,133 @@ Compile-time `.csproj` switch. Two `PacketHandling` files (old/new) never coexis
 用一棵树作为"谁在哪"的唯一事实来源。广播目标从树查询派生。
 
 ```
-RootScope
-├── ChannelScope "main" [permanent]
-│   ├── MapScope "forest" → {Alice, Bob}
-│   └── MapScope "town" → {Carol}
+GlobalScope [permanent]
+├── ChannelScope "main"
+│   ├── MapScope (forest A)  → {Alice, Bob}
+│   └── MapScope (town A)    → {Carol}
 └── ChannelScope "custom"
-    └── MapScope "forest" → {Dave}
+    └── MapScope (forest A)  → {Dave}
 ```
 
-每个连接在树中有且只有一个挂载点（最深层 scope）。作用域归属由树路径隐含，不再单独存储。
+每个玩家在树中有且只有一个挂载点（最深层 scope）。作用域归属由树路径隐含，不再单独存储。
 
-## 关键特性
-
-**可扩展。** 新作用域 = 在层级中插入新节点类型。现有 handler 不需改动——`AllConnections` 自动向下递归。
+## 树结构
 
 ```
-MapScope "forest"
-└── RoomScope "room-3"   ← 新层级，handler 零改动
-    └── {Alice}
+GlobalScope                        — 全局根节点，permanent
+└── ChannelScope                   — key: int (channelId)
+    └── MapScope                   — key: PlayerMap (值类型，Sid+AreaMode)
+        └── RoomScope              — key: string (roomId)，预留
 ```
 
-**惰性重算。** 树仅在作用域变化包到达时修改（切地图、切频道、加入、退出——低频）。帧同步（高频）读预计算的不可变集合 `scope.Connections`——O(1) 查找，无锁，无树遍历。
-
-**单一变更原语。** 加入、退出、切频道、切地图全部归结为 `Move(connection, targetScope)`。副作用（空节点回收、组播组重算）集中在一处。
-
-## 实现骨架
+### Scope 基类
 
 ```csharp
-public abstract class Scope { /* Parent, Children, Connections, AllConnections */ }
-public sealed class RootScope : Scope { }
-public sealed class ChannelScope : Scope { ChannelInfo Info; }
-public sealed class MapScope : Scope { PlayerMap Map; ReaderWriterLockSlim StateLock; }
+abstract class Scope
+    Connections          : ImmutableHashSet<ServerPlayer>  // 直接挂载的玩家
+    AllConnections       : ImmutableHashSet<ServerPlayer>  // 含子树，dirty flag 惰性重算
+    abstract ChildScopes : IEnumerable<Scope>              // 由泛型子类提供
+
+abstract class Scope<TSelfKey, TChildKey> : Scope
+    Children : ImmutableDictionary<TChildKey, Scope>       // ImmutableInterlocked CAS 更新
 ```
+
+`AllConnections` 带 dirty flag 向上冒泡：任何 AddConnection/RemoveConnection/AddChild/RemoveChild 都会沿 parent 链标脏，下次读取时重算。
+
+## ScopeTree
+
+所有结构变更通过 `ScopeTree` 统一管理，用 `ReaderWriterLockSlim` (`treeLock`) 保护。
+
+### Move 系列方法
+
+| 方法 | 用途 |
+|------|------|
+| `MovePlayerToMap(player, map)` | 在当前 channel 下 ensure + move，原子操作 |
+| `MovePlayerToMapInChannel(player, map, channel)` | 指定 channel 下 ensure + move |
+| `MovePlayerToChannel(player, channel)` | 切频道，若在地图中则在新 channel 重建 MapScope |
+| `MovePlayer(player, target)` | 通用 move，直接移动到指定 scope |
+
+所有 Move 返回 `MoveResult(PreviousPeers, NewPeers)`，handler 直接使用，不再自行组装广播目标。
+
+### EnsureMapScope
+
+`ChannelScope.EnsureMapScope(PlayerMap)` 查找或创建 MapScope。在 `MovePlayerToMap` / `MovePlayerToMapInChannel` 中被 `treeLock` 保护，确保 ensure + move 原子执行，防止 Cleanup 在间隙删除空 scope。
+
+### Cleanup
+
+空的非 permanent scope 自底向上回收：从变更的 scope 开始，沿 parent 链检查 `IsEmpty`，逐层 RemoveChild。
+
+## 锁模型
+
+| 之前 | 之后 |
+|------|------|
+| `MiaoServerService.stateLock` (全局写锁) | `ScopeTree.treeLock` (保护树结构变更) |
+| `ServerMapUnit.StateLock` (地图级读写锁) | `MapScope` 内置 `Channel<Func<Task>>` 单线程消费 |
+
+帧同步热路径：投递到 `mapScope.PostAsync()`，单线程顺序执行，无锁竞争。
+
+## 数据模型变化
+
+### 删除
+
+- `ServerPlayer.Channel` / `ServerPlayer.ChannelId` → `ScopeTree.ChannelOf(player)` 查找
+- `ServerChannel.Players` / `ServerChannel.MapUnits` → scope 树管理
+- `ServerMapUnit` 类 → `PlayerMap`（值类型）直接做 MapScope 的 key
+- `IChannelView` / `ChannelViewAdapter`
+- `IMiaoServerService` 接口
+
+### 新增
+
+- `ServerPlayer.Scope` — 由 ScopeTree 管理的挂载点
+- `ServerChannel.Scope` — 对应的 ChannelScope
+
+### ServerState
+
+薄封装层，move 方法直接委托 ScopeTree：
 
 ```csharp
-public interface IPlayerScopeManager
-{
-    void AddPlayer(MiaoClientConnection connection);
-    void RemovePlayer(MiaoClientConnection connection);
-    MoveResult MoveToChannel(MiaoClientConnection connection, int channelId);
-    MoveResult MoveToMap(MiaoClientConnection connection, PlayerMap map);
-
-    IReadOnlyCollection<MiaoClientConnection> GetScopePeers(MiaoClientConnection connection);
-    IReadOnlyCollection<MiaoClientConnection> GetChannelMembers(MiaoClientConnection connection);
-}
+public MoveResult MovePlayerToChannel(player, channel) => ScopeTree.MovePlayerToChannel(player, channel);
+public MoveResult MovePlayerToMap(player, map)         => ScopeTree.MovePlayerToMap(player, map);
 ```
 
-`MoveResult` 返回预计算的目标集合（NewPeers、PreviousPeers、Others），handler 不再自行组装。
+## Handler 改动
 
-## 特性开关
+### PacketPlayerFrame（帧同步）
 
-编译期 `.csproj` 开关。两个 `PacketHandling` 文件（新/旧）不会同时参与编译。共用文件（`Handshake`、`Connection`、`ServerPlayer`）不动。
-
-```xml
-<DefineConstants Condition="$(UseScopeTree)=='true'">$(DefineConstants);USE_SCOPE_TREE</DefineConstants>
+```csharp
+var mapScope = serverState.ScopeTree.MapOf(player);
+await mapScope.PostAsync(() => { /* 改状态 + 广播 */ });
 ```
 
-## 迁移路径
+### PacketPlayerMapChanged（切地图）
 
-1. 抽出 `IPlayerScopeManager`，现有逻辑包装为 legacy 实现
-2. 实现 ScopeTree 核心 + 单元测试
-3. 基于 `IPlayerScopeManager` 写新版 PacketHandling
-4. 接入 `.csproj` 开关，验证两套都能编译
-5. 用 MockClient 集成测试，确认广播行为一致
-6. 删除旧代码
+- `IsEmpty` → `MovePlayer(player, channelScope)` 回到频道层
+- `IsInDebugMap` / `IsInMap` → `MovePlayerToMap(player, map)`
+- 同地图玩家收带 state 的通知，其余玩家收 location-only 通知，两组互斥不覆盖
+
+### PacketPlayerChannelMove（切频道）
+
+- `IsEmpty` → `MovePlayerToChannel`
+- `IsInMap` → `MovePlayerToChannel`（内部自动在新 channel 重建 MapScope）
+- 同地图玩家收带 state 的通知，其余玩家收简单通知，两组互斥不覆盖
+
+### PacketSendChatMessage（聊天）
+
+- Global → `BroadcastAsync` 全服
+- Channel → `ChannelOf(player).AllConnections`
+- Map → `MapOf(player).Connections`
+
+### ShouldSyncFrom
+
+```csharp
+// 之前：四个条件判断
+// 之后：一次引用比较
+if (other.Location.IsInDebugMap) return false;
+return player.Scope is MapScope && player.Scope == other.Scope;
+```
+
+## 待完成
+
+- [ ] RoomScope handler 接入
+- [ ] `stateLock` 从 `MiaoServerService` 中完全移除
+- [ ] `ServerMapUnit.cs` 删除（已无引用）

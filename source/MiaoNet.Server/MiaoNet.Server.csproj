@@ -30,7 +30,6 @@
 
   <ItemGroup Condition="$(UseScopeTree) != 'true'">
     <Compile Remove="Server/MiaoServerService.PacketHandling.Scoped.cs" />
-    <Compile Remove="Server/ScopeTree/**" />
   </ItemGroup>
   
   <ItemGroup>
