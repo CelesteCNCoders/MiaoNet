@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -17,31 +17,16 @@
     <GarbageCollectionAdaptationMode>0</GarbageCollectionAdaptationMode>
   </PropertyGroup>
 
-  <PropertyGroup Condition="$(UseScopeTree) == 'true'">
-    <DefineConstants>$(DefineConstants);USE_SCOPE_TREE</DefineConstants>
-  </PropertyGroup>
-
-  <ItemGroup Condition="$(UseScopeTree) == 'true'">
-    <Compile Remove="Server/MiaoServerService.PacketHandling.cs" />
-    <Compile Remove="Data/ServerState.cs" />
-    <Compile Remove="Data/ServerChannel.cs" />
-    <Compile Remove="Data/ServerMapUnit.cs" />
-  </ItemGroup>
-
-  <ItemGroup Condition="$(UseScopeTree) != 'true'">
-    <Compile Remove="Server/MiaoServerService.PacketHandling.Scoped.cs" />
-  </ItemGroup>
-  
   <ItemGroup>
     <Compile Include="../MiaoNet.Shared/**/*.cs" LinkBase="0-Shared" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.1" />
     <!-- ms 你为什么不提供默认的 FileLogger 啊啊啊 -->
     <PackageReference Include="NReco.Logging.File" Version="1.3.1" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <None Update="appsettings*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
