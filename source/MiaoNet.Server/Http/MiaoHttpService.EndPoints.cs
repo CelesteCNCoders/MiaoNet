@@ -70,7 +70,7 @@ public partial class MiaoHttpService
             {
                 ID = c.Key,
                 Name = c.Value.Info.Name,
-                Players = (c.Value.Scope?.AllConnections ?? []).Select(static p => new
+                Players = (c.Value.Scope?.AllPlayers ?? []).Select(static p => new
                 {
                     ID = p.ID,
                     Name = p.Info.Name,

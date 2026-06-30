@@ -53,13 +53,13 @@ public class ScopeTree
             var source = player.Scope;
             logger.LogDebug("MovePlayerToMap: {player} from {source} to {target}", player, source, mapScope);
 
-            var previousPeers = source?.Connections ?? ImmutableHashSet<ServerPlayer>.Empty;
+            var previousPeers = source?.Players ?? ImmutableHashSet<ServerPlayer>.Empty;
 
             source?.RemoveConnection(player);
             mapScope.AddConnection(player);
             player.Scope = mapScope;
 
-            var newPeers = mapScope.Connections.Remove(player);
+            var newPeers = mapScope.Players.Remove(player);
 
             if (source is not null)
                 Cleanup(source);
@@ -78,13 +78,13 @@ public class ScopeTree
             var source = player.Scope;
             logger.LogDebug("MovePlayerToMapInChannel: {player} from {source} to {target}", player, source, mapScope);
 
-            var previousPeers = source?.Connections ?? ImmutableHashSet<ServerPlayer>.Empty;
+            var previousPeers = source?.Players ?? ImmutableHashSet<ServerPlayer>.Empty;
 
             source?.RemoveConnection(player);
             mapScope.AddConnection(player);
             player.Scope = mapScope;
 
-            var newPeers = mapScope.Connections.Remove(player);
+            var newPeers = mapScope.Players.Remove(player);
 
             if (source is not null)
                 Cleanup(source);
@@ -101,14 +101,14 @@ public class ScopeTree
             var source = player.Scope;
             logger.LogDebug("MovePlayer: {player} from {source} to {target}", player.Info, source, target);
 
-            var previousPeers = source?.Connections ?? ImmutableHashSet<ServerPlayer>.Empty;
+            var previousPeers = source?.Players ?? ImmutableHashSet<ServerPlayer>.Empty;
 
             source?.RemoveConnection(player);
 
             target.AddConnection(player);
             player.Scope = target;
 
-            var newPeers = target.Connections.Remove(player);
+            var newPeers = target.Players.Remove(player);
 
             if (source is not null)
                 Cleanup(source);

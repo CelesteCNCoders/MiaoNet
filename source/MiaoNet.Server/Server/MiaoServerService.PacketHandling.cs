@@ -81,7 +81,7 @@ public sealed partial class MiaoServerService
 
             BroadcastContextuallyToAsync(
                 new PacketContextualPlayerNotification<PacketPlayerFrame>(connection.ID, packet),
-                mapScope.Connections.Select(p => p.Connection!),
+                mapScope.Players.Select(p => p.Connection!),
                 con => connection.ID != con.ID
             );
             return Task.CompletedTask;
@@ -158,7 +158,7 @@ public sealed partial class MiaoServerService
         {
             // Snapshot inside the map's consumer task
             var mapPlayers = await targetMapScope.PostAsync(() =>
-                targetMapScope.Connections
+                targetMapScope.Players
                     .Where(p => p != player)
                     .Select(p => new PlayerMovedInitialData(p.ID, p.State!.Clone(), p.GraphicsInfo?.Clone()))
                     .ToList()
@@ -241,7 +241,7 @@ public sealed partial class MiaoServerService
             if (mapScope is not null)
             {
                 mapPlayers = await mapScope.PostAsync(() =>
-                    mapScope.Connections
+                    mapScope.Players
                         .Where(p => p != player)
                         .Select(p => new PlayerMovedInitialData(p.ID, p.State!.Clone(), p.GraphicsInfo?.Clone()))
                         .ToList()
@@ -272,7 +272,7 @@ public sealed partial class MiaoServerService
             if (mapScope is not null)
             {
                 mapPlayers = await mapScope.PostAsync(() =>
-                    mapScope.Connections
+                    mapScope.Players
                         .Where(p => p != player)
                         .Select(p => new PlayerMovedInitialData(p.ID, p.State!.Clone(), p.GraphicsInfo?.Clone()))
                         .ToList()
@@ -352,12 +352,12 @@ public sealed partial class MiaoServerService
         case ChatMessageType.ChannelChat:
             var channelScope = serverState.ScopeTree.ChannelOf(connection.Player);
             if (channelScope is not null)
-                await BroadcastToAsync(toSend, channelScope.AllConnections.Select(p => p.Connection!), _ => true);
+                await BroadcastToAsync(toSend, channelScope.AllPlayers.Select(p => p.Connection!), _ => true);
             break;
         case ChatMessageType.MapChat:
             var chatMapScope = serverState.ScopeTree.MapOf(connection.Player);
             if (chatMapScope is not null)
-                await BroadcastToAsync(toSend, chatMapScope.Connections.Select(p => p.Connection!), _ => true);
+                await BroadcastToAsync(toSend, chatMapScope.Players.Select(p => p.Connection!), _ => true);
             break;
         default:
             goto case ChatMessageType.Chat;

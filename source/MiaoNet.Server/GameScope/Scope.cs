@@ -6,53 +6,53 @@ namespace MiaoNet.Server.GameScope;
 public abstract class Scope
 {
     private Scope? parent;
-    private ImmutableHashSet<ServerPlayer> connections;
-    private ImmutableHashSet<ServerPlayer> allConnections;
-    private volatile bool allConnectionsDirty;
+    private ImmutableHashSet<ServerPlayer> players;
+    private ImmutableHashSet<ServerPlayer> allPlayers;
+    private volatile bool allPlayersDirty;
 
     public Scope? Parent => parent;
 
-    public ImmutableHashSet<ServerPlayer> Connections => connections;
+    public ImmutableHashSet<ServerPlayer> Players => players;
 
     protected abstract IEnumerable<Scope> ChildScopes { get; }
 
-    public ImmutableHashSet<ServerPlayer> AllConnections
+    public ImmutableHashSet<ServerPlayer> AllPlayers
     {
         get
         {
-            if (allConnectionsDirty)
+            if (allPlayersDirty)
             {
-                var builder = connections.ToBuilder();
+                var builder = players.ToBuilder();
                 foreach (var child in ChildScopes)
-                    builder.UnionWith(child.AllConnections);
-                allConnections = builder.ToImmutable();
-                allConnectionsDirty = false;
+                    builder.UnionWith(child.AllPlayers);
+                allPlayers = builder.ToImmutable();
+                allPlayersDirty = false;
             }
-            return allConnections;
+            return allPlayers;
         }
     }
 
-    public bool IsEmpty => connections.IsEmpty && !ChildScopes.Any();
+    public bool IsEmpty => players.IsEmpty && !ChildScopes.Any();
 
     public abstract bool Permanent { get; }
 
     protected Scope(Scope? parent)
     {
         this.parent = parent;
-        connections = ImmutableHashSet<ServerPlayer>.Empty;
-        allConnections = ImmutableHashSet<ServerPlayer>.Empty;
+        players = ImmutableHashSet<ServerPlayer>.Empty;
+        allPlayers = ImmutableHashSet<ServerPlayer>.Empty;
     }
 
     internal void AddConnection(ServerPlayer connection)
     {
-        bool result = ImmutableInterlocked.Update(ref connections, (d, c) => d.Add(c), connection);
+        bool result = ImmutableInterlocked.Update(ref players, (d, c) => d.Add(c), connection);
         Debug.Assert(result);
         InvalidateAllConnections();
     }
 
     internal void RemoveConnection(ServerPlayer connection)
     {
-        bool result = ImmutableInterlocked.Update(ref connections, (d, c) => d.Remove(c), connection);
+        bool result = ImmutableInterlocked.Update(ref players, (d, c) => d.Remove(c), connection);
         Debug.Assert(result);
         InvalidateAllConnections();
     }
@@ -67,7 +67,7 @@ public abstract class Scope
 
     private void InvalidateAllConnections()
     {
-        allConnectionsDirty = true;
+        allPlayersDirty = true;
         parent?.InvalidateAllConnections();
     }
 }

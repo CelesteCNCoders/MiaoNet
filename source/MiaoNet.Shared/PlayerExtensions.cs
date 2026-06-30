@@ -25,7 +25,7 @@ public static class PlayerExtensions
 #elif MIAO_CLIENT
     public static bool ShouldSyncFrom(this OnlinePlayer player, OnlinePlayer other)
     {
-        if (player.ChannelId != other.ChannelId)
+        if (player.Channel != other.Channel)
             return false;
 
         if (player.Location.IsEmpty)
