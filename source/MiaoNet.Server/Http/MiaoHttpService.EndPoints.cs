@@ -25,7 +25,7 @@ public partial class MiaoHttpService
             }
             if (int.TryParse(query["cid"], CultureInfo.InvariantCulture, out int cid))
             {
-                if (!miaoServerService.ServerState.Players.TryGetValue(cid, out var client))
+                if (!miaoServerService.Players.TryGetValue(cid, out var client))
                 {
                     context.Response.StatusCode = (int)HttpStatusCode.NotFound;
                     break;
@@ -36,7 +36,7 @@ public partial class MiaoHttpService
             }
             else if (int.TryParse(query["aid"], CultureInfo.InvariantCulture, out int aid))
             {
-                foreach (var p in miaoServerService.ServerState.Players)
+                foreach (var p in miaoServerService.Players)
                 {
                     if (p.Value.Player.Info.AuthID == aid)
                         await p.Value.DisconnectAsync(DisconnectReason.Kicked, reason);
@@ -65,8 +65,8 @@ public partial class MiaoHttpService
 #pragma warning disable IDE0037
         var response = new
         {
-            PlayersCount = miaoServerService.ServerState.Players.Count,
-            Channels = miaoServerService.ServerState.Channels.Select(static c => new
+            PlayersCount = miaoServerService.Players.Count,
+            Channels = miaoServerService.Channels.Select(static c => new
             {
                 ID = c.Key,
                 Name = c.Value.Info.Name,
@@ -113,7 +113,7 @@ public partial class MiaoHttpService
         var values = miaoMetricsService.Get();
         var ret = new
         {
-            OnlinePlayersCount = miaoServerService.ServerState.Players.Count,
+            OnlinePlayersCount = miaoServerService.Players.Count,
             Metrics = values,
             GC = new
             {
