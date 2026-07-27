@@ -155,7 +155,7 @@ public sealed partial class MiaoServerService
             try
             {
                 var generalPacket = new PacketPlayerMapChangedNotification(player.ID, packet.Location);
-                var withStatePacket = new PacketPlayerMapChangedNotification(player.ID, packet.Location, null, packet.InitialState);
+                var withStatePacket = new PacketPlayerMapChangedNotification(player.ID, packet.Location, packet.InitialState);
 
                 var mapPlayers = unitTo?.GetPlayerMovedInitialDatas(connection) ?? [];
                 var responsePacket = new PacketPlayerMapChangedResponse(mapPlayers);
@@ -291,7 +291,6 @@ public sealed partial class MiaoServerService
 
                     var sameMapNotification = new PacketPlayerChannelMovedNotification(
                         connection.ID, channel.ID,
-                        player.GraphicsInfo,
                         player.State
                     );
                     sameMapTask = unitTo is not null ? BroadcastContextuallyToAsync(

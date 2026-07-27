@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using MiaoNet.Shared;
 
@@ -41,8 +41,7 @@ public sealed class ServerMapUnit
                 let p = con.Player
                 select new PlayerMovedInitialData(
                     p.ID,
-                    p.State!.Clone(),
-                    p.GraphicsInfo?.Clone()
+                    p.State!.Clone()
                 )).ToList();
     }
 }
