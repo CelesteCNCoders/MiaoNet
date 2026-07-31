@@ -29,8 +29,6 @@ public sealed partial class ChatComponent : MiaoNetComponent
         }
     }
 
-    private float lastMouseScrollWheelValue;
-
     // i hate these "previous" things
     private bool previousCommandsEnabled = false;
     private bool previousScenePaused = false;
@@ -40,10 +38,10 @@ public sealed partial class ChatComponent : MiaoNetComponent
     private bool active;
     private readonly InputBox inputBox;
     private readonly ChatMessageListView chatView;
-    private float targetChatViewScroll;
+
     private readonly CommandParser cmdParser;
 
-    private readonly MiaoNetChatTextRenderer textRenderer;
+    private readonly ScalelessChatTextRenderer textRenderer;
 
     private string lastInput = string.Empty;
     private readonly List<string> history;
@@ -56,12 +54,11 @@ public sealed partial class ChatComponent : MiaoNetComponent
     {
         history = new();
         float scale = MiaoNetModule.Settings.ChatUIScaleValue;
-        textRenderer = new MiaoNetChatTextRenderer(scale, MiaoNetFont.ENZhsLineHeight * scale);
+        textRenderer = new ScalelessChatTextRenderer(scale, MiaoNetFont.ENZhsLineHeight * scale);
         dummyOverlay = new();
         cmdParser = new(MiaoNetCommand.Commands);
         inputBox = new InputBox(textRenderer, new ChatCompletionProvider(context, cmdParser));
         chatView = new(textRenderer);
-        lastMouseScrollWheelValue = Mouse.GetState().ScrollWheelValue;
 
         context.ChatMessageReceived += Context_ChatMessageReceived;
         context.PlayerJoined += Context_PlayerJoined;
@@ -80,10 +77,8 @@ public sealed partial class ChatComponent : MiaoNetComponent
         chatView.TextOpacity = settings.ChatTextOpacityValue;
         chatView.ShowDuration = settings.ChatDisplayDuration;
         chatView.NoNewMessagesShowing = settings.NoNewMessagesShowing;
-        // TODO explain this factor
-        float factor = 32f / 10f / (settings.ChatUIScaleValue * 24f / 10f);
-        chatView.IdleMaxCount = (int)(factor * settings.IdleChatHeight);
-        chatView.ActiveMaxCount = (int)(factor * settings.ActiveChatHeight);
+        chatView.IdleHeight = settings.IdleChatHeightValue;
+        chatView.ActiveHeight = settings.ActiveChatHeightValue;
         float scale = settings.ChatUIScaleValue;
         textRenderer.Scale = scale;
         textRenderer.LineHeight = MiaoNetFont.ENZhsLineHeight * scale;
@@ -93,7 +88,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     {
         if (!MiaoNetModule.Settings.PlayerPresenceMessages)
             return;
-        string text = PFormat.Format(Dialog.Clean("miaonet_context_player_joined"), player.GetDisplayName(false, context.ShowAvatar));
+        string text = PFormat.Format(context.PlayerPresenceMessage.PlayerJoined, player.GetDisplayName(false, context.ShowAvatar));
         AddLocalChat(MiaoNetChatText.CreateAnnouncement(text));
     }
 
@@ -101,54 +96,33 @@ public sealed partial class ChatComponent : MiaoNetComponent
     {
         if (!MiaoNetModule.Settings.PlayerPresenceMessages)
             return;
-        string text = PFormat.Format(Dialog.Clean("miaonet_context_player_left"), player.GetDisplayName(false, context.ShowAvatar));
+        string text = PFormat.Format(context.PlayerPresenceMessage.PlayerLeft, player.GetDisplayName(false, context.ShowAvatar));
         AddLocalChat(MiaoNetChatText.CreateAnnouncement(text));
     }
 
     private void Context_ChatMessageReceived(OnlinePlayer? player, PacketChatMessage packet)
     {
         var chatDisabled = MiaoNetModule.Settings.LiveMode;
-        switch (packet.Type)
+        if (chatDisabled && packet.Type is not ChatMessageType.Server and not ChatMessageType.ServerChat)
+            return;
+        ChatText? chatText = packet.Type switch
         {
-        case ChatMessageType.Chat:
-            if (!chatDisabled)
-                chatView.AddChatMessage(MiaoNetChatText.CreatePublicChat(packet.DateTime, player!, packet.Content, context.ShowAvatar));
-            break;
-        case ChatMessageType.ChannelChat:
-            if (!chatDisabled)
-                chatView.AddChatMessage(MiaoNetChatText.CreateChannelChat(packet.DateTime, player!, packet.Content, context.ShowAvatar));
-            break;
-        case ChatMessageType.MapChat:
-            if (!chatDisabled)
-                chatView.AddChatMessage(MiaoNetChatText.CreateMapChat(packet.DateTime, player!, packet.Content, context.ShowAvatar));
-            break;
-        case ChatMessageType.Server:
-            chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.DateTime, packet.Content));
-            break;
-        case ChatMessageType.PrivateMessage:
-            if (!chatDisabled)
-                chatView.AddChatMessage(MiaoNetChatText.CreatePrivateChat(packet.DateTime, player!, packet.Content, context.ShowAvatar));
-            break;
-        case ChatMessageType.ServerChat:
-            chatView.AddChatMessage(MiaoNetChatText.CreateAnnouncement(packet.DateTime, packet.Content));
-            break;
-        }
+            ChatMessageType.Chat => MiaoNetChatText.CreatePublicChat(player!, packet.Content, context.ShowAvatar),
+            ChatMessageType.ChannelChat => MiaoNetChatText.CreateChannelChat(player!, packet.Content, context.ShowAvatar),
+            ChatMessageType.MapChat => MiaoNetChatText.CreateMapChat(player!, packet.Content, context.ShowAvatar),
+            ChatMessageType.PrivateMessage => MiaoNetChatText.CreatePrivateChat(player!, packet.Content, context.ShowAvatar),
+            ChatMessageType.Server => MiaoNetChatText.CreateAnnouncement(packet.Content),
+            ChatMessageType.ServerChat => MiaoNetChatText.CreateAnnouncement(packet.Content),
+            _ => null
+        };
+        if (chatText is not null)
+            chatView.AddChatMessage(packet.DateTime, chatText);
+        else
+            Logger.Warn(LT.MiaoNet, $"Unknown chat message type {packet.Type}.");
     }
 
     public override void Update()
     {
-        // this seems an fna bug...
-        // we need to manually call `MouseState.Get()`
-        float currentScrollWheelValue = Mouse.GetState().ScrollWheelValue;
-        float scrollDelta = currentScrollWheelValue - lastMouseScrollWheelValue;
-        lastMouseScrollWheelValue = currentScrollWheelValue;
-
-        const float KeyboardScrollSpeed = 1024f;
-        if (MInput.Keyboard.Check(Keys.PageUp))
-            scrollDelta += KeyboardScrollSpeed * Engine.RawDeltaTime;
-        else if (MInput.Keyboard.Check(Keys.PageDown))
-            scrollDelta -= KeyboardScrollSpeed * Engine.RawDeltaTime;
-
         var settings = MiaoNetModule.Settings;
 
         if (!active)
@@ -244,11 +218,6 @@ public sealed partial class ChatComponent : MiaoNetComponent
                 }
             }
 
-            targetChatViewScroll += scrollDelta;
-            targetChatViewScroll = chatView.ClampScrollValue(targetChatViewScroll);
-            float maxMove = Math.Max(Math.Abs(targetChatViewScroll - chatView.Scroll), 8f) * 8f * Engine.RawDeltaTime;
-            chatView.Scroll = Calc.Approach(chatView.Scroll, targetChatViewScroll, maxMove);
-
             inputBox.Update();
         }
         chatView.Update();
@@ -261,7 +230,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         => chatView.AddChatMessage(message);
 
     public void OnSentPrivateMessage(DateTime dateTime, OnlinePlayer other, string text)
-        => chatView.AddChatMessage(MiaoNetChatText.CreateSentPrivateChat(dateTime, other, context.ClientState!.Self, text, context.ShowAvatar));
+        => chatView.AddChatMessage(dateTime, MiaoNetChatText.CreateSentPrivateChat(other, context.ClientState!.Self, text, context.ShowAvatar));
 
     public void ClearChat()
         => chatView.CleanUp();
@@ -312,7 +281,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         active = true;
         historyIndex = history.Count;
         inputBox.Activate();
-        chatView.Active = true;
+        chatView.Activate();
         previousCommandsEnabled = Engine.Commands.Enabled;
         Engine.Commands.Enabled = false;
         previousScenePaused = Engine.Scene.Paused;
@@ -332,9 +301,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         active = false;
         inputBox.Deactivate();
         lastInput = string.Empty;
-        chatView.Active = false;
-        targetChatViewScroll = 0f;
-        chatView.Scroll = 0f;
+        chatView.Deactivate();
         Engine.Commands.Enabled = previousCommandsEnabled;
         Engine.Scene.Paused = previousScenePaused;
 

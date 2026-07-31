@@ -16,7 +16,7 @@ public sealed class GhostFollower : MiaoNetGhostEntity
         : base(ghost.Position + offset)
     {
         Tag |= ghost.Tag;
-        Depth = ghost.Depth + 1;
+        Depth = Depths.Player + 1;
         Add(Follower = new() { MoveTowardsLeader = false });
 
         if (GFX.SpriteBank.SpriteData.ContainsKey(spriteID))
@@ -34,7 +34,6 @@ public sealed class GhostFollower : MiaoNetGhostEntity
         float scale = Math.Min(1f, SizeLimit / Math.Max(sprite.Width, sprite.Height));
         sprite.Scale = Vector2.One * scale;
         Add(sprite);
-        Add(new MirrorReflection());
         if (type is FollowerType.Strawberry or FollowerType.StrawberrySeed)
         {
             Add(bloomPoint = new BloomPoint(1f, 12f));

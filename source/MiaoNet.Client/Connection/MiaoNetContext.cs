@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using MiaoNet.ClientShared;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -62,14 +63,22 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         }
     }
 
+    // TODO avoid allowing null values
     public PooledStringManager? PooledStringManager { get; private set; }
+
+    [NotNull]
+    public PlayerPresenceMessage? PlayerPresenceMessage
+    {
+        get { EnsureState(); return field!; }
+        private set;
+    }
 
     PooledStringManager IPacketSerializationContext.PooledStringManager
     {
         get { EnsureState(); return PooledStringManager!; }
     }
 
-    [MemberNotNullWhen(true, nameof(connection), nameof(ClientState))]
+    [MemberNotNullWhen(true, nameof(connection), nameof(ClientState), nameof(PlayerPresenceMessage))]
     public bool HasConnection => connection is not null;
 
     public ClientState? ClientState => clientState;
@@ -191,6 +200,21 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             Logger.LogDetailed(e, LT.MiaoNet);
             DisconnectByException(e);
         }
+    }
+
+    private void OnInitialized(MiaoServerConnection connection, PacketClientInitial packetClientInitial)
+    {
+#if USE_CELEMIAO_AUTH
+        MiaoNetModule.Settings.LastName = clientInitial.SelfPlayerInfo.Name;
+#endif
+        clientState = new(packetClientInitial);
+        PlayerPresenceMessage = packetClientInitial.PlayerPresenceMessage;
+        this.connection = connection;
+        ClientInitialized?.Invoke(clientState);
+        StatusComponent.ShowStatusMessage(ConnectionStatus.Connected);
+        foreach (var line in packetClientInitial.JoinMessage.EnumerateLines())
+            ChatComponent.AddLocalChat(MiaoNetChatText.CreateAnnouncement(line.ToString()));
+        OnConnected();
     }
 
     // warn: this is called on Connection Thread
@@ -366,7 +390,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         QueuePacket(response);
     }
 
-    [MemberNotNull(nameof(connection), nameof(ClientState))]
+    [MemberNotNull(nameof(connection), nameof(ClientState), nameof(PlayerPresenceMessage))]
     private void EnsureState()
     {
         SafeGuard.Assert(HasConnection);

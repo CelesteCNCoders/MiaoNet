@@ -15,4 +15,6 @@ public static class Connection
 
     // allows only TLS 1.2 or TLS 1.3
     public const SslProtocols AllowedSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13;
+
+    public static readonly Version Version = new(0, 4, 5);
 }

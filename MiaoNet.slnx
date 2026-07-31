@@ -16,6 +16,7 @@
     <File Path="source/Directory.Build.props" />
   </Folder>
   <Project Path="source/MiaoNet.Client/MiaoNet.Client.csproj" />
+  <Project Path="source/MiaoNet.ClientShared/MiaoNet.ClientShared.msbuildproj" Type="13b669be-bb05-4ddf-9536-439f39a36129" />
   <Project Path="source/MiaoNet.MockClient/MiaoNet.MockClient.csproj" />
   <Project Path="source/MiaoNet.Server/MiaoNet.Server.csproj" />
   <Project Path="source/MiaoNet.Shared/MiaoNet.Shared.msbuildproj" Type="13b669be-bb05-4ddf-9536-439f39a36129" />

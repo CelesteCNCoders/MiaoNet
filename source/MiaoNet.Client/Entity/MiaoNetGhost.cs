@@ -5,10 +5,21 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class MiaoNetGhost : MiaoNetGhostEntity
 {
+    // prevent it from being AfterUpdated by Level.Update
+    private sealed class GhostHair : PlayerHair
+    {
+        public GhostHair(PlayerSprite sprite)
+            : base(sprite)
+        {
+        }
+    }
+
     private PlayerSprite playerSprite;
-    private readonly PlayerHair playerHair;
+    private readonly GhostHair playerHair;
     private readonly GhostNameTag nameTag;
     private readonly Leader leader;
+
+    private Vector2 lastPosition;
 
     private VertexLight? vertexLight;
 
@@ -64,38 +75,41 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     [AllowNull]
     public PlayerGraphicsInfo GraphicsInfo
     {
-        get => field;
+        get;
         set => field = value ?? PlayerGraphicsInfo.Default;
     }
 
-    public MiaoNetGhost(
-        OnlinePlayer player,
-        PlayerGraphicsInfo? playerGraphicsInfo,
-        PlayerState initialState,
-        bool avatar
-    )
+    public MiaoNetGhost(OnlinePlayer player, bool avatar)
     {
-        Tag = MiaoNetTag.Tag;
+        Tag = MiaoNetTag.Normal;
         Depth = Depths.Player + 1;
         OnlinePlayer = player;
-        GraphicsInfo = playerGraphicsInfo;
+        GraphicsInfo = player.GraphicsInfo;
+        var initialState = player.State!;
+
         facing = Facings.Right;
         playerSprite = SafeCreatePlayerSprite(initialState.PlayerSpriteMode);
         Add(leader = new Leader(new Vector2(0f, -8f)));
-        Add(new MirrorReflection());
-        UpdateLightSettings(MiaoNetModule.Settings.PlayerLight);
 
-        playerHair = new PlayerHair(playerSprite);
+        playerHair = new GhostHair(playerSprite) { Facing = facing };
 
-        playerHair.Facing = facing;
-        Add(playerHair);
-
-        Add(playerSprite);
         nameTag = new(this, player, avatar);
-        playerHair.Start();
 
-        ApplyState(initialState);
-        UpdateHairCount();
+        dashes = initialState.Dashes;
+        lastDashedDashes = dashes;
+        Position = initialState.Position;
+        windDirection = initialState.WindDirection;
+        ducking = initialState.Ducking;
+        UpdateFacing(initialState.FacingLeft);
+        OnFollowerInitials(initialState.FollowerInfos);
+        UpdateDucking(initialState.Ducking);
+        UpdateWind(initialState.WindDirection);
+
+        Add(playerHair);
+        Add(playerSprite);
+        ResetHair();
+
+        UpdateLightSettings(MiaoNetModule.Settings.PlayerLight);
 
         pDashA = new(Player.P_DashA);
         pDashB = new(Player.P_DashB);
@@ -103,7 +117,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         pDashColorBaseB = (pDashB.Color, pDashB.Color2);
 
         OnUpdatePaused(player.IsPaused);
-        OnUpdateWatching();
+        OnUpdateWatching(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
 
         selfHoldable = new(1f / 5f)
         {
@@ -125,8 +139,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
     public override void Update()
     {
-        base.Update();
-
         // Save Load issue
         if (selfHoldable.Holder?.Holding != selfHoldable)
             selfHoldable.Holder = null;
@@ -152,8 +164,12 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         if (OnlinePlayer.IsPaused)
             return;
 
+        base.Update();
+
         if (dead)
             return;
+
+        Level level = SceneAs<Level>();
 
         // simulate hair color
         if (starFlying)
@@ -177,7 +193,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         }
 
         // TODO apply others' delta time
-        if (Scene.OnRawInterval(0.05f))
+        if (level.OnRawInterval(0.05f))
             flash = !flash;
 
         if (flash && tired)
@@ -200,7 +216,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         else if (dashes > 1)
         {
             // TODO apply others' delta time
-            float timeActive = Scene.RawTimeActive;
+            float timeActive = level.RawTimeActive;
             playerHair.StepPerSegment = new Vector2(
                 MathF.Sin(timeActive * 2f) * 0.7f - ((float)facing * 3f),
                 MathF.Sin(timeActive * 1f)
@@ -218,9 +234,12 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             playerHair.StepYSinePerSegment = 0f;
             playerHair.StepPerSegment.Y += windDirection.Y * 0.5f;
         }
-        if (!Scene.Paused)
+
+        playerHair.AfterUpdate();
+
+        if (!level.Paused)
         {
-            if (dashing && !dead)
+            if (dashing)
             {
                 float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
                 // TODO apply graphics info
@@ -238,17 +257,26 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                     type.Color2 = pDashColorBaseB.Item2 * alpha;
                 }
 
-                SceneAs<Level>().ParticlesFG.Emit(
-                    type,
-                    Position + Calc.Random.Range(Vector2.One * -2f, Vector2.One * 2f),
-                    lastDashDirection
-                );
+                // TODO apply others' delta time
+                if (lastPosition != Position && level.OnRawInterval(0.02f))
+                    level.ParticlesFG.Emit(
+                        type,
+                        Position + Random.Shared.Range(Vector2.One * -2f, Vector2.One * 2f),
+                        lastDashDirection
+                    );
+            }
+            else if (starFlying)
+            {
+                // TODO apply others' delta time
+                if (level.OnRawInterval(0.02f))
+                {
+                    float angle = (Position - lastPosition).Angle();
+                    level.Particles.Emit(FlyFeather.P_Flying, 1, Center, Vector2.One * 2f, angle);
+                }
             }
         }
-        else
-        {
-            playerHair.AfterUpdate();
-        }
+
+        lastPosition = Position;
     }
 
     private void OnPlayer(Player player)
@@ -283,8 +311,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         {
             if (vertexLight is null)
             {
-                // TODO player duck light offset
-                vertexLight = new VertexLight(new Vector2(0f, -8f), Color.White, 0.96f, 32, 64);
+                vertexLight = new VertexLight(GetLightOffset(ducking), Color.White, 0.96f, 32, 64);
                 Add(vertexLight);
             }
             vertexLight.Visible = true;
@@ -296,36 +323,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         }
     }
 
-    #region state updates
+    private static Vector2 GetLightOffset(bool duck)
+        => duck ? new Vector2(0f, -3f) : new Vector2(0f, -8f);
 
-    [MemberNotNull(nameof(hitbox))]
-    public void ApplyState(PlayerState state)
-    {
-        if (playerSprite.Mode != state.PlayerSpriteMode)
-        {
-            var pAnim = playerSprite.CurrentAnimationID;
-            var pFrame = playerSprite.CurrentAnimationFrame;
-            playerSprite.RemoveSelf();
-            playerSprite = SafeCreatePlayerSprite(state.PlayerSpriteMode);
-            if (playerSprite.Has(pAnim))
-            {
-                playerSprite.Play(pAnim);
-                playerSprite.SetAnimationFrame(pFrame);
-            }
-            playerHair.Sprite = playerSprite;
-            Add(playerSprite);
-            playerHair.Start();
-            UpdateHairCount();
-        }
-        dashes = state.Dashes;
-        lastDashedDashes = dashes;
-        Position = state.Position;
-        windDirection = state.WindDirection;
-        UpdateFacing(state.FacingLeft);
-        OnFollowerInitials(state.FollowerInfos);
-        UpdateDucking(state.Ducking);
-        UpdateWind(state.WindDirection);
-    }
+    #region state updates
 
     private static PlayerSprite SafeCreatePlayerSprite(PlayerSpriteMode spriteMode)
     {
@@ -482,6 +483,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                     Add(playerSprite);
                     if (vertexLight is not null)
                         Add(vertexLight);
+                    Scene.OnEndOfFrame += new(ResetHair);
                     lastBody = null;
                 }
             );
@@ -498,6 +500,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             Add(playerSprite);
             if (vertexLight is not null)
                 Add(vertexLight);
+            Scene.OnEndOfFrame += new(ResetHair);
             lastBody?.RemoveSelf();
         }
     }
@@ -589,6 +592,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         this.ducking = ducking;
         hitbox = ducking ? duckHitbox : normalHitbox;
         Collider = hitbox;
+        vertexLight?.Position = GetLightOffset(ducking);
     }
 
     public void UpdateTired(bool tired)
@@ -608,6 +612,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             {
                 playerHair.Active = false;
                 idleHover = new(this);
+                idleHover.Visible = this.Visible;
                 if (Scene is not null)
                 {
                     Scene.Add(idleHover);
@@ -625,7 +630,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         }
     }
 
-    public void OnUpdateWatching()
+    public void OnUpdateWatching(bool watching)
     {
         UpdateVisible();
     }
@@ -633,8 +638,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     private void UpdateVisible()
     {
         bool watching = OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching);
+
         Visible = (!dead || respawning) && !watching;
         nameTag.Visible = !watching;
+        idleHover?.Visible = this.Visible;
     }
 
     private void UpdateCollidable()
@@ -668,12 +675,17 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     private void UpdateHairCount(int count)
     {
         playerSprite.HairCount = count;
-        playerHair.AfterUpdate();
     }
 
     private void UpdateHairCount()
     {
         UpdateHairCount(GraphicsInfo.GetHairInfo(dashes).Length);
+    }
+
+    private void ResetHair()
+    {
+        playerHair.Start();
+        playerHair.AfterUpdate();
     }
 
     #endregion

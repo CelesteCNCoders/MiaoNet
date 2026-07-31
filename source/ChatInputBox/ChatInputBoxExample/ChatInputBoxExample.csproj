@@ -14,7 +14,10 @@
 
   <ItemGroup>
     <Compile Include="../ChatInputBox/**/*.cs" LinkBase="0-ChatInputBox" />
-
+		<!-- TODO we can move ChatText.Render to ChatInputBox but then we have to make the entire MiaoNetFont into an interface -->
+		<Compile Include="../../MiaoNet.Client/Game/ScalelessChatTextRenderer.cs" LinkBase="0-MiaoNet.Font" />
+		<Compile Include="../../MiaoNet.Client/Game/MiaoNetFont.cs" LinkBase="0-MiaoNet.Font" />
+		
     <None Include="CelesteMod.props">
       <Visible>false</Visible>
     </None>

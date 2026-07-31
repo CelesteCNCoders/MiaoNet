@@ -1,0 +1,9 @@
+﻿<Project Sdk="Microsoft.Build.NoTargets/3.7.56">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="**/*.cs" />
+    <Compile Include="**/*.cs" />
+  </ItemGroup>
+</Project>

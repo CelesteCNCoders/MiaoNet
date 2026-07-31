@@ -68,7 +68,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
     public override Task StartAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("MiaoNet Server v{v} starting...", options.ExpectedVersion.ToString(3));
+        logger.LogInformation("MiaoNet Server v{v} starting...", Connection.Version.ToString(3));
         logger.LogInformation("Start to listen on {ep}.", options.Network.ListenEndPoint);
         networkListener.Listen();
         _ = HandleConnectionsHeartbeats(cancellationToken);
@@ -132,12 +132,15 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                         p.Channel.ID, p.ID, p.Info, p.Location, p.GlobalFlags
                     );
 
+                var strings = options.Announcements[handshakeResult.HandshakeData.LanguageCode];
                 PacketClientInitial packetClientInitial = new PacketClientInitial(
                     newPlayer.Channel.ID,
                     newPlayer.ID,
                     clientPlayerInfo,
                     channels.ToList(),
-                    playerInfos.ToList()
+                    playerInfos.ToList(),
+                    new(strings.PlayerJoined, strings.PlayerLeft),
+                    strings.PlayerJoinMessage
                 );
 
                 // then send

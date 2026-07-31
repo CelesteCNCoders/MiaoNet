@@ -22,7 +22,10 @@ public static class Program
         Console.WriteLine("Press enter to exit...");
         Console.ReadLine();
         foreach (MockInstance instance in instances)
-            instance.Dispose();
+        {
+            instance.Close(true);
+            Console.WriteLine($"Closed {instance.Name}.");
+        }
     }
 
     private static readonly char[] Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".ToCharArray();

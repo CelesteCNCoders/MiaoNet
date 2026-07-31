@@ -41,10 +41,17 @@ public static class RefBinaryReaderExtensions
     public static T Read<T>(this ref RefBinaryReader reader) where T : IRefBinarySerializable<T>
         => T.Deserialize(ref reader);
 
+    public static T? ReadNullable<T>(this ref RefBinaryReader reader) where T : class, IRefBinarySerializable<T>
+        => reader.ReadBoolean() ? reader.Read<T>() : null;
+
     [MethodImpl(MethodImplOptions.AggressiveInlining), StackTraceHidden, DebuggerHidden]
     public static T Read<T, TContext>(this ref RefBinaryReader reader, TContext context)
         where T : IContextualRefBinarySerializable<T, TContext>
         => T.Deserialize(ref reader, context);
+
+    public static T? ReadNullable<T, TContext>(this ref RefBinaryReader reader, TContext context)
+        where T : class, IContextualRefBinarySerializable<T, TContext>
+        => reader.ReadBoolean() ? reader.Read<T, TContext>(context) : null;
 
     public static string[] ReadStringArray(this ref RefBinaryReader reader)
     {

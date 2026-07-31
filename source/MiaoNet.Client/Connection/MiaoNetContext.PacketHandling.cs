@@ -121,7 +121,6 @@ partial class MiaoNetContext
         var player = ClientState.GetPlayer(packet.PlayerID);
         player.Location = packet.Location;
         player.State = packet.InitialState;
-        player.GraphicsInfo = packet.GraphicsInfo;
         PlayerMapChanged?.Invoke(player, packet);
     }
 
@@ -140,7 +139,6 @@ partial class MiaoNetContext
         {
             var player = ClientState.GetPlayer(playerInMap.PlayerID);
             player.State = playerInMap.InitialState;
-            player.GraphicsInfo = playerInMap.GraphicsInfo;
         }
         PlayerMapChangeResponded?.Invoke(packet);
     }
@@ -270,7 +268,6 @@ partial class MiaoNetContext
             {
                 var player = ClientState.GetPlayer(playerInMap.PlayerID);
                 player.State = playerInMap.InitialState;
-                player.GraphicsInfo = playerInMap.GraphicsInfo;
             }
         }
         SelfChannelMoved?.Invoke(packet);
@@ -292,7 +289,6 @@ partial class MiaoNetContext
         EnsureState();
         ClientState.OnPlayerChannelMove(packet.PlayerID, packet.ChannelID, out var pl, out var p, out var c);
         pl.State = packet.InitialState;
-        pl.GraphicsInfo = packet.GraphicsInfo;
         PlayerChannelMoved?.Invoke(pl, packet);
         HandleChannelRemoveIfEmpty(p);
     }

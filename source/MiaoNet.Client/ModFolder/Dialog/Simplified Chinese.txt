@@ -40,6 +40,7 @@ miaonet_options_active_chat_height= 聚焦聊天高度
 miaonet_options_player_opacity= 玩家不透明度
 miaonet_options_self_name_opactiy= 自身名称不透明度
 miaonet_options_player_name_opacity= 名称不透明度
+miaonet_options_offscreen_player_name_opacity= 离屏名称不透明度
 miaonet_options_distance_based_opacity= 玩家近距离透明
 miaonet_options_min_player_opacity_multiplier= 最小玩家不透明度倍率
 miaonet_options_emote_opacity= Emote 不透明度
@@ -142,9 +143,6 @@ miaonet_connection_status_connect_failed_with_reason= 连接失败。(0)
 miaonet_connection_status_connection_aborted= 连接被强制断开
 miaonet_connection_status_ssl_error= 连接 SSL 错误：(0) ((1))
 miaonet_connection_status_revocation_check_failed= 连接建立失败。证书吊销检查失败
-
-miaonet_context_player_joined= (0) 加入了 MiaoNet
-miaonet_context_player_left= (0) 退出了 MiaoNet
 
 miaonet_player_list_channel_header= #(0) | (1) 位玩家
 

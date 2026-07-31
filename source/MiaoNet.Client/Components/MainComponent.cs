@@ -113,9 +113,6 @@ public sealed partial class MainComponent : MiaoNetComponent
             pendingMapChanged = false;
         }
 
-        //if (level.OnRawInterval(1f))
-        //    errCount = Math.Max(0, errCount - 1);
-
         if (player is null || player.Dead)
             return;
 
@@ -347,12 +344,18 @@ public sealed partial class MainComponent : MiaoNetComponent
             Sprite spr = entity.Get<Sprite>();
 
             // TODO Strawberry Jam's RefillShard's sprite only contains Path
-            string sprID = SpriteIDTracker.LookupID(spr) ?? string.Empty;
-            return new FollowerInfo(
-                type, sprID,
-                spr.CurrentAnimationID, (ushort)spr.CurrentAnimationFrame,
-                offset: (Vector2S)(entity.Position - leaderEntityPosition)
-            );
+            Vector2S offset = (Vector2S)(entity.Position - leaderEntityPosition);
+            return spr is not null
+                ? new FollowerInfo(
+                    type, SpriteIDTracker.LookupID(spr) ?? string.Empty,
+                    spr.CurrentAnimationID, (ushort)spr.CurrentAnimationFrame,
+                    offset: (Vector2S)(entity.Position - leaderEntityPosition)
+                )
+                : new FollowerInfo(
+                    type, string.Empty,
+                    string.Empty, 0,
+                    offset
+                );
         }
     }
 
@@ -378,12 +381,10 @@ public sealed partial class MainComponent : MiaoNetComponent
         {
             Entity entity = follower.Entity;
             Sprite spr = entity.Get<Sprite>();
-            Vector2 offset = entity.Position - leaderEntityPosition;
-            return new(
-                spr.CurrentAnimationID,
-                (ushort)spr.CurrentAnimationFrame,
-                (Vector2S)offset
-            );
+            Vector2S offset = (Vector2S)(entity.Position - leaderEntityPosition);
+            return spr is not null
+                ? new FollowerInfoDelta(spr.CurrentAnimationID, (ushort)spr.CurrentAnimationFrame, offset)
+                : new FollowerInfoDelta(string.Empty, 0, offset);
         }
     }
     #endregion
@@ -411,7 +412,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             Interactions = MiaoNetModule.Settings.PlayerInteractions,
             Ducking = player.Ducking
         };
-        // FIXME server maybe late to ack this
+
         ClientState.SelfState = initialState;
         PacketPlayerMapChanged p = new(location, initialState);
         context.QueuePacket(p);
@@ -428,15 +429,14 @@ public sealed partial class MainComponent : MiaoNetComponent
         {
             TryDisableGroupPhotoModeAndTip();
 
-            foreach (var pair in ghosts)
-                pair.Value.RemoveSelf();
-            ghosts.Clear();
-            CleanUpInteractions(Engine.Scene as Level);
+            Level? level = Engine.Scene as Level;
+            if (level is not null)
+                CleanUpGhosts(level);
+            CleanUpInteractions(level);
 
             if (location.IsInMap)
             {
-                Scene scene = Engine.Scene;
-                if (scene is Level level)
+                if (level is not null)
                 {
                     // we assume player will at least exists in 2 frames...
                     if (!TryGetAndSendState(level, location))
@@ -448,7 +448,7 @@ public sealed partial class MainComponent : MiaoNetComponent
                         };
                     }
                 }
-                else if (scene is LevelLoader levelLoader)
+                else if (Engine.Scene is LevelLoader)
                 {
                     if (pendingMapChanged)
                         Logger.Warn(LT.MiaoNet, "pendingMapChanged is still true, is this a bug?");
@@ -464,6 +464,9 @@ public sealed partial class MainComponent : MiaoNetComponent
                 PacketPlayerMapChanged p = new(location, null);
                 context.QueuePacket(p);
             }
+
+            foreach (var pair in ClientState.Players)
+                pair.Value.State = null;
         }
         else if (changeResult is PlayerLocation.ChangeResult.RoomOnly)
         {
@@ -487,36 +490,36 @@ public sealed partial class MainComponent : MiaoNetComponent
     {
         foreach (var g in ghosts)
             level.CompletelyRemove(g.Value);
-        
+
         ghosts.Clear();
     }
 
     private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotification packet)
     {
-        Logger.Debug(LT.MiaoNet, $"Player map changed: {player}, state: {packet.InitialState}.");
+        Logger.Debug(LT.MiaoNet, $"MapChanging: {player} to {packet.Location}");
         if (Engine.Scene is not Level level)
             return;
-        HandleLocationChanging(level, player, packet.GraphicsInfo, packet.InitialState);
+        HandleLocationChanging(level, player);
     }
 
     private void Context_PlayerMapRoomChanged(OnlinePlayer player, string room)
     {
-        Logger.Debug(LT.MiaoNet, $"Player map room changed: {player}.");
-        if (Engine.Scene is not Level level)
+        Logger.Debug(LT.MiaoNet, $"MapRoomChanging: {player} to room {room}");
+        if (Engine.Scene is not Level level || room.Length != 0)
             return;
-        HandleLocationChanging(level, player, null, null);
+        HandleLocationChanging(level, player);
     }
 
     private void Context_PlayerMapChangeResponded(PacketPlayerMapChangedResponse packet)
     {
         if (Engine.Scene is not Level level)
             return;
-        Logger.Debug(LT.MiaoNet, $"Player move responded, players count: {packet.Players.Count}");
+        Logger.Debug(LT.MiaoNet, $"MapChageResponding: Players count = {packet.Players.Count}");
         CleanUpGhosts(level);
         foreach (var item in packet.Players)
         {
             OnlinePlayer player = ClientState.GetPlayer(item.PlayerID);
-            HandleLocationChanging(level, player, player.GraphicsInfo, player.State);
+            HandleLocationChanging(level, player);
         }
     }
 
@@ -572,11 +575,8 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
         else
         {
+            // server can be late to know we aren't in the previous location
             Logger.Warn(LT.MiaoNetSync, $"Notified but ghost does not exists for {player.Info}");
-            // TODO something that records the warning times
-            // if there are so many warnings then we may have to
-            // disconnect from the server (a server or client bug?)
-            //OnWarn();
         }
     }
 
@@ -648,7 +648,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (!ghosts.TryGetValue(player.ID, out var ghost))
             return;
         ghost.OnUpdatePaused(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Paused));
-        ghost.OnUpdateWatching();
+        ghost.OnUpdateWatching(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
     }
 
     private void Context_PlayerCreatedFireworks(OnlinePlayer player, Color color, float initialSpeed)
@@ -692,7 +692,7 @@ public sealed partial class MainComponent : MiaoNetComponent
     {
         if (Engine.Scene is not Level level)
             return;
-        HandleLocationChanging(level, player, notification.GraphicsInfo, notification.InitialState);
+        HandleLocationChanging(level, player);
     }
 
     private void Context_SelfChannelMoved(PacketPlayerChannelMovedResponse response)
@@ -703,47 +703,28 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (response.Players is not null)
         {
             foreach (var p in response.Players)
-                HandleLocationChanging(level, ClientState.GetPlayer(p.PlayerID), p.GraphicsInfo, p.InitialState);
+                HandleLocationChanging(level, ClientState.GetPlayer(p.PlayerID));
         }
     }
 
     #endregion
 
-    private void HandleLocationChanging(Level level, OnlinePlayer other, PlayerGraphicsInfo? graphicsInfo, PlayerState? initialState)
+    private void HandleLocationChanging(Level level, OnlinePlayer other)
     {
-        bool needGhost = ClientState.Self.ShouldSyncFrom(other);
-        Logger.Debug(LT.MiaoNet, $"needGhost of {other.Info} = {needGhost}");
-
         if (ghosts.TryGetValue(other.ID, out MiaoNetGhost? ghost))
         {
-            if (needGhost)
-            {
-                ghost.GraphicsInfo = graphicsInfo;
-                if (initialState is not null)
-                    ghost.ApplyState(initialState);
-                level!.Add(ghost);
-            }
-            else
-            {
-                level.CompletelyRemove(ghost);
-                ghosts.Remove(other.ID);
-            }
+            level.CompletelyRemove(ghost);
+            ghosts.Remove(other.ID);
+        }
+        if (other.State is not null && other.Location.IsInMap)
+        {
+            ghosts[other.ID] = ghost = new(other, context.ShowAvatar);
+            level.Add(ghost);
+            Logger.Debug(LT.MiaoNet, $"Created ghost for {other.Info}");
         }
         else
         {
-            if (needGhost)
-            {
-                if (initialState is null)
-                {
-                    // the server maybe late to know that we're already in a same map
-                    // but...
-                    // TODO make local state changes wait for server to confirm
-                    return;
-                }
-                ghosts[other.ID] = ghost = new(other, graphicsInfo, initialState!, context.ShowAvatar);
-                level!.Add(ghost);
-                Logger.Debug(LT.MiaoNet, $"added ghost for {other.Info}!");
-            }
+            Logger.Debug(LT.MiaoNet, $"Removed ghost for {other.Info}");
         }
     }
 

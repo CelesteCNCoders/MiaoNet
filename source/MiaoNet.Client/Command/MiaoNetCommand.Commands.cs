@@ -222,6 +222,7 @@ partial class MiaoNetCommand
 
         return TeleportNoSessionTo(context, player!);
     }
+
     private static string? TeleportNoSessionTo(Context context, OnlinePlayer player)
     {
         string? error = EnsurePlayerInExistedMap(player!, out AreaData? area);
@@ -231,8 +232,9 @@ partial class MiaoNetCommand
         PlayerLocation loc = player!.Location;
         AreaKey areaKey = new(area!.ID, loc.Map.AreaMode);
         bool moveToDebugSave = MiaoNetModule.Settings.TeleportTempSave;
+        var tpInfo = new TeleportInfo(moveToDebugSave, null, areaKey, loc.Room);
         StartTeleportRoutine(
-            context, moveToDebugSave, null, areaKey, loc.Room,
+            context, tpInfo,
             () => NoticeTeleportFinished(context, moveToDebugSave, true, player.Info.Name)
         );
 
@@ -280,8 +282,9 @@ partial class MiaoNetCommand
             }
             bool moveToDebugSave = MiaoNetModule.Settings.TeleportTempSave;
             var sessionData = response.Session;
+            var tpInfo = new TeleportInfo(moveToDebugSave, sessionData, areaKey, loc.Room);
             StartTeleportRoutine(
-                context, moveToDebugSave, sessionData, areaKey, loc.Room,
+                context, tpInfo,
                 () => NoticeTeleportFinished(context, moveToDebugSave, false, player.Info.Name)
             );
         }
@@ -289,20 +292,38 @@ partial class MiaoNetCommand
         return null;
     }
 
-    private static void StartTeleportRoutine(Context context, bool moveToDebugSave, PlayerSessionData? sessionData, AreaKey areaKey, string mapRoom, Action onFinished)
+    private static void StartTeleportRoutine(Context context, TeleportInfo teleportInfo, Action onFinished)
     {
         Entity e = new();
-        e.Add(new Coroutine(MoveToRoutine(context, moveToDebugSave, sessionData, areaKey, mapRoom, onFinished)));
+        e.Add(new Coroutine(MoveToRoutine(context, teleportInfo, onFinished)));
         Engine.Scene.Add(e);
 
-        static IEnumerator MoveToRoutine(Context context, bool moveToDebugSave, PlayerSessionData? sessionData, AreaKey areaKey, string mapRoom, Action onFinished)
+        static IEnumerator MoveToRoutine(Context context, TeleportInfo teleportInfo, Action onFinished)
         {
             Level? level = Engine.Scene as Level;
-            if (moveToDebugSave)
+
+            ScreenWipe wipe;
+            if (level is not null)
+            {
+                level.DoScreenWipe(false);
+                wipe = level.Wipe;
+            }
+            else
+            {
+                wipe = new WindWipe(Engine.Scene, false);
+            }
+
+            wipe.EndTimer = float.PositiveInfinity;
+
+            yield return wipe.Wait();
+
+            if (teleportInfo.MoveToDebugSave)
             {
                 if (level is not null && SaveData.Instance.FileSlot != -1)
                 {
-                    context.MiaoNetContext.MainComponent.LastLocationBeforeTeleport = (level.Session, SaveData.Instance, SaveData.Instance.FileSlot);
+                    context.MiaoNetContext.MainComponent.LastLocationBeforeTeleport =
+                         (level.Session, SaveData.Instance, SaveData.Instance.FileSlot);
+
                     // save data first
                     UserIO.SaveHandler(true, true);
                     // once saved, the routine will be null
@@ -327,33 +348,19 @@ partial class MiaoNetCommand
                     SaveData.InitializeDebugMode();
             }
 
-            ScreenWipe wipe;
-            if (level is not null)
-            {
-                level.DoScreenWipe(false);
-                wipe = level.Wipe;
-            }
-            else
-            {
-                wipe = new WindWipe(Engine.Scene, false);
-            }
-
-            while (!wipe.Completed)
-                yield return null;
-
             // create the session (it relies static SaveData instance)
             Session session;
-            if (sessionData is not null)
-                session = sessionData.CreateSession(areaKey, mapRoom);
+            if (teleportInfo.SessionData is not null)
+                session = teleportInfo.SessionData.CreateSession(teleportInfo.AreaKey, teleportInfo.MapRoom);
             else
-                session = new Session(areaKey, mapRoom);
+                session = new Session(teleportInfo.AreaKey, teleportInfo.MapRoom);
 
             // then goto the level
-            if (sessionData is not null)
-                MiaoNetModule.NextPlayerSpawnPosition = sessionData.Position;
+            if (teleportInfo.SessionData is not null)
+                MiaoNetModule.NextPlayerSpawnPosition = teleportInfo.SessionData.Position;
             Engine.Scene = new LevelLoader(session)
             {
-                PlayerIntroTypeOverride = Player.IntroTypes.Respawn,
+                PlayerIntroTypeOverride = Player.IntroTypes.Respawn
             };
             onFinished();
 

@@ -25,17 +25,7 @@ public sealed class PacketPlayerChannelMove : IContextlessPacket<PacketPlayerCha
 public sealed class PacketPlayerChannelMovedNotification : PacketPlayerNotification,
     IContextualPacket<PacketPlayerChannelMovedNotification>
 {
-    [Flags]
-    public enum DataFlags : byte
-    {
-        None = 0,
-        HasGraphicsInfo = 1 << 0,
-        HasInitialState = 1 << 1
-    }
-
     public int ChannelID { get; }
-
-    public PlayerGraphicsInfo? GraphicsInfo { get; set; }
 
     public PlayerState? InitialState { get; set; }
 
@@ -46,26 +36,17 @@ public sealed class PacketPlayerChannelMovedNotification : PacketPlayerNotificat
     }
 
     public PacketPlayerChannelMovedNotification(
-        int playerID, int channelID,
-        PlayerGraphicsInfo? graphicsInfo, PlayerState? initialState
+        int playerID, int channelID, PlayerState? initialState
     ) : this(playerID, channelID)
     {
-        GraphicsInfo = graphicsInfo;
         InitialState = initialState;
     }
 
     public void Serialize(ref RefBinaryWriter writer, IPacketSerializationContext context)
     {
         writer.Write(PlayerID);
-
-        DataFlags flags = DataFlags.None;
-        if (GraphicsInfo is not null) flags |= DataFlags.HasGraphicsInfo;
-        if (InitialState is not null) flags |= DataFlags.HasInitialState;
-
-        writer.Write((byte)flags);
         writer.Write(ChannelID);
-        if (GraphicsInfo is not null) writer.Write(GraphicsInfo);
-        if (InitialState is not null) writer.Write(InitialState, context.PooledStringManager);
+        writer.WriteNullable(InitialState, context.PooledStringManager);
     }
 
     public static PacketPlayerChannelMovedNotification Deserialize(
@@ -74,18 +55,9 @@ public sealed class PacketPlayerChannelMovedNotification : PacketPlayerNotificat
     )
     {
         int playerID = reader.ReadInt32();
-        PlayerGraphicsInfo? graphicsInfo = null;
-        PlayerState? initialStats = null;
-
-        DataFlags dataFlags = (DataFlags)reader.ReadByte();
-
         int channelID = reader.ReadInt32();
+        PlayerState? initialState = reader.ReadNullable<PlayerState, PooledStringManager>(context.PooledStringManager);
 
-        if (dataFlags.HasFlag(DataFlags.HasGraphicsInfo))
-            graphicsInfo = reader.Read<PlayerGraphicsInfo>();
-        if (dataFlags.HasFlag(DataFlags.HasInitialState))
-            initialStats = reader.Read<PlayerState, PooledStringManager>(context.PooledStringManager);
-
-        return new(playerID, channelID, graphicsInfo, initialStats);
+        return new(playerID, channelID, initialState);
     }
 }

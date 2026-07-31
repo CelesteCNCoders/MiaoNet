@@ -48,10 +48,36 @@ public static class RefBinaryWriterExtensions
     public static void Write<T>(this ref RefBinaryWriter writer, T value) where T : IRefBinarySerializable<T>
         => value.Serialize(ref writer);
 
+    public static void WriteNullable<T>(this ref RefBinaryWriter writer, T? value) where T : class, IRefBinarySerializable<T>
+    {
+        if (value is not null)
+        {
+            writer.Write(true);
+            writer.Write(value);
+        }
+        else
+        {
+            writer.Write(false);
+        }
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining), StackTraceHidden, DebuggerHidden]
     public static void Write<T, TContext>(this ref RefBinaryWriter writer, T value, TContext context)
         where T : IContextualRefBinarySerializable<T, TContext>
         => value.Serialize(ref writer, context);
+
+    public static void WriteNullable<T, TContext>(this ref RefBinaryWriter writer, T? value, TContext context) where T : class, IContextualRefBinarySerializable<T, TContext>
+    {
+        if (value is not null)
+        {
+            writer.Write(true);
+            writer.Write(value, context);
+        }
+        else
+        {
+            writer.Write(false);
+        }
+    }
 
     public static void Write(this ref RefBinaryWriter writer, IReadOnlyCollection<string> strings)
     {

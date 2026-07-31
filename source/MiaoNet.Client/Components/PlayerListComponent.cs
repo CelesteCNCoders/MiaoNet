@@ -71,38 +71,38 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 #if MOCK_DATA
         int id = 0;
         channelPlayerList.Clear();
-        OnlineChannel cMain = new(0, "main");
+        OnlineChannel cMain = new(0, new ChannelInfo("main"));
         List<PlayerListEntry> mainChannelPlayerList = [
             CreateTestPlayer(cMain, "sapcc", "Celeste/1-ForsakenCity", "a-01"),
             CreateTestPlayer(cMain, "Ccc", "Celeste/2-OldSite", "a-01"),
             CreateTestPlayer(cMain, "AAlice", "Celeste/LostLevels", "j-17"),
             CreateTestPlayer(cMain, "sapcc", "Celeste/LostLevels", "j-16"),
             CreateTestPlayer(cMain, "Admin", "Celeste/LostLevels", "end-golden"),
-            CreateTestPlayer(cMain, "EmptyPos", "", ""),
+            CreateTestPlayer(cMain, "eeee", "eeee/eeee", ""),
             CreateTestPlayer(cMain, "David", "Celeste/1-ForsakenCity", "b-0c"),
-            CreateTestPlayer(cMain, "voidsd", "SpringCollab2020/Expert/ZZ-HeartSide", "idk-a"),
-            CreateTestPlayer(cMain, "mo_fish", "", ""),
+            CreateTestPlayer(cMain, "Voidsd", "SpringCollab2020/Expert/ZZ-HeartSide", "idk-a"),
+            CreateTestPlayer(cMain, "Mo_fish", "", ""),
+            CreateTestPlayer(cMain, "Dilant", "", "")
         ];
         foreach (var item in mainChannelPlayerList)
-            cMain.Players.Add(item.Player.ID, item.Player);
-        OnlineChannel cOther = new(1, "xinzhan");
+            cMain.Players.Add(item.Player);
+        OnlineChannel cOther = new(1, new ChannelInfo("xinzhan"));
         List<PlayerListEntry> otherChannelPlayerList = [
             CreateTestPlayer(cOther, "O5DZ", "StrawberryJam2021/Advanced/Lobby", "a-00"),
-            CreateTestPlayer(cOther, "idk_others", "StrawberryJam2021/Advanced/Lobby", "a-01"),
-            CreateTestPlayer(cOther, "idk_others_too", "Celeste/9-Core", "f-0j"),
+            CreateTestPlayer(cOther, "Feng_Luo", "StrawberryJam2021/Advanced/Lobby", "a-01"),
+            CreateTestPlayer(cOther, "someone1", "Celeste/9-Core", "f-0j"),
         ];
         foreach (var item in otherChannelPlayerList)
-            cOther.Players.Add(item.Player.ID, item.Player);
-        OnlineChannel cOther2 = new(2, "xinzhan2");
+            cOther.Players.Add(item.Player);
+        OnlineChannel cOther2 = new(2, new ChannelInfo("xinzhan2"));
         List<PlayerListEntry> otherChannel2PlayerList = [
-            CreateTestPlayer(cOther, "O5DZ222", "StrawberryJam2021/Advanced/Lobby", "a-00"),
-            CreateTestPlayer(cOther, "idk_others222", "StrawberryJam2021/Advanced/Lobby", "a-01"),
-            CreateTestPlayer(cOther, "idk_others_too222", "Celeste/9-Core", "f-0j"),
+            CreateTestPlayer(cOther, "someone2", "StrawberryJam2021/Advanced/Lobby", "a-01"),
+            CreateTestPlayer(cOther, "someone3", "Celeste/9-Core", "f-0j"),
         ];
         for (int i = 0; i < 16; i++)
             otherChannel2PlayerList.Add(CreateTestPlayer(cOther, $"P {i}", "Celeste/9-Core", "f-0j"));
         foreach (var item in otherChannel2PlayerList)
-            cOther2.Players.Add(item.Player.ID, item.Player);
+            cOther2.Players.Add(item.Player);
         channelPlayerList.AddRange([
             new(cMain, mainChannelPlayerList),
             new(cOther, otherChannelPlayerList),
@@ -119,7 +119,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 PlayerGlobalFlags.None
             )
             {
-                Location = new PlayerLocation(sid, (AreaMode)Random.Shared.Next(0, 3), room),
+                Location = new PlayerLocation(sid, sid.Length != 0 ? (AreaMode)Random.Shared.Next(0, 3) : AreaMode.Normal, room),
                 LastPing = Random.Shared.Next(20, Random.Shared.Next(20, Random.Shared.Next(20, 2000)))
             }, false, ClipType);
         }
@@ -284,8 +284,11 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         const float RectXPadding = 16f;
         const float RectYPadding = 16f;
         const float MiddlePadding = 32f;
+        const float PlayerEntryXPadding = 4f;
+        const float PlayerEntryYPadding = 2f;
 
         float lineHeight = MiaoNetFont.ENZhsLineHeight * scale;
+        float playerEntryHeight = lineHeight + 2 * PlayerEntryYPadding;
 
         float maxPingWidth = 0f;
         float maxLineWidth = 0f;
@@ -396,7 +399,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
                     maxLineWidth = Math.Max(maxLineWidth, itemWidth);
 
-                    curY += lineHeight;
+                    curY += playerEntryHeight;
                 }
 
                 curY += RectYPadding;
@@ -405,7 +408,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             }
         }
 
-        float totalMaxLineWidth = maxLineWidth + maxPingWidth;
+        float totalMaxLineWidth = maxLineWidth + maxPingWidth + 2 * PlayerEntryXPadding;
 
         // draw background
         for (int i = 0; i < channelPlayerList.Count; i++)
@@ -426,8 +429,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     0 => new Color(0x00, 0x00, 0x00, 0x22),
                     1 => new Color(0x22, 0x22, 0x22, 0x88),
                 };
-                Draw.Rect(dstX + RectXPadding, curY, dstWidth - 2 * RectXPadding, lineHeight, c);
-                curY += lineHeight;
+                Draw.Rect(dstX + RectXPadding, curY, dstWidth - 2 * RectXPadding, playerEntryHeight, c);
+                curY += playerEntryHeight;
             }
         }
 
@@ -450,15 +453,16 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             // draw players
             foreach (var item in playerEntries)
             {
+                float drawY = curY + PlayerEntryYPadding;
                 var player = item.Player;
 
                 // -- left to right drawing --
-                float x = xOffset;
+                float x = xOffset + PlayerEntryXPadding;
                 // draw player name
                 string playerName = item.DisplayName;
                 MiaoNetFont.Draw(
                     playerName,
-                    position: new(x, curY),
+                    position: new(x, drawY),
                     justify: Vector2.Zero,
                     scale: Vector2.One * scale,
                     player.Info.Color
@@ -470,7 +474,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     x += PausedTexOffsetRange;
 
                     float texScale = lineHeight / texPlayerPaused.Height;
-                    texPlayerPaused.Draw(new(x + pausedTexOffset, curY), Vector2.Zero, Color.White, Vector2.One * texScale);
+                    texPlayerPaused.Draw(new(x + pausedTexOffset, drawY), Vector2.Zero, Color.White, Vector2.One * texScale);
 
                     x += texScale * texPlayerPaused.Width + PausedTexOffsetRange;
                 }
@@ -478,7 +482,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Interactions))
                 {
                     float texScale = lineHeight / texPlayerInteractions.Height;
-                    texPlayerInteractions.Draw(new(x, curY), Vector2.Zero, Color.White, Vector2.One * texScale);
+                    texPlayerInteractions.Draw(new(x, drawY), Vector2.Zero, Color.White, Vector2.One * texScale);
 
                     x += texScale * texPlayerInteractions.Width;
                 }
@@ -486,7 +490,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.LiveMode))
                 {
                     float texScale = lineHeight / texLiveMode.Height;
-                    texLiveMode.Draw(new(x, curY), Vector2.Zero, Color.White, Vector2.One * texScale);
+                    texLiveMode.Draw(new(x, drawY), Vector2.Zero, Color.White, Vector2.One * texScale);
 
                     x += texScale * texLiveMode.Width;
                 }
@@ -494,7 +498,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.TakingGolden))
                 {
                     float texScale = lineHeight / texTakingGolden.Height;
-                    texTakingGolden.Draw(new(x, curY), Vector2.Zero, Color.White, Vector2.One * texScale);
+                    texTakingGolden.Draw(new(x, drawY), Vector2.Zero, Color.White, Vector2.One * texScale);
 
                     x += texScale * texTakingGolden.Width;
                 }
@@ -502,7 +506,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.GroupPhotoMode))
                 {
                     float texScale = lineHeight / texGroupPhotoMode.Height;
-                    texGroupPhotoMode.Draw(new(x, curY), Vector2.Zero, Color.White, Vector2.One * texScale);
+                    texGroupPhotoMode.Draw(new(x, drawY), Vector2.Zero, Color.White, Vector2.One * texScale);
 
                     x += texScale * texGroupPhotoMode.Width;
                 }
@@ -510,20 +514,20 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching))
                 {
                     float texScale = lineHeight / texPlayerDebugMap.Height;
-                    texPlayerDebugMap.Draw(new(x, curY), Vector2.Zero, Color.White, Vector2.One * texScale);
+                    texPlayerDebugMap.Draw(new(x, drawY), Vector2.Zero, Color.White, Vector2.One * texScale);
 
                     x += texScale * texPlayerDebugMap.Width;
                 }
 
                 // -- right to left drawing --
-                x = xOffset + totalMaxLineWidth;
+                x = xOffset + totalMaxLineWidth - PlayerEntryXPadding;
 
                 // draw ping
                 if (item.PingText is not null)
                 {
                     MiaoNetFont.Draw(
                         item.PingText,
-                        position: new(x, curY),
+                        position: new(x, drawY),
                         justify: Vector2.UnitX,
                         scale: Vector2.One * scale,
                         Color.LightGray
@@ -541,7 +545,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     {
                         float iconScale = lineHeight / iconTex.Height;
                         iconTex.DrawJustified(
-                            new(x, curY),
+                            new(x, drawY),
                             Vector2.UnitX,
                             Color.White,
                             Vector2.One * iconScale
@@ -556,7 +560,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     {
                         MiaoNetFont.Draw(
                             item.AreaModeText,
-                            position: new(x, curY),
+                            position: new(x, drawY),
                             justify: Vector2.UnitX,
                             scale: Vector2.One * scale,
                             item.MapSideColor
@@ -571,7 +575,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     string mapName = item.IsLocallyKnownMap ? item.MapName! : liveMode ? "*" : item.MapName!;
                     MiaoNetFont.Draw(
                         mapName,
-                        position: new(x, curY),
+                        position: new(x, drawY),
                         justify: Vector2.UnitX,
                         scale: Vector2.One * scale,
                         item.MapNameColor
@@ -582,7 +586,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     // draw a colon
                     MiaoNetFont.Draw(
                         ":",
-                        position: new(x, curY),
+                        position: new(x, drawY),
                         justify: Vector2.UnitX,
                         scale: Vector2.One * scale,
                         Color.LightGray
@@ -594,7 +598,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     {
                         MiaoNetFont.Draw(
                             liveMode ? "*" : item.MapRoom!,
-                            position: new(x, curY),
+                            position: new(x, drawY),
                             justify: Vector2.UnitX,
                             scale: Vector2.One * scale,
                             Color.LightGray
@@ -604,12 +608,12 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     else
                     {
                         float texScale = lineHeight / texPlayerDebugMap.Height;
-                        texPlayerDebugMap.DrawJustified(new(x, curY), Vector2.UnitX, Color.White, Vector2.One * texScale);
+                        texPlayerDebugMap.DrawJustified(new(x, drawY), Vector2.UnitX, Color.White, Vector2.One * texScale);
                         x -= texScale * texPlayerDebugMap.Width;
                     }
                 }
 
-                curY += lineHeight;
+                curY += playerEntryHeight;
             }
         }
     }

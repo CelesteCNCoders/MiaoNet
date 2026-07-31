@@ -1,13 +1,11 @@
 using Celeste.Mod.ChatInputBox;
+using Celeste.Mod.MiaoNet;
 using Microsoft.Xna.Framework.Input;
 namespace Celeste.Mod.ChatInputBoxExample;
 
 [Tracked]
 public sealed class ChatInputBoxEntity : Entity
 {
-    // this is an fna bug...
-    private float lastMouseScroll = 0f;
-    private float scroll = 0f;
     private bool active;
     private readonly ChatMessageListView msgListView;
     private readonly InputBox inputBox;
@@ -15,11 +13,8 @@ public sealed class ChatInputBoxEntity : Entity
     public ChatInputBoxEntity()
     {
         Tag |= Tags.HUD | Tags.PauseUpdate | Tags.FrozenUpdate | Tags.TransitionUpdate | Tags.Global;
-        Language lang = Dialog.Languages["schinese"];
-        TextRenderer r = new(lang)
-        {
-            Scale = 2f / 3f
-        };
+        float scale = 2f / 3f;
+        ScalelessChatTextRenderer r = new(scale, MiaoNetFont.ENZhsLineHeight * scale);
         inputBox = new(r, new TestCompletionProvider());
         msgListView = new(r);
         List<string> randomMsgs = [
@@ -97,15 +92,13 @@ public sealed class ChatInputBoxEntity : Entity
         {
             msgListView.AddChatMessage(ChatText.Create(msg, Color.White));
         }
-
-        lastMouseScroll = Mouse.GetState().ScrollWheelValue;
     }
 
     public void Activate()
     {
         active = true;
         inputBox.Activate();
-        msgListView.Active = true;
+        msgListView.Activate();
         Scene.Paused = true;
     }
 
@@ -113,9 +106,7 @@ public sealed class ChatInputBoxEntity : Entity
     {
         active = false;
         inputBox.Deactivate();
-        msgListView.Scroll = 0f;
-        msgListView.Active = false;
-        scroll = 0f;
+        msgListView.Deactivate();
         Scene.Paused = false;
     }
 
@@ -125,16 +116,6 @@ public sealed class ChatInputBoxEntity : Entity
         if (active)
         {
             inputBox.Update();
-            float scrollWheelValue = Mouse.GetState().ScrollWheelValue;
-            scroll += scrollWheelValue - lastMouseScroll;
-            lastMouseScroll = scrollWheelValue;
-
-            scroll = msgListView.ClampScrollValue(scroll);
-            msgListView.Scroll = Calc.Approach(
-                msgListView.Scroll,
-                scroll,
-                Math.Max(Math.Abs(scroll - msgListView.Scroll), 24f) * 8f * Engine.DeltaTime
-            );
 
             if (MInput.Keyboard.Pressed(Keys.Enter))
             {

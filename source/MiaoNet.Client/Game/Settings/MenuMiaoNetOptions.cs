@@ -227,6 +227,11 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.PlayerNameOpacity = v);
         menu.Add(item);
 
+        item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_offscreen_player_name_opacity"), 0, 10, settings.OffScreenPlayerNameOpacity
+        ).Change(v => settings.OffScreenPlayerNameOpacity = v);
+        menu.Add(item);
+
         {
             TextMenuExt.IntSlider minPlayerOpacitySlider;
             minPlayerOpacitySlider = new TextMenuExt.IntSlider(
@@ -561,8 +566,6 @@ public static class MenuMiaoNetOptions
             Add(new Header(Dialog.Clean("BTN_CONFIG_TITLE")));
             Add(new InputMappingInfo(false));
 
-            AddMapForceLabel(Dialog.Get("miaonet_options_button_chat"), settings.ChatButton.Binding);
-            AddMapForceLabel(Dialog.Get("miaonet_options_button_chat_command"), settings.ChatCommandButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list"), settings.PlayerListButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_create_fireworks"), settings.CreateFireworksButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list_scroll_up"), settings.PlayerListScrollUp.Binding);
