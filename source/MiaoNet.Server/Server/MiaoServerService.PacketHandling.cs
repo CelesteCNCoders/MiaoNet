@@ -57,7 +57,7 @@ public sealed partial class MiaoServerService
 
         // TODO we can actually using one Task for one Map
         // to handle these updates lock-free
-        ServerMapUnit u = player.Channel.MapUnits[player.Location.Map];
+        ServerMap u = player.Channel.Maps[player.Location.Map];
         using (u.StateLock.AcquireReadLock())
         {
             var state = player.State;
@@ -149,27 +149,27 @@ public sealed partial class MiaoServerService
         using (stateLock.AcquireWriteLock())
         {
             var c = player.Channel;
-            c.MapUnits.TryGetValue(packet.Location.Map, out var unitTo);
+            c.Maps.TryGetValue(packet.Location.Map, out var mapTo);
 
-            unitTo?.StateLock.EnterWriteLock();
+            mapTo?.StateLock.EnterWriteLock();
             try
             {
                 var generalPacket = new PacketPlayerMapChangedNotification(player.ID, packet.Location);
                 var withStatePacket = new PacketPlayerMapChangedNotification(player.ID, packet.Location, packet.InitialState);
 
-                var mapPlayers = unitTo?.GetPlayerMovedInitialDatas(connection) ?? [];
+                var mapPlayers = mapTo?.GetPlayerMovedInitialDatas(connection) ?? [];
                 var responsePacket = new PacketPlayerMapChangedResponse(mapPlayers);
 
                 generalTask = BroadcastContextuallyToAsync(
                     generalPacket,
-                    unitTo is not null
-                        ? c => !unitTo.Players.Contains(c) && c.ID != connection.ID
+                    mapTo is not null
+                        ? c => !mapTo.Players.Contains(c) && c.ID != connection.ID
                         : c => c.ID != connection.ID
                 );
 
-                withStateTask = unitTo is not null ? BroadcastContextuallyToAsync(
+                withStateTask = mapTo is not null ? BroadcastContextuallyToAsync(
                     withStatePacket,
-                    unitTo.Players,
+                    mapTo.Players,
                     con => con.ID != connection.ID
                 ) : Task.CompletedTask;
                 responseTask = connection.QueuePacketAsync(responsePacket);
@@ -181,7 +181,7 @@ public sealed partial class MiaoServerService
             }
             finally
             {
-                unitTo?.StateLock.ExitWriteLock();
+                mapTo?.StateLock.ExitWriteLock();
             }
         }
 
@@ -240,11 +240,11 @@ public sealed partial class MiaoServerService
             Task othersTask;
             using (stateLock.AcquireWriteLock())
             {
-                channel.MapUnits.TryGetValue(player.Location.Map, out ServerMapUnit? tmu);
-                tmu?.StateLock.EnterWriteLock();
+                channel.Maps.TryGetValue(player.Location.Map, out ServerMap? mapTo);
+                mapTo?.StateLock.EnterWriteLock();
                 try
                 {
-                    var mapPlayers = tmu?.GetPlayerMovedInitialDatas(connection);
+                    var mapPlayers = mapTo?.GetPlayerMovedInitialDatas(connection);
 
                     var responsePacket = new PacketPlayerChannelMovedResponse(channel.ID, mapPlayers);
                     responseTask = connection.QueuePacketAsync(responsePacket);
@@ -254,7 +254,7 @@ public sealed partial class MiaoServerService
                 }
                 finally
                 {
-                    tmu?.StateLock.ExitWriteLock();
+                    mapTo?.StateLock.ExitWriteLock();
                 }
 
                 serverState.PlayerChannelMove(connection, player.Channel, channel);
@@ -272,11 +272,11 @@ public sealed partial class MiaoServerService
 
             using (stateLock.AcquireWriteLock())
             {
-                channel.MapUnits.TryGetValue(player.Location.Map, out ServerMapUnit? unitTo);
-                unitTo?.StateLock.EnterWriteLock();
+                channel.Maps.TryGetValue(player.Location.Map, out ServerMap? mapTo);
+                mapTo?.StateLock.EnterWriteLock();
                 try
                 {
-                    var mapPlayers = unitTo?.GetPlayerMovedInitialDatas(connection);
+                    var mapPlayers = mapTo?.GetPlayerMovedInitialDatas(connection);
 
                     var responsePacket = new PacketPlayerChannelMovedResponse(channel.ID, mapPlayers);
                     responseTask = connection.QueuePacketAsync(responsePacket);
@@ -284,8 +284,8 @@ public sealed partial class MiaoServerService
                     var nonSameMapNotification = new PacketPlayerChannelMovedNotification(connection.ID, channel.ID);
                     nonSameMapTask = BroadcastContextuallyToAsync(
                        nonSameMapNotification,
-                       unitTo is not null
-                            ? c => !unitTo.Players.Contains(c) && c.ID != connection.ID
+                       mapTo is not null
+                            ? c => !mapTo.Players.Contains(c) && c.ID != connection.ID
                             : c => c.ID != connection.ID
                     );
 
@@ -293,15 +293,15 @@ public sealed partial class MiaoServerService
                         connection.ID, channel.ID,
                         player.State
                     );
-                    sameMapTask = unitTo is not null ? BroadcastContextuallyToAsync(
+                    sameMapTask = mapTo is not null ? BroadcastContextuallyToAsync(
                         sameMapNotification,
-                        unitTo.Players,
+                        mapTo.Players,
                         con => con.ID != connection.ID
                     ) : Task.CompletedTask;
                 }
                 finally
                 {
-                    unitTo?.StateLock.ExitWriteLock();
+                    mapTo?.StateLock.ExitWriteLock();
                 }
 
                 serverState.PlayerChannelMove(connection, player.Channel, channel);
