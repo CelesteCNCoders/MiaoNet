@@ -43,10 +43,12 @@ public sealed partial class MiaoServerService
             return;
         }
 
-        int fc = packet.FollowerInitials is not null
-            ? packet.FollowerInitials.Length
-            : packet.FollowerDeltas is not null
-                ? packet.FollowerDeltas.Length
+        var delta = packet.StateDelta;
+
+        int fc = delta.FollowerInitials is not null
+            ? delta.FollowerInitials.Length
+            : delta.FollowerDeltas is not null
+                ? delta.FollowerDeltas.Length
                 : 0;
         if (fc > 12)
         {
@@ -61,18 +63,7 @@ public sealed partial class MiaoServerService
         using (u.StateLock.AcquireReadLock())
         {
             var state = player.State;
-            state.FacingLeft = packet.FacingLeft;
-            state.Position = packet.Position;
-            if (packet.DashesChange)
-                state.Dashes = packet.Dashes;
-            if (packet.HasFollowerInitials)
-                state.ApplyFollowersInitials(packet.FollowerInitials);
-            else if (packet.HasFollowerDeltas)
-                state.ApplyFollowersDeltas(packet.FollowerDeltas);
-            if (packet.HasWindDirection)
-                state.WindDirection = packet.WindDirection;
-            if (packet.HasHoldable)
-                state.ApplyHoldableInfo(packet.HoldableInfo);
+            state.ApplyDelta(delta);
         }
         await BroadcastContextuallyToAsync(
             new PacketContextualPlayerNotification<PacketPlayerFrame>(connection.ID, packet),

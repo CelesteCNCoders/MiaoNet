@@ -99,11 +99,22 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         lastDashedDashes = dashes;
         Position = initialState.Position;
         windDirection = initialState.WindDirection;
-        ducking = initialState.Ducking;
-        UpdateFacing(initialState.FacingLeft);
         OnFollowerInitials(initialState.FollowerInfos);
-        UpdateDucking(initialState.Ducking);
         UpdateWind(initialState.WindDirection);
+
+        PlayerStateFlags stateFlags = initialState.StateFlags;
+        dashing = stateFlags.HasFlag(PlayerStateFlags.Dashing);
+        NotifyStarFlying(stateFlags.HasFlag(PlayerStateFlags.StarFlying));
+        UpdateInteractions(stateFlags.HasFlag(PlayerStateFlags.Interactions));
+        UpdateDucking(stateFlags.HasFlag(PlayerStateFlags.Ducking));
+        tired = stateFlags.HasFlag(PlayerStateFlags.Tired);
+        bool facingLeft = stateFlags.HasFlag(PlayerStateFlags.FacingLeft);
+        // TODO dead
+
+        UpdateSprite(initialState.Animation, initialState.AnimationFrame, facingLeft, initialState.Scale);
+
+        if (dashing)
+            lastDashDirection = initialState.LastDashDirection;
 
         Add(playerHair);
         Add(playerSprite);
@@ -523,7 +534,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                 playerHair.SimulateMotion = true;
             }
             this.starFlying = starFlying;
-
         }
     }
 
