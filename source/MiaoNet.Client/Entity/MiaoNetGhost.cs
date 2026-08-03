@@ -104,7 +104,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
         PlayerStateFlags stateFlags = initialState.StateFlags;
         dashing = stateFlags.HasFlag(PlayerStateFlags.Dashing);
-        NotifyStarFlying(stateFlags.HasFlag(PlayerStateFlags.StarFlying));
+        UpdateStarFlying(stateFlags.HasFlag(PlayerStateFlags.StarFlying));
         UpdateInteractions(stateFlags.HasFlag(PlayerStateFlags.Interactions));
         UpdateDucking(stateFlags.HasFlag(PlayerStateFlags.Ducking));
         tired = stateFlags.HasFlag(PlayerStateFlags.Tired);
@@ -517,7 +517,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     }
 
     // TODO start star flying sync?
-    public void NotifyStarFlying(bool starFlying)
+    public void UpdateStarFlying(bool starFlying)
     {
         if (this.starFlying != starFlying)
         {

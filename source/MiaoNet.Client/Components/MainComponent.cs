@@ -565,6 +565,8 @@ public sealed partial class MainComponent : MiaoNetComponent
             if (!ghost.BeingHeldLocally)
                 ghost.Position = delta.Position;
 
+            // hmmm can we avoid these tons of updates?
+
             ghost.UpdateInteractions(delta.StateFlags.HasFlag(PlayerStateFlags.Interactions));
             ghost.UpdateSprite(delta.Animation, delta.AnimationFrame, delta.StateFlags.HasFlag(PlayerStateFlags.FacingLeft), delta.Scale);
             if (delta.HasHoldable)
@@ -601,7 +603,7 @@ public sealed partial class MainComponent : MiaoNetComponent
                 delta.StateFlags.HasFlag(PlayerStateFlags.Dashing), delta.DashDirection / (float)byte.MaxValue * MathF.Tau,
                 delta.DashesChange, delta.Dashes
             );
-            ghost.NotifyStarFlying(delta.StateFlags.HasFlag(PlayerStateFlags.StarFlying));
+            ghost.UpdateStarFlying(delta.StateFlags.HasFlag(PlayerStateFlags.StarFlying));
             ghost.UpdateDucking(delta.StateFlags.HasFlag(PlayerStateFlags.Ducking));
             ghost.UpdateTired(delta.StateFlags.HasFlag(PlayerStateFlags.Tired));
         }
