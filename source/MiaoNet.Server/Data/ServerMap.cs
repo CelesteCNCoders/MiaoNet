@@ -4,7 +4,7 @@ using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
 
-public sealed class ServerMap
+public sealed class ServerMap : IPlayerScope
 {
     private ImmutableHashSet<MiaoClientConnection> players;
 
@@ -13,6 +13,8 @@ public sealed class ServerMap
     public PlayerMapLocation MapLocation { get; }
 
     public ImmutableHashSet<MiaoClientConnection> Players => players;
+
+    IEnumerable<MiaoClientConnection> IPlayerScope.Players => players;
 
     public ServerMap(PlayerMapLocation mapLocation, MiaoClientConnection connection)
     {

@@ -4,7 +4,7 @@ using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
 
-public sealed class ServerChannel
+public sealed class ServerChannel : IPlayerScope
 {
     private ImmutableHashSet<MiaoClientConnection> players;
     private ImmutableDictionary<PlayerMapLocation, ServerMap> maps;
@@ -14,6 +14,8 @@ public sealed class ServerChannel
     public ChannelInfo Info { get; }
 
     public ImmutableHashSet<MiaoClientConnection> Players => players;
+
+    IEnumerable<MiaoClientConnection> IPlayerScope.Players => players;
 
     public ImmutableDictionary<PlayerMapLocation, ServerMap> Maps => maps;
 

@@ -7,7 +7,7 @@ using MiaoNet.Shared;
 namespace MiaoNet.Server;
 
 [DebuggerDisplay("Players count = {players.Count}, Channels count = {channels.Count}")]
-public sealed class ServerState
+public sealed class ServerState : IPlayerScope
 {
     private int nextPlayerID;
     private int nextChannelID;
@@ -16,6 +16,8 @@ public sealed class ServerState
     private ImmutableDictionary<int, ServerChannel> channels;
 
     public ImmutableDictionary<int, MiaoClientConnection> Players => players;
+
+    IEnumerable<MiaoClientConnection> IPlayerScope.Players => players.Values;
 
     public ImmutableDictionary<int, ServerChannel> Channels => channels;
 
