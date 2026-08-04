@@ -526,7 +526,7 @@ public sealed partial class MainComponent : MiaoNetComponent
 
     private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotification packet)
     {
-        Logger.Debug(LT.MiaoNet, $"MapChanging: {player} to {packet.Location}");
+        Logger.Debug(LT.MiaoNet, $"MapChanging: {player.Info.Name} to {packet.Location}");
         if (Engine.Scene is not Level level)
             return;
         HandleLocationChanging(level, player);
@@ -534,7 +534,7 @@ public sealed partial class MainComponent : MiaoNetComponent
 
     private void Context_PlayerMapRoomChanged(OnlinePlayer player, string room)
     {
-        Logger.Debug(LT.MiaoNet, $"MapRoomChanging: {player} to room {room}");
+        Logger.Debug(LT.MiaoNet, $"MapRoomChanging: {player.Info.Name} to room {room}");
         if (Engine.Scene is not Level level || room.Length != 0)
             return;
         HandleLocationChanging(level, player);
@@ -544,7 +544,7 @@ public sealed partial class MainComponent : MiaoNetComponent
     {
         if (Engine.Scene is not Level level)
             return;
-        Logger.Debug(LT.MiaoNet, $"MapChageResponding: Players count = {packet.Players.Count}");
+        Logger.Debug(LT.MiaoNet, $"MapChangeResponding: Players count = {packet.Players.Count}");
         CleanUpGhosts(level);
         foreach (var item in packet.Players)
         {
