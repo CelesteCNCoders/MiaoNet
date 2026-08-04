@@ -460,8 +460,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             TryDisableGroupPhotoModeAndTip();
 
             Level? level = Engine.Scene as Level;
-            if (level is not null)
-                CleanUpGhosts(level);
+            CleanUpGhosts(level);
             CleanUpInteractions(level);
 
             if (location.IsInMap)
@@ -501,6 +500,8 @@ public sealed partial class MainComponent : MiaoNetComponent
         else if (changeResult is PlayerLocation.ChangeResult.RoomOnly)
         {
             TryDisableGroupPhotoModeAndTip();
+            if (location.IsInDebugMap)
+                CleanUpGhosts(null);
 
             PacketPlayerMapRoomChanged p = new(location.Room);
             context.QueuePacket(p);
@@ -516,11 +517,13 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
-    private void CleanUpGhosts(Level level)
+    private void CleanUpGhosts(Level? level)
     {
-        foreach (var g in ghosts)
-            level.CompletelyRemove(g.Value);
-
+        if (level is not null)
+        {
+            foreach (var g in ghosts)
+                level.CompletelyRemove(g.Value);
+        }
         ghosts.Clear();
     }
 
