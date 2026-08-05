@@ -4,20 +4,20 @@ using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
 
-public sealed class ServerMapUnit
+public sealed class ServerMap
 {
     private ImmutableHashSet<MiaoClientConnection> players;
 
     public ReaderWriterLockSlim StateLock { get; }
 
-    public PlayerMap Map { get; }
+    public PlayerMapLocation MapLocation { get; }
 
     public ImmutableHashSet<MiaoClientConnection> Players => players;
 
-    public ServerMapUnit(PlayerMap map, MiaoClientConnection connection)
+    public ServerMap(PlayerMapLocation mapLocation, MiaoClientConnection connection)
     {
         players = ImmutableHashSet<MiaoClientConnection>.Empty.Add(connection);
-        Map = map;
+        MapLocation = mapLocation;
         StateLock = new();
     }
 

@@ -91,21 +91,7 @@ partial class MiaoNetContext
         var state = player.State;
         if (state is not null)
         {
-            PacketPlayerFrame p = packet.Packet;
-            state.Position = p.Position;
-            state.Dashing = p.Dashing;
-            state.FacingLeft = p.FacingLeft;
-            state.Interactions = p.Interactions;
-
-            if (p.HasFollowerInitials)
-                state.ApplyFollowersInitials(p.FollowerInitials);
-            else if (p.HasFollowerDeltas)
-                state.ApplyFollowersDeltas(p.FollowerDeltas);
-
-            if (p.DashesChange)
-                state.Dashes = p.Dashes;
-            if (p.HasWindDirection)
-                state.WindDirection = p.WindDirection;
+            state.ApplyDelta(packet.Packet.StateDelta);
         }
         else
         {
