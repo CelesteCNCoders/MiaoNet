@@ -84,6 +84,7 @@ public sealed class MiaoNetModule : EverestModule
         }
 
         SpeedrunToolCompat.Load();
+        BitsboltsCompat.Load();
         typeof(CollabUtils2Interop).ModInterop();
 
 #if DEBUG
@@ -117,6 +118,7 @@ public sealed class MiaoNetModule : EverestModule
         On.Celeste.PlayerSprite.ctor -= PlayerSprite_ctor;
 
         SpeedrunToolCompat.Unload();
+        BitsboltsCompat.Unload();
     }
 
     public override void LoadContent(bool firstLoad)
