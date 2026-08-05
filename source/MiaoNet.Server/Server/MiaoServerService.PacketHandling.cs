@@ -48,10 +48,12 @@ public sealed partial class MiaoServerService
             return;
         }
 
-        int fc = packet.FollowerInitials is not null
-            ? packet.FollowerInitials.Length
-            : packet.FollowerDeltas is not null
-                ? packet.FollowerDeltas.Length
+        var delta = packet.StateDelta;
+
+        int fc = delta.FollowerInitials is not null
+            ? delta.FollowerInitials.Length
+            : delta.FollowerDeltas is not null
+                ? delta.FollowerDeltas.Length
                 : 0;
         if (fc > 12)
         {
@@ -65,19 +67,7 @@ public sealed partial class MiaoServerService
 
         await mapScope.PostAsync(() =>
         {
-            var state = player.State;
-            state.FacingLeft = packet.FacingLeft;
-            state.Position = packet.Position;
-            if (packet.DashesChange)
-                state.Dashes = packet.Dashes;
-            if (packet.HasFollowerInitials)
-                state.ApplyFollowersInitials(packet.FollowerInitials);
-            else if (packet.HasFollowerDeltas)
-                state.ApplyFollowersDeltas(packet.FollowerDeltas);
-            if (packet.HasWindDirection)
-                state.WindDirection = packet.WindDirection;
-            if (packet.HasHoldable)
-                state.ApplyHoldableInfo(packet.HoldableInfo);
+            player.State.ApplyDelta(delta);
 
             BroadcastContextuallyToAsync(
                 new PacketContextualPlayerNotification<PacketPlayerFrame>(connection.ID, packet),
@@ -160,7 +150,7 @@ public sealed partial class MiaoServerService
             var mapPlayers = await targetMapScope.PostAsync(() =>
                 targetMapScope.Players
                     .Where(p => p != player)
-                    .Select(p => new PlayerMovedInitialData(p.ID, p.State!.Clone(), p.GraphicsInfo?.Clone()))
+                    .Select(p => new PlayerMovedInitialData(p.ID, p.State!.Clone()))
                     .ToList()
             );
 
@@ -168,7 +158,7 @@ public sealed partial class MiaoServerService
             responseTask = connection.QueuePacketAsync(responsePacket);
 
             // Tell new map peers (full state)
-            var withStatePacket = new PacketPlayerMapChangedNotification(player.ID, packet.Location, null, packet.InitialState);
+            var withStatePacket = new PacketPlayerMapChangedNotification(player.ID, packet.Location, packet.InitialState);
             withStateTask = BroadcastContextuallyToAsync(
                 withStatePacket,
                 moveResult.NewPeers.Select(p => p.Connection!),
@@ -243,7 +233,7 @@ public sealed partial class MiaoServerService
                 mapPlayers = await mapScope.PostAsync(() =>
                     mapScope.Players
                         .Where(p => p != player)
-                        .Select(p => new PlayerMovedInitialData(p.ID, p.State!.Clone(), p.GraphicsInfo?.Clone()))
+                        .Select(p => new PlayerMovedInitialData(p.ID, p.State!.Clone()))
                         .ToList()
                 );
             }
@@ -274,7 +264,7 @@ public sealed partial class MiaoServerService
                 mapPlayers = await mapScope.PostAsync(() =>
                     mapScope.Players
                         .Where(p => p != player)
-                        .Select(p => new PlayerMovedInitialData(p.ID, p.State!.Clone(), p.GraphicsInfo?.Clone()))
+                        .Select(p => new PlayerMovedInitialData(p.ID, p.State!.Clone()))
                         .ToList()
                 );
             }
@@ -294,7 +284,6 @@ public sealed partial class MiaoServerService
             {
                 var sameMapNotification = new PacketPlayerChannelMovedNotification(
                     connection.ID, channel.ID,
-                    player.GraphicsInfo,
                     player.State
                 );
                 sameMapTask = BroadcastContextuallyToAsync(

@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
 using MonoMod.Utils;
-using FFlags = MiaoNet.Shared.PacketPlayerFrame.FrameFlags;
+using FFlags = MiaoNet.Shared.PlayerStateDelta.FrameFlags;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -32,6 +32,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         context.PlayerLeft += Context_PlayerLeft;
         context.PlayerFrameNotification += Context_PlayerFrameNotification;
         context.PlayerMapChanged += Context_PlayerMapChanged;
+        context.PlayerMapRoomChanged += Context_PlayerMapRoomChanged;
         context.PlayerMapChangeResponded += Context_PlayerMapChangeResponded;
         context.PlayerLiveStateNotification += Context_PlayerLiveStateNotification;
         context.PlayerGlobalFlagsChanged += Context_PlayerGlobalFlagsChanged;
@@ -199,23 +200,33 @@ public sealed partial class MainComponent : MiaoNetComponent
         bool currentDashing = player.StateMachine.State is Player.StDash;
         int currentDashes = player.Dashes;
 
-        FFlags flags = FFlags.None;
+        PlayerStateFlags stateFlags = PlayerStateFlags.None;
+
         if (player.Facing is Facings.Left)
-            flags |= FFlags.FacingLeft;
+            stateFlags |= PlayerStateFlags.FacingLeft;
+
         if (currentDashing)
-            flags |= FFlags.Dashing;
+            stateFlags |= PlayerStateFlags.Dashing;
+
+        if (player.StateMachine.State == Player.StStarFly)
+            stateFlags |= PlayerStateFlags.StarFlying;
+
+        if (MiaoNetModule.Settings.PlayerInteractions && player.InControl)
+            stateFlags |= PlayerStateFlags.Interactions;
+
+        if (player.Ducking)
+            stateFlags |= PlayerStateFlags.Ducking;
+
+        if (player.IsTired)
+            stateFlags |= PlayerStateFlags.Tired;
+
+        FFlags flags = FFlags.None;
+
         if (currentDashes != selfState.Dashes)
             flags |= FFlags.DashesChange;
-        if (player.StateMachine.State == Player.StStarFly)
-            flags |= FFlags.StarFlying;
+
         if (selfState.WindDirection != player.windDirection)
             flags |= FFlags.HasWindDirection;
-        if (MiaoNetModule.Settings.PlayerInteractions && player.InControl)
-            flags |= FFlags.Interactions;
-        if (player.Ducking)
-            flags |= FFlags.Ducking;
-        if (player.IsTired)
-            flags |= FFlags.Tired;
 
         HoldableInfo? holdableInfo = null;
         FollowerInfo[]? followerInitials;
@@ -240,7 +251,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             holdableInfo = FetchHoldableInfo(player.Holding, selfState.HoldableInfo);
         }
 
-        selfState.Dashing = currentDashing;
+        selfState.StateFlags = stateFlags;
         selfState.Dashes = (byte)currentDashes;
         selfState.WindDirection = player.windDirection;
         if (followerInitials is not null)
@@ -252,28 +263,28 @@ public sealed partial class MainComponent : MiaoNetComponent
         else
             selfState.HoldableInfo = new HoldableInfo();
 
-        var packetFrame = new PacketPlayerFrame(
+        var stateDelta = new PlayerStateDelta(
             player.Position,
             player.Sprite.CurrentAnimationID,
             (ushort)player.Sprite.CurrentAnimationFrame,
             player.Sprite.Scale,
-            flags
+            flags, stateFlags
         );
 
-        if (packetFrame.DashesChange)
-            packetFrame.Dashes = (byte)currentDashes;
-        if (packetFrame.HasHoldable)
-            packetFrame.HoldableInfo = (HoldableInfo)holdableInfo!;
-        if (packetFrame.Dashing)
-            packetFrame.DashDirection = (byte)(player.DashDir.Angle() / MathF.Tau * byte.MaxValue);
-        if (packetFrame.HasFollowerInitials)
-            packetFrame.FollowerInitials = followerInitials;
-        else if (packetFrame.HasFollowerDeltas)
-            packetFrame.FollowerDeltas = followerDeltas;
-        if (packetFrame.HasWindDirection)
-            packetFrame.WindDirection = player.windDirection;
+        if (stateDelta.DashesChange)
+            stateDelta.Dashes = (byte)currentDashes;
+        if (stateDelta.HasHoldable)
+            stateDelta.HoldableInfo = (HoldableInfo)holdableInfo!;
+        if (stateDelta.StateFlags.HasFlag(PlayerStateFlags.Dashing))
+            stateDelta.DashDirection = (byte)(player.DashDir.Angle() / MathF.Tau * byte.MaxValue);
+        if (stateDelta.HasFollowerInitials)
+            stateDelta.FollowerInitials = followerInitials;
+        else if (stateDelta.HasFollowerDeltas)
+            stateDelta.FollowerDeltas = followerDeltas;
+        if (stateDelta.HasWindDirection)
+            stateDelta.WindDirection = player.windDirection;
 
-        context.QueuePacket(packetFrame);
+        context.QueuePacket(new PacketPlayerFrame(stateDelta));
     }
 
     #region holdable & follower info fetching
@@ -400,16 +411,36 @@ public sealed partial class MainComponent : MiaoNetComponent
             else
                 return false;
         }
-        PlayerState initialState = new PlayerState(player.Position, (byte)player.Dashes, Engine.DeltaTime)
+        PlayerStateFlags stateFlags = PlayerStateFlags.None;
+
+        if (player.StateMachine.State is Player.StDash)
+            stateFlags |= PlayerStateFlags.Dashing;
+
+        if (body is not null)
+            stateFlags |= PlayerStateFlags.Dead;
+
+        if (player.Facing == Facings.Left)
+            stateFlags |= PlayerStateFlags.FacingLeft;
+
+        if (MiaoNetModule.Settings.PlayerInteractions)
+            stateFlags |= PlayerStateFlags.Interactions;
+
+        if (player.Ducking)
+            stateFlags |= PlayerStateFlags.Ducking;
+
+        PlayerState initialState = new PlayerState()
         {
+            Position = player.Position,
+            Animation = player.Sprite.CurrentAnimationID,
+            AnimationFrame = (ushort)player.Sprite.CurrentAnimationFrame,
+            Scale = player.Sprite.Scale,
+            Dashes = (byte)player.Dashes,
+            DeltaTime = Engine.DeltaTime,
             PlayerSpriteMode = player.Sprite.Mode,
             FollowerInfos = FetchFollowerInitials(player.Leader.Entity, player.Leader.Followers, MaxFollowersCount),
-            Dashing = player.StateMachine.State is Player.StDash,
-            Dead = body is not null,
-            FacingLeft = player.Facing == Facings.Left,
             WindDirection = player.windDirection,
-            Interactions = MiaoNetModule.Settings.PlayerInteractions,
-            Ducking = player.Ducking
+            HoldableInfo = player.Holding is not null ? FetchHoldableInfo(player.Holding, new()) : new(),
+            StateFlags = stateFlags
         };
 
         ClientState.SelfState = initialState;
@@ -463,6 +494,9 @@ public sealed partial class MainComponent : MiaoNetComponent
                 PacketPlayerMapChanged p = new(location, null);
                 context.QueuePacket(p);
             }
+
+            foreach (var pair in ClientState.Players)
+                pair.Value.State = null;
         }
         else if (changeResult is PlayerLocation.ChangeResult.RoomOnly)
         {
@@ -498,6 +532,14 @@ public sealed partial class MainComponent : MiaoNetComponent
         HandleLocationChanging(level, player);
     }
 
+    private void Context_PlayerMapRoomChanged(OnlinePlayer player, string room)
+    {
+        Logger.Debug(LT.MiaoNet, $"MapRoomChanging: {player} to room {room}");
+        if (Engine.Scene is not Level level || room.Length != 0)
+            return;
+        HandleLocationChanging(level, player);
+    }
+
     private void Context_PlayerMapChangeResponded(PacketPlayerMapChangedResponse packet)
     {
         if (Engine.Scene is not Level level)
@@ -516,16 +558,20 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (Engine.Scene is not Level level)
             return;
 
+        var delta = packet.StateDelta;
+
         if (ghosts.TryGetValue(player.ID, out var ghost))
         {
             if (!ghost.BeingHeldLocally)
-                ghost.Position = packet.Position;
+                ghost.Position = delta.Position;
 
-            ghost.UpdateInteractions(packet.Interactions);
-            ghost.UpdateSprite(packet.Animation, packet.AnimationFrame, packet.FacingLeft, packet.Scale);
-            if (packet.HasHoldable)
+            // hmmm can we avoid these tons of updates?
+
+            ghost.UpdateInteractions(delta.StateFlags.HasFlag(PlayerStateFlags.Interactions));
+            ghost.UpdateSprite(delta.Animation, delta.AnimationFrame, delta.StateFlags.HasFlag(PlayerStateFlags.FacingLeft), delta.Scale);
+            if (delta.HasHoldable)
             {
-                var hi = packet.HoldableInfo;
+                var hi = delta.HoldableInfo;
                 if (hi.Type == HoldableType.Jelly)
                     ghost.UpdateHoldable(
                         hi.Type,
@@ -545,21 +591,21 @@ public sealed partial class MainComponent : MiaoNetComponent
             {
                 ghost.UpdateNoHoldable();
             }
-            if (packet.HasFollowerInitials)
-                ghost.OnFollowerInitials(packet.FollowerInitials);
-            else if (packet.HasFollowerDeltas)
-                ghost.OnFollowerDeltas(packet.FollowerDeltas);
+            if (delta.HasFollowerInitials)
+                ghost.OnFollowerInitials(delta.FollowerInitials);
+            else if (delta.HasFollowerDeltas)
+                ghost.OnFollowerDeltas(delta.FollowerDeltas);
 
-            if (packet.HasWindDirection)
-                ghost.UpdateWind(packet.WindDirection);
+            if (delta.HasWindDirection)
+                ghost.UpdateWind(delta.WindDirection);
 
             ghost.UpdateDashing(
-                packet.Dashing, packet.DashDirection / (float)byte.MaxValue * MathF.Tau,
-                packet.DashesChange, packet.Dashes
+                delta.StateFlags.HasFlag(PlayerStateFlags.Dashing), delta.DashDirection / (float)byte.MaxValue * MathF.Tau,
+                delta.DashesChange, delta.Dashes
             );
-            ghost.NotifyStarFlying(packet.StarFlying);
-            ghost.UpdateDucking(packet.Ducking);
-            ghost.UpdateTired(packet.Tired);
+            ghost.UpdateStarFlying(delta.StateFlags.HasFlag(PlayerStateFlags.StarFlying));
+            ghost.UpdateDucking(delta.StateFlags.HasFlag(PlayerStateFlags.Ducking));
+            ghost.UpdateTired(delta.StateFlags.HasFlag(PlayerStateFlags.Tired));
         }
         else
         {
@@ -593,9 +639,9 @@ public sealed partial class MainComponent : MiaoNetComponent
             state = ClientState.SelfState;
             SafeGuard.Assert(state is not null);
         }
-        if (state.Dead)
+        if (state.StateFlags.HasFlag(PlayerStateFlags.Dead))
         {
-            state.Dead = false;
+            state.StateFlags &= ~PlayerStateFlags.Dead;
             var type = fromSL ? LiveStateType.RespawnFromSL : LiveStateType.Respawn;
             PacketPlayerLiveState packet = new(type, player.Position);
             context.QueuePacket(packet);
@@ -608,9 +654,9 @@ public sealed partial class MainComponent : MiaoNetComponent
             return;
         CleanUpInteractions(player.SceneAs<Level>());
         var state = ClientState.SelfState!;
-        if (!state.Dead)
+        if (!state.StateFlags.HasFlag(PlayerStateFlags.Dead))
         {
-            state.Dead = true;
+            state.StateFlags |= PlayerStateFlags.Dead;
             PacketPlayerLiveState packet = new(LiveStateType.Die, direction);
             context.QueuePacket(packet);
         }
@@ -636,7 +682,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (!ghosts.TryGetValue(player.ID, out var ghost))
             return;
         ghost.OnUpdatePaused(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Paused));
-        ghost.OnUpdateWatching();
+        ghost.OnUpdateWatching(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
     }
 
     private void Context_PlayerCreatedFireworks(OnlinePlayer player, Color color, float initialSpeed)
@@ -704,7 +750,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             level.CompletelyRemove(ghost);
             ghosts.Remove(other.ID);
         }
-        if (other.State is not null)
+        if (other.State is not null && other.Location.IsInMap)
         {
             ghosts[other.ID] = ghost = new(other, context.ShowAvatar);
             level.Add(ghost);

@@ -4,17 +4,17 @@ using MiaoNet.Shared;
 
 namespace MiaoNet.Server.GameScope;
 
-public sealed class MapScope : Scope<PlayerMap, string>
+public sealed class MapScope : Scope<PlayerMapLocation, string>
 {
     private readonly Channel<Func<Task>> workQueue;
     private readonly Task consumer;
     private readonly ILogger logger;
 
-    public PlayerMap Map { get; }
+    public PlayerMapLocation Map { get; }
 
     public override bool Permanent => false;
 
-    public MapScope(PlayerMap map, ChannelScope parent, ILogger logger) : base(map, parent)
+    public MapScope(PlayerMapLocation map, ChannelScope parent, ILogger logger) : base(map, parent)
     {
         this.logger = logger;
         Map = map;

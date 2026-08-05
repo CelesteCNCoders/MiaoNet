@@ -16,7 +16,7 @@ public sealed class ChatMessageListView
     private const float TimeTextWidthRatio = 3.25f;
 
     private readonly List<ChatItem> chatLog;
-    private readonly ITextRenderer textRenderer;
+    private readonly IScalelessTextRenderer textRenderer;
 
     private bool active;
 
@@ -36,7 +36,7 @@ public sealed class ChatMessageListView
 
     public bool NoNewMessagesShowing { get; set; }
 
-    public ChatMessageListView(ITextRenderer textRenderer)
+    public ChatMessageListView(IScalelessTextRenderer textRenderer)
     {
         this.textRenderer = textRenderer;
         chatLog = new();
@@ -194,8 +194,6 @@ public sealed class ChatMessageListView
         }
     }
 
-
-    // TODO introducing ChatText.Render?
     private bool DrawSingleMessage(ChatItem item, float x, float y, float alpha)
     {
         var (dateTimeText, msg, _, msgFade) = item;
@@ -233,53 +231,8 @@ public sealed class ChatMessageListView
             curX += timeTextMaxWidth;
         }
 
-        foreach (var seg in msg.Segments)
-        {
-            Vector2 size = textRenderer.Measure(seg.Text);
+        textRenderer.Draw(msg, new Vector2(curX, curY), 1f, drawAlpha);
 
-            if (!seg.Style.HasFlag(ChatTextStyle.Outline))
-            {
-                textRenderer.Draw(
-                    seg.Text,
-                    new Vector2(curX, curY),
-                    new Vector2(0f, 1f),
-                    seg.Color * drawAlpha
-                );
-            }
-            else
-            {
-                textRenderer.DrawOutline(
-                    seg.Text,
-                    new Vector2(curX, curY),
-                    new Vector2(0f, 1f),
-                    seg.Color * drawAlpha
-                );
-            }
-
-            if (seg.Style.HasFlag(ChatTextStyle.Underscore))
-            {
-                float thinkness = Math.Max(2f, 4f * textRenderer.LineHeight / 96f);
-                Draw.Line(
-                    new Vector2(curX, curY),
-                    new Vector2(curX + size.X, curY),
-                    seg.Color * drawAlpha,
-                    thinkness
-                );
-            }
-
-            if (seg.Style.HasFlag(ChatTextStyle.Strikethrough))
-            {
-                float thinkness = Math.Max(2f, 4f * textRenderer.LineHeight / 96f);
-                Draw.Line(
-                    new Vector2(curX, curY - lineHeight / 2f),
-                    new Vector2(curX + size.X, curY - lineHeight / 2),
-                    seg.Color * drawAlpha,
-                    thinkness
-                );
-            }
-
-            curX += size.X;
-        }
         return true;
 
         static void DrawSnappedRect(float x, float y, float width, float height, Color color)

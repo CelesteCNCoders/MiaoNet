@@ -41,7 +41,7 @@ public class ScopeTree
         return MovePlayer(player, channel.Scope!);
     }
 
-    public MoveResult MovePlayerToMap(ServerPlayer player, PlayerMap map)
+    public MoveResult MovePlayerToMap(ServerPlayer player, PlayerMapLocation map)
     {
         using (treeLock.AcquireWriteLock())
         {
@@ -69,7 +69,7 @@ public class ScopeTree
         }
     }
 
-    public MoveResult MovePlayerToMapInChannel(ServerPlayer player, PlayerMap map, ChannelScope channel)
+    public MoveResult MovePlayerToMapInChannel(ServerPlayer player, PlayerMapLocation map, ChannelScope channel)
     {
         using (treeLock.AcquireWriteLock())
         {

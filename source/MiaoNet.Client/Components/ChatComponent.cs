@@ -41,7 +41,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
     private readonly CommandParser cmdParser;
 
-    private readonly MiaoNetChatTextRenderer textRenderer;
+    private readonly ScalelessChatTextRenderer textRenderer;
 
     private string lastInput = string.Empty;
     private readonly List<string> history;
@@ -54,7 +54,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     {
         history = new();
         float scale = MiaoNetModule.Settings.ChatUIScaleValue;
-        textRenderer = new MiaoNetChatTextRenderer(scale, MiaoNetFont.ENZhsLineHeight * scale);
+        textRenderer = new ScalelessChatTextRenderer(scale, MiaoNetFont.ENZhsLineHeight * scale);
         dummyOverlay = new();
         cmdParser = new(MiaoNetCommand.Commands);
         inputBox = new InputBox(textRenderer, new ChatCompletionProvider(context, cmdParser));

@@ -68,7 +68,7 @@ public sealed class ServerState
     public MoveResult MovePlayerToChannel(ServerPlayer player, ServerChannel channel)
         => ScopeTree.MovePlayerToChannel(player, channel);
 
-    public MoveResult MovePlayerToMap(ServerPlayer player, PlayerMap map)
+    public MoveResult MovePlayerToMap(ServerPlayer player, PlayerMapLocation map)
         => ScopeTree.MovePlayerToMap(player, map);
 
     //TODO: Use Room

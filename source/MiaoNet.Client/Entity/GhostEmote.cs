@@ -17,7 +17,7 @@ public sealed class GhostEmote : MiaoNetEntity
 
     private GhostEmote(Entity target)
     {
-        Tag = MiaoNetTag.Tag | TagsExt.SubHUD;
+        Tag = MiaoNetTag.Hud;
         this.target = target;
         Add(new Coroutine(Routine()));
     }
@@ -102,6 +102,6 @@ public sealed class GhostEmote : MiaoNetEntity
             );
             position = ScreenClamper.ClampIntoScreen(position, size * popupScale * scale, new Vector2(1f / 2f, 1f), Margin);
             MiaoNetFont.DrawOutlineBottomCentered(text, position, Vector2.One * popupScale * scale, Color.White * baseAlpha * popupAlpha);
-        }
+    }
     }
 }

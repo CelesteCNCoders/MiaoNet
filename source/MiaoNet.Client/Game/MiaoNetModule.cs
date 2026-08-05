@@ -28,6 +28,7 @@ public sealed class MiaoNetModule : EverestModule
     // TODO this is ugly
     public static Vector2? NextPlayerSpawnPosition { get; set; }
 
+    // forceFullChange: the player may re-enter a map so we have to re-send full state
     public delegate void PlayerLocationChangedHandler(PlayerLocation location, bool forceFullChange);
     public static event PlayerLocationChangedHandler? PlayerLocationChanged;
 
@@ -85,6 +86,7 @@ public sealed class MiaoNetModule : EverestModule
 
         SpeedrunToolCompat.Load();
         typeof(CollabUtils2Interop).ModInterop();
+        typeof(ExtendedVariantInterop).ModInterop();
 
 #if DEBUG
         Engine.Instance.IsMouseVisible = true;
@@ -122,7 +124,7 @@ public sealed class MiaoNetModule : EverestModule
     public override void LoadContent(bool firstLoad)
     {
         base.LoadContent(firstLoad);
-        GhostRenderLayerEntity.LoadContent();
+        MiaoNetGraphics.LoadContent();
     }
 
     public override void OnInputInitialize()

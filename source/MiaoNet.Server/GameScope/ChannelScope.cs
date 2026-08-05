@@ -3,7 +3,7 @@ using MiaoNet.Shared;
 
 namespace MiaoNet.Server.GameScope;
 
-public sealed class ChannelScope: Scope<int, PlayerMap>
+public sealed class ChannelScope: Scope<int, PlayerMapLocation>
 {
     private readonly ILogger logger;
     private readonly object ensureLock = new();
@@ -20,7 +20,7 @@ public sealed class ChannelScope: Scope<int, PlayerMap>
         parent.AddChild(channel.ID, this);
     }
 
-    public MapScope EnsureMapScope(PlayerMap map)
+    public MapScope EnsureMapScope(PlayerMapLocation map)
     {
         lock (ensureLock)
         {

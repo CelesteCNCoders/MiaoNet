@@ -81,7 +81,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
     public MiaoNetGhost(OnlinePlayer player, bool avatar)
     {
-        Tag = MiaoNetTag.Tag;
+        Tag = MiaoNetTag.Normal;
         Depth = Depths.Player + 1;
         OnlinePlayer = player;
         GraphicsInfo = player.GraphicsInfo;
@@ -99,11 +99,22 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         lastDashedDashes = dashes;
         Position = initialState.Position;
         windDirection = initialState.WindDirection;
-        ducking = initialState.Ducking;
-        UpdateFacing(initialState.FacingLeft);
         OnFollowerInitials(initialState.FollowerInfos);
-        UpdateDucking(initialState.Ducking);
         UpdateWind(initialState.WindDirection);
+
+        PlayerStateFlags stateFlags = initialState.StateFlags;
+        dashing = stateFlags.HasFlag(PlayerStateFlags.Dashing);
+        UpdateStarFlying(stateFlags.HasFlag(PlayerStateFlags.StarFlying));
+        UpdateInteractions(stateFlags.HasFlag(PlayerStateFlags.Interactions));
+        UpdateDucking(stateFlags.HasFlag(PlayerStateFlags.Ducking));
+        tired = stateFlags.HasFlag(PlayerStateFlags.Tired);
+        bool facingLeft = stateFlags.HasFlag(PlayerStateFlags.FacingLeft);
+        // TODO dead
+
+        UpdateSprite(initialState.Animation, initialState.AnimationFrame, facingLeft, initialState.Scale);
+
+        if (dashing)
+            lastDashDirection = initialState.LastDashDirection;
 
         Add(playerHair);
         Add(playerSprite);
@@ -117,7 +128,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         pDashColorBaseB = (pDashB.Color, pDashB.Color2);
 
         OnUpdatePaused(player.IsPaused);
-        OnUpdateWatching();
+        OnUpdateWatching(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
 
         selfHoldable = new(1f / 5f)
         {
@@ -506,7 +517,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     }
 
     // TODO start star flying sync?
-    public void NotifyStarFlying(bool starFlying)
+    public void UpdateStarFlying(bool starFlying)
     {
         if (this.starFlying != starFlying)
         {
@@ -523,7 +534,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                 playerHair.SimulateMotion = true;
             }
             this.starFlying = starFlying;
-
         }
     }
 
@@ -612,6 +622,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             {
                 playerHair.Active = false;
                 idleHover = new(this);
+                idleHover.Visible = this.Visible;
                 if (Scene is not null)
                 {
                     Scene.Add(idleHover);
@@ -629,7 +640,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         }
     }
 
-    public void OnUpdateWatching()
+    public void OnUpdateWatching(bool watching)
     {
         UpdateVisible();
     }
@@ -637,8 +648,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     private void UpdateVisible()
     {
         bool watching = OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching);
+
         Visible = (!dead || respawning) && !watching;
         nameTag.Visible = !watching;
+        idleHover?.Visible = this.Visible;
     }
 
     private void UpdateCollidable()

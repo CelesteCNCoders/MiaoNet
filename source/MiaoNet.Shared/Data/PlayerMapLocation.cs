@@ -1,6 +1,6 @@
 namespace MiaoNet.Shared;
 
-public readonly struct PlayerMap : IEquatable<PlayerMap>, IRefBinarySerializable<PlayerMap>
+public readonly struct PlayerMapLocation : IEquatable<PlayerMapLocation>, IRefBinarySerializable<PlayerMapLocation>
 {
     public string Sid { get; }
 
@@ -10,13 +10,13 @@ public readonly struct PlayerMap : IEquatable<PlayerMap>, IRefBinarySerializable
 
     public bool IsEmpty => Sid.Length == 0;
 
-    public PlayerMap()
+    public PlayerMapLocation()
     {
         Sid = string.Empty;
         AreaMode = AreaMode.Normal;
     }
 
-    public PlayerMap(string sid, AreaMode areaMode)
+    public PlayerMapLocation(string sid, AreaMode areaMode)
     {
         if (sid.Length == 0)
             SafeGuard.Assert(areaMode is AreaMode.Normal);
@@ -28,18 +28,18 @@ public readonly struct PlayerMap : IEquatable<PlayerMap>, IRefBinarySerializable
         => IsEmpty ? string.Empty : $"{Sid} {AreaModeCharacter}";
 
     public override bool Equals(object? obj)
-        => obj is PlayerMap map && Equals(map);
+        => obj is PlayerMapLocation map && Equals(map);
 
-    public bool Equals(PlayerMap other)
+    public bool Equals(PlayerMapLocation other)
         => Sid == other.Sid && AreaMode == other.AreaMode;
 
     public override int GetHashCode()
         => HashCode.Combine(Sid, AreaMode);
 
-    public static bool operator ==(PlayerMap left, PlayerMap right)
+    public static bool operator ==(PlayerMapLocation left, PlayerMapLocation right)
         => left.Equals(right);
 
-    public static bool operator !=(PlayerMap left, PlayerMap right)
+    public static bool operator !=(PlayerMapLocation left, PlayerMapLocation right)
         => !(left == right);
 
     public void Serialize(ref RefBinaryWriter writer)
@@ -49,10 +49,10 @@ public readonly struct PlayerMap : IEquatable<PlayerMap>, IRefBinarySerializable
             writer.Write((byte)AreaMode);
     }
 
-    public static PlayerMap Deserialize(ref RefBinaryReader reader)
+    public static PlayerMapLocation Deserialize(ref RefBinaryReader reader)
     {
         string sid = reader.ReadString();
         AreaMode areaMode = sid.Length == 0 ? AreaMode.Normal : (AreaMode)reader.ReadByte();
-        return new PlayerMap(sid, areaMode);
+        return new PlayerMapLocation(sid, areaMode);
     }
 }
