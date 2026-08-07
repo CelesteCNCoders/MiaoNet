@@ -43,13 +43,8 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
         while (true)
         {
             position = new(position.X + Random.Shared.Next(0, 30) / 60f, position.Y);
-            connection.QueuePacket(new PacketPlayerFrame(
-                position,
-                "idle",
-                (ushort)Random.Shared.Next(0, 3),
-                new Vector2(1f, 1f),
-                PacketPlayerFrame.FrameFlags.FacingLeft
-            ));
+            PlayerStateDelta d = new(position, "idle", 0, Vector2.One, PlayerStateDelta.FrameFlags.None, PlayerStateFlags.FacingLeft);
+            connection.QueuePacket(new PacketPlayerFrame(d));
 
             await Task.Delay((int)(1f / 60f * 1000f));
         }
@@ -87,7 +82,20 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
         connection.QueuePacket(
             new PacketPlayerMapChanged(
                 new PlayerLocation("Celeste/LostLevels", AreaMode.Normal, "intro-00-past"),
-                new PlayerState(position, 2, 1f / 60f)
+                new PlayerState()
+                {
+                    Position = position,
+                    Animation = "idle",
+                    AnimationFrame = 0,
+                    Scale = Vector2.One,
+                    StateFlags = PlayerStateFlags.FacingLeft,
+                    Dashes = 1,
+                    DeltaTime = 0f,
+                    PlayerSpriteMode = PlayerSpriteMode.Madeline,
+                    HoldableInfo = new HoldableInfo(),
+                    FollowerInfos = Array.Empty<FollowerInfo>(),
+                    WindDirection = Vector2.Zero
+                }
             )
         );
         _ = FrameLoop();
