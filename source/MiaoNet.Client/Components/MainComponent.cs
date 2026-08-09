@@ -31,9 +31,8 @@ public sealed partial class MainComponent : MiaoNetComponent
 
         context.PlayerLeft += Context_PlayerLeft;
         context.PlayerFrameNotification += Context_PlayerFrameNotification;
-        context.PlayerMapChanged += Context_PlayerMapChanged;
-        context.PlayerMapRoomChanged += Context_PlayerMapRoomChanged;
-        context.PlayerMapChangeResponded += Context_PlayerMapChangeResponded;
+        context.PlayerLocationChanged += Context_PlayerLocationChanged;
+        context.PlayerLocationChangeResponded += Context_PlayerLocationChangeResponded;
         context.PlayerLiveStateNotification += Context_PlayerLiveStateNotification;
         context.PlayerGlobalFlagsChanged += Context_PlayerGlobalFlagsChanged;
         context.PlayerCreatedFireworks += Context_PlayerCreatedFireworks;
@@ -53,6 +52,8 @@ public sealed partial class MainComponent : MiaoNetComponent
     {
         if (Engine.Scene is Level level)
             MiaoNetModule_OnPlayerLocationChanged(PlayerLocation.FetchFrom(level.Session), true);
+        else if (Engine.Scene is Editor.MapEditor debugMap)
+            MiaoNetModule_OnPlayerLocationChanged(new PlayerLocation(debugMap.mapData.Area, string.Empty), true);
     }
 
     public override void OnDisconnected()
@@ -444,7 +445,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         };
 
         ClientState.SelfState = initialState;
-        PacketPlayerMapChanged p = new(location, initialState);
+        PacketPlayerLocationChanged p = new(location, initialState);
         context.QueuePacket(p);
         return true;
     }
@@ -455,10 +456,14 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (!HasState)
             return;
         var changeResult = ClientState.OnPlayerLocationChanged(location);
-        if (changeResult is PlayerLocation.ChangeResult.All || forceFullChange)
-        {
-            TryDisableGroupPhotoModeAndTip();
+        bool fullSync = forceFullChange || changeResult is PlayerLocation.ChangeResult.FullSync;
+        if (changeResult is PlayerLocation.ChangeResult.None && !fullSync)
+            return;
 
+        TryDisableGroupPhotoModeAndTip();
+
+        if (fullSync)
+        {
             Level? level = Engine.Scene as Level;
             CleanUpGhosts(level);
             CleanUpInteractions(level);
@@ -490,21 +495,15 @@ public sealed partial class MainComponent : MiaoNetComponent
             }
             else
             {
-                PacketPlayerMapChanged p = new(location, null);
-                context.QueuePacket(p);
+                context.QueuePacket(new PacketPlayerLocationChanged(location, null));
             }
 
             foreach (var pair in ClientState.Players)
                 pair.Value.State = null;
         }
-        else if (changeResult is PlayerLocation.ChangeResult.RoomOnly)
+        else
         {
-            TryDisableGroupPhotoModeAndTip();
-            if (location.IsInDebugMap)
-                CleanUpGhosts(null);
-
-            PacketPlayerMapRoomChanged p = new(location.Room);
-            context.QueuePacket(p);
+            context.QueuePacket(new PacketPlayerLocationChanged(location, null));
         }
 
         void TryDisableGroupPhotoModeAndTip()
@@ -527,27 +526,26 @@ public sealed partial class MainComponent : MiaoNetComponent
         ghosts.Clear();
     }
 
-    private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotification packet)
+    private void Context_PlayerLocationChanged(OnlinePlayer player, PacketPlayerLocationChangedNotification packet)
     {
-        Logger.Debug(LT.MiaoNet, $"MapChanging: {player.Info.Name} to {packet.Location}");
+        Logger.Debug(LT.MiaoNet, $"LocationChanging: {player.Info.Name} to {packet.Location}");
         if (Engine.Scene is not Level level)
+            return;
+
+        bool roomOnly = packet.InitialState is null
+            && packet.Location.IsInMap
+            && ClientState.Self.Location.Map == packet.Location.Map;
+
+        if (roomOnly)
             return;
         HandleLocationChanging(level, player);
     }
 
-    private void Context_PlayerMapRoomChanged(OnlinePlayer player, string room)
-    {
-        Logger.Debug(LT.MiaoNet, $"MapRoomChanging: {player.Info.Name} to room {room}");
-        if (Engine.Scene is not Level level || room.Length != 0)
-            return;
-        HandleLocationChanging(level, player);
-    }
-
-    private void Context_PlayerMapChangeResponded(PacketPlayerMapChangedResponse packet)
+    private void Context_PlayerLocationChangeResponded(PacketPlayerLocationChangedResponse packet)
     {
         if (Engine.Scene is not Level level)
             return;
-        Logger.Debug(LT.MiaoNet, $"MapChangeResponding: Players count = {packet.Players.Count}");
+        Logger.Debug(LT.MiaoNet, $"LocationChangeResponding: Players count = {packet.Players.Count}");
         CleanUpGhosts(level);
         foreach (var item in packet.Players)
         {

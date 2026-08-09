@@ -10,12 +10,9 @@ using MiaoNet.Shared;
     typeof(PacketPlayerLiveState),
     typeof(PacketPlayerNotification<PacketPlayerLiveState>),
 
-    typeof(PacketPlayerMapChanged),
-    typeof(PacketPlayerMapChangedNotification),
-    typeof(PacketPlayerMapChangedResponse),
-
-    typeof(PacketPlayerMapRoomChanged),
-    typeof(PacketPlayerNotification<PacketPlayerMapRoomChanged>),
+    typeof(PacketPlayerLocationChanged),
+    typeof(PacketPlayerLocationChangedNotification),
+    typeof(PacketPlayerLocationChangedResponse),
 
     typeof(PacketChatMessage),
     typeof(PacketSendChatMessage),

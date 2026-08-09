@@ -38,12 +38,16 @@ public sealed class ServerMap : IPlayerScope
     public IReadOnlyCollection<PlayerMovedInitialData> GetPlayerMovedInitialDatas(MiaoClientConnection except)
     {
         Debug.Assert(StateLock.IsWriteLockHeld);
-        return (from con in players
-                where con != except
-                let p = con.Player
-                select new PlayerMovedInitialData(
-                    p.ID,
-                    p.State!.Clone()
-                )).ToList();
+
+        var list = new List<PlayerMovedInitialData>(players.Count - 1);
+        foreach (var con in players)
+        {
+            var p = con.Player;
+            // players that in debug map can cause null state
+            if (con == except || p.State is null)
+                continue;
+            list.Add(new PlayerMovedInitialData(p.ID, p.State!.Clone()));
+        }
+        return list;
     }
 }

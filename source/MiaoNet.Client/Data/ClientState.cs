@@ -131,7 +131,7 @@ public sealed class ClientState
 
     public PlayerLocation.ChangeResult OnPlayerLocationChanged(PlayerLocation location)
     {
-        PlayerLocation.ChangeResult result = Self.Location.CompareTo(location);
+        PlayerLocation.ChangeResult result = Self.Location.GetChangeResult(location);
         Self.Location = location;
         if (result != PlayerLocation.ChangeResult.None)
             SelfLocationChanged?.Invoke();

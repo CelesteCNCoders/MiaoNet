@@ -10,8 +10,7 @@ public sealed partial class MiaoServerService
     private void RegisterPacketHandlers(PacketHandlerRegister r)
     {
         r.Register<PacketPlayerFrame>(HandlePacketAsync);
-        r.Register<PacketPlayerMapChanged>(HandlePacketAsync);
-        r.Register<PacketPlayerMapRoomChanged>(HandlePacketAsync);
+        r.Register<PacketPlayerLocationChanged>(HandlePacketAsync);
         r.Register<PacketPlayerChannelMove>(HandlePacketAsync);
         r.Register<PacketChannelCreateAndJoin>(HandlePacketAsync);
         r.Register<PacketSendChatMessage>(HandlePacketAsync);
@@ -72,86 +71,99 @@ public sealed partial class MiaoServerService
         );
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerMapChanged packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerLocationChanged packet)
     {
         var player = connection.Player;
+        var oldLocation = player.Location;
+        var newLocation = packet.Location;
         logger.LogDebug(
             AppEvents.GameState,
-            "Player {p} map changing from {p1} to {p2}.",
-            player.Info, player.Location, packet.Location
+            "Player {p} location changing from {p1} to {p2}.",
+            player.Info, oldLocation, newLocation
         );
 
-        if (packet.Location.IsEmpty)
+        // went to somewhere like debug map or menu
+        if (!newLocation.IsInMap)
         {
+            Task othersTask;
+            ValueTask debugSnapshotTask = default;
             using (stateLock.AcquireWriteLock())
             {
-                player.Channel.OnPlayerMapMove(connection, player.Location.Map, packet.Location.Map);
+                othersTask = BroadcastToScopeExceptAsync(
+                    new PacketPlayerLocationChangedNotification(player.ID, newLocation, null),
+                    serverState,
+                    connection.ID
+                );
 
-                player.Location = packet.Location;
+                // if the player is going to debug map
+                // sending states here is necessary currently
+                if (newLocation.IsInDebugMap && player.Channel.Maps.TryGetValue(newLocation.Map, out var mapTo))
+                {
+                    mapTo.StateLock.EnterWriteLock();
+                    try
+                    {
+                        var mapPlayers = mapTo.GetPlayerMovedInitialDatas(connection);
+                        debugSnapshotTask = connection.QueuePacketAsync(
+                            new PacketPlayerLocationChangedResponse(mapPlayers));
+                    }
+                    finally
+                    {
+                        mapTo.StateLock.ExitWriteLock();
+                    }
+                }
+
+                player.Channel.OnPlayerMapMove(connection, oldLocation.Map, newLocation.Map);
+                player.Location = newLocation;
                 player.State = null;
             }
-            // player went to menu or other non-Level places
-            // just tell everyone about this thing
+
+            await othersTask;
+            await debugSnapshotTask;
+            return;
+        }
+
+        // just changed room, no need to send state
+        if (oldLocation.IsInMap && oldLocation.Map == newLocation.Map && packet.InitialState is null)
+        {
+            player.Location = newLocation;
             await BroadcastToScopeExceptAsync(
-                new PacketPlayerMapChangedNotification(player.ID, PlayerLocation.Empty),
+                new PacketPlayerLocationChangedNotification(player.ID, newLocation, null),
                 serverState,
                 connection.ID
             );
             return;
         }
-        else if (packet.Location.IsInDebugMap)
-        {
-            using (stateLock.AcquireWriteLock())
-            {
-                player.Channel.OnPlayerMapMove(connection, player.Location.Map, packet.Location.Map);
 
-                player.Location = packet.Location;
-                player.State = null;
-            }
-            // player went to the debug map
-            // tell everyone about this thing
-            await BroadcastToScopeExceptAsync(
-                new PacketPlayerMapChangedNotification(player.ID, packet.Location),
-                serverState,
-                connection.ID
-            );
-            // TODO if the player went here from a different map then we should send states
-            return;
-        }
-
-        // else, the player(A) went into a map
-        // we need:
-        // - tell players that in that map and in the same channel that someone comes
-        // - tell other players that someone changed their location
-        // - send detailed player states to A
-        Debug.Assert(packet.Location.IsInMap);
+        // now the initial state is necessary
+        // note that map reentering is supported, so "oldLocation.Map == newLocation.Map" can be true here
         if (packet.InitialState is null)
         {
             logger.LogWarning(
                 AppEvents.GameState,
                 "Player {p} didn't send state when went to {loc}.",
-                player.Info, packet.Location
+                player.Info, newLocation
             );
             await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
             return;
         }
 
+        Debug.Assert(newLocation.IsInMap);
         Task generalTask, withStateTask;
         ValueTask responseTask = default;
 
         using (stateLock.AcquireWriteLock())
         {
             var c = player.Channel;
-            c.Maps.TryGetValue(packet.Location.Map, out var mapTo);
+            c.Maps.TryGetValue(newLocation.Map, out var mapTo);
 
             mapTo?.StateLock.EnterWriteLock();
             try
             {
-                var generalPacket = new PacketPlayerMapChangedNotification(player.ID, packet.Location);
-                var withStatePacket = new PacketPlayerMapChangedNotification(player.ID, packet.Location, packet.InitialState);
+                var generalPacket = new PacketPlayerLocationChangedNotification(player.ID, newLocation, null);
+                var withStatePacket = new PacketPlayerLocationChangedNotification(player.ID, newLocation, packet.InitialState);
 
                 var mapPlayers = mapTo?.GetPlayerMovedInitialDatas(connection) ?? [];
-                var responsePacket = new PacketPlayerMapChangedResponse(mapPlayers);
+                var responsePacket = new PacketPlayerLocationChangedResponse(mapPlayers);
 
                 generalTask = mapTo is not null
                     ? BroadcastToScopeExceptAsync(generalPacket, serverState, connection.ID, c => !mapTo.Players.Contains(c))
@@ -162,10 +174,9 @@ public sealed partial class MiaoServerService
                     : Task.CompletedTask;
                 responseTask = connection.QueuePacketAsync(responsePacket);
 
-                c.OnPlayerMapMove(connection, player.Location.Map, packet.Location.Map);
-                player.Location = packet.Location;
+                c.OnPlayerMapMove(connection, oldLocation.Map, newLocation.Map);
+                player.Location = newLocation;
                 player.State = packet.InitialState;
-
             }
             finally
             {
@@ -176,23 +187,6 @@ public sealed partial class MiaoServerService
         await generalTask;
         await withStateTask;
         await responseTask;
-    }
-
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerMapRoomChanged packet)
-    {
-        var player = connection.Player;
-        logger.LogTrace(
-            AppEvents.GameState,
-            "Player {p} map room changed from room {p} to {a}.",
-            player.Info, player.Location.Room,
-            packet.MapRoom
-        );
-        player.Location = new(player.Location.Map, packet.MapRoom);
-        await BroadcastToScopeExceptAsync(
-            new PacketPlayerNotification<PacketPlayerMapRoomChanged>(player.ID, packet),
-            serverState,
-            connection.ID
-        );
     }
 
     // TODO this has a large percent of "almost same" logic with `MapChanged` stuffs

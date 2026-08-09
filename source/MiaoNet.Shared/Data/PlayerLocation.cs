@@ -64,17 +64,17 @@ public readonly struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, 
     public static bool operator !=(PlayerLocation left, PlayerLocation right)
         => !(left == right);
 
-    public enum ChangeResult { None, RoomOnly, All }
+    public enum ChangeResult { None, Incremental, FullSync, }
 
-    public readonly ChangeResult CompareTo(PlayerLocation other)
+    public readonly ChangeResult GetChangeResult(PlayerLocation other)
     {
         if (this == other)
             return ChangeResult.None;
 
-        if (Map == other.Map && Room != other.Room)
-            return ChangeResult.RoomOnly;
+        if (Map == other.Map && Room.Length != 0 && other.Room.Length != 0 && Room != other.Room)
+            return ChangeResult.Incremental;
         else
-            return ChangeResult.All;
+            return ChangeResult.FullSync;
     }
 
     public override string ToString()

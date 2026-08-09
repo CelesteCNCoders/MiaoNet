@@ -80,7 +80,7 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
         Log($"Received ack.");
 
         connection.QueuePacket(
-            new PacketPlayerMapChanged(
+            new PacketPlayerLocationChanged(
                 new PlayerLocation("Celeste/LostLevels", AreaMode.Normal, "intro-00-past"),
                 new PlayerState()
                 {

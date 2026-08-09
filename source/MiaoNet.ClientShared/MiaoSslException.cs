@@ -1,7 +1,7 @@
-﻿using System.Net.Security;
+using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 
-namespace Celeste.Mod.MiaoNet;
+namespace MiaoNet.ClientShared;
 
 // unluckly we can't get anything from AuthenticationException
 // so we need to handle these manually...
