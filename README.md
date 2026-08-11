@@ -45,6 +45,21 @@ CelesteNet 的一个重写, 以应对数以百计的蔚蓝联机玩家.
 
 [见该 Issue](https://github.com/CelesteCNCoders/MiaoNet/issues/2)
 
+## 服务端 HTTP 接口与管理后台
+
+服务端内置了一个基于 `HttpListener` 的 HTTP 服务(见 `source/MiaoNet.Server/Http`):
+
+- 公开接口: `GET /status`、`GET /metrics`
+- 受保护接口(需要在请求头携带 `X-Api-Token`, 值为配置项 `MiaoServer:ApiToken`; 为空则不校验并会在启动时警告):
+  `DELETE /player`(按 `cid`/`aid` 踢人)、`POST /announce`(广播公告)、`/gc`
+- 管理后台(配置节 `MiaoServer:AdminPanel`, 默认关闭): 通过论坛 OAuth 登录,
+  仅论坛管理员可进入, 支持查看在线玩家/频道/指标以及踢人、广播公告.
+  入口为 `GET /admin/login`.
+
+注意: 默认监听前缀 `MiaoServer:HttpListenerPrefix` 为 `http://localhost:21474/`, 只监听本机回环地址.
+若要对公网开放管理后台或 API, 需将其改为如 `http://+:21474/` 的前缀(或配置反向代理),
+并且**务必**配置强随机的 `MiaoServer:ApiToken`.
+
 ## LICENSE
 
 本项目部分借鉴了 [CelesteNet](https://github.com/0x0ade/CelesteNet)([MIT](https://github.com/0x0ade/CelesteNet/blob/e962823cf9666024fd255db9cb5d72a3a5c4d7c6/LICENSE))

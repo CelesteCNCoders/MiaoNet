@@ -1,4 +1,4 @@
-﻿namespace MiaoNet.Server;
+namespace MiaoNet.Server;
 
 public sealed class MiaoServerOptions
 {
@@ -19,4 +19,8 @@ public sealed class MiaoServerOptions
     public required AuthenticationOptions Authentication { get; set; }
 
     public string HttpListenerPrefix { get; set; } = "http://localhost:21474/";
+
+    public string ApiToken { get; set; } = string.Empty;
+
+    public AdminPanelOptions AdminPanel { get; set; } = new();
 }

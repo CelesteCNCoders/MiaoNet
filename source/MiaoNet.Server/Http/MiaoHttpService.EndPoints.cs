@@ -11,6 +11,23 @@ public partial class MiaoHttpService
 {
     // TODO uh, we may need to switch our connection id fully to auth id
     // TODO don't use MiaoServerServices directly, use sth like IMiaoServerService
+    private async Task<int> KickByAuthIDAsync(int aid, string reason)
+    {
+        int kicked = 0;
+        foreach (var p in miaoServerService.ServerState.AllPlayers)
+        {
+            if (p.Value.Player.Info.AuthID == aid)
+            {
+                await p.Value.Connection.DisconnectAsync(DisconnectReason.Kicked, reason);
+                kicked++;
+            }
+        }
+        return kicked;
+    }
+
+    private Task BroadcastAnnouncementAsync(string message)
+        => miaoServerService.BroadcastAsync(new PacketChatMessage(DateTime.UtcNow, ChatMessageType.Server, null, message));
+
     private async Task Player(NameValueCollection query, HttpListenerContext context)
     {
         switch (context.Request.HttpMethod)
@@ -36,11 +53,7 @@ public partial class MiaoHttpService
             }
             else if (int.TryParse(query["aid"], CultureInfo.InvariantCulture, out int aid))
             {
-                foreach (var p in miaoServerService.ServerState.AllPlayers)
-                {
-                    if (p.Value.Player.Info.AuthID == aid)
-                        await p.Value.Connection.DisconnectAsync(DisconnectReason.Kicked, reason);
-                }
+                await KickByAuthIDAsync(aid, reason);
                 context.Response.StatusCode = (int)HttpStatusCode.NoContent;
                 break;
             }
@@ -95,9 +108,7 @@ public partial class MiaoHttpService
             return;
         }
 
-        var players = miaoServerService.ServerState.AllPlayers;
-        foreach (var (_, (p, c)) in players)
-            await c.QueuePacketAsync(new PacketChatMessage(DateTime.UtcNow, ChatMessageType.Server, null, message));
+        await BroadcastAnnouncementAsync(message);
 
         context.Response.StatusCode = (int)HttpStatusCode.NoContent;
     }
