@@ -63,8 +63,15 @@ public sealed partial class MiaoHttpService
         }
     }
 
+    private static readonly AdminSessionStore.AdminSession DebugAdminSession
+        = new(0, "debug", "调试管理员", DateTimeOffset.MaxValue);
+
     private AdminSessionStore.AdminSession? GetAdminSession(HttpListenerRequest request)
     {
+        // debug escape hatch: bypass OAuth login entirely (see AdminPanelOptions.DebugSkipAuth)
+        if (adminOptions.DebugSkipAuth)
+            return DebugAdminSession;
+
         string? sessionID = request.Cookies[AdminSessionCookieName]?.Value;
         if (string.IsNullOrEmpty(sessionID))
             return null;
