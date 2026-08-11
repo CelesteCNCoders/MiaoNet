@@ -308,10 +308,12 @@ public sealed class ChatMessageListView
                 Color.Red,
                 ChatTextMerge.GetCounterColorLerp(item.RepeatCount)
             );
+            // vertically centered on the message line, so scaling grows symmetrically
+            // instead of drifting upward from the baseline
             textRenderer.Draw(
                 repeatCounterText,
-                new Vector2(curX + messageWidth + repeatCounterGapWidth, curY) + shakeOffset,
-                new Vector2(0f, 1f),
+                new Vector2(curX + messageWidth + repeatCounterGapWidth, y - messageLineHeight * 0.5f) + shakeOffset,
+                new Vector2(0f, 0.5f),
                 Vector2.One * repeatCounterScale,
                 counterColor * drawAlpha
             );
