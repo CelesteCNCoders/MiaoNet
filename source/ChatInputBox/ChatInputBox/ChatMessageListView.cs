@@ -5,12 +5,23 @@ namespace Celeste.Mod.ChatInputBox;
 
 public sealed class ChatMessageListView
 {
-    private record struct ChatItem(string? DateTimeText, ChatText Message, float ShowTimer, float FadeOut = 1f);
+    private record struct ChatItem(
+        string? DateTimeText,
+        ChatText Message,
+        float ShowTimer,
+        float FadeOut = 1f,
+        int RepeatCount = 1,
+        float MergePopTimer = ChatTextMerge.MergePopDuration,
+        float LastEventTime = 0f
+    );
 
     private const float Margin = 16f;
     private const float Padding = 8f;
     private const float MessageXPadding = 8f;
     private const float MessageYPadding = 8f;
+
+    // small left gap between the message text and the "X{n}" repeat counter
+    private const float RepeatCounterGap = 4f;
 
     // hm, magic number
     private const float TimeTextWidthRatio = 3.25f;
@@ -19,6 +30,9 @@ public sealed class ChatMessageListView
     private readonly IScalelessTextRenderer textRenderer;
 
     private bool active;
+
+    // view-local clock (seconds), used for the spam merge window
+    private float viewClock;
 
     private float lastMouseScrollWheelValue;
     private float targetScroll;
@@ -44,12 +58,36 @@ public sealed class ChatMessageListView
 
     public void AddChatMessage(DateTime dateTime, ChatText chatMessage)
     {
-        chatLog.Add(new(FormatDateTime(dateTime), chatMessage, ShowDuration));
+        if (TryMergeIntoLast(chatMessage))
+            return;
+        chatLog.Add(new(FormatDateTime(dateTime), chatMessage, ShowDuration, LastEventTime: viewClock));
     }
 
     public void AddChatMessage(ChatText chatMessage)
     {
-        chatLog.Add(new(null, chatMessage, ShowDuration));
+        if (TryMergeIntoLast(chatMessage))
+            return;
+        chatLog.Add(new(null, chatMessage, ShowDuration, LastEventTime: viewClock));
+    }
+
+    // spam merge: the same content sent again within the merge window
+    // gets merged into the last line instead of appending a duplicate
+    private bool TryMergeIntoLast(ChatText chatMessage)
+    {
+        if (chatLog.Count == 0)
+            return false;
+        var last = chatLog[^1];
+        if (!ChatTextMerge.ShouldMerge(viewClock - last.LastEventTime)
+            || !ChatTextMerge.ContentEquals(last.Message, chatMessage))
+            return false;
+
+        last.RepeatCount++;
+        last.ShowTimer = ShowDuration;
+        last.FadeOut = 1f;
+        last.MergePopTimer = 0f;
+        last.LastEventTime = viewClock;
+        chatLog[^1] = last;
+        return true;
     }
 
     public void CleanUp()
@@ -85,6 +123,8 @@ public sealed class ChatMessageListView
 
     public void Update()
     {
+        viewClock += Engine.RawDeltaTime;
+
         // this seems an fna bug...
         // we need to manually call `MouseState.Get()`
         float currentScrollWheelValue = Mouse.GetState().ScrollWheelValue;
@@ -105,6 +145,8 @@ public sealed class ChatMessageListView
         for (int i = chatLog.Count - 1; i >= 0; i--)
         {
             var item = chatLog[i];
+            if (item.MergePopTimer < ChatTextMerge.MergePopDuration)
+                item.MergePopTimer += Engine.RawDeltaTime;
             if (item.ShowTimer > 0f)
             {
                 if (NoNewMessagesShowing)
@@ -196,9 +238,10 @@ public sealed class ChatMessageListView
 
     private bool DrawSingleMessage(ChatItem item, float x, float y, float alpha)
     {
-        var (dateTimeText, msg, _, msgFade) = item;
+        string? dateTimeText = item.DateTimeText;
+        ChatText msg = item.Message;
 
-        float fade = msgFade;
+        float fade = item.FadeOut;
         if (active)
             fade = 1f;
         else if (fade == 0f)
@@ -209,9 +252,26 @@ public sealed class ChatMessageListView
         float lineHeight = textRenderer.LineHeight;
         float messageLineHeight = lineHeight + 2 * MessageYPadding;
         float timeTextMaxWidth = TimeTextWidthRatio * lineHeight;
-        float lineWidth = MeasureSingleMessage(msg);
+        float messageWidth = MeasureSingleMessage(msg);
+        float lineWidth = messageWidth;
         if (dateTimeText is not null)
             lineWidth += timeTextMaxWidth;
+
+        // "X{n}" repeat counter for merged spam messages
+        string? repeatCounterText = null;
+        float repeatCounterScale = 1f;
+        float repeatCounterGapWidth = 0f;
+        if (item.RepeatCount > 1)
+        {
+            repeatCounterText = $"X{item.RepeatCount}";
+            float popProgress = Math.Min(item.MergePopTimer / ChatTextMerge.MergePopDuration, 1f);
+            repeatCounterScale = ChatTextMerge.GetCounterScale(item.RepeatCount)
+                + ChatTextMerge.GetCounterPopScale(Ease.ElasticOut(popProgress));
+            repeatCounterGapWidth = RepeatCounterGap * textRenderer.Scale;
+            // measure at the current (animated) scale so the background always covers the counter
+            lineWidth += repeatCounterGapWidth + textRenderer.Measure(repeatCounterText).X * repeatCounterScale;
+        }
+
         DrawSnappedRect(
             x,
             y - messageLineHeight,
@@ -232,6 +292,30 @@ public sealed class ChatMessageListView
         }
 
         textRenderer.Draw(msg, new Vector2(curX, curY), 1f, drawAlpha);
+
+        if (repeatCounterText is not null)
+        {
+            // only the counter shakes/scales; the message text stays static
+            float shakeAmplitude = ChatTextMerge.GetCounterShakeAmplitude(item.RepeatCount) * textRenderer.Scale;
+            Vector2 shakeOffset = shakeAmplitude > 0f
+                ? new Vector2(
+                    Calc.Random.Range(-shakeAmplitude, shakeAmplitude),
+                    Calc.Random.Range(-shakeAmplitude, shakeAmplitude)
+                )
+                : Vector2.Zero;
+            Color counterColor = Color.Lerp(
+                Color.White,
+                Color.Red,
+                ChatTextMerge.GetCounterColorLerp(item.RepeatCount)
+            );
+            textRenderer.Draw(
+                repeatCounterText,
+                new Vector2(curX + messageWidth + repeatCounterGapWidth, curY) + shakeOffset,
+                new Vector2(0f, 1f),
+                Vector2.One * repeatCounterScale,
+                counterColor * drawAlpha
+            );
+        }
 
         return true;
 
