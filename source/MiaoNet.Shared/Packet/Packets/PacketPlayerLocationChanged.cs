@@ -64,9 +64,10 @@ public sealed class PacketPlayerLocationChangedNotification : PacketPlayerNotifi
 // server to client
 public sealed class PacketPlayerLocationChangedResponse : IContextualPacket<PacketPlayerLocationChangedResponse>
 {
-    public IReadOnlyCollection<PlayerMovedInitialData> Players { get; }
+    /// <summary>In-map players' state snapshots (ghost data).</summary>
+    public IReadOnlyCollection<PlayerMovedInitialDataWithID> Players { get; }
 
-    public PacketPlayerLocationChangedResponse(IReadOnlyCollection<PlayerMovedInitialData> players)
+    public PacketPlayerLocationChangedResponse(IReadOnlyCollection<PlayerMovedInitialDataWithID> players)
     {
         Players = players;
     }
@@ -75,5 +76,5 @@ public sealed class PacketPlayerLocationChangedResponse : IContextualPacket<Pack
         => writer.Write(Players, context.PooledStringManager);
 
     public static PacketPlayerLocationChangedResponse Deserialize(ref RefBinaryReader reader, IPacketSerializationContext context)
-        => new(reader.ReadArray<PlayerMovedInitialData, PooledStringManager>(context.PooledStringManager));
+        => new(reader.ReadArray<PlayerMovedInitialDataWithID, PooledStringManager>(context.PooledStringManager));
 }

@@ -35,18 +35,18 @@ public sealed class ServerMap : IPlayerScope
         Debug.Assert(result);
     }
 
-    public IReadOnlyCollection<PlayerMovedInitialData> GetPlayerMovedInitialDatas(MiaoClientConnection except)
+    public IReadOnlyCollection<PlayerMovedInitialDataWithID> GetPlayerMovedInitialDatas(MiaoClientConnection except)
     {
         Debug.Assert(StateLock.IsWriteLockHeld);
 
-        var list = new List<PlayerMovedInitialData>(players.Count - 1);
+        var list = new List<PlayerMovedInitialDataWithID>(players.Count);
         foreach (var con in players)
         {
             var p = con.Player;
             // players that in debug map can cause null state
             if (con == except || p.State is null)
                 continue;
-            list.Add(new PlayerMovedInitialData(p.ID, p.State!.Clone()));
+            list.Add(new PlayerMovedInitialDataWithID(p.ID, new PlayerMovedInitialData(p.State!.Clone())));
         }
         return list;
     }

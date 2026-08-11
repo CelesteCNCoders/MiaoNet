@@ -101,7 +101,7 @@ partial class MiaoNetCommand
             new MiaoNetCommand(
                 name: "locate",
                 aliases: [ "lc" ],
-                segments: [CommandSegmentType.Player],
+                segments: [CommandSegmentType.PlayerSameChannel],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(Locate)
             ),
@@ -216,7 +216,7 @@ partial class MiaoNetCommand
 
         string? error;
 
-        error = GetNotSelfPlayer(context, context.Segments[0], out var player);
+        error = GetSameChannelPlayer(context, context.Segments[0], out var player);
         if (error is not null)
             return error;
 
@@ -248,7 +248,7 @@ partial class MiaoNetCommand
 
         string? error;
 
-        error = GetNotSelfPlayer(context, context.Segments[0], out var player);
+        error = GetSameChannelPlayer(context, context.Segments[0], out var player);
         if (error is not null)
             return error;
 
@@ -478,7 +478,7 @@ partial class MiaoNetCommand
         string playerName = context.Segments[0];
         string content = context.Segments[1];
 
-        string? error = GetNotSelfPlayer(context, playerName, out OnlinePlayer? player);
+        string? error = GetGlobalPlayer(context, playerName, out OnlinePlayer? player);
         if (error is not null)
             return error;
 
@@ -532,7 +532,7 @@ partial class MiaoNetCommand
 
     private static string? Locate(Context context)
     {
-        string? error = GetNotSelfPlayer(context, context.Segments[0], out OnlinePlayer? player);
+        string? error = GetSameChannelPlayer(context, context.Segments[0], out OnlinePlayer? player);
         if (error is not null)
             return error;
 
@@ -549,7 +549,7 @@ partial class MiaoNetCommand
 
     private static string? Watch(Context context)
     {
-        string? error = GetNotSelfPlayer(context, context.Segments[0], out OnlinePlayer? player);
+        string? error = GetSameChannelPlayer(context, context.Segments[0], out OnlinePlayer? player);
         if (error is not null)
             return error;
 
@@ -642,7 +642,7 @@ partial class MiaoNetCommand
 
     #region helpers
 
-    private static string? GetNotSelfPlayer(Context context, string playerName, out OnlinePlayer? player)
+    private static string? GetSameChannelPlayer(Context context, string playerName, out OnlinePlayer? player)
     {
         player = null;
         var clientState = context.MiaoNetContext.ClientState!;
@@ -656,6 +656,23 @@ partial class MiaoNetCommand
         }
 
         player = foundPlayer;
+        return null;
+    }
+
+    private static string? GetGlobalPlayer(Context context, string playerName, out OnlinePlayer? player)
+    {
+        player = null;
+        var clientState = context.MiaoNetContext.ClientState!;
+        var foundPair = clientState.Players
+            .FirstOrDefault(p => p.Value.Info.Name == playerName);
+        // foundPair.Value can be null here (default value)
+        if (foundPair.Value is null)
+        {
+            return clientState.Self.Info.Name == playerName
+                ? PFormat.Format(PlayerIsSelf, clientState.Self.Info.Name)
+                : PFormat.Format(PlayerNotFound, playerName);
+        }
+        player = foundPair.Value;
         return null;
     }
 

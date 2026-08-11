@@ -119,10 +119,7 @@ partial class MiaoNetContext
     {
         EnsureState();
         foreach (var playerInMap in packet.Players)
-        {
-            var player = ClientState.GetPlayer(playerInMap.PlayerID);
-            player.State = playerInMap.InitialState;
-        }
+            ClientState.ApplyPlayerMovedInitialData(playerInMap);
         PlayerLocationChangeResponded?.Invoke(packet);
     }
 
@@ -248,10 +245,12 @@ partial class MiaoNetContext
         if (packet.Players is not null)
         {
             foreach (var playerInMap in packet.Players)
-            {
-                var player = ClientState.GetPlayer(playerInMap.PlayerID);
-                player.State = playerInMap.InitialState;
-            }
+                ClientState.ApplyPlayerMovedInitialData(playerInMap);
+        }
+        if (packet.ChannelPlayers is not null)
+        {
+            foreach (var info in packet.ChannelPlayers)
+                ClientState.ApplyPlayerPresenceData(info);
         }
         SelfChannelMoved?.Invoke(packet);
         HandleChannelRemoveIfEmpty(p);
@@ -271,7 +270,10 @@ partial class MiaoNetContext
     {
         EnsureState();
         ClientState.OnPlayerChannelMove(packet.PlayerID, packet.ChannelID, out var pl, out var p, out var c);
-        pl.State = packet.InitialState;
+        if (packet.InitialData is not null)
+            ClientState.ApplyPlayerMovedInitialData(packet.PlayerID, packet.InitialData.Value);
+        if (packet.Presence is not null)
+            ClientState.ApplyPlayerPresenceData(packet.PlayerID, packet.Presence.Value);
         PlayerChannelMoved?.Invoke(pl, packet);
         HandleChannelRemoveIfEmpty(p);
     }
