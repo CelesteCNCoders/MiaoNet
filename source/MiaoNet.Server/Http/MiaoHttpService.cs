@@ -101,6 +101,13 @@ public sealed partial class MiaoHttpService : BackgroundService
                 );
             }
             logger.LogInformation(AppEvents.Http, "Admin panel is enabled on /admin, forum: {forum}.", adminOptions.ForumBaseUrl);
+            if (adminOptions.DebugSkipAuth)
+            {
+                logger.LogWarning(
+                    AppEvents.Http,
+                    "Admin panel DebugSkipAuth is ON: OAuth login is bypassed and every visitor is treated as admin. Do NOT expose this listener publicly."
+                );
+            }
         }
 
         return base.StartAsync(cancellationToken);
