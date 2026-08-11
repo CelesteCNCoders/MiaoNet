@@ -25,8 +25,19 @@ public partial class MiaoHttpService
         return kicked;
     }
 
+    private async Task<int> KickByConnectionIDAsync(int cid, string reason)
+    {
+        if (!miaoServerService.Players.TryGetValue(cid, out var client))
+            return 0;
+        await client.DisconnectAsync(DisconnectReason.Kicked, reason);
+        return 1;
+    }
+
     private Task BroadcastAnnouncementAsync(string message)
-        => miaoServerService.BroadcastAsync(new PacketChatMessage(DateTime.UtcNow, ChatMessageType.Server, null, message));
+    {
+        adminChatBuffer.Record("server", null, "服务器", 0, message);
+        return miaoServerService.BroadcastAsync(new PacketChatMessage(DateTime.UtcNow, ChatMessageType.Server, null, message));
+    }
 
     private async Task Player(NameValueCollection query, HttpListenerContext context)
     {

@@ -17,6 +17,9 @@ public sealed partial class MiaoHttpService : BackgroundService
     private readonly ILogger<MiaoHttpService> logger;
     private readonly IMiaoServerService miaoServerService;
     private readonly MiaoMetricsService miaoMetricsService;
+    private readonly AdminLogBuffer adminLogBuffer;
+    private readonly AdminChatBuffer adminChatBuffer;
+    private readonly AdminMetricsSampler adminMetricsSampler;
     private readonly HttpListener httpListener;
     private readonly Dictionary<string, RequestHandler> requestHandlers;
 
@@ -31,12 +34,18 @@ public sealed partial class MiaoHttpService : BackgroundService
         ILogger<MiaoHttpService> logger,
         IOptions<MiaoServerOptions> options,
         IMiaoServerService miaoServerService,
-        MiaoMetricsService miaoMetricsService
+        MiaoMetricsService miaoMetricsService,
+        AdminLogBuffer adminLogBuffer,
+        AdminChatBuffer adminChatBuffer,
+        AdminMetricsSampler adminMetricsSampler
     )
     {
         this.logger = logger;
         this.miaoServerService = miaoServerService;
         this.miaoMetricsService = miaoMetricsService;
+        this.adminLogBuffer = adminLogBuffer;
+        this.adminChatBuffer = adminChatBuffer;
+        this.adminMetricsSampler = adminMetricsSampler;
         httpListener = new();
         httpListener.Prefixes.Add(options.Value.HttpListenerPrefix);
 
@@ -54,6 +63,7 @@ public sealed partial class MiaoHttpService : BackgroundService
 
         jsonSerializerOptions = new()
         {
+            PropertyNameCaseInsensitive = true,
 #if DEBUG
             WriteIndented = true
 #endif
@@ -115,29 +125,43 @@ public sealed partial class MiaoHttpService : BackgroundService
             {
                 break;
             }
+            // dispatch each connection to its own task so one slow request
+            // never blocks the accept loop (admin page polls frequently)
+            _ = ProcessConnectionAsync(context);
+        }
+    }
+
+    private async Task ProcessConnectionAsync(HttpListenerContext context)
+    {
+        try
+        {
+            Uri? uri = context.Request.Url;
+            if (uri is null)
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                return;
+            }
+
+            string path = uri.AbsolutePath;
+            NameValueCollection query = HttpUtility.ParseQueryString(uri.Query);
+
+            await HandleRequestAsync(path, query, context);
+        }
+        catch (Exception e)
+        {
             try
             {
-                Uri? uri = context.Request.Url;
-                if (uri is null)
-                {
-                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    continue;
-                }
-
-                string path = uri.AbsolutePath;
-                NameValueCollection query = HttpUtility.ParseQueryString(uri.Query);
-
-                await HandleRequestAsync(path, query, context);
-            }
-            catch (Exception e)
-            {
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                logger.LogError(AppEvents.Http, e, "Error when handling request \"{url}\" from {ep}", context.Request.RawUrl, context.Request.RemoteEndPoint);
             }
-            finally
+            catch
             {
-                context.Response.Close();
+                // response may already be half-written; nothing more we can do
             }
+            logger.LogError(AppEvents.Http, e, "Error when handling request \"{url}\" from {ep}", context.Request.RawUrl, context.Request.RemoteEndPoint);
+        }
+        finally
+        {
+            context.Response.Close();
         }
     }
 

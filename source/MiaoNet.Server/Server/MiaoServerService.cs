@@ -25,6 +25,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
     private readonly MiaoServerOptions options;
     private readonly IMiaoAuthenticator authenticator;
     private readonly MiaoMetricsService miaoMetricsService;
+    private readonly AdminChatBuffer adminChatBuffer;
 
     private readonly PacketDispatcher packetDispatcher;
 
@@ -46,7 +47,8 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         NetworkListenerFactory networkListenerFactory,
         MiaoClientConnectionFactory connectionFactory,
         IMiaoAuthenticator authenticator,
-        MiaoMetricsService miaoMetricsService
+        MiaoMetricsService miaoMetricsService,
+        AdminChatBuffer adminChatBuffer
     )
     {
         stateLock = new();
@@ -64,6 +66,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         pingTimer = new(TimeSpan.FromMilliseconds(this.options.PingPeriod));
         stopwatch = Stopwatch.StartNew();
         this.miaoMetricsService = miaoMetricsService;
+        this.adminChatBuffer = adminChatBuffer;
     }
 
     public override Task StartAsync(CancellationToken cancellationToken)

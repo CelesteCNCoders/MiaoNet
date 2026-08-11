@@ -360,6 +360,18 @@ public sealed partial class MiaoServerService
         default:
             goto case ChatMessageType.Chat;
         }
+
+        // record accepted public chat for the admin panel (private messages are never recorded)
+        string chatType = type switch
+        {
+            ChatMessageType.ChannelChat => "channel",
+            ChatMessageType.MapChat => "map",
+            _ => "global"
+        };
+        string? channelName = type is ChatMessageType.ChannelChat or ChatMessageType.MapChat
+            ? connection.Player.Channel.Info.Name
+            : null;
+        adminChatBuffer.Record(chatType, channelName, connection.Player.Info.Name, connection.Player.Info.AuthID, packet.Content);
     }
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketSendEmote packet)

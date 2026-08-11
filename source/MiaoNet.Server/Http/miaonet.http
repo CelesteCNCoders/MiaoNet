@@ -49,5 +49,50 @@ GET http://{{host}}/admin/login
 
 ###
 
-# admin panel dashboard (requires session cookie)
+# admin panel page (requires session cookie, JS-driven SPA)
 GET http://{{host}}/admin
+
+###
+
+# 以下为管理后台 JSON API, 均需要登录后的会话 Cookie (浏览器自动携带)
+# @adminCookie=miaonet_admin=<session-id>
+
+# admin api: online players + channels
+GET http://{{host}}/admin/api/players
+Cookie: {{adminCookie}}
+
+###
+
+# admin api: realtime logs (after=<已收到的最大 id>)
+GET http://{{host}}/admin/api/logs?after=-1&limit=50
+Cookie: {{adminCookie}}
+
+###
+
+# admin api: realtime chat
+GET http://{{host}}/admin/api/chat?after=-1
+Cookie: {{adminCookie}}
+
+###
+
+# admin api: metrics snapshot + time series
+GET http://{{host}}/admin/api/metrics
+Cookie: {{adminCookie}}
+
+###
+
+# admin api: kick player (authID 或 connectionID 至少一个)
+POST http://{{host}}/admin/api/kick
+Cookie: {{adminCookie}}
+Content-Type: application/json
+
+{ "authID": 1, "reason": "Reason here." }
+
+###
+
+# admin api: broadcast announcement
+POST http://{{host}}/admin/api/announce
+Cookie: {{adminCookie}}
+Content-Type: application/json
+
+{ "message": "Server is closing!" }

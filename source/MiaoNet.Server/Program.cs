@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Runtime.CompilerServices;
 using MiaoNet.Shared;
@@ -42,6 +42,15 @@ public static class Program
 
         if (!builder.Environment.IsDevelopment())
             builder.Logging.AddFile($"logs/{DateTime.Now:yyyy-MM-dd}.log");
+
+        // admin panel realtime log buffer
+        AdminLogBuffer adminLogBuffer = new();
+        builder.Services.AddSingleton(adminLogBuffer);
+        builder.Logging.AddProvider(new AdminLogBufferLoggerProvider(adminLogBuffer));
+
+        builder.Services.AddSingleton<AdminChatBuffer>();
+        builder.Services.AddSingleton<AdminMetricsSampler>();
+        builder.Services.AddHostedService(p => p.GetRequiredService<AdminMetricsSampler>());
 
         builder.Services.AddSingleton<NetworkListenerFactory>(p =>
             o => new TlsTcpListener(
