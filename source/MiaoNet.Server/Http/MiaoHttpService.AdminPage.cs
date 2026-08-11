@@ -18,143 +18,249 @@ public sealed partial class MiaoHttpService
             <title>管理后台 - MiaoNet</title>
             <style>
             *{box-sizing:border-box;}
-            body{background:#12141a;color:#e6e6e6;font-family:"Segoe UI","Microsoft YaHei",sans-serif;margin:0;}
-            a{color:#7ab8ff;text-decoration:none;}
-            header{display:flex;align-items:center;gap:14px;padding:12px 24px;background:#171a22;border-bottom:1px solid #2a2e3a;position:sticky;top:0;z-index:10;}
-            .brand{font-size:18px;font-weight:600;}
-            .live{display:flex;align-items:center;gap:6px;font-size:12px;color:#4caf7d;}
-            .live .dot{width:8px;height:8px;border-radius:50%;background:#4caf7d;animation:pulse 1.6s infinite;}
-            @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(76,175,125,.6);}70%{box-shadow:0 0 0 8px rgba(76,175,125,0);}100%{box-shadow:0 0 0 0 rgba(76,175,125,0);}}
+            html{color-scheme:dark;}
+            body{
+              background:#0a0e14;color:#c8d3d8;margin:0;
+              font-family:"Segoe UI","Microsoft YaHei",sans-serif;
+              background-image:
+                linear-gradient(rgba(0,229,255,.025) 1px,transparent 1px),
+                linear-gradient(90deg,rgba(0,229,255,.025) 1px,transparent 1px);
+              background-size:44px 44px;
+            }
+            body::before{
+              content:"";position:fixed;inset:0;pointer-events:none;z-index:60;
+              background:repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px);
+            }
+            a{color:#00e5ff;text-decoration:none;}
+            .mono{font-family:Consolas,"Courier New",monospace;}
+
+            /* ---------- header ---------- */
+            header{display:flex;align-items:center;gap:16px;padding:0 24px;height:52px;background:rgba(10,14,20,.92);
+              border-bottom:1px solid rgba(0,229,255,.25);position:sticky;top:0;z-index:50;}
+            .brand{font-size:15px;font-weight:600;letter-spacing:3px;color:#00e5ff;font-family:Consolas,"Courier New",monospace;
+              text-shadow:0 0 8px rgba(0,229,255,.5);white-space:nowrap;}
+            .brand-sub{color:#5f7a85;letter-spacing:2px;margin-left:8px;font-size:12px;font-family:"Segoe UI","Microsoft YaHei",sans-serif;text-shadow:none;}
+            .live{display:flex;align-items:center;gap:6px;font-size:12px;color:#00ff9c;letter-spacing:2px;white-space:nowrap;}
+            .live .bcursor{color:#00ff9c;font-family:Consolas,monospace;animation:blink 1.1s steps(1) infinite;text-shadow:0 0 6px rgba(0,255,156,.7);}
+            .live.down{color:#ff3860;}
+            .live.down .bcursor{color:#ff3860;text-shadow:0 0 6px rgba(255,56,96,.7);}
+            @keyframes blink{50%{opacity:0;}}
+            #conn-term{font-family:Consolas,"Courier New",monospace;font-size:11px;line-height:1.45;color:#4f99a8;
+              overflow:hidden;white-space:nowrap;}
+            #conn-term div{overflow:hidden;text-overflow:ellipsis;}
+            #conn-term div:last-child{color:#8fd8e8;}
+            #conn-term div{animation:lineIn .25s ease;}
             .spacer{flex:1;}
-            .user{font-size:13px;color:#9aa0ab;}
-            .logout{font-size:13px;padding:5px 12px;border:1px solid #2a2e3a;border-radius:4px;transition:background .15s;}
-            .logout:hover{background:#1c1f29;}
-            nav.tabs{display:flex;gap:4px;padding:10px 24px 0;background:#171a22;border-bottom:1px solid #2a2e3a;position:sticky;top:53px;z-index:10;}
-            nav.tabs button{background:none;border:none;color:#9aa0ab;font-size:14px;padding:9px 16px;cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;font-family:inherit;}
-            nav.tabs button:hover{color:#e6e6e6;}
-            nav.tabs button.active{color:#7ab8ff;border-bottom-color:#7ab8ff;}
-            main{padding:20px 24px 60px;max-width:1200px;margin:0 auto;}
-            .panel{display:none;}
-            .panel.active{display:block;animation:panelIn .25s ease;}
+            .user{font-size:12px;color:#5f7a85;font-family:Consolas,"Courier New",monospace;white-space:nowrap;}
+            .logout{font-size:12px;padding:5px 12px;border:1px solid rgba(0,229,255,.3);letter-spacing:1px;transition:all .15s;white-space:nowrap;}
+            .logout:hover{background:rgba(0,229,255,.08);box-shadow:0 0 10px rgba(0,229,255,.25);}
+
+            /* ---------- layout ---------- */
+            main{padding:18px 24px 60px;max-width:1560px;margin:0 auto;display:grid;grid-template-columns:repeat(12,1fr);gap:16px;}
+            .cards{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
+            .sec-players{grid-column:span 7;}
+            .sec-chat{grid-column:span 5;}
+            .sec-logs{grid-column:1/-1;}
+            .sec-metrics{grid-column:1/-1;}
+            @media (max-width:1100px){
+              .sec-players,.sec-chat{grid-column:1/-1;}
+              #conn-term{display:none;}
+            }
+
+            /* ---------- panels (直角科技风) ---------- */
+            .panel{background:rgba(13,17,23,.9);border:1px solid rgba(0,229,255,.18);padding:14px 16px;position:relative;
+              box-shadow:inset 0 0 30px rgba(0,229,255,.02);animation:panelIn .3s ease;}
+            .panel::before,.panel::after{content:"";position:absolute;width:10px;height:10px;pointer-events:none;}
+            .panel::before{top:-1px;left:-1px;border-top:1px solid rgba(0,229,255,.7);border-left:1px solid rgba(0,229,255,.7);}
+            .panel::after{bottom:-1px;right:-1px;border-bottom:1px solid rgba(0,229,255,.7);border-right:1px solid rgba(0,229,255,.7);}
             @keyframes panelIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
-            h2{font-size:16px;margin:24px 0 10px;color:#c9cdd4;}
-            .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;}
-            .card{background:#1c1f29;border:1px solid #2a2e3a;border-radius:8px;padding:14px 16px;transition:transform .15s,box-shadow .15s;}
-            .card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.35);}
-            .card .label{font-size:12px;color:#9aa0ab;margin-bottom:6px;}
-            .card .value{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;}
-            table{border-collapse:collapse;width:100%;}
-            th,td{border-bottom:1px solid #2a2e3a;padding:7px 10px;text-align:left;font-size:13px;}
-            th{color:#9aa0ab;font-weight:500;background:#171a22;}
+            .sec-title{font-size:12px;margin:0 0 12px;color:#9fdcec;letter-spacing:4px;text-transform:uppercase;font-weight:600;
+              display:flex;align-items:center;gap:8px;}
+            .sec-title::before{content:"";width:8px;height:8px;background:#00e5ff;box-shadow:0 0 8px rgba(0,229,255,.8);flex:none;}
+            .sec-title.sub{margin-top:16px;}
+
+            /* ---------- stat cards ---------- */
+            .card{background:rgba(13,17,23,.9);border:1px solid rgba(0,229,255,.18);padding:12px 14px;position:relative;
+              transition:transform .15s,box-shadow .15s,border-color .15s;}
+            .card:hover{transform:translateY(-2px);border-color:rgba(0,229,255,.5);box-shadow:0 0 16px rgba(0,229,255,.15);}
+            .card .label{font-size:11px;color:#5f7a85;margin-bottom:6px;letter-spacing:2px;}
+            .card .value{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;color:#00e5ff;
+              font-family:Consolas,"Courier New",monospace;text-shadow:0 0 10px rgba(0,229,255,.4);}
+
+            /* ---------- table ---------- */
+            .table-wrap{max-height:320px;overflow-y:auto;border:1px solid rgba(0,229,255,.1);}
+            table{border-collapse:collapse;width:100%;font-family:Consolas,"Courier New",monospace;}
+            th,td{border-bottom:1px solid rgba(0,229,255,.08);padding:7px 10px;text-align:left;font-size:12px;}
+            th{color:#4f99a8;font-weight:500;background:rgba(0,229,255,.05);letter-spacing:1px;position:sticky;top:0;}
             tbody tr{transition:background .15s;}
-            tbody tr:hover{background:#1a1d26;}
+            tbody tr:hover{background:rgba(0,229,255,.05);}
             tr.row-new{animation:rowIn .4s ease;}
             @keyframes rowIn{from{opacity:0;transform:translateX(-10px);}to{opacity:1;transform:none;}}
-            input{background:#12141a;border:1px solid #2a2e3a;color:#e6e6e6;padding:8px 10px;border-radius:6px;font-size:13px;font-family:inherit;transition:border-color .15s;}
-            input:focus{outline:none;border-color:#2f6fed;}
-            button.act{background:#2f6fed;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;transition:background .15s,transform .05s;font-family:inherit;}
-            button.act:hover{background:#3d7dff;}
-            button.act:active{transform:scale(.96);}
-            button.danger{background:#a4352c;}
-            button.danger:hover{background:#c24036;}
-            button.kick{background:none;border:1px solid #a4352c;color:#f08080;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;transition:all .15s;font-family:inherit;}
-            button.kick:hover{background:#a4352c;color:#fff;}
-            button.kick:active{transform:scale(.94);}
-            .bar{display:flex;gap:10px;margin-bottom:14px;}
+
+            /* ---------- inputs & buttons ---------- */
+            input{background:#0a0e14;border:1px solid rgba(0,229,255,.25);color:#c8d3d8;padding:8px 10px;font-size:13px;
+              font-family:Consolas,"Courier New",monospace;transition:border-color .15s,box-shadow .15s;}
+            input:focus{outline:none;border-color:#00e5ff;box-shadow:0 0 0 1px rgba(0,229,255,.35),0 0 12px rgba(0,229,255,.15);}
+            input::placeholder{color:#3d5560;}
+            button{font-family:inherit;letter-spacing:1px;}
+            button.act{background:rgba(0,229,255,.1);color:#00e5ff;border:1px solid rgba(0,229,255,.5);padding:8px 16px;
+              cursor:pointer;font-size:13px;transition:all .15s;}
+            button.act:hover{background:rgba(0,229,255,.2);box-shadow:0 0 12px rgba(0,229,255,.3);}
+            button.act:active{transform:translateY(1px);}
+            button.kick{background:none;border:1px solid rgba(255,56,96,.5);color:#ff6b81;padding:4px 10px;cursor:pointer;
+              font-size:12px;font-family:Consolas,"Courier New",monospace;transition:all .15s;}
+            button.kick:hover{background:rgba(255,56,96,.15);box-shadow:0 0 10px rgba(255,56,96,.3);color:#ff3860;}
+            button.kick:active{transform:translateY(1px);}
+            .bar{display:flex;gap:10px;margin-bottom:12px;}
             .bar input{flex:1;max-width:480px;}
-            .stream{background:#14161d;border:1px solid #2a2e3a;border-radius:8px;height:520px;overflow-y:auto;padding:10px 14px;font-size:13px;line-height:1.7;}
+
+            /* ---------- streams ---------- */
+            .stream-wrap{position:relative;}
+            .stream{background:#070a0f;border:1px solid rgba(0,229,255,.12);overflow-y:auto;padding:10px 14px;
+              font-size:12px;line-height:1.7;font-family:Consolas,"Courier New",monospace;}
+            #chat-stream{height:438px;}
+            #log-stream{height:320px;}
             .stream .line{animation:lineIn .3s ease;word-break:break-all;}
             @keyframes lineIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
-            .stream .time{color:#6b7280;font-variant-numeric:tabular-nums;margin-right:8px;font-size:12px;}
-            .badge{display:inline-block;padding:1px 7px;border-radius:8px;font-size:11px;margin-right:8px;}
-            .badge-global{background:rgba(88,166,255,.15);color:#58a6ff;}
-            .badge-channel{background:rgba(188,140,255,.15);color:#bc8cff;}
-            .badge-map{background:rgba(76,175,125,.15);color:#4caf7d;}
-            .badge-server{background:rgba(227,179,65,.15);color:#e3b341;}
-            .chat-name{color:#c9cdd4;margin-right:6px;}
-            .lv-Trace,.lv-Debug{color:#8a8f98;}
-            .lv-Information{color:#58a6ff;}
-            .lv-Warning{color:#e3b341;}
-            .lv-Error,.lv-Critical{color:#f85149;}
-            .log-cat{color:#6b7280;margin-right:8px;font-size:12px;}
-            .log-exc{color:#f85149;white-space:pre-wrap;font-size:12px;opacity:.85;}
+            .stream .time{color:#3d5560;font-variant-numeric:tabular-nums;margin-right:8px;font-size:11px;}
+            .badge{display:inline-block;padding:0 6px;font-size:11px;margin-right:8px;border:1px solid currentColor;letter-spacing:1px;}
+            .badge-global{color:#00e5ff;background:rgba(0,229,255,.07);}
+            .badge-channel{color:#00ff9c;background:rgba(0,255,156,.06);}
+            .badge-map{color:#b98cff;background:rgba(185,140,255,.07);}
+            .badge-server{color:#ffb300;background:rgba(255,179,0,.07);}
+            .chat-name{color:#9fdcec;margin-right:6px;}
+            .lv-Trace,.lv-Debug{color:#4a5a63;}
+            .lv-Information{color:#00e5ff;}
+            .lv-Warning{color:#ffb300;}
+            .lv-Error,.lv-Critical{color:#ff3860;}
+            .log-cat{color:#3d5560;margin-right:8px;font-size:11px;}
+            .log-exc{color:#ff3860;white-space:pre-wrap;font-size:11px;opacity:.85;}
             .filters{display:flex;gap:8px;margin-bottom:10px;}
-            .filters button{background:#1c1f29;border:1px solid #2a2e3a;color:#9aa0ab;padding:5px 14px;border-radius:14px;cursor:pointer;font-size:12px;transition:all .15s;font-family:inherit;}
-            .filters button.active{background:#2f6fed;border-color:#2f6fed;color:#fff;}
-            .back-bottom{position:fixed;right:32px;bottom:32px;background:#2f6fed;color:#fff;border:none;padding:9px 18px;border-radius:20px;cursor:pointer;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.4);display:none;animation:panelIn .2s ease;font-family:inherit;z-index:20;}
-            #toasts{position:fixed;top:70px;right:24px;z-index:100;display:flex;flex-direction:column;gap:8px;}
-            .toast{padding:10px 18px;border-radius:8px;font-size:13px;color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.4);animation:toastIn .3s ease;max-width:360px;}
-            .toast.ok{background:#1d5c33;border:1px solid #2f8a4d;}
-            .toast.err{background:#6b2320;border:1px solid #a4352c;}
-            .toast.out{animation:toastOut .3s ease forwards;}
+            .filters button{background:none;border:1px solid rgba(0,229,255,.2);color:#5f7a85;padding:5px 14px;cursor:pointer;
+              font-size:12px;font-family:Consolas,"Courier New",monospace;transition:all .15s;}
+            .filters button:hover{border-color:rgba(0,229,255,.5);color:#9fdcec;}
+            .filters button.active{background:rgba(0,229,255,.15);border-color:#00e5ff;color:#00e5ff;box-shadow:0 0 10px rgba(0,229,255,.2);}
+            .back-bottom{position:absolute;right:14px;bottom:14px;background:rgba(10,14,20,.9);color:#00e5ff;
+              border:1px solid rgba(0,229,255,.5);padding:6px 14px;cursor:pointer;font-size:12px;
+              font-family:Consolas,"Courier New",monospace;display:none;animation:panelIn .2s ease;z-index:5;letter-spacing:1px;}
+            .back-bottom:hover{background:rgba(0,229,255,.15);box-shadow:0 0 12px rgba(0,229,255,.3);}
+            .empty{color:#3d5560;padding:18px;text-align:center;}
+
+            /* ---------- toasts ---------- */
+            #toasts{position:fixed;top:64px;right:24px;z-index:100;display:flex;flex-direction:column;gap:8px;}
+            .toast{padding:10px 16px;font-size:12px;background:rgba(10,14,20,.95);max-width:380px;
+              font-family:Consolas,"Courier New",monospace;letter-spacing:1px;animation:toastIn .25s ease;}
+            .toast.ok{border:1px solid rgba(0,255,156,.6);color:#00ff9c;box-shadow:0 0 14px rgba(0,255,156,.15);}
+            .toast.err{border:1px solid rgba(255,56,96,.6);color:#ff6b81;box-shadow:0 0 14px rgba(255,56,96,.15);}
+            .toast.out{animation:toastOut .25s ease forwards;}
             @keyframes toastIn{from{opacity:0;transform:translateX(40px);}to{opacity:1;transform:none;}}
             @keyframes toastOut{to{opacity:0;transform:translateX(40px);}}
-            .chart-wrap{background:#1c1f29;border:1px solid #2a2e3a;border-radius:8px;padding:14px 16px;margin-bottom:16px;position:relative;}
-            .chart-wrap h3{margin:0 0 8px;font-size:13px;color:#9aa0ab;font-weight:500;}
-            .chart-wrap canvas{width:100%;height:220px;display:block;}
-            .chart-tip{position:absolute;pointer-events:none;background:#0d0f14;border:1px solid #2a2e3a;border-radius:6px;padding:6px 10px;font-size:12px;display:none;z-index:5;white-space:nowrap;}
-            .legend{display:flex;gap:14px;font-size:12px;color:#9aa0ab;margin-top:6px;}
-            .legend span::before{content:"";display:inline-block;width:10px;height:3px;border-radius:2px;background:var(--c);margin-right:5px;vertical-align:middle;}
-            .empty{color:#6b7280;padding:18px;text-align:center;}
+
+            /* ---------- charts ---------- */
+            .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+            @media (max-width:900px){.charts-grid{grid-template-columns:1fr;}}
+            .chart-wrap{background:#070a0f;border:1px solid rgba(0,229,255,.12);padding:12px 14px;position:relative;}
+            .chart-wrap h3{margin:0 0 8px;font-size:11px;color:#4f99a8;font-weight:500;letter-spacing:2px;}
+            .chart-wrap canvas{width:100%;height:200px;display:block;}
+            .chart-tip{position:absolute;pointer-events:none;background:rgba(7,10,15,.95);border:1px solid rgba(0,229,255,.4);
+              padding:6px 10px;font-size:11px;display:none;z-index:5;white-space:nowrap;
+              font-family:Consolas,"Courier New",monospace;box-shadow:0 0 12px rgba(0,229,255,.15);}
+            .legend{display:flex;gap:14px;font-size:11px;color:#5f7a85;margin-top:6px;font-family:Consolas,"Courier New",monospace;}
+            .legend span::before{content:"";display:inline-block;width:8px;height:8px;background:var(--c);margin-right:5px;
+              vertical-align:middle;box-shadow:0 0 6px var(--c);}
+
+            /* ---------- scrollbars ---------- */
+            ::-webkit-scrollbar{width:8px;height:8px;}
+            ::-webkit-scrollbar-track{background:#070a0f;}
+            ::-webkit-scrollbar-thumb{background:rgba(0,229,255,.2);border:1px solid rgba(0,229,255,.1);}
+            ::-webkit-scrollbar-thumb:hover{background:rgba(0,229,255,.4);}
+
+            /* ---------- boot terminal ---------- */
+            #boot{position:fixed;inset:0;background:#05070b;z-index:200;display:flex;align-items:center;justify-content:center;
+              transition:opacity .35s ease;}
+            #boot.done{opacity:0;pointer-events:none;}
+            .boot-box{width:min(600px,90vw);border:1px solid rgba(0,229,255,.35);background:rgba(7,10,15,.95);
+              padding:22px 26px;font-family:Consolas,"Courier New",monospace;font-size:13px;line-height:2;color:#8fd8e8;
+              box-shadow:0 0 40px rgba(0,229,255,.12),inset 0 0 60px rgba(0,229,255,.03);position:relative;}
+            .boot-box::before{content:"";position:absolute;top:-1px;left:-1px;width:12px;height:12px;
+              border-top:1px solid #00e5ff;border-left:1px solid #00e5ff;}
+            .boot-box::after{content:"";position:absolute;bottom:-1px;right:-1px;width:12px;height:12px;
+              border-bottom:1px solid #00e5ff;border-right:1px solid #00e5ff;}
+            .boot-head{font-size:10px;color:#3d5560;letter-spacing:3px;margin-bottom:10px;}
+            .bline{white-space:pre-wrap;word-break:break-all;}
+            .bline:first-child{color:#00e5ff;text-shadow:0 0 8px rgba(0,229,255,.5);}
+            .bcursor{animation:blink .9s steps(1) infinite;}
             </style>
             </head>
             <body>
+            <div id="boot">
+              <div class="boot-box">
+                <div class="boot-head">MIAONET // TERMINAL LINK</div>
+                <div id="boot-text"></div>
+              </div>
+            </div>
             <header>
-              <div class="brand">MiaoNet 管理后台</div>
-              <div class="live"><span class="dot"></span>实时</div>
+              <div class="brand">MIAONET<span class="brand-sub">管理后台</span></div>
+              <div class="live" id="live"><span class="bcursor">█</span><span id="live-text">实时</span></div>
+              <div id="conn-term"></div>
               <div class="spacer"></div>
               <span class="user">{{{HtmlEncode(session.NickName)}}}（{{{HtmlEncode(session.UserName)}}}）</span>
               <a class="logout" href="/admin/logout">退出登录</a>
             </header>
-            <nav class="tabs">
-              <button data-tab="dashboard" class="active">仪表盘</button>
-              <button data-tab="players">玩家</button>
-              <button data-tab="chat">聊天</button>
-              <button data-tab="logs">日志</button>
-              <button data-tab="metrics">指标</button>
-            </nav>
             <main>
-              <section id="panel-dashboard" class="panel active">
-                <div class="cards">
-                  <div class="card"><div class="label">在线玩家</div><div class="value" id="d-players">0</div></div>
-                  <div class="card"><div class="label">频道数</div><div class="value" id="d-channels">0</div></div>
-                  <div class="card"><div class="label">累计会话</div><div class="value" id="d-sessions">0</div></div>
-                  <div class="card"><div class="label">累计消息</div><div class="value" id="d-chat">0</div></div>
-                  <div class="card"><div class="label">运行时间</div><div class="value" id="d-uptime" style="font-size:18px;">-</div></div>
-                  <div class="card"><div class="label">托管内存</div><div class="value" id="d-mem" style="font-size:18px;">-</div></div>
-                </div>
-                <h2>频道</h2>
-                <table><thead><tr><th>ID</th><th>名称</th><th>玩家数</th></tr></thead><tbody id="d-channels-body"></tbody></table>
-              </section>
-              <section id="panel-players" class="panel">
+              <div class="cards">
+                <div class="card"><div class="label">在线玩家</div><div class="value" id="d-players">0</div></div>
+                <div class="card"><div class="label">频道数</div><div class="value" id="d-channels">0</div></div>
+                <div class="card"><div class="label">累计会话</div><div class="value" id="d-sessions">0</div></div>
+                <div class="card"><div class="label">累计消息</div><div class="value" id="d-chat">0</div></div>
+                <div class="card"><div class="label">运行时间</div><div class="value" id="d-uptime" style="font-size:17px;">-</div></div>
+                <div class="card"><div class="label">托管内存</div><div class="value" id="d-mem" style="font-size:17px;">-</div></div>
+              </div>
+              <section class="panel sec-players">
+                <h2 class="sec-title">在线玩家</h2>
                 <div class="bar">
-                  <input id="announce-input" placeholder="广播公告内容..." maxlength="200">
+                  <input id="announce-input" placeholder="> 广播公告内容..." maxlength="200">
                   <button class="act" id="announce-send">发送公告</button>
                 </div>
-                <table>
-                  <thead><tr><th>连接 ID</th><th>名称</th><th>AuthID</th><th>频道</th><th>位置</th><th>操作</th></tr></thead>
-                  <tbody id="players-body"></tbody>
-                </table>
+                <div class="table-wrap">
+                  <table>
+                    <thead><tr><th>连接 ID</th><th>名称</th><th>AuthID</th><th>频道</th><th>位置</th><th>操作</th></tr></thead>
+                    <tbody id="players-body"></tbody>
+                  </table>
+                </div>
+                <h2 class="sec-title sub">频道</h2>
+                <div class="table-wrap" style="max-height:150px;">
+                  <table><thead><tr><th>ID</th><th>名称</th><th>玩家数</th></tr></thead><tbody id="d-channels-body"></tbody></table>
+                </div>
               </section>
-              <section id="panel-chat" class="panel">
-                <div class="stream" id="chat-stream"><div class="empty">暂无聊天消息</div></div>
-                <button class="back-bottom" id="chat-bottom">回到底部</button>
+              <section class="panel sec-chat">
+                <h2 class="sec-title">实时聊天</h2>
+                <div class="stream-wrap">
+                  <div class="stream" id="chat-stream"><div class="empty">暂无聊天消息</div></div>
+                  <button class="back-bottom" id="chat-bottom">回到底部</button>
+                </div>
               </section>
-              <section id="panel-logs" class="panel">
+              <section class="panel sec-logs">
+                <h2 class="sec-title">实时日志</h2>
                 <div class="filters" id="log-filters">
                   <button data-lv="0" class="active">全部</button>
                   <button data-lv="2">信息+</button>
                   <button data-lv="3">警告+</button>
                   <button data-lv="4">错误</button>
                 </div>
-                <div class="stream" id="log-stream"></div>
-                <button class="back-bottom" id="log-bottom">回到底部</button>
+                <div class="stream-wrap">
+                  <div class="stream" id="log-stream"></div>
+                  <button class="back-bottom" id="log-bottom">回到底部</button>
+                </div>
               </section>
-              <section id="panel-metrics" class="panel">
-                <div class="chart-wrap"><h3>在线玩家</h3><canvas id="chart-players"></canvas><div class="chart-tip"></div><div class="legend"><span style="--c:#58a6ff">在线玩家</span><span style="--c:#bc8cff">频道数</span></div></div>
-                <div class="chart-wrap"><h3>聊天消息（条 / 5 秒）</h3><canvas id="chart-chat"></canvas><div class="chart-tip"></div><div class="legend"><span style="--c:#4caf7d">消息数</span></div></div>
-                <div class="chart-wrap"><h3>TCP 包速率（包 / 秒）</h3><canvas id="chart-packets"></canvas><div class="chart-tip"></div><div class="legend"><span style="--c:#58a6ff">上行</span><span style="--c:#e3b341">下行</span></div></div>
-                <div class="chart-wrap"><h3>TCP 字节速率（KB / 秒）</h3><canvas id="chart-bytes"></canvas><div class="chart-tip"></div><div class="legend"><span style="--c:#58a6ff">上行</span><span style="--c:#e3b341">下行</span></div></div>
+              <section class="panel sec-metrics">
+                <h2 class="sec-title">指标图表</h2>
+                <div class="charts-grid">
+                  <div class="chart-wrap"><h3>在线玩家</h3><canvas id="chart-players"></canvas><div class="chart-tip"></div><div class="legend"><span style="--c:#00e5ff">在线玩家</span><span style="--c:#00ff9c">频道数</span></div></div>
+                  <div class="chart-wrap"><h3>聊天消息（条 / 5 秒）</h3><canvas id="chart-chat"></canvas><div class="chart-tip"></div><div class="legend"><span style="--c:#00ff9c">消息数</span></div></div>
+                  <div class="chart-wrap"><h3>TCP 包速率（包 / 秒）</h3><canvas id="chart-packets"></canvas><div class="chart-tip"></div><div class="legend"><span style="--c:#00e5ff">上行</span><span style="--c:#ffb300">下行</span></div></div>
+                  <div class="chart-wrap"><h3>TCP 字节速率（KB / 秒）</h3><canvas id="chart-bytes"></canvas><div class="chart-tip"></div><div class="legend"><span style="--c:#00e5ff">上行</span><span style="--c:#ffb300">下行</span></div></div>
+                </div>
               </section>
             </main>
             <div id="toasts"></div>
@@ -165,9 +271,9 @@ public sealed partial class MiaoHttpService
             function toast(msg, ok) {
               const t = document.createElement("div");
               t.className = "toast " + (ok ? "ok" : "err");
-              t.textContent = msg;
+              t.textContent = (ok ? "[OK] " : "[ERR] ") + msg;
               $("#toasts").appendChild(t);
-              setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 320); }, 3200);
+              setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 280); }, 3200);
             }
 
             async function api(path, opts) {
@@ -180,13 +286,60 @@ public sealed partial class MiaoHttpService
               return apiJson(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
             }
 
-            // ---- tabs ----
-            document.querySelectorAll("nav.tabs button").forEach(b => {
-              b.addEventListener("click", () => {
-                document.querySelectorAll("nav.tabs button").forEach(x => x.classList.toggle("active", x === b));
-                document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === "panel-" + b.dataset.tab));
-              });
-            });
+            // ---- terminal: mini connection console + boot sequence ----
+            function termPrint(text) {
+              const t = $("#conn-term");
+              const div = document.createElement("div");
+              div.textContent = text;
+              t.appendChild(div);
+              while (t.children.length > 3) t.removeChild(t.firstChild);
+              return div;
+            }
+            const connFail = {}, retryLines = {};
+            function setLive(ok) {
+              $("#live").classList.toggle("down", !ok);
+              $("#live-text").textContent = ok ? "实时" : "重连中";
+            }
+            function pollOk(tag, label) {
+              if (connFail[tag] > 0) {
+                connFail[tag] = 0; retryLines[tag] = null;
+                termPrint("> " + label + " 连接已恢复 [OK]");
+              }
+              if (Object.keys(connFail).every(k => !connFail[k])) setLive(true);
+            }
+            function pollFail(tag, label) {
+              const c = (connFail[tag] = (connFail[tag] || 0) + 1);
+              if (c === 1) retryLines[tag] = termPrint("> " + label + " 连接中断, 正在重试... (1)");
+              else if (retryLines[tag]) retryLines[tag].textContent = "> " + label + " 连接中断, 正在重试... (" + c + ")";
+              setLive(false);
+            }
+            (async function boot() {
+              const bootEl = $("#boot"), bootText = $("#boot-text");
+              let skip = false;
+              bootEl.addEventListener("click", () => skip = true);
+              const sleep = ms => new Promise(r => setTimeout(r, skip ? 0 : ms));
+              const lines = [
+                "> MIAONET ADMIN CONSOLE v2.0",
+                "> 正在建立连接...",
+                "> 握手成功 [OK]",
+                "> 拉取服务器状态... [OK]",
+                "> 数据流已同步 — 实时监控中"
+              ];
+              for (const line of lines) {
+                const div = document.createElement("div");
+                div.className = "bline";
+                const cur = document.createElement("span");
+                cur.className = "bcursor"; cur.textContent = "█";
+                div.appendChild(cur); bootText.appendChild(div);
+                for (const ch of line) { cur.before(document.createTextNode(ch)); await sleep(9); }
+                cur.remove();
+                await sleep(70);
+              }
+              for (const line of lines.slice(-3)) termPrint(line);
+              await sleep(150);
+              bootEl.classList.add("done");
+              setTimeout(() => bootEl.remove(), 420);
+            })();
 
             // ---- animated numbers ----
             const animated = new WeakMap();
@@ -246,6 +399,7 @@ public sealed partial class MiaoHttpService
             async function refreshPlayers() {
               try {
                 const data = await apiJson("/admin/api/players");
+                pollOk("players", "玩家数据");
                 const body = $("#players-body");
                 body.innerHTML = "";
                 if (data.players.length === 0) {
@@ -266,7 +420,7 @@ public sealed partial class MiaoHttpService
                   body.appendChild(tr);
                 }
                 knownPlayers.clear(); seen.forEach(id => knownPlayers.add(id));
-                // dashboard channels table
+                // channels table
                 const cb = $("#d-channels-body");
                 cb.innerHTML = "";
                 if (!data.channels || data.channels.length === 0) {
@@ -278,7 +432,7 @@ public sealed partial class MiaoHttpService
                     cb.appendChild(tr);
                   }
                 }
-              } catch (e) { /* 401 handled in api */ }
+              } catch (e) { pollFail("players", "玩家数据"); }
             }
             async function kickPlayer(p) {
               const reason = prompt("踢出 " + p.name + "（连接 " + p.connectionID + "）的原因（可留空）：", "");
@@ -309,6 +463,7 @@ public sealed partial class MiaoHttpService
             async function pollChat() {
               try {
                 const data = await apiJson("/admin/api/chat?after=" + chatAfter);
+                pollOk("chat", "聊天流");
                 if (chatFirst) { chatStream.clear(); chatFirst = false; }
                 for (const e of data.entries) {
                   const t = chatTypes[e.type] || chatTypes.global;
@@ -320,7 +475,7 @@ public sealed partial class MiaoHttpService
                   chatStream.append(div);
                 }
                 chatAfter = data.latest;
-              } catch (e) { }
+              } catch (e) { pollFail("chat", "聊天流"); }
             }
 
             // ---- logs ----
@@ -352,19 +507,21 @@ public sealed partial class MiaoHttpService
             async function pollLogs() {
               try {
                 const data = await apiJson("/admin/api/logs?after=" + logAfter + "&limit=200");
+                pollOk("logs", "日志流");
                 for (const e of data.entries) {
                   logEntries.push(e);
                   if ((lvOrder[e.level] ?? 2) >= logMinLevel) logStream.append(logNode(e));
                 }
                 if (logEntries.length > 1000) logEntries.splice(0, logEntries.length - 1000);
                 logAfter = data.latest;
-              } catch (e) { }
+              } catch (e) { pollFail("logs", "日志流"); }
             }
 
             // ---- metrics & charts ----
             async function pollMetrics() {
               try {
                 const data = await apiJson("/admin/api/metrics");
+                pollOk("metrics", "指标流");
                 const c = data.current;
                 setNumber($("#d-players"), c.onlinePlayers);
                 setNumber($("#d-channels"), c.channels);
@@ -375,21 +532,21 @@ public sealed partial class MiaoHttpService
                 const s = data.series;
                 const labels = s.time.map(t => new Date(t * 1000).toLocaleTimeString("zh-CN", { hour12: false }));
                 drawChart($("#chart-players"), labels, [
-                  { name: "在线玩家", color: "#58a6ff", data: s.onlinePlayers },
-                  { name: "频道数", color: "#bc8cff", data: s.channels }
+                  { name: "在线玩家", color: "#00e5ff", data: s.onlinePlayers },
+                  { name: "频道数", color: "#00ff9c", data: s.channels }
                 ]);
                 drawChart($("#chart-chat"), labels, [
-                  { name: "消息数", color: "#4caf7d", data: s.chatMessagesPerInterval }
+                  { name: "消息数", color: "#00ff9c", data: s.chatMessagesPerInterval }
                 ]);
                 drawChart($("#chart-packets"), labels, [
-                  { name: "上行", color: "#58a6ff", data: s.upPacketsPerSecond },
-                  { name: "下行", color: "#e3b341", data: s.downPacketsPerSecond }
+                  { name: "上行", color: "#00e5ff", data: s.upPacketsPerSecond },
+                  { name: "下行", color: "#ffb300", data: s.downPacketsPerSecond }
                 ]);
                 drawChart($("#chart-bytes"), labels, [
-                  { name: "上行", color: "#58a6ff", data: s.upBytesPerSecond.map(v => v / 1024) },
-                  { name: "下行", color: "#e3b341", data: s.downBytesPerSecond.map(v => v / 1024) }
+                  { name: "上行", color: "#00e5ff", data: s.upBytesPerSecond.map(v => v / 1024) },
+                  { name: "下行", color: "#ffb300", data: s.downBytesPerSecond.map(v => v / 1024) }
                 ]);
-              } catch (e) { }
+              } catch (e) { pollFail("metrics", "指标流"); }
             }
 
             const chartState = new WeakMap();
@@ -410,7 +567,8 @@ public sealed partial class MiaoHttpService
               const xOf = i => padL + (n <= 1 ? iw / 2 : i / (n - 1) * iw);
               const yOf = v => padT + ih - (v / max) * ih;
               // grid + y labels
-              ctx.font = "10px sans-serif"; ctx.fillStyle = "#6b7280"; ctx.strokeStyle = "#23262f"; ctx.lineWidth = 1;
+              ctx.font = "10px Consolas, monospace"; ctx.fillStyle = "#3d5560";
+              ctx.strokeStyle = "rgba(0,229,255,.1)"; ctx.lineWidth = 1;
               for (let g = 0; g <= 4; g++) {
                 const y = padT + ih * g / 4, val = max * (1 - g / 4);
                 ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
@@ -424,14 +582,20 @@ public sealed partial class MiaoHttpService
                 const i = Math.round(t * (n - 1) / Math.max(1, ticks - 1));
                 if (labels[i]) ctx.fillText(labels[i], xOf(i), H - 6);
               }
+              // axis
+              ctx.strokeStyle = "rgba(0,229,255,.3)";
+              ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT + ih); ctx.lineTo(W - padR, padT + ih); ctx.stroke();
               // series
               for (const s of series) {
-                ctx.strokeStyle = s.color; ctx.lineWidth = 1.6; ctx.beginPath();
+                ctx.strokeStyle = s.color; ctx.lineWidth = 1.5;
+                ctx.shadowColor = s.color; ctx.shadowBlur = 6;
+                ctx.beginPath();
                 for (let i = 0; i < n; i++) {
                   const x = xOf(i), y = yOf(s.data[i] || 0);
                   i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
                 }
                 ctx.stroke();
+                ctx.shadowBlur = 0;
               }
               chartState.set(canvas, { labels, series, padL, padR, padT, padB, xOf, yOf, n, max });
             }
