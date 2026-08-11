@@ -1,6 +1,8 @@
 @hostname=localhost
 @port=21474
 @host={{hostname}}:{{port}}
+# MiaoServer:ApiToken 配置的值
+@apiToken=changeme
 
 ###
 
@@ -13,14 +15,39 @@ GET http://{{host}}/status
 @cid=1
 @reason=Reason here.
 DELETE http://{{host}}/player?cid={{cid}}&reason={{reason}}
+X-Api-Token: {{apiToken}}
+
+###
+
+# kick player (by aid / forum user id)
+@aid=1
+DELETE http://{{host}}/player?aid={{aid}}&reason={{reason}}
+X-Api-Token: {{apiToken}}
 
 ###
 
 # announce
 @msg=Server is closing!
 POST http://{{host}}/announce?msg={{msg}}
+X-Api-Token: {{apiToken}}
+
+###
+
+# force GC
+GET http://{{host}}/gc
+X-Api-Token: {{apiToken}}
 
 ###
 
 # metrics
 GET http://{{host}}/metrics
+
+###
+
+# admin panel (browser only, login via forum OAuth)
+GET http://{{host}}/admin/login
+
+###
+
+# admin panel dashboard (requires session cookie)
+GET http://{{host}}/admin

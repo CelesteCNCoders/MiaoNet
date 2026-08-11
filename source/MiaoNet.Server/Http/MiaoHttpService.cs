@@ -1,5 +1,6 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Web;
@@ -19,6 +20,11 @@ public sealed partial class MiaoHttpService : BackgroundService
     private readonly HttpListener httpListener;
     private readonly Dictionary<string, RequestHandler> requestHandlers;
 
+    private readonly string apiToken;
+    private readonly AdminPanelOptions adminOptions;
+    private readonly AdminSessionStore? adminSessionStore;
+    private readonly HttpClient? adminHttpClient;
+
     private readonly JsonSerializerOptions jsonSerializerOptions;
 
     public MiaoHttpService(
@@ -33,6 +39,18 @@ public sealed partial class MiaoHttpService : BackgroundService
         this.miaoMetricsService = miaoMetricsService;
         httpListener = new();
         httpListener.Prefixes.Add(options.Value.HttpListenerPrefix);
+
+        apiToken = options.Value.ApiToken;
+        adminOptions = options.Value.AdminPanel;
+        if (adminOptions.Enabled)
+        {
+            adminSessionStore = new AdminSessionStore(TimeSpan.FromHours(adminOptions.SessionHours));
+            adminHttpClient = new HttpClient
+            {
+                BaseAddress = new Uri(adminOptions.ForumBaseUrl.TrimEnd('/') + "/")
+            };
+            adminHttpClient.DefaultRequestHeaders.Add("User-Agent", "MiaoNet.Server.AdminPanel");
+        }
 
         jsonSerializerOptions = new()
         {
@@ -55,6 +73,25 @@ public sealed partial class MiaoHttpService : BackgroundService
     {
         httpListener.Start();
         logger.LogInformation(AppEvents.Http, "HttpListener start to listen on {ps}.", string.Join(';', httpListener.Prefixes));
+
+        if (string.IsNullOrEmpty(apiToken))
+        {
+            logger.LogWarning(
+                AppEvents.Http,
+                "MiaoServer:ApiToken is not configured; mutating HTTP endpoints (DELETE /player, POST /announce, /gc) are unprotected."
+            );
+        }
+        if (adminOptions.Enabled)
+        {
+            if (string.IsNullOrEmpty(adminOptions.ClientID) || string.IsNullOrEmpty(adminOptions.ClientSecret))
+            {
+                logger.LogWarning(
+                    AppEvents.Http,
+                    "Admin panel is enabled but MiaoServer:AdminPanel ClientID/ClientSecret is not configured; OAuth login will fail."
+                );
+            }
+            logger.LogInformation(AppEvents.Http, "Admin panel is enabled on /admin, forum: {forum}.", adminOptions.ForumBaseUrl);
+        }
 
         return base.StartAsync(cancellationToken);
     }
@@ -84,14 +121,13 @@ public sealed partial class MiaoHttpService : BackgroundService
                 if (uri is null)
                 {
                     context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    context.Response.Close();
                     continue;
                 }
 
                 string path = uri.AbsolutePath;
                 NameValueCollection query = HttpUtility.ParseQueryString(uri.Query);
 
-                _ = HandleRequestAsync(path, query, context);
+                await HandleRequestAsync(path, query, context);
             }
             catch (Exception e)
             {
@@ -109,10 +145,29 @@ public sealed partial class MiaoHttpService : BackgroundService
     {
         try
         {
-            if (requestHandlers.TryGetValue(path, out var handler))
+            if (path == "/admin" || path.StartsWith("/admin/", StringComparison.Ordinal))
+            {
+                await HandleAdminRequestAsync(path, query, context);
+            }
+            else if (requestHandlers.TryGetValue(path, out var handler))
+            {
+                if (!CheckApiToken(path, context))
+                {
+                    context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+                    context.Response.ContentType = "application/json";
+                    await JsonSerializer.SerializeAsync(
+                        context.Response.OutputStream,
+                        new { error = "Missing or invalid X-Api-Token header." },
+                        jsonSerializerOptions
+                    );
+                    return;
+                }
                 await handler(query, context);
+            }
             else
+            {
                 context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+            }
         }
         catch (Exception e)
         {
@@ -123,6 +178,26 @@ public sealed partial class MiaoHttpService : BackgroundService
                 context.Request.RawUrl, context.Request.RemoteEndPoint
             );
         }
+    }
+
+    private bool CheckApiToken(string path, HttpListenerContext context)
+    {
+        // only mutating endpoints are protected; /status and /metrics stay public
+        bool isProtected = path is "/player" or "/gc"
+            || (path == "/announce" && context.Request.HttpMethod == "POST");
+        if (!isProtected)
+            return true;
+        // not configured: leave unprotected (a warning was logged at startup)
+        if (string.IsNullOrEmpty(apiToken))
+            return true;
+
+        string? token = context.Request.Headers["X-Api-Token"];
+        if (token is null)
+            return false;
+        return CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(token),
+            Encoding.UTF8.GetBytes(apiToken)
+        );
     }
 
     public override Task StopAsync(CancellationToken cancellationToken)

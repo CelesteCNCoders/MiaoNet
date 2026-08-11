@@ -1,4 +1,4 @@
-﻿using MiaoNet.Shared;
+using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
 
@@ -21,4 +21,8 @@ public sealed class MiaoServerOptions
     public required LocalizedOptions<AnnouncementsStrings> Announcements { get; set; }
 
     public string HttpListenerPrefix { get; set; } = "http://localhost:21474/";
+
+    public string ApiToken { get; set; } = string.Empty;
+
+    public AdminPanelOptions AdminPanel { get; set; } = new();
 }
