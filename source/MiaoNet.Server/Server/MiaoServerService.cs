@@ -16,7 +16,7 @@ using System.Security.Authentication;
 
 namespace MiaoNet.Server;
 
-public sealed partial class MiaoServerService : BackgroundService
+public sealed partial class MiaoServerService : BackgroundService, IMiaoServerService
 {
     private static readonly ArrayPool<byte> pool = ArrayPool<byte>.Shared;
 
@@ -25,6 +25,7 @@ public sealed partial class MiaoServerService : BackgroundService
     private readonly MiaoServerOptions options;
     private readonly IMiaoAuthenticator authenticator;
     private readonly MiaoMetricsService miaoMetricsService;
+    private readonly AdminChatBuffer adminChatBuffer;
 
     private readonly PacketDispatcher packetDispatcher;
 
@@ -38,6 +39,10 @@ public sealed partial class MiaoServerService : BackgroundService
 
     public ServerState ServerState => serverState;
 
+    public IReadOnlyDictionary<int, ServerState.Client> Players => serverState.AllPlayers;
+
+    public IReadOnlyDictionary<int, ServerChannel> Channels => serverState.AllChannels;
+
     public int DisconnectTimeout => options.DisconnectTimeout;
 
     // TODO refactor
@@ -47,7 +52,8 @@ public sealed partial class MiaoServerService : BackgroundService
         NetworkListenerFactory networkListenerFactory,
         MiaoClientConnectionFactory connectionFactory,
         IMiaoAuthenticator authenticator,
-        MiaoMetricsService miaoMetricsService
+        MiaoMetricsService miaoMetricsService,
+        AdminChatBuffer adminChatBuffer
     )
     {
         serverState = new();
@@ -64,6 +70,7 @@ public sealed partial class MiaoServerService : BackgroundService
         pingTimer = new(TimeSpan.FromMilliseconds(this.options.PingPeriod));
         stopwatch = Stopwatch.StartNew();
         this.miaoMetricsService = miaoMetricsService;
+        this.adminChatBuffer = adminChatBuffer;
     }
 
     public override Task StartAsync(CancellationToken cancellationToken)

@@ -1,11 +1,9 @@
 using System.Collections.Specialized;
-using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using System.Web;
 using Microsoft.Extensions.Logging;
 
 namespace MiaoNet.Server;
@@ -33,6 +31,18 @@ public sealed partial class MiaoHttpService
         }
 
         AdminSessionStore.AdminSession? session = GetAdminSession(context.Request);
+
+        if (path.StartsWith("/admin/api/", StringComparison.Ordinal))
+        {
+            if (session is null)
+            {
+                await WriteJsonAsync(context, (int)HttpStatusCode.Unauthorized, new { error = "未登录或会话已过期" });
+                return;
+            }
+            await HandleAdminApiRequestAsync(path, query, context, session);
+            return;
+        }
+
         if (session is null)
         {
             Redirect(context, "/admin/login");
@@ -42,13 +52,7 @@ public sealed partial class MiaoHttpService
         switch (path)
         {
         case "/admin":
-            await AdminDashboardAsync(query, context, session);
-            break;
-        case "/admin/kick":
-            await AdminKickAsync(context);
-            break;
-        case "/admin/announce":
-            await AdminAnnounceAsync(context);
+            await AdminPageAsync(context, session);
             break;
         case "/admin/logout":
             AdminLogout(context);
@@ -162,115 +166,6 @@ public sealed partial class MiaoHttpService
         Redirect(context, "/admin");
     }
 
-    private async Task AdminDashboardAsync(NameValueCollection query, HttpListenerContext context, AdminSessionStore.AdminSession session)
-    {
-        StringBuilder sb = new();
-
-        string? flash = query["msg"];
-        if (!string.IsNullOrEmpty(flash))
-            sb.Append(CultureInfo.InvariantCulture, $"<div class=\"flash\">{HtmlEncode(flash)}</div>");
-
-        sb.Append(CultureInfo.InvariantCulture, $"<p>当前登录：{HtmlEncode(session.NickName)}（{HtmlEncode(session.UserName)}） ");
-        sb.Append("| <a href=\"/admin\">刷新</a> | <a href=\"/admin/logout\">退出登录</a></p>");
-
-        // 在线玩家
-        sb.Append("<h2>在线玩家</h2>");
-        sb.Append("<table><tr><th>连接 ID</th><th>名称</th><th>AuthID</th><th>位置</th></tr>");
-        foreach (var p in miaoServerService.Players)
-        {
-            var info = p.Value.Player.Info;
-            sb.Append(CultureInfo.InvariantCulture,
-                $"<tr><td>{p.Key}</td><td>{HtmlEncode(info.Name)}</td><td>{info.AuthID}</td>");
-            sb.Append(CultureInfo.InvariantCulture,
-                $"<td>{HtmlEncode(p.Value.Player.Location.ToString())}</td></tr>");
-        }
-        if (miaoServerService.Players.Count == 0)
-            sb.Append("<tr><td colspan=\"4\">当前没有在线玩家</td></tr>");
-        sb.Append("</table>");
-
-        // 频道
-        sb.Append("<h2>频道</h2>");
-        sb.Append("<table><tr><th>ID</th><th>名称</th><th>玩家数</th></tr>");
-        foreach (var c in miaoServerService.Channels)
-        {
-            sb.Append(CultureInfo.InvariantCulture,
-                $"<tr><td>{c.Key}</td><td>{HtmlEncode(c.Value.Info.Name)}</td><td>{c.Value.Players.Count}</td></tr>");
-        }
-        if (miaoServerService.Channels.Count == 0)
-            sb.Append("<tr><td colspan=\"3\">当前没有频道</td></tr>");
-        sb.Append("</table>");
-
-        // 指标
-        var metrics = miaoMetricsService.Get();
-        sb.Append("<h2>服务器指标</h2>");
-        sb.Append("<table>");
-        sb.Append(CultureInfo.InvariantCulture, $"<tr><th>在线玩家数</th><td>{miaoServerService.Players.Count}</td></tr>");
-        sb.Append(CultureInfo.InvariantCulture, $"<tr><th>累计会话数</th><td>{metrics.SessionsCount}</td></tr>");
-        sb.Append(CultureInfo.InvariantCulture, $"<tr><th>TCP 上传</th><td>{metrics.TcpUploadByPackets} 包 / {metrics.TcpUploadByBytes} 字节</td></tr>");
-        sb.Append(CultureInfo.InvariantCulture, $"<tr><th>TCP 下载</th><td>{metrics.TcpDownloadByPackets} 包 / {metrics.TcpDownloadByBytes} 字节</td></tr>");
-        sb.Append(CultureInfo.InvariantCulture, $"<tr><th>GC 总分配</th><td>{GC.GetTotalAllocatedBytes()} 字节</td></tr>");
-        sb.Append("</table>");
-
-        // 踢出玩家
-        sb.Append("""
-            <h2>踢出玩家</h2>
-            <form method="post" action="/admin/kick">
-              <label>AuthID：<input type="number" name="aid" required></label>
-              <label>原因：<input type="text" name="reason" placeholder="选填"></label>
-              <button type="submit">踢出</button>
-            </form>
-            """);
-
-        // 广播公告
-        sb.Append("""
-            <h2>广播公告</h2>
-            <form method="post" action="/admin/announce">
-              <label>内容：<input type="text" name="msg" required size="40"></label>
-              <button type="submit">发送</button>
-            </form>
-            """);
-
-        await WriteHtmlPageAsync(context, (int)HttpStatusCode.OK, "管理后台", sb.ToString());
-    }
-
-    private async Task AdminKickAsync(HttpListenerContext context)
-    {
-        if (context.Request.HttpMethod != "POST")
-        {
-            context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
-            return;
-        }
-        var form = await ReadFormAsync(context.Request);
-        if (!int.TryParse(form["aid"], CultureInfo.InvariantCulture, out int aid))
-        {
-            RedirectWithMessage(context, "参数错误：无效的 AuthID");
-            return;
-        }
-        string reason = form["reason"] is { Length: > 0 } r ? r : "你已被管理员踢出";
-        int kicked = await KickByAuthIDAsync(aid, reason);
-        logger.LogInformation(AppEvents.Http, "Admin panel kicked {count} player(s) with AuthID {aid}, reason: {reason}.", kicked, aid, reason);
-        RedirectWithMessage(context, kicked > 0 ? $"已踢出 {kicked} 名玩家" : "未找到该玩家");
-    }
-
-    private async Task AdminAnnounceAsync(HttpListenerContext context)
-    {
-        if (context.Request.HttpMethod != "POST")
-        {
-            context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
-            return;
-        }
-        var form = await ReadFormAsync(context.Request);
-        string? msg = form["msg"];
-        if (string.IsNullOrWhiteSpace(msg))
-        {
-            RedirectWithMessage(context, "参数错误：公告内容不能为空");
-            return;
-        }
-        await BroadcastAnnouncementAsync(msg);
-        logger.LogInformation(AppEvents.Http, "Admin panel broadcasted announcement: {msg}.", msg);
-        RedirectWithMessage(context, "公告已发送");
-    }
-
     private void AdminLogout(HttpListenerContext context)
     {
         string? sessionID = context.Request.Cookies[AdminSessionCookieName]?.Value;
@@ -279,16 +174,6 @@ public sealed partial class MiaoHttpService
         context.Response.AppendHeader("Set-Cookie", $"{AdminSessionCookieName}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0");
         Redirect(context, "/admin/login");
     }
-
-    private static async Task<NameValueCollection> ReadFormAsync(HttpListenerRequest request)
-    {
-        using StreamReader reader = new(request.InputStream, request.ContentEncoding);
-        string body = await reader.ReadToEndAsync();
-        return HttpUtility.ParseQueryString(body);
-    }
-
-    private void RedirectWithMessage(HttpListenerContext context, string message)
-        => Redirect(context, $"/admin?msg={Uri.EscapeDataString(message)}");
 
     private static void Redirect(HttpListenerContext context, string location)
     {

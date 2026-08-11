@@ -224,6 +224,8 @@ public sealed partial class MiaoServerService
             await connection.DisconnectAsync(DisconnectReason.Kicked, "Chat too long.");
             return;
         }
+        // record accepted public chat for the admin panel (private messages are never recorded)
+        adminChatBuffer.Record("global", null, connection.Player.Info.Name, connection.Player.Info.AuthID, packet.Content);
         await BroadcastAsync(new PacketChatMessage(DateTime.UtcNow, ChatMessageType.Chat, connection.Player.ID, packet.Content));
     }
 
@@ -236,6 +238,11 @@ public sealed partial class MiaoServerService
             await connection.DisconnectAsync(DisconnectReason.Kicked, "Chat too long.");
             return;
         }
+        // record accepted public chat for the admin panel (private messages are never recorded)
+        adminChatBuffer.Record(
+            "map", connection.Player.Channel.StateInfo.Name,
+            connection.Player.Info.Name, connection.Player.Info.AuthID, packet.Content
+        );
         await BroadcastToAsync(
             new PacketChatMessage(DateTime.UtcNow, ChatMessageType.MapChat, connection.Player.ID, packet.Content),
             con => con.PlayerShouldSyncFrom(connection)

@@ -53,8 +53,15 @@ CelesteNet 的一个重写, 以应对数以百计的蔚蓝联机玩家.
 - 受保护接口(需要在请求头携带 `X-Api-Token`, 值为配置项 `MiaoServer:ApiToken`; 为空则不校验并会在启动时警告):
   `DELETE /player`(按 `cid`/`aid` 踢人)、`POST /announce`(广播公告)、`/gc`
 - 管理后台(配置节 `MiaoServer:AdminPanel`, 默认关闭): 通过论坛 OAuth 登录,
-  仅论坛管理员可进入, 支持查看在线玩家/频道/指标以及踢人、广播公告.
-  入口为 `GET /admin/login`.
+  仅论坛管理员可进入. 入口为 `GET /admin/login`, 页面为单页应用, 包含
+  仪表盘 / 玩家 / 聊天 / 日志 / 指标 五个标签页, 数据通过以下 JSON API 实时刷新
+  (均需登录会话 Cookie, 未登录返回 401 JSON):
+  - `GET /admin/api/players`: 在线玩家与频道列表
+  - `POST /admin/api/kick`: 踢出玩家, 请求体 `{ "authID": ..., "connectionID": ..., "reason": "..." }`(id 至少给一个)
+  - `POST /admin/api/announce`: 广播公告, 请求体 `{ "message": "..." }`
+  - `GET /admin/api/logs?after=<id>&limit=<n>`: 实时服务器日志(环形缓冲区, 最多保留最近 1000 条)
+  - `GET /admin/api/chat?after=<id>`: 实时玩家聊天与服务器公告(私聊不记录)
+  - `GET /admin/api/metrics`: 当前指标快照与最近约 1 小时的时间序列(每 5 秒采样)
 
 注意: 默认监听前缀 `MiaoServer:HttpListenerPrefix` 为 `http://localhost:21474/`, 只监听本机回环地址.
 若要对公网开放管理后台或 API, 需将其改为如 `http://+:21474/` 的前缀(或配置反向代理),
