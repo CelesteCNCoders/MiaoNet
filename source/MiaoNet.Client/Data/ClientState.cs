@@ -12,6 +12,17 @@ public sealed class ClientState
 
     public IReadOnlyDictionary<int, OnlinePlayer> Players => players;
 
+    /// <summary>All players, included self.</summary>
+    public IEnumerable<OnlinePlayer> AllPlayers
+    {
+        get
+        {
+            yield return Self;
+            foreach (OnlinePlayer player in players.Values)
+                yield return player;
+        }
+    }
+
     public IReadOnlyDictionary<int, OnlineChannel> Channels => channels;
 
     public OnlinePlayer Self { get; private set; }

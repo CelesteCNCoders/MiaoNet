@@ -1,74 +1,13 @@
-using System.Globalization;
-using System.Runtime.InteropServices;
 using Celeste.Mod.ChatInputBox;
 
 namespace Celeste.Mod.MiaoNet;
 
 public static class MiaoNetChatText
 {
-    private static readonly Color ColorChatContent = Color.White;
-    private static readonly Color ColorMapChat = Color.Cyan;
-    private static readonly Color ColorChannelChat = Color.LightGray;
-    private static readonly Color ColorPrivateChat = Color.LightGray;
-    private static readonly Color ColorPrivateChatReceived = Color.DarkGray;
     private static readonly Color ColorCommand = Color.LightGray;
     private static readonly Color ColorCommandEcho = Color.DodgerBlue;
     private static readonly Color ColorCommandError = Color.IndianRed;
     private static readonly Color ColorAnnouncements = new Color(0x1b, 0xc2, 0xff);
-
-    public static ChatText CreatePublicChat(OnlinePlayer sender, string text, bool avatar)
-        => new ChatText([
-            new(sender.Info.Color, sender.GetDisplayName(true, avatar)),
-            new(ColorChatContent, ": "),
-            ..ChatText.Parse(text, ColorChatContent)
-        ]);
-
-    public static ChatText CreateMapChat(OnlinePlayer sender, string text, bool avatar)
-        => new ChatText([
-            new(ColorMapChat, Dialog.Clean("miaonet_chat_map_chat")),
-            new(ColorChatContent, " "),
-            new(sender.Info.Color, sender.GetDisplayName(true, avatar)),
-            new(ColorChatContent, ": "),
-            ..ChatText.Parse(text, ColorChatContent)
-        ]);
-
-    public static ChatText CreateChannelChat(OnlinePlayer sender, string text, bool avatar)
-        => new ChatText([
-            new(ColorChannelChat, Dialog.Clean("miaonet_chat_channel_chat")),
-            new(ColorChatContent, " "),
-            new(sender.Info.Color, sender.GetDisplayName(true, avatar)),
-            new(ColorChatContent, ": "),
-            ..ChatText.Parse(text, ColorChatContent)
-        ]);
-
-    public static ChatText CreatePrivateChat(OnlinePlayer sender, string text, bool avatar)
-        => new ChatText([
-            new(
-                ColorPrivateChatReceived,
-                PFormat.Format(
-                    CultureInfo.CurrentCulture,
-                    Dialog.Clean("miaonet_chat_whisper_received"),
-                    sender.GetDisplayName(false, avatar)
-                )
-            ),
-            new( ColorPrivateChat, ": "),
-            ..ChatText.Parse(text, ColorPrivateChat)
-        ]);
-
-    public static ChatText CreateSentPrivateChat(OnlinePlayer other, OnlinePlayer self, string text, bool avatar)
-        => new ChatText([
-            new(
-                ColorPrivateChatReceived,
-                PFormat.Format(
-                    CultureInfo.CurrentCulture,
-                    Dialog.Clean("miaonet_chat_whisper_sent"),
-                    other.GetDisplayName(false, avatar),
-                    self.GetDisplayName(false, avatar)
-                )
-            ),
-            new( ColorPrivateChat, ": "),
-            ..ChatText.Parse(text, ColorPrivateChat)
-        ]);
 
     public static ChatText CreateAnnouncement(string text)
         => new ChatText([
