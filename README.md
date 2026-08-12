@@ -4,6 +4,16 @@ MiaoNet 是面向大量玩家场景的 Celeste 联机项目，也是对 CelesteN
 
 项目仍处于早期开发阶段，主要开发分支为 `wip`。当前仓库包含 Everest 客户端 Mod、独立服务端、共享协议代码、模拟客户端、聊天组件、测试和数据包检查工具。
 
+## 编译时认证模式
+
+`Release` 默认启用 CeleMiao OAuth 认证，并要求服务端配置
+`MiaoServer:Authentication` 下的 `ClientID`、`ClientSecret` 和
+`EncryptionPassword`；任一配置缺失或为空时，服务端会拒绝启动。
+`Debug` 默认保留无需论坛账号的本地开发认证。
+
+认证模式会同时影响客户端登录流程和服务端认证器，两端应使用相同设置构建。如需显式覆盖默认值，可向 MSBuild 传入
+`-p:UseCeleMiaoAuth=true` 或 `-p:UseCeleMiaoAuth=false`。发布到公网的构建不应关闭该选项。
+
 ## 项目结构
 
 | 路径 | 说明 |

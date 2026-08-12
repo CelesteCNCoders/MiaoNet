@@ -159,4 +159,41 @@ public sealed class CeleMiaoAuthenticatorTests
             return response;
         }
     }
+
+    [TestMethod]
+    [DataRow(null, "client-secret", "encryption-password")]
+    [DataRow("client-id", null, "encryption-password")]
+    [DataRow("client-id", "client-secret", null)]
+    [DataRow(" ", "client-secret", "encryption-password")]
+    [DataRow("client-id", "\t", "encryption-password")]
+    [DataRow("client-id", "client-secret", "\r\n")]
+    public void ConstructorRejectsMissingAuthenticationConfiguration(
+        string? clientID,
+        string? clientSecret,
+        string? encryptionPassword
+    )
+    {
+        MiaoServerOptions serverOptions = new()
+        {
+            Certificate = new CertificateOptions(),
+            Authentication = new AuthenticationOptions
+            {
+                ClientID = clientID,
+                ClientSecret = clientSecret,
+                EncryptionPassword = encryptionPassword
+            },
+            Announcements = new LocalizedOptions<AnnouncementsStrings>
+            {
+                SChinese = new AnnouncementsStrings(string.Empty, string.Empty, string.Empty),
+                English = new AnnouncementsStrings(string.Empty, string.Empty, string.Empty)
+            }
+        };
+
+        Assert.ThrowsExactly<InvalidOperationException>(() =>
+            new CeleMiaoAuthenticator(
+                Options.Create(serverOptions),
+                NullLogger<CeleMiaoAuthenticator>.Instance
+            )
+        );
+    }
 }
