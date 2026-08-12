@@ -80,11 +80,7 @@ public sealed class ServerState : IPlayerScope
     }
 
     public MoveResult PlayerMapMove(MiaoClientConnection connection, PlayerMapLocation to)
-    {
-        var fromScope = connection.Player.Scope;
-        connection.Player.Channel.OnPlayerMapMove(connection, to);
-        return new MoveResult(fromScope, connection.Player.Scope);
-    }
+        => connection.Player.Channel.OnPlayerMapMove(connection, to);
 
     private void RemoveChannelIfEmpty(ServerChannel channel)
     {

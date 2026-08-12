@@ -84,7 +84,7 @@ public sealed partial class MiaoServerService
         if (!newLocation.IsInMap)
         {
             Task othersTask;
-            ValueTask debugSnapshotTask = default;
+            Task<IReadOnlyCollection<PlayerMovedInitialDataWithID>>? mapPlayersTask = null;
             using (stateLock.AcquireWriteLock())
             {
                 othersTask = BroadcastToScopeExceptAsync(
@@ -93,22 +93,24 @@ public sealed partial class MiaoServerService
                     connection.ID
                 );
 
+                var moveResult = ServerState.PlayerMapMove(connection, newLocation.Map);
+                player.Location = newLocation;
+                player.State = null;
+
                 // if the player is going to debug map
                 // sending states here is necessary currently
                 if (newLocation.IsInDebugMap && player.Channel.Maps.TryGetValue(newLocation.Map, out var mapTo))
                 {
-                    var mapPlayers = mapTo.GetPlayerMovedInitialDatas(connection);
-                    debugSnapshotTask = connection.QueuePacketAsync(
-                        new PacketPlayerLocationChangedResponse(mapPlayers));
+                    mapPlayersTask = mapTo.GetPlayerMovedInitialDatasAsync(connection);
                 }
-
-                var moveResult = ServerState.PlayerMapMove(connection, newLocation.Map);
-                player.Location = newLocation;
-                player.State = null;
             }
 
             await othersTask;
-            await debugSnapshotTask;
+            if (mapPlayersTask != null)
+            {
+                var mapPlayers = await mapPlayersTask;
+                await connection.QueuePacketAsync(new PacketPlayerLocationChangedResponse(mapPlayers));
+            }
             return;
         }
 
@@ -139,15 +141,11 @@ public sealed partial class MiaoServerService
 
         Debug.Assert(newLocation.IsInMap);
         Task generalTask, withStateTask;
-        ValueTask responseTask = default;
+        Task<IReadOnlyCollection<PlayerMovedInitialDataWithID>>? mapPlayersTask2 = null;
 
         using (stateLock.AcquireWriteLock())
         {
-            var c = player.Channel;
             var moveResult = serverState.PlayerMapMove(connection, newLocation.Map);
-
-            var mapPlayers = moveResult.To.Map?.GetPlayerMovedInitialDatas(connection) ?? [];
-            var responsePacket = new PacketPlayerLocationChangedResponse(mapPlayers);
 
             var generalPacket = new PacketPlayerLocationChangedNotification(player.ID, newLocation, null);
             var withStatePacket = new PacketPlayerLocationChangedNotification(player.ID, newLocation, packet.InitialState);
@@ -159,15 +157,28 @@ public sealed partial class MiaoServerService
             withStateTask = moveResult.To.Map is not null
                 ? BroadcastToScopeExceptAsync(withStatePacket, moveResult.To.Map, connection.ID)
                 : Task.CompletedTask;
-            responseTask = connection.QueuePacketAsync(responsePacket);
 
             player.Location = newLocation;
             player.State = packet.InitialState;
+
+            if (moveResult.To.Map is not null)
+            {
+                mapPlayersTask2 = moveResult.To.Map.GetPlayerMovedInitialDatasAsync(connection);
+            }
         }
 
         await generalTask;
         await withStateTask;
-        await responseTask;
+
+        if (mapPlayersTask2 != null)
+        {
+            var mapPlayers = await mapPlayersTask2;
+            await connection.QueuePacketAsync(new PacketPlayerLocationChangedResponse(mapPlayers));
+        }
+        else
+        {
+            await connection.QueuePacketAsync(new PacketPlayerLocationChangedResponse(Array.Empty<PlayerMovedInitialDataWithID>()));
+        }
     }
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerChannelMove packet)
@@ -179,16 +190,17 @@ public sealed partial class MiaoServerService
         }
         var player = connection.Player;
 
-        ValueTask responseTask;
+        Task<IReadOnlyCollection<PlayerMovedInitialDataWithID>>? mapPlayersTask3 = null;
         Task sameMapTask;
         Task sameChannelTask;
         Task crossChannelTask;
+        List<PlayerPresenceDataWithID> channelPlayers;
 
         using (stateLock.AcquireWriteLock())
         {
             var moveResult = serverState.PlayerChannelMove(connection, channel);
 
-            var channelPlayers = new List<PlayerPresenceDataWithID>(channel.Players.Count);
+            channelPlayers = new List<PlayerPresenceDataWithID>(channel.Players.Count);
             foreach (var c in channel.Players)
             {
                 if (c.ID == connection.ID)
@@ -197,10 +209,11 @@ public sealed partial class MiaoServerService
                     c.ID, new PlayerPresenceData(c.Player.Location, c.Player.GlobalFlags)
                 ));
             }
-            var mapPlayers = moveResult.To.Map?.GetPlayerMovedInitialDatas(connection);
 
-            var responsePacket = new PacketPlayerChannelMovedResponse(channel.ID, mapPlayers, channelPlayers);
-            responseTask = connection.QueuePacketAsync(responsePacket);
+            if (moveResult.To.Map is not null)
+            {
+                mapPlayersTask3 = moveResult.To.Map.GetPlayerMovedInitialDatasAsync(connection);
+            }
 
             var sameMapNotification = new PacketPlayerChannelMovedNotification(
                 connection.ID, channel.ID,
@@ -227,7 +240,16 @@ public sealed partial class MiaoServerService
             );
         }
 
-        await responseTask;
+        if (mapPlayersTask3 != null)
+        {
+            var mapPlayers = await mapPlayersTask3;
+            await connection.QueuePacketAsync(new PacketPlayerChannelMovedResponse(channel.ID, mapPlayers, channelPlayers));
+        }
+        else
+        {
+            await connection.QueuePacketAsync(new PacketPlayerChannelMovedResponse(channel.ID, null, channelPlayers));
+        }
+
         await sameMapTask;
         await sameChannelTask;
         await crossChannelTask;

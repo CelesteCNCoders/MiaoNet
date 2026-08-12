@@ -17,8 +17,6 @@ public sealed class ServerChannel : IPlayerScope
 
     IEnumerable<MiaoClientConnection> IPlayerScope.Players => players;
 
-    public IEnumerable<MiaoClientConnection> AllPlayers => players;
-
     public ImmutableDictionary<PlayerMapLocation, ServerMap> Maps => maps;
 
     public ServerChannel(int id, ChannelInfo info)
@@ -35,8 +33,7 @@ public sealed class ServerChannel : IPlayerScope
         Debug.Assert(result);
 
         var mapLoc = connection.Player.Location.Map;
-        var mapScope = OnPlayerMapMoveTo(connection, mapLoc);
-        connection.Player.Scope = new ScopeTuple(this, mapScope);
+        OnPlayerMapMoveTo(connection, mapLoc);
     }
 
     public MoveResult OnPlayerMapMove(MiaoClientConnection connection, PlayerMapLocation to)
@@ -93,5 +90,6 @@ public sealed class ServerChannel : IPlayerScope
 
         var mapLoc = connection.Player.Location.Map;
         OnPlayerMapMoveFrom(connection, mapLoc);
+        connection.Player.Scope.Map = null;
     }
 }

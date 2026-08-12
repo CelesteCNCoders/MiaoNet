@@ -58,17 +58,21 @@ public sealed class ServerMap : IPlayerScope, IDisposable
         Debug.Assert(result);
     }
 
-    public IReadOnlyCollection<PlayerMovedInitialDataWithID> GetPlayerMovedInitialDatas(MiaoClientConnection except)
+    public Task<IReadOnlyCollection<PlayerMovedInitialDataWithID>> GetPlayerMovedInitialDatasAsync(MiaoClientConnection except)
     {
-        var list = new List<PlayerMovedInitialDataWithID>(players.Count);
-        foreach (var con in players)
+        return PostAsync(() =>
         {
-            var p = con.Player;
-            if (con == except || p.State is null)
-                continue;
-            list.Add(new PlayerMovedInitialDataWithID(p.ID, new PlayerMovedInitialData(p.State!.Clone())));
-        }
-        return list;
+            var list = new List<PlayerMovedInitialDataWithID>(players.Count);
+            foreach (var con in players)
+            {
+                var p = con.Player;
+                // players that in debug map can cause null state
+                if (con == except || p.State is null)
+                    continue;
+                list.Add(new PlayerMovedInitialDataWithID(p.ID, new PlayerMovedInitialData(p.State!.Clone())));
+            }
+            return (IReadOnlyCollection<PlayerMovedInitialDataWithID>)list;
+        });
     }
 
     public void Dispose()
