@@ -44,6 +44,8 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
     public int SendBatchSize => options.SendBatchSize;
 
+    public TimeSpan RequestTimeout => TimeSpan.FromMilliseconds(options.RequestTimeout);
+
     public MiaoServerService(
         ILogger<MiaoServerService> logger,
         IOptions<MiaoServerOptions> options,
@@ -244,28 +246,28 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
                 async Task<TimeSpan?> PingFor(MiaoClientConnection connection, int timeout)
                 {
-                    TaskCompletionSource responseTcs = new();
+                    TaskCompletionSource<TimeSpan?> responseTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
                     var start = stopwatch.Elapsed;
-                    await connection.RequestAsync(new PacketPing(), OnResponse);
-
-                    Task timeoutTask = Task.Delay(timeout, CancellationToken.None);
-                    Task completedTask = await Task.WhenAny(responseTcs.Task, timeoutTask);
-                    if (completedTask == responseTcs.Task)
-                    {
-                        var end = stopwatch.Elapsed;
-                        return end - start;
-                    }
-                    else
-                    {
-                        logger.LogInformation(AppEvents.Connection, "{p} timeouted heartbeat.", connection.Player.Info);
-                        await connection.DisconnectAsync(DisconnectReason.Timeout);
-                        return null;
-                    }
+                    await connection.RequestAsync(
+                        new PacketPing(),
+                        OnResponse,
+                        TimeSpan.FromMilliseconds(timeout),
+                        OnTimeout,
+                        token
+                    );
+                    return await responseTcs.Task.WaitAsync(token);
 
                     Task OnResponse(PacketPong pong)
                     {
-                        responseTcs.SetResult();
+                        responseTcs.TrySetResult(stopwatch.Elapsed - start);
                         return Task.CompletedTask;
+                    }
+
+                    async Task OnTimeout()
+                    {
+                        logger.LogInformation(AppEvents.Connection, "{p} timed out heartbeat.", connection.Player.Info);
+                        await connection.DisconnectAsync(DisconnectReason.Timeout);
+                        responseTcs.TrySetResult(null);
                     }
                 }
 
