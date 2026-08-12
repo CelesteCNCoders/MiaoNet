@@ -93,6 +93,5 @@ public sealed class ServerChannel : IPlayerScope
 
         var mapLoc = connection.Player.Location.Map;
         OnPlayerMapMoveFrom(connection, mapLoc);
-        connection.Player.Scope = default;
     }
 }
