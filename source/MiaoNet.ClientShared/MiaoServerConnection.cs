@@ -34,7 +34,6 @@ public sealed partial class MiaoServerConnection : IDisposable
         this.sslStream = sslStream;
 
         sendMemoryStream = new(512);
-        sendMemoryStream.Seek(2, SeekOrigin.Begin);
 
         sendQueue = new();
         sendSemaphore = new(0);
@@ -226,47 +225,15 @@ public sealed partial class MiaoServerConnection : IDisposable
         [EnumeratorCancellation] CancellationToken token
     )
     {
-        const int HeadSize = 2 * sizeof(ushort);
-        byte[] headBuffer = new byte[HeadSize];
+        byte[] headerBuffer = new byte[Connection.PacketHeaderSize];
         while (!token.IsCancellationRequested)
         {
-            IContextualPacket? packet;
-
-            // read head
-            ushort size, type;
-            {
-                int count = await sslStream.ReadAtLeastAsync(headBuffer, HeadSize, false, token);
-                if (count < HeadSize)
-                    packet = null;
-
-                size = BinaryPrimitives.ReadUInt16LittleEndian(headBuffer);
-                type = BinaryPrimitives.ReadUInt16LittleEndian(headBuffer.AsSpan().Slice(sizeof(ushort)));
-            }
-
-            // read payload
-            var payloadBuffer = pool.Rent(size);
-            try
-            {
-                Memory<byte> payloadMemory = payloadBuffer.AsMemory().Slice(0, size);
-                int count = await sslStream.ReadAtLeastAsync(payloadMemory, size, false, token);
-                if (count < size)
-                    packet = null;
-
-                try
-                {
-                    RefBinaryReader reader = new(payloadMemory.Span);
-                    var readHandler = PacketRegistry.GetPacketReader(type);
-                    packet = readHandler(ref reader, context);
-                }
-                catch (Exception e)
-                {
-                    throw new InvalidPacketDataException(payloadMemory.ToArray(), e);
-                }
-            }
-            finally
-            {
-                pool.Return(payloadBuffer);
-            }
+            IContextualPacket? packet = await PacketFraming.ReadPacketAsync(
+                sslStream,
+                headerBuffer,
+                context,
+                token
+            );
 
             if (packet is null)
                 yield break;
@@ -285,14 +252,9 @@ public sealed partial class MiaoServerConnection : IDisposable
 
     private async Task SendPacketAsync(IContextualPacket packet, IPacketSerializationContext context, CancellationToken token)
     {
-        sendMemoryStream.Seek(2, SeekOrigin.Begin);
-        RefBinaryWriter writer = new(sendMemoryStream);
-        ushort type = PacketRegistry.GetPacketID(packet);
-        writer.Write(type);
-        packet.Serialize(ref writer, context);
-        ushort length = (ushort)(sendMemoryStream.Position - 2 * sizeof(ushort));
-        sendMemoryStream.Seek(0, SeekOrigin.Begin);
-        writer.Write(length);
-        await sslStream.WriteAsync(sendMemoryStream.GetBuffer().AsMemory(0, length + 2 * sizeof(ushort)), token);
+        sendMemoryStream.Position = 0;
+        PacketFraming.WritePacket(sendMemoryStream, packet, context);
+        int frameSize = checked((int)sendMemoryStream.Position);
+        await sslStream.WriteAsync(sendMemoryStream.GetBuffer().AsMemory(0, frameSize), token);
     }
 }

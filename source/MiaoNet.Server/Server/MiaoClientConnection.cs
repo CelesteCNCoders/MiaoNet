@@ -178,30 +178,51 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
     private async Task HandleClientProcessingAsync(CancellationToken token)
     {
-        var pipeReader = pipe.Reader;
-        while (true)
-        {
-            var result = await pipeReader.ReadAsync(token);
-            if (result.IsCompleted)
-                break;
-
-            var oldBuffer = result.Buffer;
-            var buffer = result.Buffer;
-            while (TryParsePacket(ref buffer, out IContextualPacket? packet, this))
+        await ProcessPacketsAsync(
+            pipe.Reader,
+            this,
+            async (packet, bytesConsumed) =>
             {
-                metricsService.RecordPacketTcpDownload((int)(oldBuffer.Length - buffer.Length));
+                metricsService.RecordPacketTcpDownload(bytesConsumed);
                 await server.HandlePacketAsync(this, packet);
-            }
+            },
+            token
+        );
+        logger.LogDebug("Processing task of id {id} finished.", ID);
+    }
 
-            pipeReader.AdvanceTo(buffer.Start, buffer.End);
-            if (result.IsCompleted)
+    internal static async Task ProcessPacketsAsync(
+        PipeReader pipeReader,
+        IPacketSerializationContext context,
+        Func<IContextualPacket, int, ValueTask> packetHandler,
+        CancellationToken token
+    )
+    {
+        try
+        {
+            while (true)
             {
-                await pipeReader.CompleteAsync();
-                break;
+                ReadResult result = await pipeReader.ReadAsync(token);
+                ReadOnlySequence<byte> oldBuffer = result.Buffer;
+                ReadOnlySequence<byte> buffer = result.Buffer;
+                while (true)
+                {
+                    long lengthBeforePacket = buffer.Length;
+                    if (!TryParsePacket(ref buffer, out IContextualPacket? packet, context))
+                        break;
+                    int bytesConsumed = checked((int)(lengthBeforePacket - buffer.Length));
+                    await packetHandler(packet, bytesConsumed);
+                }
+
+                pipeReader.AdvanceTo(buffer.Start, buffer.End);
+                if (result.IsCompleted)
+                    break;
             }
         }
-        await pipeReader.CompleteAsync();
-        logger.LogDebug("Processing task of id {id} finished.", ID);
+        finally
+        {
+            await pipeReader.CompleteAsync();
+        }
     }
 
     private async Task HandleClientSendingAsync(CancellationToken token)
@@ -249,15 +270,25 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
             return false;
         }
 
-        Span<byte> payloadSpan = stackalloc byte[size];
+        byte[]? rented = null;
+        Span<byte> payloadSpan = size <= 1024
+            ? stackalloc byte[size]
+            : (rented = ArrayPool<byte>.Shared.Rent(size)).AsSpan(0, size);
+        try
+        {
+            payloadSequence.Slice(0, size).CopyTo(payloadSpan);
+            sequence = payloadSequence.Slice(size);
 
-        payloadSequence.Slice(0, size).CopyTo(payloadSpan);
-        sequence = payloadSequence.Slice(size);
-
-        RefBinaryReader reader = new(payloadSpan);
-        var readHandler = PacketRegistry.GetPacketReader(id);
-        packet = readHandler(ref reader, context);
-        return true;
+            RefBinaryReader reader = new(payloadSpan);
+            var readHandler = PacketRegistry.GetPacketReader(id);
+            packet = readHandler(ref reader, context);
+            return true;
+        }
+        finally
+        {
+            if (rented is not null)
+                ArrayPool<byte>.Shared.Return(rented);
+        }
     }
 
     private static void WritePacket(
@@ -265,16 +296,5 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         IContextualPacket packet,
         IPacketSerializationContext context
     )
-    {
-        stream.Seek(sizeof(ushort) + sizeof(ushort), SeekOrigin.Current);
-        long start = stream.Position;
-        RefBinaryWriter w = new(stream);
-        packet.Serialize(ref w, context);
-        ushort size = checked((ushort)(stream.Position - start));
-        ushort id = PacketRegistry.GetPacketID(packet);
-        stream.Seek(-size - sizeof(ushort) - sizeof(ushort), SeekOrigin.Current);
-        w.Write(size);
-        w.Write(id);
-        stream.Seek(size, SeekOrigin.Current);
-    }
+        => PacketFraming.WritePacket(stream, packet, context);
 }

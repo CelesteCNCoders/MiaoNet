@@ -1,4 +1,4 @@
-namespace MiaoNet.ClientShared;
+namespace MiaoNet.Shared;
 
 internal sealed class InvalidPacketDataException : Exception
 {
