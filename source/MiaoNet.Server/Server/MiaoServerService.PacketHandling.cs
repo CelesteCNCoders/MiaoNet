@@ -57,16 +57,15 @@ public sealed partial class MiaoServerService
         }
 
         ServerMap u = player.Channel.Maps[player.Location.Map];
-        await u.PostAsync(() =>
+        using (u.StateLock.AcquireReadLock())
         {
             player.State.ApplyDelta(delta);
-            BroadcastToScopeExceptAsync(
-                new PacketContextualPlayerNotification<PacketPlayerFrame>(connection.ID, packet),
-                u,
-                connection.ID
-            );
-            return Task.CompletedTask;
-        });
+        }
+        await BroadcastToScopeExceptAsync(
+            new PacketContextualPlayerNotification<PacketPlayerFrame>(connection.ID, packet),
+            u,
+            connection.ID
+        );
     }
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerLocationChanged packet)
@@ -84,7 +83,7 @@ public sealed partial class MiaoServerService
         if (!newLocation.IsInMap)
         {
             Task othersTask;
-            Task<IReadOnlyCollection<PlayerMovedInitialDataWithID>>? mapPlayersTask = null;
+            ValueTask debugSnapshotTask = default;
             using (stateLock.AcquireWriteLock())
             {
                 othersTask = BroadcastToScopeExceptAsync(
@@ -101,16 +100,22 @@ public sealed partial class MiaoServerService
                 // sending states here is necessary currently
                 if (newLocation.IsInDebugMap && player.Channel.Maps.TryGetValue(newLocation.Map, out var mapTo))
                 {
-                    mapPlayersTask = mapTo.GetPlayerMovedInitialDatasAsync(connection);
+                    mapTo.StateLock.EnterWriteLock();
+                    try
+                    {
+                        var mapPlayers = mapTo.GetPlayerMovedInitialDatas(connection);
+                        debugSnapshotTask = connection.QueuePacketAsync(
+                            new PacketPlayerLocationChangedResponse(mapPlayers));
+                    }
+                    finally
+                    {
+                        mapTo.StateLock.ExitWriteLock();
+                    }
                 }
             }
 
             await othersTask;
-            if (mapPlayersTask != null)
-            {
-                var mapPlayers = await mapPlayersTask;
-                await connection.QueuePacketAsync(new PacketPlayerLocationChangedResponse(mapPlayers));
-            }
+            await debugSnapshotTask;
             return;
         }
 
@@ -141,44 +146,41 @@ public sealed partial class MiaoServerService
 
         Debug.Assert(newLocation.IsInMap);
         Task generalTask, withStateTask;
-        Task<IReadOnlyCollection<PlayerMovedInitialDataWithID>>? mapPlayersTask2 = null;
+        ValueTask responseTask = default;
 
         using (stateLock.AcquireWriteLock())
         {
             var moveResult = serverState.PlayerMapMove(connection, newLocation.Map);
 
-            var generalPacket = new PacketPlayerLocationChangedNotification(player.ID, newLocation, null);
-            var withStatePacket = new PacketPlayerLocationChangedNotification(player.ID, newLocation, packet.InitialState);
-
-            generalTask = moveResult.To.Map is not null
-                ? BroadcastToScopeExceptAsync(generalPacket, moveResult.To.Map, connection.ID)
-                : BroadcastToScopeExceptAsync(generalPacket, player.Channel, connection.ID);
-
-            withStateTask = moveResult.To.Map is not null
-                ? BroadcastToScopeExceptAsync(withStatePacket, moveResult.To.Map, connection.ID)
-                : Task.CompletedTask;
-
-            player.Location = newLocation;
-            player.State = packet.InitialState;
-
-            if (moveResult.To.Map is not null)
+            moveResult.To.Map?.StateLock.EnterWriteLock();
+            try
             {
-                mapPlayersTask2 = moveResult.To.Map.GetPlayerMovedInitialDatasAsync(connection);
+                var generalPacket = new PacketPlayerLocationChangedNotification(player.ID, newLocation, null);
+                var withStatePacket = new PacketPlayerLocationChangedNotification(player.ID, newLocation, packet.InitialState);
+
+                generalTask = moveResult.To.Map is not null
+                    ? BroadcastToScopeExceptAsync(generalPacket, moveResult.To.Map, connection.ID)
+                    : BroadcastToScopeExceptAsync(generalPacket, player.Channel, connection.ID);
+
+                withStateTask = moveResult.To.Map is not null
+                    ? BroadcastToScopeExceptAsync(withStatePacket, moveResult.To.Map, connection.ID)
+                    : Task.CompletedTask;
+
+                player.Location = newLocation;
+                player.State = packet.InitialState;
+
+                var mapPlayers = moveResult.To.Map?.GetPlayerMovedInitialDatas(connection) ?? Array.Empty<PlayerMovedInitialDataWithID>();
+                responseTask = connection.QueuePacketAsync(new PacketPlayerLocationChangedResponse(mapPlayers));
+            }
+            finally
+            {
+                moveResult.To.Map?.StateLock.ExitWriteLock();
             }
         }
 
         await generalTask;
         await withStateTask;
-
-        if (mapPlayersTask2 != null)
-        {
-            var mapPlayers = await mapPlayersTask2;
-            await connection.QueuePacketAsync(new PacketPlayerLocationChangedResponse(mapPlayers));
-        }
-        else
-        {
-            await connection.QueuePacketAsync(new PacketPlayerLocationChangedResponse(Array.Empty<PlayerMovedInitialDataWithID>()));
-        }
+        await responseTask;
     }
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerChannelMove packet)
@@ -190,17 +192,16 @@ public sealed partial class MiaoServerService
         }
         var player = connection.Player;
 
-        Task<IReadOnlyCollection<PlayerMovedInitialDataWithID>>? mapPlayersTask3 = null;
+        ValueTask responseTask;
         Task sameMapTask;
         Task sameChannelTask;
         Task crossChannelTask;
-        List<PlayerPresenceDataWithID> channelPlayers;
 
         using (stateLock.AcquireWriteLock())
         {
             var moveResult = serverState.PlayerChannelMove(connection, channel);
 
-            channelPlayers = new List<PlayerPresenceDataWithID>(channel.Players.Count);
+            var channelPlayers = new List<PlayerPresenceDataWithID>(channel.Players.Count);
             foreach (var c in channel.Players)
             {
                 if (c.ID == connection.ID)
@@ -210,9 +211,16 @@ public sealed partial class MiaoServerService
                 ));
             }
 
-            if (moveResult.To.Map is not null)
+            moveResult.To.Map?.StateLock.EnterWriteLock();
+            try
             {
-                mapPlayersTask3 = moveResult.To.Map.GetPlayerMovedInitialDatasAsync(connection);
+                var mapPlayers = moveResult.To.Map?.GetPlayerMovedInitialDatas(connection);
+                var responsePacket = new PacketPlayerChannelMovedResponse(channel.ID, mapPlayers, channelPlayers);
+                responseTask = connection.QueuePacketAsync(responsePacket);
+            }
+            finally
+            {
+                moveResult.To.Map?.StateLock.ExitWriteLock();
             }
 
             var sameMapNotification = new PacketPlayerChannelMovedNotification(
@@ -240,15 +248,10 @@ public sealed partial class MiaoServerService
             );
         }
 
-        if (mapPlayersTask3 != null)
-        {
-            var mapPlayers = await mapPlayersTask3;
-            await connection.QueuePacketAsync(new PacketPlayerChannelMovedResponse(channel.ID, mapPlayers, channelPlayers));
-        }
-        else
-        {
-            await connection.QueuePacketAsync(new PacketPlayerChannelMovedResponse(channel.ID, null, channelPlayers));
-        }
+        await responseTask;
+        await sameMapTask;
+        await sameChannelTask;
+        await crossChannelTask;
 
         await sameMapTask;
         await sameChannelTask;
