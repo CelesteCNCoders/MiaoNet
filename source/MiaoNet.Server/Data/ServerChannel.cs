@@ -17,6 +17,8 @@ public sealed class ServerChannel : IPlayerScope
 
     IEnumerable<MiaoClientConnection> IPlayerScope.Players => players;
 
+    public IEnumerable<MiaoClientConnection> AllPlayers => players;
+
     public ImmutableDictionary<PlayerMapLocation, ServerMap> Maps => maps;
 
     public ServerChannel(int id, ChannelInfo info)
@@ -32,14 +34,19 @@ public sealed class ServerChannel : IPlayerScope
         bool result = ImmutableInterlocked.Update(ref players, (d, c) => d.Add(c), connection);
         Debug.Assert(result);
 
-        var map = connection.Player.Location.Map;
-        OnPlayerMapMoveTo(connection, map);
+        var mapLoc = connection.Player.Location.Map;
+        var mapScope = OnPlayerMapMoveTo(connection, mapLoc);
+        connection.Player.Scope = new ScopeTuple(this, mapScope);
     }
 
-    public void OnPlayerMapMove(MiaoClientConnection connection, PlayerMapLocation from, PlayerMapLocation to)
+    public MoveResult OnPlayerMapMove(MiaoClientConnection connection, PlayerMapLocation to)
     {
+        var from = connection.Player.Location.Map;
+        var fromScope = connection.Player.Scope;
         OnPlayerMapMoveFrom(connection, from);
-        OnPlayerMapMoveTo(connection, to);
+        var mapScope = OnPlayerMapMoveTo(connection, to);
+        connection.Player.Scope.Map = mapScope;
+        return new MoveResult(fromScope, connection.Player.Scope);
     }
 
     private void OnPlayerMapMoveFrom(MiaoClientConnection connection, PlayerMapLocation from)
@@ -53,13 +60,14 @@ public sealed class ServerChannel : IPlayerScope
         {
             bool result = ImmutableInterlocked.Update(ref maps, (d, u) => d.Remove(u.MapLocation), oldMap);
             Debug.Assert(result);
+            oldMap.Dispose();
         }
     }
 
-    private void OnPlayerMapMoveTo(MiaoClientConnection connection, PlayerMapLocation to)
+    private ServerMap? OnPlayerMapMoveTo(MiaoClientConnection connection, PlayerMapLocation to)
     {
         if (to.IsEmpty)
-            return;
+            return null;
 
         if (maps.TryGetValue(to, out var map))
         {
@@ -67,14 +75,15 @@ public sealed class ServerChannel : IPlayerScope
         }
         else
         {
-            ServerMap mapNew = new(to, connection);
+            map = new ServerMap(to, connection);
             bool result = ImmutableInterlocked.Update(
                 ref maps,
-                (d, c) => d.Add(c.mapNew.MapLocation, c.mapNew),
-                (connection, mapNew)
+                (d, c) => d.Add(c.map.MapLocation, c.map),
+                (connection, map)
             );
             Debug.Assert(result);
         }
+        return map;
     }
 
     public void OnRemovePlayer(MiaoClientConnection connection)
@@ -82,7 +91,8 @@ public sealed class ServerChannel : IPlayerScope
         bool result = ImmutableInterlocked.Update(ref players, (d, c) => d.Remove(c), connection);
         Debug.Assert(result);
 
-        var map = connection.Player.Location.Map;
-        OnPlayerMapMoveFrom(connection, map);
+        var mapLoc = connection.Player.Location.Map;
+        OnPlayerMapMoveFrom(connection, mapLoc);
+        connection.Player.Scope = default;
     }
 }

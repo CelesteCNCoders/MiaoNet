@@ -1,7 +1,5 @@
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
@@ -66,15 +64,26 @@ public sealed class ServerState : IPlayerScope
         RemoveChannelIfEmpty(connection.Player.Channel);
     }
 
-    public void PlayerChannelMove(MiaoClientConnection connection, ServerChannel from, ServerChannel to)
+    public MoveResult PlayerChannelMove(MiaoClientConnection connection, ServerChannel to)
     {
+        var fromScope = connection.Player.Scope;
+        var from = connection.Player.Channel;
         Debug.Assert(channels.ContainsValue(from));
         Debug.Assert(channels.ContainsValue(to));
-
+        
         from.OnRemovePlayer(connection);
-        connection.Player.Channel = to;
+        connection.Player.Scope.Channel = to;
         to.OnAddPlayer(connection);
         RemoveChannelIfEmpty(from);
+        
+        return new MoveResult(fromScope, connection.Player.Scope);
+    }
+
+    public MoveResult PlayerMapMove(MiaoClientConnection connection, PlayerMapLocation to)
+    {
+        var fromScope = connection.Player.Scope;
+        connection.Player.Channel.OnPlayerMapMove(connection, to);
+        return new MoveResult(fromScope, connection.Player.Scope);
     }
 
     private void RemoveChannelIfEmpty(ServerChannel channel)

@@ -8,7 +8,7 @@ public sealed class ServerPlayer
 {
     private readonly TokenBucket fireworksTokenBucket;
 
-    public ServerChannel Channel { get; set; }
+    public ServerChannel Channel => Scope.Channel!;
 
     public int ID { get; }
 
@@ -22,11 +22,15 @@ public sealed class ServerPlayer
 
     public PlayerGlobalFlags GlobalFlags { get; set; }
 
+    public ScopeTuple Scope { get; set; }
+
+    
+
     public ServerPlayer(ServerChannel channel, int id, PlayerInfo info)
     {
         fireworksTokenBucket = new(500, 500 * 3);
 
-        Channel = channel;
+        Scope = new ScopeTuple(channel, null);
         ID = id;
         Info = info;
         Location = PlayerLocation.Empty;
