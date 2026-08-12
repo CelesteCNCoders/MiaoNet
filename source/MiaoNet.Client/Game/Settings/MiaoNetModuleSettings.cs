@@ -125,6 +125,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 
     public int PlayerNameOpacity { get; set; } = 8;
 
+    public int OffScreenPlayerNameOpacity { get; set; } = 4;
+
     public int SelfNameOpacity { get; set; } = 8;
 
     public bool DistanceBasedOpacity { get; set; } = false;
@@ -162,6 +164,12 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     [YamlIgnore] public float ChatBackgroundOpacityValue => ChatBackgroundOpacity / 10f;
 
     [YamlIgnore] public float ChatTextOpacityValue => ChatTextOpacity / 10f;
+
+    [YamlIgnore] public float IdleChatHeightValue => IdleChatHeight / 10f;
+
+    [YamlIgnore] public float ActiveChatHeightValue => ActiveChatHeight / 10f;
+
+    [YamlIgnore] public float OffScreenPlayerNameOpacityValue => OffScreenPlayerNameOpacity / 10f;
 
     #endregion
 

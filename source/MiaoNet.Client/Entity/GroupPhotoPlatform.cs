@@ -24,6 +24,7 @@ public sealed class GroupPhotoPlatform : JumpthruPlatform
         : base(Vector2.Zero, PlatformWidth, MapJumpthruType(MiaoNetModule.Settings.GroupPhotoPlatformType))
     {
         Depth = Depths.Top;
+        Safe = false;
     }
 
     public override void Added(Scene scene)

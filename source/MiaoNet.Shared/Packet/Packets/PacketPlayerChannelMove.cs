@@ -25,47 +25,53 @@ public sealed class PacketPlayerChannelMove : IContextlessPacket<PacketPlayerCha
 public sealed class PacketPlayerChannelMovedNotification : PacketPlayerNotification,
     IContextualPacket<PacketPlayerChannelMovedNotification>
 {
-    [Flags]
-    public enum DataFlags : byte
-    {
-        None = 0,
-        HasGraphicsInfo = 1 << 0,
-        HasInitialState = 1 << 1
-    }
-
     public int ChannelID { get; }
 
-    public PlayerGraphicsInfo? GraphicsInfo { get; set; }
+    // in-map data (ghost state) of the moved player; sent to same-map receivers
+    public PlayerMovedInitialData? InitialData { get; }
 
-    public PlayerState? InitialState { get; set; }
+    // "summary" data (location + global flags); sent to same-channel receivers
+    public PlayerPresenceData? Presence { get; }
 
     public PacketPlayerChannelMovedNotification(int playerID, int channelID)
-        : base(playerID)
+        : this(playerID, channelID, null, null)
     {
-        ChannelID = channelID;
     }
 
     public PacketPlayerChannelMovedNotification(
-        int playerID, int channelID,
-        PlayerGraphicsInfo? graphicsInfo, PlayerState? initialState
-    ) : this(playerID, channelID)
+        int playerID,
+        int channelID,
+        PlayerMovedInitialData? initialData,
+        PlayerPresenceData? presence
+    ) : base(playerID)
     {
-        GraphicsInfo = graphicsInfo;
-        InitialState = initialState;
+        ChannelID = channelID;
+        InitialData = initialData;
+        Presence = presence;
     }
 
     public void Serialize(ref RefBinaryWriter writer, IPacketSerializationContext context)
     {
         writer.Write(PlayerID);
-
-        DataFlags flags = DataFlags.None;
-        if (GraphicsInfo is not null) flags |= DataFlags.HasGraphicsInfo;
-        if (InitialState is not null) flags |= DataFlags.HasInitialState;
-
-        writer.Write((byte)flags);
         writer.Write(ChannelID);
-        if (GraphicsInfo is not null) writer.Write(GraphicsInfo);
-        if (InitialState is not null) writer.Write(InitialState, context.PooledStringManager);
+        if (InitialData is null)
+        {
+            writer.Write(false);
+        }
+        else
+        {
+            writer.Write(true);
+            writer.Write(InitialData.Value, context.PooledStringManager);
+        }
+        if (Presence is null)
+        {
+            writer.Write(false);
+        }
+        else
+        {
+            writer.Write(true);
+            writer.Write(Presence.Value);
+        }
     }
 
     public static PacketPlayerChannelMovedNotification Deserialize(
@@ -74,18 +80,14 @@ public sealed class PacketPlayerChannelMovedNotification : PacketPlayerNotificat
     )
     {
         int playerID = reader.ReadInt32();
-        PlayerGraphicsInfo? graphicsInfo = null;
-        PlayerState? initialStats = null;
-
-        DataFlags dataFlags = (DataFlags)reader.ReadByte();
-
         int channelID = reader.ReadInt32();
+        PlayerMovedInitialData? initialData = reader.ReadBoolean()
+            ? reader.Read<PlayerMovedInitialData, PooledStringManager>(context.PooledStringManager)
+            : null;
+        PlayerPresenceData? presence = reader.ReadBoolean()
+            ? reader.Read<PlayerPresenceData>()
+            : null;
 
-        if (dataFlags.HasFlag(DataFlags.HasGraphicsInfo))
-            graphicsInfo = reader.Read<PlayerGraphicsInfo>();
-        if (dataFlags.HasFlag(DataFlags.HasInitialState))
-            initialStats = reader.Read<PlayerState, PooledStringManager>(context.PooledStringManager);
-
-        return new(playerID, channelID, graphicsInfo, initialStats);
+        return new(playerID, channelID, initialData, presence);
     }
 }

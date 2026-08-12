@@ -4,10 +4,10 @@ using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
 
-public sealed class ServerChannel
+public sealed class ServerChannel : IPlayerScope
 {
     private ImmutableHashSet<MiaoClientConnection> players;
-    private ImmutableDictionary<PlayerMap, ServerMapUnit> mapUnits;
+    private ImmutableDictionary<PlayerMapLocation, ServerMap> maps;
 
     public int ID { get; }
 
@@ -15,14 +15,16 @@ public sealed class ServerChannel
 
     public ImmutableHashSet<MiaoClientConnection> Players => players;
 
-    public ImmutableDictionary<PlayerMap, ServerMapUnit> MapUnits => mapUnits;
+    IEnumerable<MiaoClientConnection> IPlayerScope.Players => players;
+
+    public ImmutableDictionary<PlayerMapLocation, ServerMap> Maps => maps;
 
     public ServerChannel(int id, ChannelInfo info)
     {
         ID = id;
         Info = info;
         players = ImmutableHashSet<MiaoClientConnection>.Empty;
-        mapUnits = ImmutableDictionary<PlayerMap, ServerMapUnit>.Empty;
+        maps = ImmutableDictionary<PlayerMapLocation, ServerMap>.Empty;
     }
 
     public void OnAddPlayer(MiaoClientConnection connection)
@@ -34,42 +36,42 @@ public sealed class ServerChannel
         OnPlayerMapMoveTo(connection, map);
     }
 
-    public void OnPlayerMapMove(MiaoClientConnection connection, PlayerMap from, PlayerMap to)
+    public void OnPlayerMapMove(MiaoClientConnection connection, PlayerMapLocation from, PlayerMapLocation to)
     {
         OnPlayerMapMoveFrom(connection, from);
         OnPlayerMapMoveTo(connection, to);
     }
 
-    private void OnPlayerMapMoveFrom(MiaoClientConnection connection, PlayerMap from)
+    private void OnPlayerMapMoveFrom(MiaoClientConnection connection, PlayerMapLocation from)
     {
         if (from.IsEmpty)
             return;
 
-        var omu = mapUnits[from];
-        omu.OnRemovePlayer(connection);
-        if (omu.Players.IsEmpty)
+        var oldMap = maps[from];
+        oldMap.OnRemovePlayer(connection);
+        if (oldMap.Players.IsEmpty)
         {
-            bool result = ImmutableInterlocked.Update(ref mapUnits, (d, u) => d.Remove(u.Map), omu);
+            bool result = ImmutableInterlocked.Update(ref maps, (d, u) => d.Remove(u.MapLocation), oldMap);
             Debug.Assert(result);
         }
     }
 
-    private void OnPlayerMapMoveTo(MiaoClientConnection connection, PlayerMap to)
+    private void OnPlayerMapMoveTo(MiaoClientConnection connection, PlayerMapLocation to)
     {
         if (to.IsEmpty)
             return;
 
-        if (mapUnits.TryGetValue(to, out var unit))
+        if (maps.TryGetValue(to, out var map))
         {
-            unit.OnAddPlayer(connection);
+            map.OnAddPlayer(connection);
         }
         else
         {
-            ServerMapUnit unitNew = new(to, connection);
+            ServerMap mapNew = new(to, connection);
             bool result = ImmutableInterlocked.Update(
-                ref mapUnits,
-                (d, c) => d.Add(c.unitNew.Map, c.unitNew),
-                (connection, unitNew)
+                ref maps,
+                (d, c) => d.Add(c.mapNew.MapLocation, c.mapNew),
+                (connection, mapNew)
             );
             Debug.Assert(result);
         }

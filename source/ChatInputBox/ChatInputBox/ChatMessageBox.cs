@@ -9,7 +9,7 @@ public class ChatMessageBox
     private bool active;
     public string? ActiveTabName => chatMessageManager.ActiveTabName;
     
-    public ChatMessageBox(ITextRenderer textRenderer)
+    public ChatMessageBox(IScalelessTextRenderer textRenderer)
     {
         chatMessageManager = new();
         ChatMessageListView = new ChatMessageListView(chatMessageManager, textRenderer);

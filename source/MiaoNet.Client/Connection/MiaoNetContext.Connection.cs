@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using MiaoNet.ClientShared;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
@@ -74,7 +75,7 @@ partial class MiaoNetContext
                 ? new IPEndPoint(ipa, Port)
                 : new DnsEndPoint(host, Port);
 
-            byte langCode = 0;
+            LanguageCode langCode = GameLanguage.GetLanguageCode(Dialog.Language.Id);
             HandshakeData.NetMod[] netMods = [];
 
             HandshakeData handshakeData;
@@ -117,7 +118,7 @@ partial class MiaoNetContext
                 Version? version = await connection.MakeVersionCheck(localVersion, token);
                 if (version is not null)
                 {
-                    connection.Dispose();
+                    connection.Close(true);
                     QueueDisconnectStatus(ConnectionStatus.VersionNotMatch(localVersion, version));
                     return;
                 }
@@ -130,7 +131,7 @@ partial class MiaoNetContext
                 var r = handshakeAck.AuthenticationResultType;
                 if (r != AuthenticationResultType.Success)
                 {
-                    connection.Dispose();
+                    connection.Close(true);
                     string? reason = handshakeAck.DeniedReason;
                     if (reason is not null)
                     {
@@ -165,7 +166,7 @@ partial class MiaoNetContext
                         Logger.Warn(LT.MiaoNetConnection, $"Remote sent empty or invalid initial reply.");
                     else
                         Logger.Warn(LT.MiaoNetConnection, $"Remote sent a weird initial packet {packetInitial.GetType()}.");
-                    connection.Dispose();
+                    connection.Close(false);
                     QueueDisconnectStatus(ConnectionStatus.DisconnectedExceptionally);
                     return;
                 }
@@ -175,14 +176,7 @@ partial class MiaoNetContext
                     TaskCompletionSource ackTaskSource = new();
                     mainThreadQueue.Enqueue(() =>
                     {
-#if USE_CELEMIAO_AUTH
-                        MiaoNetModule.Settings.LastName = clientInitial.SelfPlayerInfo.Name;
-#endif
-                        clientState = new(clientInitial);
-                        this.connection = connection;
-                        ClientInitialized?.Invoke(clientState);
-                        StatusComponent.ShowStatusMessage(ConnectionStatus.Connected);
-                        OnConnected();
+                        OnInitialized(connection, clientInitial);
                         ackTaskSource.SetResult();
                     });
                     // wait until the main thread ack we've finished connecting
@@ -199,14 +193,14 @@ partial class MiaoNetContext
             catch (OperationCanceledException e)
             when (e.CancellationToken == token)
             {
-                connection?.Dispose();
+                connection?.Close(false);
                 Logger.Info(LT.MiaoNetConnection, "Connection cancelled");
                 QueueDisconnectStatus(ConnectionStatus.Cancelled);
                 return;
             }
             catch (MiaoSslException e)
             {
-                connection?.Dispose();
+                connection?.Close(false);
                 Logger.Error(LT.MiaoNetConnection, $"Ssl error: {e.SslPolicyErrors}. {e.X509ChainStatusFlags}");
                 Logger.LogDetailed(e, LT.MiaoNetConnection);
                 if (e.X509ChainStatusFlags.HasFlag(X509ChainStatusFlags.RevocationStatusUnknown | X509ChainStatusFlags.OfflineRevocation))
@@ -217,7 +211,7 @@ partial class MiaoNetContext
             }
             catch (Exception e)
             {
-                connection?.Dispose();
+                connection?.Close(false);
                 SocketException? se = (e as IOException)?.InnerException as SocketException;
                 Logger.Error(LT.MiaoNetConnection, $"Error when connecting: {e}");
                 QueueDisconnectStatus(ConnectionStatus.ConnectFailedWithReason((se ?? e).Message));

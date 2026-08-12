@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -16,7 +16,7 @@ public sealed class GhostDeadBody : MiaoNetGhostEntity
 
     public GhostDeadBody(Vector2 position, Facings facing, PlayerHair hair, PlayerSprite sprite, VertexLight? vertexLight, Vector2 direction)
     {
-        Tag = MiaoNetTag.Tag;
+        Tag = MiaoNetTag.Normal;
 
         Depth = Depths.Top;
         this.facing = facing;

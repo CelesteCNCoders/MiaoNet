@@ -2,7 +2,7 @@ namespace MiaoNet.Shared;
 
 public readonly struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, IEquatable<PlayerLocation>
 {
-    public PlayerMap Map { get; }
+    public PlayerMapLocation Map { get; }
 
     public string Room { get; }
 
@@ -14,7 +14,7 @@ public readonly struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, 
 
     public static PlayerLocation Empty => new(string.Empty, AreaMode.Normal, string.Empty);
 
-    public PlayerLocation(PlayerMap map, string room)
+    public PlayerLocation(PlayerMapLocation map, string room)
     {
         if (map.IsEmpty)
             SafeGuard.Assert(room.Length == 0);
@@ -44,7 +44,7 @@ public readonly struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, 
 
     public static PlayerLocation Deserialize(ref RefBinaryReader reader)
     {
-        PlayerMap map = reader.Read<PlayerMap>();
+        PlayerMapLocation map = reader.Read<PlayerMapLocation>();
         string room = map.IsEmpty ? string.Empty : reader.ReadString();
         return new PlayerLocation(map, room);
     }
@@ -64,17 +64,17 @@ public readonly struct PlayerLocation : IRefBinarySerializable<PlayerLocation>, 
     public static bool operator !=(PlayerLocation left, PlayerLocation right)
         => !(left == right);
 
-    public enum ChangeResult { None, RoomOnly, All }
+    public enum ChangeResult { None, Incremental, FullSync, }
 
-    public readonly ChangeResult CompareTo(PlayerLocation other)
+    public readonly ChangeResult GetChangeResult(PlayerLocation other)
     {
         if (this == other)
             return ChangeResult.None;
 
-        if (Map == other.Map && Room != other.Room)
-            return ChangeResult.RoomOnly;
+        if (Map == other.Map && Room.Length != 0 && other.Room.Length != 0 && Room != other.Room)
+            return ChangeResult.Incremental;
         else
-            return ChangeResult.All;
+            return ChangeResult.FullSync;
     }
 
     public override string ToString()

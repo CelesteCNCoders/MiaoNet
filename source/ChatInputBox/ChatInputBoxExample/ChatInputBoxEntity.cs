@@ -1,4 +1,5 @@
 using Celeste.Mod.ChatInputBox;
+using Celeste.Mod.MiaoNet;
 using Microsoft.Xna.Framework.Input;
 namespace Celeste.Mod.ChatInputBoxExample;
 
@@ -12,11 +13,8 @@ public sealed class ChatInputBoxEntity : Entity
     public ChatInputBoxEntity()
     {
         Tag |= Tags.HUD | Tags.PauseUpdate | Tags.FrozenUpdate | Tags.TransitionUpdate | Tags.Global;
-        Language lang = Dialog.Languages["schinese"];
-        TextRenderer r = new(lang)
-        {
-            Scale = 2f / 3f
-        };
+        float scale = 2f / 3f;
+        ScalelessChatTextRenderer r = new(scale, MiaoNetFont.ENZhsLineHeight * scale);
         inputBox = new(r, new TestCompletionProvider());
         msgBox = new(r);
         List<string> randomMsgs = [

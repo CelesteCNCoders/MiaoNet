@@ -41,6 +41,7 @@ miaonet_options_active_chat_height= Active Chat Height
 miaonet_options_player_opacity= Player Opacity
 miaonet_options_self_name_opactiy= Self Name Opacity
 miaonet_options_player_name_opacity= Name Opacity
+miaonet_options_offscreen_player_name_opacity= Off-screen Name Opacity
 miaonet_options_distance_based_opacity= Player Distance Based Opacity
 miaonet_options_min_player_opacity_multiplier= Min Player Opacity Multiplier
 miaonet_options_emote_opacity= Emote Opacity
@@ -145,9 +146,6 @@ miaonet_connection_status_connect_failed_with_reason= Connect failed. (0)
 miaonet_connection_status_connection_aborted= Connection aborted
 miaonet_connection_status_ssl_error= Connection SSL Error：(0) ((1))
 miaonet_connection_status_revocation_check_failed= Connection establishment failed. Failed to check certificate revocation status.
-
-miaonet_context_player_joined= (0) joined MiaoNet
-miaonet_context_player_left= (0) left MiaoNet
 
 miaonet_player_list_channel_header= #(0) | (1) Player(s)
 

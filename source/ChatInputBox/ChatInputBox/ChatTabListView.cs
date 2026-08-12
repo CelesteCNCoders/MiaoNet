@@ -2,14 +2,14 @@ namespace Celeste.Mod.ChatInputBox;
 
 public class ChatTabListView
 {
-    
+
     private readonly ChatMessageManager _chatMessageManager;
-    private readonly ITextRenderer textRenderer;
-    
-    private List<ChatTab> tabs => _chatMessageManager.Tabs; 
+    private readonly IScalelessTextRenderer textRenderer;
+
+    private List<ChatTab> tabs => _chatMessageManager.Tabs;
     private int  activeTabIndex => _chatMessageManager.ActiveTabIndex;
 
-    public ChatTabListView(ChatMessageManager chatMessageManager, ITextRenderer textRenderer)
+    public ChatTabListView(ChatMessageManager chatMessageManager, IScalelessTextRenderer textRenderer)
     {
         this._chatMessageManager = chatMessageManager;
         this.textRenderer = textRenderer;

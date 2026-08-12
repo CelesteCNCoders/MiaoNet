@@ -1,3 +1,4 @@
+#requires -Version 7.0
 $mod_name = "MiaoNet"
 dotnet build -c Release
 $v_str = Get-Content -Path ModFolder/everest.yaml -Raw

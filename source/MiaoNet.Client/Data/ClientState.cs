@@ -12,6 +12,17 @@ public sealed class ClientState
 
     public IReadOnlyDictionary<int, OnlinePlayer> Players => players;
 
+    /// <summary>All players, included self.</summary>
+    public IEnumerable<OnlinePlayer> AllPlayers
+    {
+        get
+        {
+            yield return Self;
+            foreach (OnlinePlayer player in players.Values)
+                yield return player;
+        }
+    }
+
     public IReadOnlyDictionary<int, OnlineChannel> Channels => channels;
 
     public OnlinePlayer Self { get; private set; }
@@ -77,6 +88,12 @@ public sealed class ClientState
         previous = Self.Channel;
         Self.Channel = c;
         current = c;
+
+        if (previous != current)
+        {
+            foreach (var player in previous.Players)
+                ClearPlayerPresenceInfo(player);
+        }
         return;
     }
 
@@ -91,7 +108,37 @@ public sealed class ClientState
         player.Channel = current;
         current.Players.Add(player);
 
+        if (current != Self.Channel)
+            ClearPlayerPresenceInfo(player);
+
         return;
+    }
+
+    private static void ClearPlayerPresenceInfo(OnlinePlayer player)
+    {
+        player.Location = PlayerLocation.Empty;
+        player.LastPing = -1;
+        player.State = null;
+        player.GlobalFlags = PlayerGlobalFlags.None;
+    }
+
+    public void ApplyPlayerPresenceData(PlayerPresenceDataWithID info)
+        => ApplyPlayerPresenceData(info.PlayerID, info.Data);
+
+    public void ApplyPlayerPresenceData(int playerID, PlayerPresenceData info)
+    {
+        var player = GetPlayer(playerID);
+        player.Location = info.Location;
+        player.GlobalFlags = info.GlobalFlags;
+    }
+
+    public void ApplyPlayerMovedInitialData(PlayerMovedInitialDataWithID data)
+        => ApplyPlayerMovedInitialData(data.PlayerID, data.InitialData);
+
+    public void ApplyPlayerMovedInitialData(int playerID, PlayerMovedInitialData data)
+    {
+        var player = GetPlayer(playerID);
+        player.State = data.InitialState;
     }
 
     public bool TryGetPlayer(int playerID, [NotNullWhen(true)] out OnlinePlayer? player)
@@ -131,7 +178,7 @@ public sealed class ClientState
 
     public PlayerLocation.ChangeResult OnPlayerLocationChanged(PlayerLocation location)
     {
-        PlayerLocation.ChangeResult result = Self.Location.CompareTo(location);
+        PlayerLocation.ChangeResult result = Self.Location.GetChangeResult(location);
         Self.Location = location;
         if (result != PlayerLocation.ChangeResult.None)
             SelfLocationChanged?.Invoke();

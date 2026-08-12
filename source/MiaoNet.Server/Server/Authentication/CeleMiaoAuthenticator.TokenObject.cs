@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
@@ -7,8 +7,6 @@ public sealed partial class CeleMiaoAuthenticator
 {
     public readonly struct TokenObject : IRefBinarySerializable<TokenObject>
     {
-        public const int SignatureLength = 32;
-
         public string AccessToken { get; }
 
         public string RefreshToken { get; }

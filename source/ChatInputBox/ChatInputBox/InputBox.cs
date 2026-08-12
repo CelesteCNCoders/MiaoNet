@@ -8,7 +8,7 @@ public sealed class InputBox
 {
     public const float CaretBlinkInterval = 0.5f;
 
-    private readonly ITextRenderer textRenderer;
+    private readonly IScalelessTextRenderer textRenderer;
     private readonly ICompletionProvider completionProvider;
 
     private readonly TextBuffer buffer;
@@ -52,7 +52,7 @@ public sealed class InputBox
         downButton.SetRepeat(0.4f, 0.05f);
     }
 
-    public InputBox(ITextRenderer textRenderer, ICompletionProvider completionProvider)
+    public InputBox(IScalelessTextRenderer textRenderer, ICompletionProvider completionProvider)
     {
         this.textRenderer = textRenderer;
         this.completionProvider = completionProvider;

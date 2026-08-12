@@ -1,4 +1,6 @@
-﻿namespace MiaoNet.Server;
+﻿using MiaoNet.Shared;
+
+namespace MiaoNet.Server;
 
 public sealed class MiaoServerOptions
 {
@@ -15,6 +17,8 @@ public sealed class MiaoServerOptions
     public required CertificateOptions Certificate { get; set; }
 
     public required AuthenticationOptions Authentication { get; set; }
+
+    public required LocalizedOptions<AnnouncementsStrings> Announcements { get; set; }
 
     public string HttpListenerPrefix { get; set; } = "http://localhost:21474/";
 }

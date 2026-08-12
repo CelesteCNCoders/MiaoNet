@@ -1,6 +1,6 @@
 namespace Celeste.Mod.ChatInputBox;
 
-public interface ITextRenderer
+public interface IScalelessTextRenderer
 {
     public float LineHeight { get; }
 
@@ -11,4 +11,6 @@ public interface ITextRenderer
     public void Draw(string text, Vector2 position, Vector2 justify, Color color);
 
     public void DrawOutline(string text, Vector2 position, Vector2 justify, Color color);
+
+    public void Draw(ChatText text, Vector2 position, float yJustify, float alpha);
 }
