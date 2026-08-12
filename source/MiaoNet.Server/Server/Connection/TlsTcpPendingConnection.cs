@@ -46,9 +46,10 @@ public sealed class TlsTcpPendingConnection : IPendingNetworkConnection
         SslStream sslStream = new SslStream(networkStream);
         try
         {
+            using var certificateLease = certificateService.AcquireCertificate();
             SslServerAuthenticationOptions options = new()
             {
-                ServerCertificate = certificateService.GetCertificate(),
+                ServerCertificate = certificateLease.Certificate,
                 EnabledSslProtocols = Connection.AllowedSslProtocols,
                 // no need to check server-side
                 CertificateRevocationCheckMode = X509RevocationMode.NoCheck

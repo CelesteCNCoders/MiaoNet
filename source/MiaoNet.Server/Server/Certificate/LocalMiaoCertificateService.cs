@@ -1,19 +1,22 @@
-﻿using System.Security.Cryptography.X509Certificates;
+using System.Security.Cryptography.X509Certificates;
 
 namespace MiaoNet.Server;
 
-public sealed class LocalMiaoCertificateService : IMiaoCertificateService
+public sealed class LocalMiaoCertificateService : IMiaoCertificateService, IDisposable
 {
-    private readonly X509Certificate2 cert;
+    private readonly ReloadableResource<X509Certificate2> certificates;
 
     public LocalMiaoCertificateService()
     {
         using var certStream = typeof(MiaoCertificateService).Assembly.GetManifestResourceStream("localhost.pfx")!;
         byte[] certRawData = new byte[certStream.Length];
         certStream.ReadExactly(certRawData, 0, certRawData.Length);
-        cert = X509CertificateLoader.LoadPkcs12(certRawData, null);
+        certificates = new ReloadableResource<X509Certificate2>(X509CertificateLoader.LoadPkcs12(certRawData, null));
     }
 
-    public X509Certificate2 GetCertificate() 
-        => cert;
+    public MiaoCertificateLease AcquireCertificate()
+        => new(certificates.Acquire());
+
+    public void Dispose()
+        => certificates.Dispose();
 }
