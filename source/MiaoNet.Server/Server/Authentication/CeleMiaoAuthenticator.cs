@@ -27,6 +27,15 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
     public const string EndPointAuth = "api/celeste/user?access_token=";
 
     public CeleMiaoAuthenticator(IOptions<MiaoServerOptions> options, ILogger<CeleMiaoAuthenticator> logger)
+        : this(options, logger, new HttpClient())
+    {
+    }
+
+    internal CeleMiaoAuthenticator(
+        IOptions<MiaoServerOptions> options,
+        ILogger<CeleMiaoAuthenticator> logger,
+        HttpClient httpClient
+    )
     {
         var authOptions = options.Value.Authentication;
         if (authOptions.ClientID is null || authOptions.ClientSecret is null || authOptions.EncryptionPassword is null)
@@ -44,7 +53,7 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
             // blame bbs
             NumberHandling = JsonNumberHandling.AllowReadingFromString
         };
-        httpClient = new HttpClient();
+        this.httpClient = httpClient;
         // TODO add version info
         string ua = "MiaoNet.Server.CeleMiaoAuthenticator";
         logger.LogInformation(AppEvents.Auth, "Using User-Agent \"{ua}\"", ua);
