@@ -23,6 +23,7 @@
     <Compile Include="..\MiaoNet.Client\Misc\SR.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Misc\PFormat.cs" LinkBase="0-Shared" />
     <Compile Include="..\MiaoNet.ClientShared\ConnectionLifecycleCoordinator.cs" LinkBase="0-Shared" />
+    <Compile Include="..\MiaoNet.Client\Misc\AvatarDownloadPolicy.cs" LinkBase="0-Shared" />
     <Compile Include="..\MiaoNet.Shared\SafeGuard.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\ChatInputBox\ChatInputBox\ChatText*.cs" LinkBase="0-Shared/ChatInputBox" />
   </ItemGroup>
