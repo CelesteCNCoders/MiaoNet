@@ -70,7 +70,7 @@ public sealed class ServerState : IPlayerScope
         var from = connection.Player.Channel;
         Debug.Assert(channels.ContainsValue(from));
         Debug.Assert(channels.ContainsValue(to));
-        
+
         from.OnRemovePlayer(connection);
         connection.Player.Scope.Channel = to;
         to.OnAddPlayer(connection);

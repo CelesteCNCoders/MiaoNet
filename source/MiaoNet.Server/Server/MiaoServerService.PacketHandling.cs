@@ -111,6 +111,7 @@ public sealed partial class MiaoServerService
                         mapTo.StateLock.ExitWriteLock();
                     }
                 }
+
                 var moveResult = ServerState.PlayerMapMove(connection, newLocation.Map);
                 player.Location = newLocation;
                 player.State = null;
@@ -179,7 +180,6 @@ public sealed partial class MiaoServerService
                 moveResult.To.Map?.StateLock.ExitWriteLock();
             }
         }
-        
 
         await generalTask;
         await withStateTask;

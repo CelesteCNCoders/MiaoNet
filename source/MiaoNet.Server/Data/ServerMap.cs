@@ -4,7 +4,7 @@ using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
 
-public sealed class ServerMap : IPlayerScope, IDisposable
+public sealed class ServerMap : IPlayerScope
 {
     private ImmutableHashSet<MiaoClientConnection> players;
 
@@ -49,10 +49,5 @@ public sealed class ServerMap : IPlayerScope, IDisposable
             list.Add(new PlayerMovedInitialDataWithID(p.ID, new PlayerMovedInitialData(p.State!.Clone())));
         }
         return list;
-    }
-
-    public void Dispose()
-    {
-        StateLock.Dispose();
     }
 }

@@ -24,8 +24,6 @@ public sealed class ServerPlayer
 
     public ScopeTuple Scope { get; set; }
 
-    
-
     public ServerPlayer(ServerChannel channel, int id, PlayerInfo info)
     {
         fireworksTokenBucket = new(500, 500 * 3);

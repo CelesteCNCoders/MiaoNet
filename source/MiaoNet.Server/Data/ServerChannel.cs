@@ -57,7 +57,6 @@ public sealed class ServerChannel : IPlayerScope
         {
             bool result = ImmutableInterlocked.Update(ref maps, (d, u) => d.Remove(u.MapLocation), oldMap);
             Debug.Assert(result);
-            oldMap.Dispose();
         }
     }
 
@@ -88,8 +87,8 @@ public sealed class ServerChannel : IPlayerScope
         bool result = ImmutableInterlocked.Update(ref players, (d, c) => d.Remove(c), connection);
         Debug.Assert(result);
 
-        var mapLoc = connection.Player.Location.Map;
-        OnPlayerMapMoveFrom(connection, mapLoc);
+        var map = connection.Player.Location.Map;
+        OnPlayerMapMoveFrom(connection, map);
         connection.Player.Scope.Map = null;
     }
 }
