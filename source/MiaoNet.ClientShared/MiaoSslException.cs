@@ -1,11 +1,11 @@
-﻿using System.Net.Security;
+using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 
-namespace Celeste.Mod.MiaoNet;
+namespace MiaoNet.ClientShared;
 
-// unluckly we can't get anything from AuthenticationException
-// so we need to handle these manually...
-internal class MiaoSslException : Exception
+// AuthenticationException does not expose the certificate validation details,
+// so preserve them for the client to present a useful connection error.
+internal sealed class MiaoSslException : Exception
 {
     public SslPolicyErrors SslPolicyErrors { get; }
 
