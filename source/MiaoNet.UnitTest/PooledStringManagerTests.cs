@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Reflection;
+using System.Globalization;
 using System.Text;
 using MiaoNet.Shared;
 
@@ -60,6 +59,74 @@ public class PooledStringManagerTests
     }
 
     [TestMethod]
+    public void InitialStrings_KeepOneBasedIDsAndSetNextIDForBothDirections()
+    {
+        string[] initial = ["KnownA", "KnownB"];
+        var m = new PooledStringManager(initial);
+
+        Assert.IsTrue(m.GetOrCreateID("KnownA", out int knownLocalID));
+        Assert.AreEqual(1, knownLocalID);
+        Assert.IsFalse(m.GetOrCreateID("NewLocal", out int newLocalID));
+        Assert.AreEqual(3, newLocalID);
+
+        Assert.AreEqual("KnownA", m.GetAndRecord(1, null));
+        Assert.AreEqual("KnownB", m.GetAndRecord(2, "KnownB"));
+        Assert.AreEqual("NewRemote", m.GetAndRecord(3, "NewRemote"));
+    }
+
+    [TestMethod]
+    public void InitialStrings_AreEnumeratedOnceToKeepBothDirectionsConsistent()
+    {
+        int enumerationCount = 0;
+        IEnumerable<string> GetInitialStrings()
+        {
+            enumerationCount++;
+            yield return "Known";
+        }
+
+        var m = new PooledStringManager(GetInitialStrings());
+
+        Assert.AreEqual(1, enumerationCount);
+        Assert.IsTrue(m.GetOrCreateID("Known", out int id));
+        Assert.AreEqual(1, id);
+        Assert.AreEqual("Known", m.GetAndRecord(1, null));
+    }
+
+    [DataRow(0)]
+    [DataRow(-1)]
+    [DataRow(int.MinValue)]
+    [TestMethod]
+    public void GetAndRecord_RejectsNonPositiveID(int id)
+    {
+        var m = new PooledStringManager([]);
+
+        Assert.Throws<InvalidDataException>(() => m.GetAndRecord(id, "invalid"));
+    }
+
+    [TestMethod]
+    public void GetAndRecord_RejectsSparseNewIDsWithoutAdvancingSequence()
+    {
+        var m = new PooledStringManager([]);
+
+        Assert.Throws<InvalidDataException>(() => m.GetAndRecord(2, "sparse"));
+        Assert.AreEqual("first", m.GetAndRecord(1, "first"));
+        Assert.Throws<InvalidDataException>(() => m.GetAndRecord(3, "still-sparse"));
+        Assert.AreEqual("second", m.GetAndRecord(2, "second"));
+    }
+
+    [TestMethod]
+    public void GetAndRecord_RepeatedKnownAndLearnedIDsRemainCompatible()
+    {
+        var m = new PooledStringManager(["Known"]);
+
+        Assert.AreEqual("Known", m.GetAndRecord(1, null));
+        Assert.AreEqual("Known", m.GetAndRecord(1, "Known"));
+        Assert.AreEqual("Dynamic", m.GetAndRecord(2, "Dynamic"));
+        Assert.AreEqual("Dynamic", m.GetAndRecord(2, null));
+        Assert.AreEqual("Dynamic", m.GetAndRecord(2, "Dynamic"));
+    }
+
+    [TestMethod]
     public void EndToEnd_PooledString_SerializeDeserialize_RoundTrip()
     {
         // sender and receiver have independent managers (empty initial)
@@ -111,19 +178,65 @@ public class PooledStringManagerTests
             Assert.AreEqual("", (string)s);
         }
 
-        // near 65535 UTF-8 bytes string (exact 65535 bytes)
-        int len = 65535; // RefBinaryWriter encodes length as ushort
-        string big = new string('A', len);
-        Assert.AreEqual(len, Encoding.UTF8.GetByteCount(big));
+        string boundary = new string('A', PooledStringManager.MaxRemoteStringUtf8Bytes);
+        Assert.AreEqual(PooledStringManager.MaxRemoteStringUtf8Bytes, Encoding.UTF8.GetByteCount(boundary));
 
         using (var ms = new MemoryStream())
         {
             var w = new RefBinaryWriter(ms);
-            w.Write(new PooledString(big), sender);
+            w.Write(new PooledString(boundary), sender);
             var r = new RefBinaryReader(ms.ToArray());
             var s = PooledString.Deserialize(ref r, receiver);
-            Assert.AreEqual(big, (string)s);
+            Assert.AreEqual(boundary, (string)s);
         }
+    }
+
+    [TestMethod]
+    public void GetAndRecord_RejectsValueAboveUtf8LimitWithoutConsumingID()
+    {
+        var m = new PooledStringManager([]);
+        string tooLarge = new string('猫', PooledStringManager.MaxRemoteStringUtf8Bytes / 3 + 1);
+        Assert.IsGreaterThan(
+            PooledStringManager.MaxRemoteStringUtf8Bytes,
+            Encoding.UTF8.GetByteCount(tooLarge)
+        );
+
+        Assert.Throws<InvalidDataException>(() => m.GetAndRecord(1, tooLarge));
+        Assert.AreEqual("valid", m.GetAndRecord(1, "valid"));
+    }
+
+    [TestMethod]
+    public void GetAndRecord_EnforcesRemoteEntryLimit()
+    {
+        var m = new PooledStringManager([]);
+        for (int id = 1; id <= PooledStringManager.MaxRemoteEntries; id++)
+            Assert.AreEqual(string.Empty, m.GetAndRecord(id, string.Empty));
+
+        Assert.Throws<InvalidDataException>(() =>
+            m.GetAndRecord(PooledStringManager.MaxRemoteEntries + 1, string.Empty)
+        );
+    }
+
+    [TestMethod]
+    public void GetAndRecord_EnforcesTotalUtf8LimitWithoutConsumingID()
+    {
+        var m = new PooledStringManager([]);
+        int entries = PooledStringManager.MaxRemoteTotalUtf8Bytes
+            / PooledStringManager.MaxRemoteStringUtf8Bytes;
+        for (int i = 0; i < entries; i++)
+        {
+            string prefix = i.ToString("D4", CultureInfo.InvariantCulture);
+            string value = prefix + new string(
+                'A',
+                PooledStringManager.MaxRemoteStringUtf8Bytes - prefix.Length
+            );
+            Assert.AreEqual(PooledStringManager.MaxRemoteStringUtf8Bytes, Encoding.UTF8.GetByteCount(value));
+            Assert.AreEqual(value, m.GetAndRecord(i + 1, value));
+        }
+
+        int nextID = entries + 1;
+        Assert.Throws<InvalidDataException>(() => m.GetAndRecord(nextID, "x"));
+        Assert.AreEqual(string.Empty, m.GetAndRecord(nextID, string.Empty));
     }
 
     [TestMethod]
@@ -197,7 +310,7 @@ public class PooledStringManagerTests
             tasks[i] = Task.Run(() =>
             {
                 start.Wait(TestContext.CancellationToken);
-                string s = m.GetAndRecord(42, "Jump");
+                string s = m.GetAndRecord(1, "Jump");
                 outputs.Add(s);
             }, TestContext.CancellationToken);
         }
@@ -220,12 +333,12 @@ public class PooledStringManagerTests
         var t1 = Task.Run(() =>
         {
             start.Wait(TestContext.CancellationToken);
-            try { r1 = m.GetAndRecord(7, "A"); } catch (Exception ex) { e1 = ex; }
+            try { r1 = m.GetAndRecord(1, "A"); } catch (Exception ex) { e1 = ex; }
         }, TestContext.CancellationToken);
         var t2 = Task.Run(() =>
         {
             start.Wait(TestContext.CancellationToken);
-            try { r2 = m.GetAndRecord(7, "B"); } catch (Exception ex) { e2 = ex; }
+            try { r2 = m.GetAndRecord(1, "B"); } catch (Exception ex) { e2 = ex; }
         }, TestContext.CancellationToken);
 
         start.Set();
@@ -238,7 +351,7 @@ public class PooledStringManagerTests
         Assert.AreEqual(1, failures);
 
         // The winner's value becomes the mapping
-        string mapped = m.GetAndRecord(7, null);
+        string mapped = m.GetAndRecord(1, null);
         Assert.IsTrue(mapped is "A" or "B");
     }
 
@@ -248,9 +361,19 @@ public class PooledStringManagerTests
         var sender = new PooledStringManager(Enumerable.Empty<string>());
         var receiver = new PooledStringManager(Enumerable.Empty<string>());
 
-        // prepare payloads serially from sender (single-threaded send simulation)
+        // Learn new IDs in wire order, as the single receive loop does in production.
         var values = Enumerable.Range(0, 200).Select(i => new PooledString($"Str_{i:D4}")).ToArray();
         var payloads = new byte[values.Length][];
+        for (int i = 0; i < values.Length; i++)
+        {
+            using var ms = new MemoryStream();
+            var w = new RefBinaryWriter(ms);
+            w.Write(values[i], sender);
+            var r = new RefBinaryReader(ms.ToArray());
+            Assert.AreEqual(values[i].Value, (string)PooledString.Deserialize(ref r, receiver));
+        }
+
+        // References to IDs already learned are safe to resolve concurrently and out of order.
         for (int i = 0; i < values.Length; i++)
         {
             using var ms = new MemoryStream();
