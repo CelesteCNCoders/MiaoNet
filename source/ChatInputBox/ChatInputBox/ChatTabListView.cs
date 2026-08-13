@@ -6,7 +6,6 @@ public class ChatTabListView
     private readonly ChatMessageManager chatMessageManager;
     private readonly IScalelessTextRenderer textRenderer;
 
-    private List<string> chatTabNameList => chatMessageManager.TabNameList;
     private int  activeTabIndex => chatMessageManager.ActiveTabIndex;
 
     public ChatTabListView(ChatMessageManager chatMessageManager, IScalelessTextRenderer textRenderer)
@@ -23,6 +22,8 @@ public class ChatTabListView
         float inputBoxTopY = Engine.Height - Margin - textRenderer.LineHeight - Padding * 2f;
         Vector2 baseLoc = new Vector2(Margin, inputBoxTopY - Padding);
         var curX = baseLoc.X;
+        
+        var chatTabNameList = chatMessageManager.TabNameList;
         
         for (int i = -1; i < chatTabNameList.Count; i++)                                                               
         {                                                                                                  
