@@ -62,8 +62,17 @@ public class ChatMessageManager
     public void RemoveTab(string name)
     {
         var targetTabIdx = tab.FindIndex(t => t.Name == name);
+        if (targetTabIdx < 0)
+            return;
+
+        bool removingActiveTab = targetTabIdx == activeTabIndex;
         tab.RemoveAt(targetTabIdx);
-        if (name == ActiveTabName) activeTabIndex %= tab.Count;
+
+        if (removingActiveTab)
+            activeTabIndex = tab.Count == 0 ? -1 : Math.Min(activeTabIndex, tab.Count - 1);
+        
+        else if (targetTabIdx < activeTabIndex)
+            activeTabIndex--;
     }
     
     public void CycleTab()
