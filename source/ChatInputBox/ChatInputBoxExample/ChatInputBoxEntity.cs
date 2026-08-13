@@ -90,12 +90,12 @@ public sealed class ChatInputBoxEntity : Entity
         ];
         foreach (var msg in randomMsgs)
         {
-            msgBox.AddChatMessage(ChatText.Create(msg, Color.White), "Global");
+            msgBox.AddChatMessage(DateTime.Now, ChatText.Create(msg, Color.White), "Global");
         }
 
-        msgBox.AddChatMessage(ChatText.Create("This is a global text", Color.White), "Global");
-        msgBox.AddChatMessage(ChatText.Create("This is a channel text", Color.Yellow), "Channel");
-        msgBox.AddChatMessage(ChatText.Create("This is a map text", Color.Green), "Map");
+        msgBox.AddChatMessage(DateTime.Now, ChatText.Create("This is a global text", Color.White), "Global");
+        msgBox.AddChatMessage(DateTime.Now, ChatText.Create("This is a channel text", Color.Yellow), "Channel");
+        msgBox.AddChatMessage(DateTime.Now, ChatText.Create("This is a map text", Color.Green), "Map");
     }
 
     public void Activate()
@@ -123,7 +123,7 @@ public sealed class ChatInputBoxEntity : Entity
 
             if (MInput.Keyboard.Pressed(Keys.Enter))
             {
-                msgBox.AddChatMessage(ChatText.Create(inputBox.Text, Color.White), msgBox.ActiveTabName ?? "Global");
+                msgBox.AddChatMessage(DateTime.Now, ChatText.Create(inputBox.Text, Color.White), msgBox.ActiveTabName ?? "Global");
                 Deactivate();
                 MInput.VirtualInputs.ForEach(i => (i as VirtualButton)?.ConsumePress());
             }

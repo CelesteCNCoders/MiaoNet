@@ -16,7 +16,12 @@ public class ChatMessageBox
         ChatTabListView = new ChatTabListView(chatMessageManager, textRenderer);
     }
     
-    public void AddChatMessage(ChatText message, string? tabName = null) => chatMessageManager.AddChatMessage(message, tabName);
+    public void AddChatMessage(ChatText message, string? tabName = null)
+        => chatMessageManager.AddChatMessage(new(message), tabName);
+    
+    public void AddChatMessage(DateTime dateTime, ChatText message, string? tabName = null)
+        => chatMessageManager.AddChatMessage(new(dateTime, message), tabName);
+        
 
     public void CycleTab() => chatMessageManager.CycleTab();
 

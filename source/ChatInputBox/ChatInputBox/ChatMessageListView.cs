@@ -6,7 +6,7 @@ namespace Celeste.Mod.ChatInputBox;
 public sealed class ChatMessageListView
 {
     private record struct ChatMessageViewState(float ShowTimer, float FadeOut = 1f);
-    private readonly Dictionary<ChatText, ChatMessageViewState> viewStates = new();
+    private readonly Dictionary<ChatItem, ChatMessageViewState> viewStates = new();
 
 
     private ChatMessageManager chatMessageManager;
@@ -18,8 +18,8 @@ public sealed class ChatMessageListView
     private float targetScroll;
     private float scroll;
 
-    private List<ChatText> chatLog => chatMessageManager.ActiveChatLog;
-    private List<ChatText> fullChatLog => chatMessageManager.ChatLog;
+    private List<ChatItem> chatLog => chatMessageManager.ActiveChatLog;
+    private List<ChatItem> fullChatLog => chatMessageManager.ChatLog;
 
     
     public float BackgroundOpacity { get; set; } = 0.5f;
@@ -36,7 +36,7 @@ public sealed class ChatMessageListView
 
     public string? ActiveTabName => chatMessageManager.ActiveTabName;
 
-    private ChatMessageViewState getOrInitViewState(ChatText key)
+    private ChatMessageViewState getOrInitViewState(ChatItem key)
     {
         if (!viewStates.TryGetValue(key, out var viewState))
         {
@@ -203,49 +203,16 @@ public sealed class ChatMessageListView
         }
     }
 
-    private bool DrawSingleMessage(ChatText msg, float x, float curY, float alpha)
+    private bool DrawSingleMessage(ChatItem chatItem, float x, float curY, float alpha)
     {
-        const float MessageXPadding = 8f;
-        const float MessageYPadding = 8f;
-
-        float fade = getOrInitViewState(msg).FadeOut;
+        float fade = getOrInitViewState(chatItem).FadeOut;
         if (active)
             fade = 1f;
         else if (fade == 0f)
             return false;
-
         fade *= alpha;
-
-        float lineHeight = textRenderer.LineHeight;
-        float messageLineHeight = lineHeight + 2 * MessageYPadding;
-        float lineWidth = MeasureSingleMessage(msg);
-        DrawSnappedRect(
-            x,
-            curY - messageLineHeight,
-            lineWidth + 2 * MessageXPadding,
-            messageLineHeight,
-            Color.Black * fade * BackgroundOpacity
-        );
-
-        float drawAlpha = fade * TextOpacity;
-
-        float curX = x + MessageXPadding;
-
-        textRenderer.Draw(msg, new Vector2(curX, curY - MessageYPadding), 1f, drawAlpha);
-
+        chatItem.render(x, curY, fade, BackgroundOpacity, TextOpacity, textRenderer);
         return true;
 
-        static void DrawSnappedRect(float x, float y, float width, float height, Color color)
-        {
-            float xi = MathF.Floor(x);
-            float yi = MathF.Floor(y);
-            float wi = MathF.Floor(x + width) - xi;
-            float hi = MathF.Floor(y + height) - yi;
-
-            Draw.Rect(xi, yi, wi, hi, color);
-        }
     }
-
-    private float MeasureSingleMessage(ChatText chatText)
-        => chatText.Segments.Aggregate(0f, (v, seg) => v += textRenderer.Measure(seg.Text).X);
 }

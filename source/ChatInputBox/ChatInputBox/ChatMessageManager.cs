@@ -8,7 +8,7 @@ public class ChatMessageManager
     private class ChatTab
     {
         public string Name { get; }
-        public List<ChatText> ChatLog { get; }
+        public List<ChatItem> ChatLog { get; }
 
         public ChatTab(string name)
         {
@@ -16,7 +16,7 @@ public class ChatMessageManager
             ChatLog = new();
         }
     
-        public void AddChatMessage(ChatText chatMessageViewItem)
+        public void AddChatMessage(ChatItem chatMessageViewItem)
         {
             ChatLog.Add(chatMessageViewItem);
         }
@@ -28,12 +28,12 @@ public class ChatMessageManager
     }
     
     private int activeTabIndex;
-    private readonly List<ChatText> chatLog;
+    public readonly List<ChatItem> chatLog;
     private List<ChatTab> tab { get; }
     public int ActiveTabIndex => activeTabIndex;
-    public List<ChatText> ActiveChatLog => activeTabIndex < 0 ? ChatLog : tab[activeTabIndex].ChatLog;
+    public List<ChatItem> ActiveChatLog => activeTabIndex < 0 ? ChatLog : tab[activeTabIndex].ChatLog;
     public string? ActiveTabName => activeTabIndex < 0 ? null : tab[activeTabIndex].Name;
-    public List<ChatText> ChatLog => chatLog;
+    public List<ChatItem> ChatLog => chatLog;
     public List<string> TabNameList => tab.Select(t => t.Name).ToList(); 
     
     public ChatMessageManager()
@@ -88,7 +88,7 @@ public class ChatMessageManager
     }
 
     // Add to all Tabs while tabName == null (For Local Announcement）
-    public void AddChatMessage(ChatText message, string? tabName)
+    public void AddChatMessage(ChatItem message, string? tabName)
     {
         chatLog.Add(message);
         if (tabName == null)

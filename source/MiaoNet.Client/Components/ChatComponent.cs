@@ -122,7 +122,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
                 _ => null
             };
             string? tabName = ChatChannelMatcher.GetName(chatChannel);
-            chatMessageBox.AddChatMessage(received.Text, tabName);
+            chatMessageBox.AddChatMessage(packet.DateTime, received.Text, tabName);
         }
         else
             Logger.Warn(LT.MiaoNet, $"Null chat message received for type {packet.Type}. Content: {packet.Content}");
@@ -251,7 +251,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         => chatMessageBox.AddChatMessage(message);
 
     public void OnSentPrivateMessage(DateTime dateTime, OnlinePlayer other, string text)
-        => chatMessageBox.AddChatMessage(chatMessageFactory.CreateSentPrivateMessage(other, text), null);
+        => chatMessageBox.AddChatMessage(dateTime, chatMessageFactory.CreateSentPrivateMessage(other, text), null);
 
     public void ClearChat()
         => chatMessageBox.CleanHistory();
