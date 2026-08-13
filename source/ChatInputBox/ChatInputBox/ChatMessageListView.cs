@@ -215,4 +215,9 @@ public sealed class ChatMessageListView
         return true;
 
     }
+    
+    public void CleanUp()
+    {
+        viewStates.Clear();
+    }
 }
