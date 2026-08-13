@@ -19,7 +19,9 @@ public class ChatTabListView
     {           
         const float Margin = 16f;
         const float Padding = 8f;
-        Vector2 baseLoc = new Vector2(Margin, Engine.Height - Margin - textRenderer.LineHeight * 1.5f);
+
+        float inputBoxTopY = Engine.Height - Margin - textRenderer.LineHeight - Padding * 2f;
+        Vector2 baseLoc = new Vector2(Margin, inputBoxTopY - Padding);
         var curX = baseLoc.X;
         
         for (int i = -1; i < tabs.Count; i++)                                                               

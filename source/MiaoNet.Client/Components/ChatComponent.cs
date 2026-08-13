@@ -119,7 +119,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
                 ChatMessageType.Chat => "Global",
                 ChatMessageType.ChannelChat => "Channel",
                 ChatMessageType.MapChat => "Map",
-                _ => "Global"
+                _ => null
             };
             chatMessageBox.AddChatMessage(received.Text, tabName);
         }
@@ -188,10 +188,9 @@ public sealed partial class ChatComponent : MiaoNetComponent
                 Deactivate();
                 return;
             }
-            if (MInput.Keyboard.Pressed(Keys.Tab))
+            if (MInput.Keyboard.CurrentState.IsKeyDown(Keys.LeftShift) && MInput.Keyboard.Pressed(Keys.Tab))
             {
                 chatMessageBox.CycleTab();
-                // TODO：Private Chat Switch
                 var chatTabName = chatMessageBox.ActiveTabName ?? "Global";
                 var chatChannel = ChatChannelMatcher.Match(chatTabName);
                 if (chatChannel != (ChatChannel)(-1))
@@ -251,7 +250,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         => chatMessageBox.AddChatMessage(message);
 
     public void OnSentPrivateMessage(DateTime dateTime, OnlinePlayer other, string text)
-        => chatMessageBox.AddChatMessage(chatMessageFactory.CreateSentPrivateMessage(other, text), $"[{other.GetDisplayName(false, false)}]");
+        => chatMessageBox.AddChatMessage(chatMessageFactory.CreateSentPrivateMessage(other, text), null);
 
     public void ClearChat()
         => chatMessageBox.CleanHistory();

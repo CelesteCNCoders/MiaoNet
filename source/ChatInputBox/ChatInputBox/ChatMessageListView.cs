@@ -144,11 +144,14 @@ public sealed class ChatMessageListView
         const float Padding = 8f;
         const float MessageXPadding = 8f;
         const float MessageYPadding = 8f;
+        
+        float inputBoxTopY = Engine.Height - Margin - textRenderer.LineHeight - Padding * 2f;
+        float tabViewTopY = inputBoxTopY - textRenderer.LineHeight - Padding * 2f;
 
         float lineHeight = textRenderer.LineHeight;
         float messageLineHeight = lineHeight + 2 * MessageYPadding;
 
-        float baseY = Engine.Height - Margin - lineHeight * 1.5f - Padding;
+        float baseY = tabViewTopY;
         Vector2 baseLoc = new Vector2(Margin, baseY);
 
         float curY = baseLoc.Y;
