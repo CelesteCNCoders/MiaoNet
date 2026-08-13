@@ -33,6 +33,7 @@ public sealed class ChatText
             new Color(0xFF, 0xFF, 0xFF, 0xFF), // f white
         ];
     }
+
     public ChatText(ImmutableArray<ChatTextSegment> segments)
         => Segments = segments;
 
