@@ -162,7 +162,7 @@ public sealed partial class MiaoServerService
                 var withStatePacket = new PacketPlayerLocationChangedNotification(player.ID, newLocation, packet.InitialState);
                 
                 var mapPlayers = moveResult.To.Map?.GetPlayerMovedInitialDatas(connection) ?? [];
-                responseTask = connection.QueuePacketAsync(new PacketPlayerLocationChangedResponse(mapPlayers));
+                var responsePacket = new PacketPlayerLocationChangedResponse(mapPlayers);
 
                 generalTask = moveResult.To.Map is not null
                     ? BroadcastToScopeExceptAsync(generalPacket, moveResult.To.Map, connection.ID)
@@ -171,6 +171,7 @@ public sealed partial class MiaoServerService
                 withStateTask = moveResult.To.Map is not null
                     ? BroadcastToScopeExceptAsync(withStatePacket, moveResult.To.Map, connection.ID)
                     : Task.CompletedTask;
+                responseTask = connection.QueuePacketAsync(responsePacket);
 
                 player.Location = newLocation;
                 player.State = packet.InitialState;
@@ -221,7 +222,8 @@ public sealed partial class MiaoServerService
                 responseTask = connection.QueuePacketAsync(responsePacket);
 
                 var sameMapNotification = new PacketPlayerChannelMovedNotification(
-                    connection.ID, channel.ID,
+                    connection.ID,
+                    channel.ID,
                     player.State is null ? null : new PlayerMovedInitialData(player.State),
                     new PlayerPresenceData(player.Location, player.GlobalFlags)
                 );
@@ -230,17 +232,23 @@ public sealed partial class MiaoServerService
                     : Task.CompletedTask;
 
                 var sameChannelNotification = new PacketPlayerChannelMovedNotification(
-                    connection.ID, channel.ID, null,
+                    connection.ID,
+                    channel.ID,
+                    null,
                     new PlayerPresenceData(player.Location, player.GlobalFlags)
                 );
                 sameChannelTask = BroadcastToScopeExceptAsync(
-                    sameChannelNotification, channel, connection.ID,
+                    sameChannelNotification,
+                    channel,
+                    connection.ID,
                     c => moveResult.To.Map is null || !moveResult.To.Map.Players.Contains(c)
                 );
 
                 var crossChannelNotification = new PacketPlayerChannelMovedNotification(connection.ID, channel.ID);
                 crossChannelTask = BroadcastToScopeExceptAsync(
-                    crossChannelNotification, serverState, connection.ID,
+                    crossChannelNotification,
+                    serverState,
+                    connection.ID,
                     c => c.Player.Channel != channel
                 );
             }
