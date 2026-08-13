@@ -119,10 +119,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
                 ChatMessageType.Chat => "Global",
                 ChatMessageType.ChannelChat => "Channel",
                 ChatMessageType.MapChat => "Map",
-                ChatMessageType.Server => "Server",
-                ChatMessageType.ServerChat => "ServerChat",
-                ChatMessageType.PrivateMessage => $"[{player!.GetDisplayName(false, false)}]",
-                _ => null
+                _ => "Global"
             };
             chatMessageBox.AddChatMessage(received.Text, tabName);
         }
