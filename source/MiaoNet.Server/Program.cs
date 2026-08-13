@@ -48,6 +48,7 @@ public static class Program
         builder.Logging.AddProvider(new AdminLogBufferLoggerProvider(adminLogBuffer));
 
         builder.Services.AddSingleton<AdminChatBuffer>();
+        builder.Services.AddSingleton<TemporaryFreezeStore>();
         builder.Services.AddSingleton<AdminMetricsSampler>();
         builder.Services.AddHostedService(p => p.GetRequiredService<AdminMetricsSampler>());
 

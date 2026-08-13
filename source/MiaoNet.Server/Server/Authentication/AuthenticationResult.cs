@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
 
@@ -9,6 +9,8 @@ public readonly struct AuthenticationResult
     public AuthenticationResultType Type { get; }
 
     public string? SuspendMessage { get; }
+
+    public SuspensionInfo? Suspension { get; }
 
     public PlayerInfo? PlayerInfo { get; }
 
@@ -23,11 +25,12 @@ public readonly struct AuthenticationResult
         Type = type;
     }
 
-    public AuthenticationResult(AuthenticationResultType type, string? suspendMessage)
+    public AuthenticationResult(AuthenticationResultType type, SuspensionInfo suspension)
     {
         Debug.Assert(type == AuthenticationResultType.Suspended);
         Type = type;
-        SuspendMessage = suspendMessage;
+        Suspension = suspension;
+        SuspendMessage = suspension.Message;
     }
 
     public AuthenticationResult(AuthenticationResultType type, PlayerInfo? playerInfo, byte[]? tokenData)

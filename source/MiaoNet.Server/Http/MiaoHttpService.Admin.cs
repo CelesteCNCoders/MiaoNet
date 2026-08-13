@@ -93,6 +93,8 @@ public sealed partial class MiaoHttpService
             $"&response_type=code" +
             $"&redirect_uri={Uri.EscapeDataString(adminOptions.RedirectUri)}" +
             $"&state={state}";
+        if (!string.IsNullOrWhiteSpace(adminOptions.Scope))
+            url += $"&scope={Uri.EscapeDataString(adminOptions.Scope)}";
         Redirect(context, url);
     }
 
@@ -119,11 +121,19 @@ public sealed partial class MiaoHttpService
                 code,
                 redirect_uri = adminOptions.RedirectUri
             });
-            tokenResponse.EnsureSuccessStatusCode();
-            using JsonDocument tokenDoc = await JsonDocument.ParseAsync(
-                await tokenResponse.Content.ReadAsStreamAsync()
-            );
-            accessToken = tokenDoc.RootElement.GetProperty("access_token").GetString()!;
+            string tokenJson = await tokenResponse.Content.ReadAsStringAsync();
+            if (!tokenResponse.IsSuccessStatusCode)
+                throw new InvalidDataException(
+                    $"Forum token endpoint returned {(int)tokenResponse.StatusCode} ({tokenResponse.ReasonPhrase}): {TrimForLog(tokenJson)}");
+            using JsonDocument tokenDoc = JsonDocument.Parse(tokenJson);
+            var tokenRoot = tokenDoc.RootElement;
+            // the forum may return an error body with a 200 status
+            if (tokenRoot.TryGetProperty("error", out _))
+                throw new InvalidDataException($"Forum token endpoint returned an error: {tokenRoot.GetRawText()}");
+            if (!tokenRoot.TryGetProperty("access_token", out var accessTokenElement)
+                || accessTokenElement.ValueKind is not JsonValueKind.String)
+                throw new InvalidDataException($"Forum token endpoint response has no access_token: {tokenRoot.GetRawText()}");
+            accessToken = accessTokenElement.GetString()!;
         }
         catch (Exception e)
         {
@@ -135,21 +145,32 @@ public sealed partial class MiaoHttpService
 
         int userID;
         string userName, nickName;
-        bool isAdmin;
+        bool canAdminPanel;
         try
         {
             using var userRequest = new HttpRequestMessage(HttpMethod.Get, "api/miaonet/admin-user");
             userRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             var userResponse = await adminHttpClient!.SendAsync(userRequest);
-            userResponse.EnsureSuccessStatusCode();
-            using JsonDocument userDoc = await JsonDocument.ParseAsync(
-                await userResponse.Content.ReadAsStreamAsync()
-            );
+            string userJson = await userResponse.Content.ReadAsStringAsync();
+            if (!userResponse.IsSuccessStatusCode)
+                throw new InvalidDataException(
+                    $"Forum admin-user endpoint returned {(int)userResponse.StatusCode} ({userResponse.ReasonPhrase}): {TrimForLog(userJson)}");
+            using JsonDocument userDoc = JsonDocument.Parse(userJson);
             var root = userDoc.RootElement;
-            userID = root.GetProperty("id").GetInt32();
+            // the forum may return an error body with a 200 status
+            if (root.TryGetProperty("error", out _))
+                throw new InvalidDataException($"Forum admin-user endpoint returned an error: {root.GetRawText()}");
+            // the forum sometimes serializes ids as strings
+            if (!root.TryGetProperty("id", out var idElement)
+                || !TryGetInt32(idElement, out userID))
+                throw new InvalidDataException($"Forum admin-user endpoint response has no id: {root.GetRawText()}");
             userName = root.TryGetProperty("username", out var un) ? un.GetString() ?? string.Empty : string.Empty;
             nickName = root.TryGetProperty("nickname", out var nn) ? nn.GetString() ?? userName : userName;
-            isAdmin = root.TryGetProperty("is_admin", out var ia) && ia.ValueKind is JsonValueKind.True;
+            // the forum plugin grants panel access via the miaonet.adminPanel permission;
+            // fall back to is_admin for older plugin versions without that field
+            canAdminPanel = root.TryGetProperty("can_admin_panel", out var cp)
+                ? cp.ValueKind is JsonValueKind.True
+                : root.TryGetProperty("is_admin", out var ia) && ia.ValueKind is JsonValueKind.True;
         }
         catch (Exception e)
         {
@@ -159,9 +180,9 @@ public sealed partial class MiaoHttpService
             return;
         }
 
-        if (!isAdmin)
+        if (!canAdminPanel)
         {
-            logger.LogInformation(AppEvents.Http, "Non-admin user {name}({id}) tried to login the admin panel.", userName, userID);
+            logger.LogInformation(AppEvents.Http, "User {name}({id}) without admin panel permission tried to login the admin panel.", userName, userID);
             await WriteHtmlPageAsync(context, (int)HttpStatusCode.Forbidden, "无权访问",
                 "<p>你不是管理员，无权访问管理后台。</p>");
             return;
@@ -189,6 +210,24 @@ public sealed partial class MiaoHttpService
     }
 
     private static string HtmlEncode(string s) => WebUtility.HtmlEncode(s);
+
+    // keeps logged response bodies bounded (error pages can be huge HTML)
+    private static string TrimForLog(string body)
+        => body.Length <= 512 ? body : string.Concat(body.AsSpan(0, 512), "...");
+
+    private static bool TryGetInt32(JsonElement element, out int value)
+    {
+        switch (element.ValueKind)
+        {
+        case JsonValueKind.Number:
+            return element.TryGetInt32(out value);
+        case JsonValueKind.String:
+            return int.TryParse(element.GetString(), out value);
+        default:
+            value = default;
+            return false;
+        }
+    }
 
     private static async Task WriteHtmlPageAsync(HttpListenerContext context, int statusCode, string title, string bodyContent)
     {

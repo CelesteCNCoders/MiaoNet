@@ -8,7 +8,7 @@ namespace MiaoNet.Server;
 
 public sealed partial class MiaoHttpService
 {
-    private sealed record AdminKickRequest(int? AuthID, int? ConnectionID, string? Reason);
+    private sealed record AdminKickRequest(int? AuthID, int? ConnectionID, string? Reason, int? FreezeMinutes);
 
     private sealed record AdminAnnounceRequest(string? Message);
 
@@ -144,22 +144,45 @@ public sealed partial class MiaoHttpService
                 new { ok = false, error = "需要提供 authID 或 connectionID" });
             return;
         }
-        string reason = string.IsNullOrWhiteSpace(request.Reason) ? "你已被管理员踢出" : request.Reason!;
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            await WriteJsonAsync(context, (int)HttpStatusCode.BadRequest,
+                new { ok = false, error = "需要填写踢出原因" });
+            return;
+        }
+        if (request.FreezeMinutes is not > 0)
+        {
+            await WriteJsonAsync(context, (int)HttpStatusCode.BadRequest,
+                new { ok = false, error = "需要填写临时冻结时间（分钟）" });
+            return;
+        }
+        string reason = request.Reason;
+        TimeSpan freezeDuration = TimeSpan.FromMinutes(request.FreezeMinutes.Value);
 
-        int kicked = 0;
+        List<(int AuthID, string Name)> kicked = new();
         if (request.ConnectionID is int cid)
-            kicked += await KickByConnectionIDAsync(cid, reason);
+            kicked.AddRange(await KickByConnectionIDAsync(cid, reason));
         if (request.AuthID is int aid)
-            kicked += await KickByAuthIDAsync(aid, reason);
+            kicked.AddRange(await KickByAuthIDAsync(aid, reason));
+
+        // frozen accounts may not log back in until the freeze expires
+        foreach (var (authID, _) in kicked)
+            temporaryFreezeStore.Freeze(authID, freezeDuration);
+        if (kicked.Count > 0)
+        {
+            await BroadcastAnnouncementAsync(
+                $"玩家 {string.Join('、', kicked.Select(static k => k.Name))} 已被管理员踢出并临时冻结 {request.FreezeMinutes.Value} 分钟，原因：{reason}"
+            );
+        }
 
         logger.LogInformation(
             AppEvents.Http,
-            "Admin {admin} kicked {count} player(s) (authID: {aid}, connectionID: {cid}), reason: {reason}.",
-            session.UserName, kicked, request.AuthID, request.ConnectionID, reason
+            "Admin {admin} kicked {count} player(s) (authID: {aid}, connectionID: {cid}), frozen for {min} minute(s), reason: {reason}.",
+            session.UserName, kicked.Count, request.AuthID, request.ConnectionID, request.FreezeMinutes.Value, reason
         );
         await WriteJsonAsync(context, (int)HttpStatusCode.OK,
-            kicked > 0
-                ? (object)new { ok = true, kicked }
+            kicked.Count > 0
+                ? (object)new { ok = true, kicked = kicked.Count }
                 : new { ok = false, error = "未找到该玩家" });
     }
 

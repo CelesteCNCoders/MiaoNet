@@ -20,6 +20,7 @@ public sealed partial class MiaoHttpService : BackgroundService
     private readonly AdminLogBuffer adminLogBuffer;
     private readonly AdminChatBuffer adminChatBuffer;
     private readonly AdminMetricsSampler adminMetricsSampler;
+    private readonly TemporaryFreezeStore temporaryFreezeStore;
     private readonly HttpListener httpListener;
     private readonly Dictionary<string, RequestHandler> requestHandlers;
 
@@ -37,7 +38,8 @@ public sealed partial class MiaoHttpService : BackgroundService
         MiaoMetricsService miaoMetricsService,
         AdminLogBuffer adminLogBuffer,
         AdminChatBuffer adminChatBuffer,
-        AdminMetricsSampler adminMetricsSampler
+        AdminMetricsSampler adminMetricsSampler,
+        TemporaryFreezeStore temporaryFreezeStore
     )
     {
         this.logger = logger;
@@ -46,6 +48,7 @@ public sealed partial class MiaoHttpService : BackgroundService
         this.adminLogBuffer = adminLogBuffer;
         this.adminChatBuffer = adminChatBuffer;
         this.adminMetricsSampler = adminMetricsSampler;
+        this.temporaryFreezeStore = temporaryFreezeStore;
         httpListener = new();
         httpListener.Prefixes.Add(options.Value.HttpListenerPrefix);
 

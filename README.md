@@ -53,11 +53,15 @@ CelesteNet 的一个重写, 以应对数以百计的蔚蓝联机玩家.
 - 受保护接口(需要在请求头携带 `X-Api-Token`, 值为配置项 `MiaoServer:ApiToken`; 为空则不校验并会在启动时警告):
   `DELETE /player`(按 `cid`/`aid` 踢人)、`POST /announce`(广播公告)、`/gc`
 - 管理后台(配置节 `MiaoServer:AdminPanel`, 默认关闭): 通过论坛 OAuth 登录,
-  仅论坛管理员可进入. 入口为 `GET /admin/login`, 页面为单页应用, 包含
+  仅拥有论坛 `miaonet.adminPanel` 权限的用户可进入(旧版论坛插件无此字段时回退为仅论坛管理员).
+  论坛 oauth-center 中为 `GET /api/miaonet/admin-user` 配置了 scope 时,
+  需把该 scope 标识填入 `AdminPanel:Scope`, 否则登录时会因 `insufficient_scope` 失败.
+  入口为 `GET /admin/login`, 页面为单页应用, 包含
   仪表盘 / 玩家 / 聊天 / 日志 / 指标 五个标签页, 数据通过以下 JSON API 实时刷新
   (均需登录会话 Cookie, 未登录返回 401 JSON):
   - `GET /admin/api/players`: 在线玩家与频道列表
-  - `POST /admin/api/kick`: 踢出玩家, 请求体 `{ "authID": ..., "connectionID": ..., "reason": "..." }`(id 至少给一个)
+  - `POST /admin/api/kick`: 踢出并临时冻结玩家, 请求体 `{ "authID": ..., "connectionID": ..., "reason": "...", "freezeMinutes": ... }`
+    (id 至少给一个, 原因与冻结分钟数必填; 冻结期间该账号无法登录)
   - `POST /admin/api/announce`: 广播公告, 请求体 `{ "message": "..." }`
   - `GET /admin/api/logs?after=<id>&limit=<n>`: 实时服务器日志(环形缓冲区, 最多保留最近 1000 条)
   - `GET /admin/api/chat?after=<id>`: 实时玩家聊天与服务器公告(私聊不记录)

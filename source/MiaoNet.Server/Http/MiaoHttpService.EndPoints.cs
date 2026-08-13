@@ -11,26 +11,26 @@ public partial class MiaoHttpService
 {
     // TODO uh, we may need to switch our connection id fully to auth id
     // TODO don't use MiaoServerServices directly, use sth like IMiaoServerService
-    private async Task<int> KickByAuthIDAsync(int aid, string reason)
+    private async Task<List<(int AuthID, string Name)>> KickByAuthIDAsync(int aid, string reason)
     {
-        int kicked = 0;
+        List<(int, string)> kicked = new();
         foreach (var p in miaoServerService.ServerState.AllPlayers)
         {
             if (p.Value.Player.Info.AuthID == aid)
             {
+                kicked.Add((aid, p.Value.Player.Info.Name));
                 await p.Value.Connection.DisconnectAsync(DisconnectReason.Kicked, reason);
-                kicked++;
             }
         }
         return kicked;
     }
 
-    private async Task<int> KickByConnectionIDAsync(int cid, string reason)
+    private async Task<List<(int AuthID, string Name)>> KickByConnectionIDAsync(int cid, string reason)
     {
         if (!miaoServerService.Players.TryGetValue(cid, out var client))
-            return 0;
+            return new();
         await client.Connection.DisconnectAsync(DisconnectReason.Kicked, reason);
-        return 1;
+        return new() { (client.Player.Info.AuthID, client.Player.Info.Name) };
     }
 
     private Task BroadcastAnnouncementAsync(string message)
@@ -53,18 +53,23 @@ public partial class MiaoHttpService
             }
             if (int.TryParse(query["cid"], CultureInfo.InvariantCulture, out int cid))
             {
-                if (!miaoServerService.ServerState.AllPlayers.TryGetValue(cid, out var client))
+                var kicked = await KickByConnectionIDAsync(cid, reason);
+                if (kicked.Count == 0)
                 {
                     context.Response.StatusCode = (int)HttpStatusCode.NotFound;
                     break;
                 }
-                await client.Connection.DisconnectAsync(DisconnectReason.Kicked, reason);
+                // let everyone know the player was kicked
+                await BroadcastAnnouncementAsync($"玩家 {kicked[0].Name} 已被踢出服务器，原因：{reason}");
                 context.Response.StatusCode = (int)HttpStatusCode.NoContent;
                 break;
             }
             else if (int.TryParse(query["aid"], CultureInfo.InvariantCulture, out int aid))
             {
-                await KickByAuthIDAsync(aid, reason);
+                // used by the forum suspend hook: the player got banned, say so publicly
+                var kicked = await KickByAuthIDAsync(aid, reason);
+                if (kicked.Count > 0)
+                    await BroadcastAnnouncementAsync($"玩家 {string.Join('、', kicked.Select(static k => k.Name))} 因为 {reason} 被封禁");
                 context.Response.StatusCode = (int)HttpStatusCode.NoContent;
                 break;
             }

@@ -1,0 +1,14 @@
+2026-08-12T14:09:15.4384171+08:00	INFO	[MiaoNet.Server.MiaoServerService]	[0]	MiaoNet Server v0.4.1 starting...
+2026-08-12T14:09:15.4397295+08:00	INFO	[MiaoNet.Server.MiaoServerService]	[0]	Start to listen on 0.0.0.0:21473.
+2026-08-12T14:09:15.4446478+08:00	INFO	[MiaoNet.Server.MiaoHttpService]	[Http]	HttpListener start to listen on http://localhost:21474/.
+2026-08-12T14:09:15.4447165+08:00	WARN	[MiaoNet.Server.MiaoHttpService]	[Http]	MiaoServer:ApiToken is not configured; mutating HTTP endpoints (DELETE /player, POST /announce, /gc) are unprotected.
+2026-08-12T14:09:15.4452222+08:00	INFO	[Microsoft.Hosting.Lifetime]	[0]	Application started. Press Ctrl+C to shut down.
+2026-08-12T14:09:15.4452582+08:00	INFO	[Microsoft.Hosting.Lifetime]	[0]	Hosting environment: Production
+2026-08-12T14:09:15.4452631+08:00	INFO	[Microsoft.Hosting.Lifetime]	[0]	Content root path: D:\Code\GitClone\GitHub\MiaoNetNew\source\artifacts\bin\MiaoNet.Server\debug\
+2026-08-12T14:10:06.1230996+08:00	INFO	[MiaoNet.Server.MiaoServerService]	[0]	MiaoNet Server v0.4.1 starting...
+2026-08-12T14:10:06.1246149+08:00	INFO	[MiaoNet.Server.MiaoServerService]	[0]	Start to listen on 0.0.0.0:21473.
+2026-08-12T14:10:06.1295344+08:00	INFO	[MiaoNet.Server.MiaoHttpService]	[Http]	HttpListener start to listen on http://localhost:21474/.
+2026-08-12T14:10:06.1296237+08:00	WARN	[MiaoNet.Server.MiaoHttpService]	[Http]	MiaoServer:ApiToken is not configured; mutating HTTP endpoints (DELETE /player, POST /announce, /gc) are unprotected.
+2026-08-12T14:10:06.1300530+08:00	INFO	[Microsoft.Hosting.Lifetime]	[0]	Application started. Press Ctrl+C to shut down.
+2026-08-12T14:10:06.1301033+08:00	INFO	[Microsoft.Hosting.Lifetime]	[0]	Hosting environment: Production
+2026-08-12T14:10:06.1301090+08:00	INFO	[Microsoft.Hosting.Lifetime]	[0]	Content root path: D:\Code\GitClone\GitHub\MiaoNetNew\source\artifacts\bin\MiaoNet.Server\debug\

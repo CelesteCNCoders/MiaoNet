@@ -209,7 +209,10 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
                     result.SuspendReason, result.SuspendMessage,
                     result.SuspendedUntil
                 );
-                return new AuthenticationResult(AuthenticationResultType.Suspended, result.SuspendMessage);
+                return new AuthenticationResult(
+                    AuthenticationResultType.Suspended,
+                    new SuspensionInfo(result.UserName, result.SuspendReason, result.SuspendMessage, result.SuspendedUntil.Value)
+                );
             }
 
             if (result.Color is not { Length: 7 } || !TryParseHexColor(result.Color.AsSpan(1), out Color color))

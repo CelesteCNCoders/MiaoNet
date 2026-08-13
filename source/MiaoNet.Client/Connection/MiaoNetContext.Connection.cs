@@ -144,6 +144,10 @@ partial class MiaoNetContext
                     {
                         QueueDisconnectStatus(ConnectionStatus.InternalServerError);
                     }
+                    else if (r == AuthenticationResultType.Suspended && reason is null)
+                    {
+                        QueueDisconnectStatus(ConnectionStatus.Suspended);
+                    }
                     return;
                 }
 

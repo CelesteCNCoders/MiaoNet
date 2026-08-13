@@ -26,6 +26,8 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
     private readonly IMiaoAuthenticator authenticator;
     private readonly MiaoMetricsService miaoMetricsService;
     private readonly AdminChatBuffer adminChatBuffer;
+    private readonly TemporaryFreezeStore temporaryFreezeStore;
+    private readonly ConnectionCooldownTracker connectionCooldownTracker = new();
 
     private readonly PacketDispatcher packetDispatcher;
 
@@ -53,7 +55,8 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         MiaoClientConnectionFactory connectionFactory,
         IMiaoAuthenticator authenticator,
         MiaoMetricsService miaoMetricsService,
-        AdminChatBuffer adminChatBuffer
+        AdminChatBuffer adminChatBuffer,
+        TemporaryFreezeStore temporaryFreezeStore
     )
     {
         serverState = new();
@@ -71,6 +74,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         stopwatch = Stopwatch.StartNew();
         this.miaoMetricsService = miaoMetricsService;
         this.adminChatBuffer = adminChatBuffer;
+        this.temporaryFreezeStore = temporaryFreezeStore;
     }
 
     public override Task StartAsync(CancellationToken cancellationToken)
@@ -88,6 +92,17 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         {
             IPendingNetworkConnection pending = await networkListener.AcceptAsync(stoppingToken);
             var addr = pending.RemoteAddress;
+            // refuse connection bursts from the same address outright while it cools down
+            if (connectionCooldownTracker.CheckAndRecord(addr, out var cooldownRemaining))
+            {
+                logger.LogInformation(
+                    AppEvents.Connection,
+                    "{addr} reconnects too fast and is cooling down ({remain} left); connection refused.",
+                    addr, cooldownRemaining
+                );
+                pending.Dispose();
+                continue;
+            }
             logger.LogInformation(AppEvents.Connection, "New client try connecting: {addr}", addr);
             _ = HandlePendingConnectionAsync(pending, stoppingToken);
         }
@@ -289,7 +304,24 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                 token
             );
 
-            string? failedReason = authResult.IsFailed ? authResult.SuspendMessage : null;
+            // accounts frozen from the admin panel may not log in until the freeze expires
+            if (!authResult.IsFailed
+                && temporaryFreezeStore.TryGetFrozenUntil(authResult.PlayerInfo.AuthID, out var frozenUntil))
+            {
+                authResult = new(
+                    AuthenticationResultType.Suspended,
+                    new SuspensionInfo(
+                        authResult.PlayerInfo.Name, null,
+                        $"你已被临时冻结，解冻时间：{frozenUntil.ToLocalTime():yyyy-MM-dd HH:mm}",
+                        frozenUntil.UtcDateTime
+                    )
+                );
+            }
+
+            string? failedReason = authResult.IsFailed
+                ? authResult.SuspendMessage
+                    ?? (authResult.Suspension is { } s ? $"你已被封禁，解封时间：{s.Until.ToLocalTime():yyyy-MM-dd HH:mm}" : null)
+                : null;
             HandshakeAckData ack = new(authResult.Type, authResult.TokenData, failedReason);
 
             MemoryStream ms = new(32);
