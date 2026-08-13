@@ -141,7 +141,7 @@ public sealed class InputBox
                 }
             }
         }
-        else if (MInput.Keyboard.Pressed(Keys.Tab))
+        else if (!MInput.Keyboard.CurrentState.IsKeyDown(Keys.LeftShift) && MInput.Keyboard.Pressed(Keys.Tab))
         {
             if (completions is not null && (completions.Count == 1 || selectedCompletionIndex != -1))
             {
