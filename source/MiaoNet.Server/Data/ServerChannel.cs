@@ -71,13 +71,14 @@ public sealed class ServerChannel : IPlayerScope
         }
         else
         {
-            map = new ServerMap(to, connection);
+            ServerMap mapNew = new(to, connection);
             bool result = ImmutableInterlocked.Update(
                 ref maps,
-                (d, c) => d.Add(c.map.MapLocation, c.map),
-                (connection, map)
+                (d, c) => d.Add(c.mapNew.MapLocation, c.mapNew),
+                (connection, mapNew)
             );
             Debug.Assert(result);
+            map = mapNew;
         }
         return map;
     }
