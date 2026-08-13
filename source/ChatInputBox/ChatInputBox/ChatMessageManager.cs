@@ -106,12 +106,14 @@ public class ChatMessageManager
 
     public void CleanUp()
     {
+        chatLog.Clear();
         tab.Clear();
         activeTabIndex = -1;
     }
 
     public void CleanHistory()
     {
+        chatLog.Clear();
         foreach (var chatTab in tab)
         {
             chatTab.CleanUp();
