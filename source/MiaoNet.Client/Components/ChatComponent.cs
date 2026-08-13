@@ -193,7 +193,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
             {
                 chatMessageBox.CycleTab();
                 var chatTabName = chatMessageBox.ActiveTabName ?? ChatChannelMatcher.GetName(ChatChannel.Global);
-                var chatChannel = ChatChannelMatcher.Match(chatTabName);
+                var chatChannel = ChatChannelMatcher.Match(chatTabName!);
                 if (chatChannel != (ChatChannel)(-1))
                 {
                     settings.ChatChannel = chatChannel;
