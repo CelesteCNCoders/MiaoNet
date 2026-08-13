@@ -29,7 +29,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         }
     }
 
-    // i hate these "previous" things
+    // I hate these "previous" things
     private bool previousCommandsEnabled = false;
     private bool previousScenePaused = false;
     private bool previousAllowHudHide = true;
@@ -114,13 +114,14 @@ public sealed partial class ChatComponent : MiaoNetComponent
         if (received.Text is not null)
         {
             // Route to appropriate tab based on message type
-            string? tabName = packet.Type switch
+            ChatChannel? chatChannel = packet.Type switch
             {
-                ChatMessageType.Chat => "Global",
-                ChatMessageType.ChannelChat => "Channel",
-                ChatMessageType.MapChat => "Map",
+                ChatMessageType.Chat => ChatChannel.Global,
+                ChatMessageType.ChannelChat => ChatChannel.Global,
+                ChatMessageType.MapChat => ChatChannel.Global,
                 _ => null
             };
+            string? tabName = ChatChannelMatcher.GetName(chatChannel);
             chatMessageBox.AddChatMessage(received.Text, tabName);
         }
         else
@@ -191,7 +192,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
             if (MInput.Keyboard.CurrentState.IsKeyDown(Keys.LeftShift) && MInput.Keyboard.Pressed(Keys.Tab))
             {
                 chatMessageBox.CycleTab();
-                var chatTabName = chatMessageBox.ActiveTabName ?? "Global";
+                var chatTabName = chatMessageBox.ActiveTabName ?? ChatChannelMatcher.GetName(ChatChannel.Global);
                 var chatChannel = ChatChannelMatcher.Match(chatTabName);
                 if (chatChannel != (ChatChannel)(-1))
                 {
