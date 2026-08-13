@@ -27,26 +27,51 @@ public sealed class PacketPlayerChannelMovedNotification : PacketPlayerNotificat
 {
     public int ChannelID { get; }
 
-    public PlayerState? InitialState { get; set; }
+    // in-map data (ghost state) of the moved player; sent to same-map receivers
+    public PlayerMovedInitialData? InitialData { get; }
+
+    // "summary" data (location + global flags); sent to same-channel receivers
+    public PlayerPresenceData? Presence { get; }
 
     public PacketPlayerChannelMovedNotification(int playerID, int channelID)
-        : base(playerID)
+        : this(playerID, channelID, null, null)
     {
-        ChannelID = channelID;
     }
 
     public PacketPlayerChannelMovedNotification(
-        int playerID, int channelID, PlayerState? initialState
-    ) : this(playerID, channelID)
+        int playerID,
+        int channelID,
+        PlayerMovedInitialData? initialData,
+        PlayerPresenceData? presence
+    ) : base(playerID)
     {
-        InitialState = initialState;
+        ChannelID = channelID;
+        InitialData = initialData;
+        Presence = presence;
     }
 
     public void Serialize(ref RefBinaryWriter writer, IPacketSerializationContext context)
     {
         writer.Write(PlayerID);
         writer.Write(ChannelID);
-        writer.WriteNullable(InitialState, context.PooledStringManager);
+        if (InitialData is null)
+        {
+            writer.Write(false);
+        }
+        else
+        {
+            writer.Write(true);
+            writer.Write(InitialData.Value, context.PooledStringManager);
+        }
+        if (Presence is null)
+        {
+            writer.Write(false);
+        }
+        else
+        {
+            writer.Write(true);
+            writer.Write(Presence.Value);
+        }
     }
 
     public static PacketPlayerChannelMovedNotification Deserialize(
@@ -56,8 +81,13 @@ public sealed class PacketPlayerChannelMovedNotification : PacketPlayerNotificat
     {
         int playerID = reader.ReadInt32();
         int channelID = reader.ReadInt32();
-        PlayerState? initialState = reader.ReadNullable<PlayerState, PooledStringManager>(context.PooledStringManager);
+        PlayerMovedInitialData? initialData = reader.ReadBoolean()
+            ? reader.Read<PlayerMovedInitialData, PooledStringManager>(context.PooledStringManager)
+            : null;
+        PlayerPresenceData? presence = reader.ReadBoolean()
+            ? reader.Read<PlayerPresenceData>()
+            : null;
 
-        return new(playerID, channelID, initialState);
+        return new(playerID, channelID, initialData, presence);
     }
 }

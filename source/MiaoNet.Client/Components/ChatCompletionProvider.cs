@@ -31,11 +31,46 @@ public sealed class ChatCompletionProvider : ICompletionProvider
         if (completions is not null)
             return completions;
 
+        completions = GetMentionCompletions(emojiApplied);
+        if (completions is not null)
+            return completions;
+
         completions = GetCommandCompletions(emojiApplied);
         if (completions is not null)
             return completions;
 
         return null;
+    }
+
+    private IEnumerable<Completion>? GetMentionCompletions(string input)
+    {
+        int atIndex = FindLastMentionAtIndex(input);
+        if (atIndex == -1)
+            return null;
+
+        string partial = input[(atIndex + 1)..];
+        for (int i = 0; i < partial.Length; i++)
+        {
+            if (char.IsWhiteSpace(partial[i]))
+                return null;
+        }
+
+        int remove = partial.Length;
+        var state = context.ClientState!;
+        return from p in state.AllPlayers
+               let name = p.Info.Name
+               where name.StartsWith(partial, sc)
+               select new Completion(name, name, remove);
+
+        static int FindLastMentionAtIndex(string input)
+        {
+            for (int i = input.Length - 1; i >= 0; i--)
+            {
+                if (input[i] == '@' && (i == 0 || char.IsWhiteSpace(input[i - 1])))
+                    return i;
+            }
+            return -1;
+        }
     }
 
     private static IEnumerable<Completion>? GetEmojiCompletions(string input)

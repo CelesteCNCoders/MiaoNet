@@ -21,4 +21,15 @@ public static class ChatChannelMatcher
 
         return (ChatChannel)(-1);
     }
+
+    public static string? GetName(ChatChannel? channel) =>
+        channel switch
+        {
+            ChatChannel.Global => "Global",
+            ChatChannel.Channel => "Channel",
+            ChatChannel.Map => "Map",
+            null => null,
+        };
+
+    // TODO: Private Chat Matching
 }

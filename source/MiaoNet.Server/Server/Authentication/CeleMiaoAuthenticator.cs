@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Json;
+using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -158,9 +158,9 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
                                 tokenObject.RefreshToken,
                                 resTime + TimeSpan.FromSeconds(tokenResult.ExpiresIn)
                             );
-                            var authData = RefBinarySerialization.Serialize(tokenObject, 80);
+                            var authData = RefBinarySerialization.Serialize(newTokenObject, 80);
                             var encryptedData = alg.EncryptCbc(authData, alg.IV);
-                            return new(result.Type, result.PlayerInfo, authData);
+                            return new(result.Type, result.PlayerInfo, encryptedData);
                         }
                         else
                         {

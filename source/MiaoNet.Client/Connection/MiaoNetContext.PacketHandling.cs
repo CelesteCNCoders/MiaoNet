@@ -11,9 +11,8 @@ partial class MiaoNetContext
     public event Action<OnlinePlayer>? PlayerJoined;
     public event Action<OnlinePlayer>? PlayerLeft;
     public event PacketPlayerNotificationHandler<PacketPlayerFrame>? PlayerFrameNotification;
-    public event PacketPlayerNotificationHandler<PacketPlayerMapChangedNotification>? PlayerMapChanged;
-    public event Action<OnlinePlayer, string>? PlayerMapRoomChanged;
-    public event Action<PacketPlayerMapChangedResponse>? PlayerMapChangeResponded;
+    public event PacketPlayerNotificationHandler<PacketPlayerLocationChangedNotification>? PlayerLocationChanged;
+    public event Action<PacketPlayerLocationChangedResponse>? PlayerLocationChangeResponded;
     public event Action<OnlinePlayer?, PacketChatMessage>? ChatMessageReceived;
     public event Action<OnlinePlayer, EmoteData>? EmoteReceived;
     public event Action<OnlinePlayer, string>? EmoteTextReceived;
@@ -34,9 +33,8 @@ partial class MiaoNetContext
         r.Register<PacketPlayerJoined>(HandlePacket);
         r.Register<PacketPlayerLeft>(HandlePacket);
         r.Register<PacketContextualPlayerNotification<PacketPlayerFrame>>(HandlePacket);
-        r.Register<PacketPlayerMapChangedNotification>(HandlePacket);
-        r.Register<PacketPlayerNotification<PacketPlayerMapRoomChanged>>(HandlePacket);
-        r.Register<PacketPlayerMapChangedResponse>(HandlePacket);
+        r.Register<PacketPlayerLocationChangedNotification>(HandlePacket);
+        r.Register<PacketPlayerLocationChangedResponse>(HandlePacket);
         r.Register<PacketChatMessage>(HandlePacket);
         r.Register<PacketEmote>(HandlePacket);
         r.Register<PacketEmoteText>(HandlePacket);
@@ -101,32 +99,28 @@ partial class MiaoNetContext
         PlayerFrameNotification?.Invoke(player, packet.Packet);
     }
 
-    private void HandlePacket(PacketPlayerMapChangedNotification packet)
+    private void HandlePacket(PacketPlayerLocationChangedNotification packet)
     {
         EnsureState();
         var player = ClientState.GetPlayer(packet.PlayerID);
         player.Location = packet.Location;
-        player.State = packet.InitialState;
-        PlayerMapChanged?.Invoke(player, packet);
+
+        bool roomOnly = packet.InitialState is null
+            && packet.Location.IsInMap
+            && ClientState.Self.Location.Map == packet.Location.Map;
+
+        if (!roomOnly)
+            player.State = packet.InitialState;
+
+        PlayerLocationChanged?.Invoke(player, packet);
     }
 
-    private void HandlePacket(PacketPlayerNotification<PacketPlayerMapRoomChanged> packet)
-    {
-        EnsureState();
-        var player = ClientState.GetPlayer(packet.PlayerID);
-        player.Location = new PlayerLocation(player.Location.Map, packet.Packet.MapRoom);
-        PlayerMapRoomChanged?.Invoke(player, packet.Packet.MapRoom);
-    }
-
-    private void HandlePacket(PacketPlayerMapChangedResponse packet)
+    private void HandlePacket(PacketPlayerLocationChangedResponse packet)
     {
         EnsureState();
         foreach (var playerInMap in packet.Players)
-        {
-            var player = ClientState.GetPlayer(playerInMap.PlayerID);
-            player.State = playerInMap.InitialState;
-        }
-        PlayerMapChangeResponded?.Invoke(packet);
+            ClientState.ApplyPlayerMovedInitialData(playerInMap);
+        PlayerLocationChangeResponded?.Invoke(packet);
     }
 
     private void HandlePacket(PacketChatMessage packet)
@@ -251,10 +245,12 @@ partial class MiaoNetContext
         if (packet.Players is not null)
         {
             foreach (var playerInMap in packet.Players)
-            {
-                var player = ClientState.GetPlayer(playerInMap.PlayerID);
-                player.State = playerInMap.InitialState;
-            }
+                ClientState.ApplyPlayerMovedInitialData(playerInMap);
+        }
+        if (packet.ChannelPlayers is not null)
+        {
+            foreach (var info in packet.ChannelPlayers)
+                ClientState.ApplyPlayerPresenceData(info);
         }
         SelfChannelMoved?.Invoke(packet);
         HandleChannelRemoveIfEmpty(p);
@@ -274,7 +270,10 @@ partial class MiaoNetContext
     {
         EnsureState();
         ClientState.OnPlayerChannelMove(packet.PlayerID, packet.ChannelID, out var pl, out var p, out var c);
-        pl.State = packet.InitialState;
+        if (packet.InitialData is not null)
+            ClientState.ApplyPlayerMovedInitialData(packet.PlayerID, packet.InitialData.Value);
+        if (packet.Presence is not null)
+            ClientState.ApplyPlayerPresenceData(packet.PlayerID, packet.Presence.Value);
         PlayerChannelMoved?.Invoke(pl, packet);
         HandleChannelRemoveIfEmpty(p);
     }

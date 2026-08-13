@@ -125,11 +125,16 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                 // fetch online players infos
                 var channels = serverState.Channels
                     .Select(c => new PacketClientInitial.Channel(c.Value.ID, c.Value.Info));
+                // cross-channel players are name-only: only same-channel players get
+                // their real location/global flags, everyone else gets empty placeholders
                 var playerInfos =
                     from pair in serverState.Players
                     let p = pair.Value.Player
+                    let sameChannel = p.Channel.ID == newPlayer.Channel.ID
                     select new PacketClientInitial.Player(
-                        p.Channel.ID, p.ID, p.Info, p.Location, p.GlobalFlags
+                        p.Channel.ID, p.ID, p.Info,
+                        sameChannel ? p.Location : PlayerLocation.Empty,
+                        sameChannel ? p.GlobalFlags : PlayerGlobalFlags.None
                     );
 
                 var strings = options.Announcements[handshakeResult.HandshakeData.LanguageCode];
@@ -150,8 +155,10 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                 serverState.AddPlayer(newConnection);
 
                 // and then tell other clients a new player came
-                tellOthersOneJoinedTask = BroadcastOthersAsync(
-                    new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.ID, newPlayer.Info), newPlayer.ID
+                tellOthersOneJoinedTask = BroadcastToScopeExceptAsync(
+                    new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.ID, newPlayer.Info),
+                    serverState,
+                    newPlayer.ID
                 );
             }
 
@@ -193,12 +200,18 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
                 // TODO should we wait for all clients to response?
                 await Task.WhenAll(taskList);
-                PacketPingData pingData = new(
-                    list.Where(t => t.Item1.Result is not null)
-                        .Select(t => (t.Item2.ID, (int)t.Item1.Result!.Value.TotalMilliseconds)
-                ).ToList());
 
-                await BroadcastAsync(pingData);
+                // Latency is channel-scoped: each channel only receives the pings
+                // of its own players, so cross-channel latency stays invisible.
+                foreach (var group in list.GroupBy(t => t.Item2.Player.Channel))
+                {
+                    PacketPingData pingData = new(
+                        group.Where(t => t.Item1.Result is not null)
+                            .Select(t => (t.Item2.ID, (int)t.Item1.Result!.Value.TotalMilliseconds)
+                    ).ToList());
+
+                    await BroadcastToScopeAsync(pingData, group.Key);
+                }
 
                 async Task<TimeSpan?> PingFor(MiaoClientConnection connection, int timeout)
                 {
@@ -247,61 +260,6 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
     #region tons of broadcasting
 
-    // TODO avoid closure in predicate
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Task BroadcastAsync(IContextlessPacket packet)
-        => BroadcastToAsync(packet, _ => true);
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Task BroadcastOthersAsync(IContextlessPacket packet, int selfID)
-        => BroadcastToAsync(packet, c => c.ID != selfID);
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Task BroadcastContextuallyOthersAsync(IContextualPacket packet, int selfID)
-        => BroadcastContextuallyToAsync(
-            packet,
-            serverState.Players.Select(p => p.Value),
-            c => c.ID != selfID
-        );
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Task BroadcastToAsync(IContextlessPacket packet, Predicate<MiaoClientConnection> predicate)
-        => BroadcastToAsync(packet, serverState.Players.Select(p => p.Value), predicate);
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Task BroadcastToOthersAsync(IContextlessPacket packet, Predicate<MiaoClientConnection> predicate, int selfID)
-        => BroadcastToAsync(
-            packet,
-            serverState.Players.Select(p => p.Value),
-            c => c.ID != selfID && predicate(c)
-        );
-
-    public Task BroadcastContextuallyToOthersAsync(
-        IContextualPacket packet,
-        Predicate<MiaoClientConnection> predicate,
-        int selfID
-    ) => BroadcastContextuallyToAsync(
-            packet,
-            serverState.Players.Select(p => p.Value),
-            c => c.ID != selfID && predicate(c)
-        );
-
-    public Task BroadcastContextuallyToAsync(
-        IContextualPacket packet,
-        Predicate<MiaoClientConnection> predicate
-    ) => BroadcastContextuallyToAsync(
-            packet,
-            serverState.Players.Select(p => p.Value),
-            predicate
-        );
-
-    private static Task BroadcastToAsync(
-        IContextlessPacket packet,
-        IEnumerable<MiaoClientConnection> connections,
-        Predicate<MiaoClientConnection> predicate
-    ) => BroadcastContextuallyToAsync(packet, connections, predicate);
-
     private static Task BroadcastContextuallyToAsync(
         IContextualPacket packet,
         IEnumerable<MiaoClientConnection> connections,
@@ -321,6 +279,47 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
             return Task.WhenAll(bounded);
         return Task.CompletedTask;
     }
+
+    private static Task BroadcastToScopeAsync(IContextualPacket packet, IPlayerScope scope)
+        => BroadcastContextuallyToAsync(packet, scope.Players, _ => true);
+
+    private static Task BroadcastToScopeAsync(
+        IContextualPacket packet,
+        IPlayerScope scope,
+        Predicate<MiaoClientConnection> predicate
+    ) => BroadcastContextuallyToAsync(packet, scope.Players, predicate);
+
+    private static Task BroadcastToScopeExceptAsync(IContextualPacket packet, IPlayerScope scope, int excludedPlayerId)
+        => BroadcastContextuallyToAsync(packet, scope.Players, c => c.ID != excludedPlayerId);
+
+    private static Task BroadcastToScopeExceptAsync(
+        IContextualPacket packet,
+        IPlayerScope scope,
+        int excludedPlayerId,
+        Predicate<MiaoClientConnection> predicate
+    ) => BroadcastContextuallyToAsync(packet, scope.Players, c => c.ID != excludedPlayerId && predicate(c));
+
+    private static Task BroadcastToScopeAsync(IContextlessPacket packet, IPlayerScope scope)
+        => BroadcastContextuallyToAsync(packet, scope.Players, _ => true);
+
+    private static Task BroadcastToScopeAsync(
+        IContextlessPacket packet,
+        IPlayerScope scope,
+        Predicate<MiaoClientConnection> predicate
+    ) => BroadcastContextuallyToAsync(packet, scope.Players, predicate);
+
+    private static Task BroadcastToScopeExceptAsync(IContextlessPacket packet, IPlayerScope scope, int excludedPlayerId)
+        => BroadcastContextuallyToAsync(packet, scope.Players, c => c.ID != excludedPlayerId);
+
+    private static Task BroadcastToScopeExceptAsync(
+        IContextlessPacket packet,
+        IPlayerScope scope,
+        int excludedPlayerId,
+        Predicate<MiaoClientConnection> predicate
+    ) => BroadcastContextuallyToAsync(packet, scope.Players, c => c.ID != excludedPlayerId && predicate(c));
+
+    public Task BroadcastAsync(IContextlessPacket packet)
+        => BroadcastToScopeAsync(packet, serverState);
 
     #endregion
 

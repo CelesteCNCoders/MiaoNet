@@ -40,8 +40,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         // TODO surely full-rebuild is not necessary
         context.PlayerJoined += _ => BuildPlayerList();
         context.PlayerLeft += _ => BuildPlayerList();
-        context.PlayerMapChanged += (p, _) => UpdatePlayer(p);
-        context.PlayerMapRoomChanged += (p, _) => UpdatePlayer(p);
+        context.PlayerLocationChanged += (p, _) => UpdatePlayer(p);
         context.PingDataReceived += Context_PingDataReceived;
         context.SelfChannelMoved += _ => BuildPlayerList();
         context.PlayerChannelMoved += (_, _) => BuildPlayerList();

@@ -4,7 +4,7 @@ using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
 
-public sealed class ServerMap
+public sealed class ServerMap : IPlayerScope
 {
     private ImmutableHashSet<MiaoClientConnection> players;
 
@@ -13,6 +13,8 @@ public sealed class ServerMap
     public PlayerMapLocation MapLocation { get; }
 
     public ImmutableHashSet<MiaoClientConnection> Players => players;
+
+    IEnumerable<MiaoClientConnection> IPlayerScope.Players => players;
 
     public ServerMap(PlayerMapLocation mapLocation, MiaoClientConnection connection)
     {
@@ -33,15 +35,19 @@ public sealed class ServerMap
         Debug.Assert(result);
     }
 
-    public IReadOnlyCollection<PlayerMovedInitialData> GetPlayerMovedInitialDatas(MiaoClientConnection except)
+    public IReadOnlyCollection<PlayerMovedInitialDataWithID> GetPlayerMovedInitialDatas(MiaoClientConnection except)
     {
         Debug.Assert(StateLock.IsWriteLockHeld);
-        return (from con in players
-                where con != except
-                let p = con.Player
-                select new PlayerMovedInitialData(
-                    p.ID,
-                    p.State!.Clone()
-                )).ToList();
+
+        var list = new List<PlayerMovedInitialDataWithID>(players.Count);
+        foreach (var con in players)
+        {
+            var p = con.Player;
+            // players that in debug map can cause null state
+            if (con == except || p.State is null)
+                continue;
+            list.Add(new PlayerMovedInitialDataWithID(p.ID, new PlayerMovedInitialData(p.State!.Clone())));
+        }
+        return list;
     }
 }
