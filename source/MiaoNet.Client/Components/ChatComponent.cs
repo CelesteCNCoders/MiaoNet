@@ -117,8 +117,8 @@ public sealed partial class ChatComponent : MiaoNetComponent
             ChatChannel? chatChannel = packet.Type switch
             {
                 ChatMessageType.Chat => ChatChannel.Global,
-                ChatMessageType.ChannelChat => ChatChannel.Global,
-                ChatMessageType.MapChat => ChatChannel.Global,
+                ChatMessageType.ChannelChat => ChatChannel.Channel,
+                ChatMessageType.MapChat => ChatChannel.Map,
                 _ => null
             };
             string? tabName = ChatChannelMatcher.GetName(chatChannel);
