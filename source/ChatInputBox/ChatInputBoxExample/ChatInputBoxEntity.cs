@@ -92,7 +92,7 @@ public sealed class ChatInputBoxEntity : Entity
         {
             msgBox.AddChatMessage(ChatText.Create(msg, Color.White), "Global");
         }
-        
+
         msgBox.AddChatMessage(ChatText.Create("This is a global text", Color.White), "Global");
         msgBox.AddChatMessage(ChatText.Create("This is a channel text", Color.Yellow), "Channel");
         msgBox.AddChatMessage(ChatText.Create("This is a map text", Color.Green), "Map");
