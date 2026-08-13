@@ -21,6 +21,7 @@ public class ChatMessageBox
     public void CycleTab() => chatMessageManager.CycleTab();
 
     public void AddTab(string name) => chatMessageManager.AddTab(name);
+    
     public void CleanUp() => chatMessageManager.CleanUp();
     
     public void CleanHistory() => chatMessageManager.CleanHistory();

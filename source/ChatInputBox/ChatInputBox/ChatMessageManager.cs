@@ -4,52 +4,76 @@ namespace Celeste.Mod.ChatInputBox;
 
 public class ChatMessageManager
 {
+    
+    private class ChatTab
+    {
+        public string Name { get; }
+        public List<ChatText> ChatLog { get; }
+
+        public ChatTab(string name)
+        {
+            Name = name;
+            ChatLog = new();
+        }
+    
+        public void AddChatMessage(ChatText chatMessageViewItem)
+        {
+            ChatLog.Add(chatMessageViewItem);
+        }
+
+        public void CleanUp()
+        {
+            ChatLog.Clear();
+        }
+    }
+    
     private int activeTabIndex;
     private readonly List<ChatText> chatLog;
-    public List<ChatTab> Tabs { get; }
+    private List<ChatTab> tab { get; }
     public int ActiveTabIndex => activeTabIndex;
-    public List<ChatText> ActiveChatLog => activeTabIndex < 0 ? ChatLog : Tabs[activeTabIndex].ChatLog;
-    public string? ActiveTabName => activeTabIndex < 0 ? null : Tabs[activeTabIndex].Name;
+    public List<ChatText> ActiveChatLog => activeTabIndex < 0 ? ChatLog : tab[activeTabIndex].ChatLog;
+    public string? ActiveTabName => activeTabIndex < 0 ? null : tab[activeTabIndex].Name;
     public List<ChatText> ChatLog => chatLog;
+    public List<string> TabNameList => tab.Select(t => t.Name).ToList(); 
     
     public ChatMessageManager()
     {
         chatLog = new();
-        Tabs = new();
+        tab = new();
         activeTabIndex = -1;                                                             
     }
 
     private ChatTab GetOrAddTab(string name)
     {
-        var targetTabIdx = Tabs.FindIndex(t => t.Name == name);
+        var targetTabIdx = tab.FindIndex(t => t.Name == name);
         if (targetTabIdx < 0)
         {
-            Tabs.Add(new ChatTab(name));
-            targetTabIdx = Tabs.Count - 1;
+            tab.Add(new ChatTab(name));
+            targetTabIdx = tab.Count - 1;
         }
-        return Tabs[targetTabIdx];
+        return tab[targetTabIdx];
     }
     
     public void AddTab(string name)
     {
-        Tabs.Add(new ChatTab(name));
+        tab.Add(new ChatTab(name));
     }
 
     public void RemoveTab(string name)
     {
-        var targetTabIdx = Tabs.FindIndex(t => t.Name == name);
-        Tabs.RemoveAt(targetTabIdx);
-        if (name == ActiveTabName) activeTabIndex %= Tabs.Count;
+        var targetTabIdx = tab.FindIndex(t => t.Name == name);
+        tab.RemoveAt(targetTabIdx);
+        if (name == ActiveTabName) activeTabIndex %= tab.Count;
     }
     
     public void CycleTab()
     {
-        activeTabIndex = (activeTabIndex + 2) % (Tabs.Count + 1) - 1;
+        activeTabIndex = (activeTabIndex + 2) % (tab.Count + 1) - 1;
     }
 
     public void SetActiveTab(string name)
     {
-        var targetTabIndex = Tabs.FindIndex(t => t.Name == name);
+        var targetTabIndex = tab.FindIndex(t => t.Name == name);
         if  (targetTabIndex < 0) return;
         activeTabIndex = targetTabIndex;
     }
@@ -60,7 +84,7 @@ public class ChatMessageManager
         chatLog.Add(message);
         if (tabName == null)
         {
-            foreach (var chatTab in Tabs)
+            foreach (var chatTab in this.tab)
             {
                 chatTab.AddChatMessage(message);
             }
@@ -73,13 +97,13 @@ public class ChatMessageManager
 
     public void CleanUp()
     {
-        Tabs.Clear();
+        tab.Clear();
         activeTabIndex = -1;
     }
 
     public void CleanHistory()
     {
-        foreach (var chatTab in Tabs)
+        foreach (var chatTab in tab)
         {
             chatTab.CleanUp();
         }
