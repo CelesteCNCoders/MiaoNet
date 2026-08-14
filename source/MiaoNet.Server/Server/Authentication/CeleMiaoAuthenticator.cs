@@ -38,9 +38,13 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
     )
     {
         var authOptions = options.Value.Authentication;
-        if (authOptions.ClientID is null || authOptions.ClientSecret is null || authOptions.EncryptionPassword is null)
+        if (string.IsNullOrWhiteSpace(authOptions.ClientID)
+            || string.IsNullOrWhiteSpace(authOptions.ClientSecret)
+            || string.IsNullOrWhiteSpace(authOptions.EncryptionPassword))
         {
-            throw new Exception("ClientID, ClientSecret and EncryptionPassword must be configured when using CeleMiaoAuthenticator.");
+            throw new InvalidOperationException(
+                "ClientID, ClientSecret and EncryptionPassword must be configured when using CeleMiaoAuthenticator."
+            );
         }
         clientID = authOptions.ClientID;
         clientSecret = authOptions.ClientSecret;

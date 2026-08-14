@@ -205,7 +205,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     private void OnInitialized(MiaoServerConnection connection, PacketClientInitial packetClientInitial)
     {
 #if USE_CELEMIAO_AUTH
-        MiaoNetModule.Settings.LastName = clientInitial.SelfPlayerInfo.Name;
+        MiaoNetModule.Settings.LastName = packetClientInitial.SelfPlayerInfo.Name;
 #endif
         clientState = new(packetClientInitial);
         PlayerPresenceMessage = packetClientInitial.PlayerPresenceMessage;
