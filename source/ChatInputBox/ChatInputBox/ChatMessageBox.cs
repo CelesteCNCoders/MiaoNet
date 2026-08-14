@@ -23,7 +23,9 @@ public class ChatMessageBox
         => chatMessageManager.AddChatMessage(new(dateTime, message), tabName);
         
 
-    public void CycleTab() => chatMessageManager.CycleTab();
+    public void CycleTabForward() => chatMessageManager.CycleTabForward();
+    
+    public void CycleTabBackward() => chatMessageManager.CycleTabBackward();
 
     public void AddTab(string name) => chatMessageManager.AddTab(name);
 
