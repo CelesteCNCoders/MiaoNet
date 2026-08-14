@@ -5,7 +5,7 @@
   </Folder>
   <Folder Name="/Documentation/" >
     <File Path="README.md" />
-    <File Path="CONTRIBUTING.md" />
+    <File Path="Contributing.md" />
     <File Path="docs/developing-MiaoNet.md" />
     <File Path="docs/how-to-issue.md" />
     <File Path="docs/coding-style.md" />
