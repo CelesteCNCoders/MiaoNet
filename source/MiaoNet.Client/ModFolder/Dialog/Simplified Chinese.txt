@@ -90,10 +90,16 @@ miaonet_options_teleport_behaviour= Teleport 指令行为
 miaonet_options_teleport_behaviour_nosession= 仅地图和房间
 miaonet_options_teleport_behaviour_withsession= 请求部分存档信息
 miaonet_options_player_presence_message= 聊天栏玩家进出消息
-miaonet_options_no_new_messages_showing= 聊天栏不显示新消息
-miaonet_options_no_new_messages_showing_tip=
-	这会在不打开聊天栏时不显示新的消息
+miaonet_options_new_messages_showing_mode= 聊天栏新消息显示模式
+miaonet_options_new_messages_showing_mode_tip=
+	设置不打开聊天栏时收到新消息的显示行为。
+	- 全部显示：显示所有新消息。
+	- 当前标签页：显示与所选标签页一致的新消息。
+	- 全不显示：不显示新消息。
 	此选项不会被保存。
+miaonet_options_new_messages_showing_mode_showall= 全部显示
+miaonet_options_new_messages_showing_mode_withtab= 当前标签页
+miaonet_options_new_messages_showing_mode_hideall= 全不显示
 
 miaonet_options_button_chat= 打开聊天栏
 miaonet_options_button_chat_command= 输入指令

@@ -96,13 +96,17 @@ public sealed class InputBox
 
     public void Update()
     {
-        if (rightButton.Pressed)
+        if (!MInput.Keyboard.CurrentState.IsKeyDown(Keys.LeftShift) &&
+            !MInput.Keyboard.CurrentState.IsKeyDown(Keys.RightShift) &&
+            rightButton.Pressed)
         {
             rightButton.ConsumePress();
             if (buffer.MoveCaretForward())
                 SetAlwaysShowCaretTimer();
         }
-        else if (leftButton.Pressed)
+        else if (!MInput.Keyboard.CurrentState.IsKeyDown(Keys.LeftShift) &&
+                 !MInput.Keyboard.CurrentState.IsKeyDown(Keys.RightShift) &&
+                 leftButton.Pressed)
         {
             leftButton.ConsumePress();
             if (buffer.MoveCaretBackward())
@@ -141,7 +145,7 @@ public sealed class InputBox
                 }
             }
         }
-        else if (!MInput.Keyboard.CurrentState.IsKeyDown(Keys.LeftShift) && MInput.Keyboard.Pressed(Keys.Tab))
+        else if (MInput.Keyboard.Pressed(Keys.Tab))
         {
             if (completions is not null && (completions.Count == 1 || selectedCompletionIndex != -1))
             {

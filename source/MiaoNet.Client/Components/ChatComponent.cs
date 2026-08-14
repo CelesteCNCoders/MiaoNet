@@ -80,7 +80,13 @@ public sealed partial class ChatComponent : MiaoNetComponent
         chatMessageBox.ChatMessageListView.BackgroundOpacity = settings.ChatBackgroundOpacityValue;
         chatMessageBox.ChatMessageListView.TextOpacity = settings.ChatTextOpacityValue;
         chatMessageBox.ChatMessageListView.ShowDuration = settings.ChatDisplayDuration;
-        chatMessageBox.ChatMessageListView.NoNewMessagesShowing = settings.NoNewMessagesShowing;
+        chatMessageBox.ChatMessageListView.NewMessagesShowing = settings.NewMessagesShowing switch
+        {
+            NewMessageShowingMode.ShowAll => global::Celeste.Mod.ChatInputBox.NewMessageShowingMode.ShowAll,
+            NewMessageShowingMode.WithTab => global::Celeste.Mod.ChatInputBox.NewMessageShowingMode.WithTab,
+            NewMessageShowingMode.HideAll => global::Celeste.Mod.ChatInputBox.NewMessageShowingMode.HideAll,
+            _ => global::Celeste.Mod.ChatInputBox.NewMessageShowingMode.ShowAll
+        };
         chatMessageBox.ChatMessageListView.IdleHeight = settings.IdleChatHeightValue;
         chatMessageBox.ChatMessageListView.ActiveHeight = settings.ActiveChatHeightValue;
         float scale = settings.ChatUIScaleValue;
@@ -129,6 +135,16 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
         if (received.MentionsSelf)
             Audio.Play(MiaoNetSFX.ChatMention);
+    }
+    
+    private void SyncChatChannelWithTab()
+    {
+        var chatTabName = chatMessageBox.ActiveTabName ?? ChatChannelMatcher.GetName(ChatChannel.Global);
+        var chatChannel = ChatChannelMatcher.Match(chatTabName!);
+        if (chatChannel != (ChatChannel)(-1))
+        {
+            MiaoNetModule.Settings.ChatChannel = chatChannel;
+        }
     }
 
     public override void Update()
@@ -189,16 +205,22 @@ public sealed partial class ChatComponent : MiaoNetComponent
                 Deactivate();
                 return;
             }
-            if (MInput.Keyboard.CurrentState.IsKeyDown(Keys.LeftShift) && MInput.Keyboard.Pressed(Keys.Tab))
+
+            if (MInput.Keyboard.CurrentState.IsKeyDown(Keys.LeftShift) ||
+                MInput.Keyboard.CurrentState.IsKeyDown(Keys.RightShift))
             {
-                chatMessageBox.CycleTab();
-                var chatTabName = chatMessageBox.ActiveTabName ?? ChatChannelMatcher.GetName(ChatChannel.Global);
-                var chatChannel = ChatChannelMatcher.Match(chatTabName!);
-                if (chatChannel != (ChatChannel)(-1))
+                if (MInput.Keyboard.Pressed(Keys.Left))
                 {
-                    settings.ChatChannel = chatChannel;
+                    chatMessageBox.CycleTabForward();
+                    SyncChatChannelWithTab();
+                }
+                else if (MInput.Keyboard.Pressed(Keys.Right))
+                {
+                    chatMessageBox.CycleTabBackward();
+                    SyncChatChannelWithTab();
                 }
             }
+            
 
             if (!inputBox.HasCompletions)
             {

@@ -134,7 +134,7 @@ public sealed class ChatInputBoxEntity : Entity
             }
             else if (MInput.Keyboard.Pressed(Keys.LeftShift))
             {
-                msgBox.CycleTab();
+                msgBox.CycleTabBackward();
             }
         }
         else if (MInput.Keyboard.Pressed(Keys.T))

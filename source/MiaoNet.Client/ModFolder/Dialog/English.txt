@@ -93,10 +93,17 @@ miaonet_options_teleport_behaviour= Teleport Command Behaviour
 miaonet_options_teleport_behaviour_nosession= Map and room only
 miaonet_options_teleport_behaviour_withsession= Request other's session
 miaonet_options_player_presence_message= Player Presence Chat Messages
-miaonet_options_no_new_messages_showing= No New Messages Showing
-miaonet_options_no_new_messages_showing_tip=
-	This hides new messages when chat is not open.
+miaonet_options_new_messages_showing_mode= New Messages Showing Mode
+miaonet_options_new_messages_showing_mode_tip=
+	This defines what new messages will be shown when chat is not open.
+	- Show All: Show all the new messages.
+	- With Tab: Maintain new messages filtering consistency with tabs.
+	- Hide All: No new messages showing.
 	This option will not be saved.
+
+miaonet_options_new_messages_showing_mode_showall= Show All
+miaonet_options_new_messages_showing_mode_withtab= With Tab
+miaonet_options_new_messages_showing_mode_hideall= Hide All
 
 miaonet_options_button_chat= Open Chat
 miaonet_options_button_chat_command= Input Commands

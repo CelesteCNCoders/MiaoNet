@@ -384,12 +384,13 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.PlayerPresenceMessages = v);
         menu.Add(item);
 
-        item = new TextMenu.OnOff(
-            Dialog.Get("miaonet_options_no_new_messages_showing"),
-            settings.NoNewMessagesShowing
-        ).Change(v => settings.NoNewMessagesShowing = v);
+        item = new EnumSlider<NewMessageShowingMode>(
+            Dialog.Get("miaonet_options_new_messages_showing_mode"),
+            value => Dialog.Get($"miaonet_options_new_messages_showing_mode_{value}"),
+            settings.NewMessagesShowing
+        ).Change(v => settings.NewMessagesShowing = v);
         menu.Add(item);
-        item.AddDescription(menu, Dialog.Clean("miaonet_options_no_new_messages_showing_tip"));
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_new_messages_showing_mode_tip"));
 
         #endregion
 

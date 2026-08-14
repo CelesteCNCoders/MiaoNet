@@ -74,10 +74,16 @@ public class ChatMessageManager
         else if (targetTabIdx < activeTabIndex)
             activeTabIndex--;
     }
+
+    public void CycleTabForward()
+        => CycleTab(-1);
+
+    public void CycleTabBackward()
+        => CycleTab(1);
     
-    public void CycleTab()
+    public void CycleTab(int offset)
     {
-        activeTabIndex = (activeTabIndex + 2) % (tab.Count + 1) - 1;
+        activeTabIndex = (activeTabIndex + offset + 1) % (tab.Count + 1) - 1;
     }
 
     public void SetActiveTab(string name)
