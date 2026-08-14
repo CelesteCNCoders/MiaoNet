@@ -7,13 +7,23 @@ using System.Collections.Immutable;
 #endif
 using System.Diagnostics;
 using System.Globalization;
+using System.Text;
 
 namespace MiaoNet.Shared;
 
 [DebuggerDisplay("LocalCount = {LocalCount}, RemoteCount = {RemoteCount}")]
 public sealed class PooledStringManager
 {
+    // Initial, locally-known strings are trusted and don't consume these per-peer learning quotas.
+    public const int MaxRemoteEntries = 4096;
+    public const int MaxRemoteStringUtf8Bytes = 1024;
+    public const int MaxRemoteTotalUtf8Bytes = 1024 * 1024;
+
     private int currentLocalID;
+    // Local and remote ID spaces both start after the shared initial strings, but advance independently.
+    private int nextRemoteID;
+    private int remoteLearnedCount;
+    private int remoteLearnedUtf8Bytes;
 #if CONCURRENT
     // only used to resolve PooledString from remote
     private ImmutableDictionary<int, string> idToString;
@@ -32,14 +42,17 @@ public sealed class PooledStringManager
 
     public PooledStringManager(IEnumerable<string> initialStrings)
     {
+        ArgumentNullException.ThrowIfNull(initialStrings);
+        string[] initial = initialStrings.ToArray();
 #if CONCURRENT
-        idToString = (initialStrings.Select((s, i) => new KeyValuePair<int, string>(i + 1, s))).ToImmutableDictionary();
-        stringToID = (initialStrings.Select((s, i) => new KeyValuePair<string, int>(s, i + 1))).ToImmutableDictionary();
+        idToString = (initial.Select((s, i) => new KeyValuePair<int, string>(i + 1, s))).ToImmutableDictionary();
+        stringToID = (initial.Select((s, i) => new KeyValuePair<string, int>(s, i + 1))).ToImmutableDictionary();
 #else
-        idToString = new(initialStrings.Select((s, i) => new KeyValuePair<int, string>(i + 1, s)));
-        stringToID = new(initialStrings.Select((s, i) => new KeyValuePair<string, int>(s, i + 1)));
+        idToString = new(initial.Select((s, i) => new KeyValuePair<int, string>(i + 1, s)));
+        stringToID = new(initial.Select((s, i) => new KeyValuePair<string, int>(s, i + 1)));
 #endif
-        currentLocalID = initialStrings.Count() + 1;
+        currentLocalID = initial.Length + 1;
+        nextRemoteID = initial.Length + 1;
     }
 
     public bool GetOrCreateID(string value, out int id)
@@ -67,6 +80,9 @@ public sealed class PooledStringManager
 
     public string GetAndRecord(int id, string? value)
     {
+        if (id <= 0)
+            throw new InvalidDataException(string.Format(CultureInfo.InvariantCulture, SR.InvalidPooledStringID, id));
+
         if (idToString.TryGetValue(id, out string? firstFoundValue))
         {
             if (value is not null && firstFoundValue != value)
@@ -87,15 +103,56 @@ public sealed class PooledStringManager
 
                 if (value is null)
                     throw new InvalidDataException(string.Format(CultureInfo.InvariantCulture, SR.MissingPooledString, id));
+                ValidateNewRemoteEntry(id, value, out int utf8ByteCount);
                 idToString = idToString.Add(id, value);
+                RecordNewRemoteEntry(utf8ByteCount);
                 return value;
             }
 #else
             if (value is null)
                 throw new InvalidDataException(string.Format(CultureInfo.InvariantCulture, SR.MissingPooledString, id));
+            ValidateNewRemoteEntry(id, value, out int utf8ByteCount);
             idToString.Add(id, value);
+            RecordNewRemoteEntry(utf8ByteCount);
             return value;
 #endif
         }
+    }
+
+    private void ValidateNewRemoteEntry(int id, string value, out int utf8ByteCount)
+    {
+        if (id != nextRemoteID)
+        {
+            throw new InvalidDataException(string.Format(
+                CultureInfo.InvariantCulture,
+                SR.UnexpectedPooledStringID,
+                id,
+                nextRemoteID
+            ));
+        }
+
+        if (remoteLearnedCount >= MaxRemoteEntries)
+            throw new InvalidDataException(SR.PooledStringEntryLimitExceeded);
+
+        utf8ByteCount = Encoding.UTF8.GetByteCount(value);
+        if (utf8ByteCount > MaxRemoteStringUtf8Bytes)
+        {
+            throw new InvalidDataException(string.Format(
+                CultureInfo.InvariantCulture,
+                SR.PooledStringValueTooLarge,
+                utf8ByteCount,
+                MaxRemoteStringUtf8Bytes
+            ));
+        }
+
+        if (remoteLearnedUtf8Bytes > MaxRemoteTotalUtf8Bytes - utf8ByteCount)
+            throw new InvalidDataException(SR.PooledStringTotalBytesExceeded);
+    }
+
+    private void RecordNewRemoteEntry(int utf8ByteCount)
+    {
+        remoteLearnedCount++;
+        remoteLearnedUtf8Bytes += utf8ByteCount;
+        nextRemoteID++;
     }
 }
