@@ -18,7 +18,11 @@ public sealed class ChatMessageListView
     private float targetScroll;
     private float scroll;
 
-    private List<ChatItem> chatLog => chatMessageManager.ActiveChatLog;
+    private List<ChatItem> chatLog => active || NewMessagesShowing == NewMessageShowingMode.WithTab
+        ? chatMessageManager.ActiveChatLog
+        : NewMessagesShowing == NewMessageShowingMode.ShowAll
+            ? fullChatLog
+            : [];
     private List<ChatItem> fullChatLog => chatMessageManager.ChatLog;
 
     
@@ -32,7 +36,7 @@ public sealed class ChatMessageListView
 
     public float ShowDuration { get; set; } = 8f;
 
-    public bool NoNewMessagesShowing { get; set; }
+    public NewMessageShowingMode NewMessagesShowing { get; set; } = NewMessageShowingMode.ShowAll;
 
     public string? ActiveTabName => chatMessageManager.ActiveTabName;
 
@@ -107,7 +111,7 @@ public sealed class ChatMessageListView
             var state = getOrInitViewState(item);
             if (state.ShowTimer > 0f)
             {
-                if (NoNewMessagesShowing)
+                if (!active && NewMessagesShowing == NewMessageShowingMode.HideAll)
                 {
                     state.ShowTimer = 0f;
                     state.FadeOut = 0f;

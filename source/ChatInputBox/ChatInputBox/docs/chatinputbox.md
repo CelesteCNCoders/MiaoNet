@@ -54,6 +54,16 @@ public readonly struct Completion
 
 空闲模式只显示最近消息，超过 `ShowDuration` 后淡出；激活模式显示当前标签的较长历史并允许滚动。常用配置包括 `IdleMaxCount`、`ActiveMaxCount`、`ShowDuration`、`BackgroundOpacity` 和 `TextOpacity`。
 
+`ChatMessageListView.NewMessagesShowing` 控制聊天框未激活时的消息来源：
+
+| 模式 | 行为 |
+|---|---|
+| `ShowAll` | 显示全部消息记录 |
+| `WithTab` | 只显示当前活动标签页的消息 |
+| `HideAll` | 不显示新消息 |
+
+聊天框激活后始终显示当前活动标签页，不受该设置影响。
+
 每条 `ChatItem` 可保存 UTC/本地时间来源；渲染时格式化本地时间并和消息绘制在同一背景条中。标签切换只改变视图数据源，不复制 `ChatItem` 内容。
 
 ## 富文本

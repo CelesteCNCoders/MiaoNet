@@ -216,11 +216,15 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     public bool PlayerPresenceMessages { get; set; } = true;
 
     [YamlIgnore]
-    public bool NoNewMessagesShowing
+    public NewMessageShowingMode NewMessagesShowing
     {
         get;
-        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
-    }
+        set
+        {
+            field = value;
+            NotifySettingsChanged(SettingsCategory.VisualsUI);
+        }
+    } = NewMessageShowingMode.ShowAll;
 
     [YamlIgnore]
     public ChatChannel ChatChannel { get; set; } = ChatChannel.Global;
