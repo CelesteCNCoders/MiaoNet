@@ -1,94 +1,133 @@
-# MiaoNet开发上手指南
+# MiaoNet 开发上手指南
 
-## MiaoNet开发环境配置
-MiaoNet是为Celeste开发的C/S架构联机工具，客户端基于Everest API开发，项目使用.NET框架下的C#语言开发。在这里，我们假设你拥有面向对象编程以及C/S架构、多线程并发的相关基础知识。
+MiaoNet 是 Celeste 的 C/S 联机项目。客户端作为 Everest Mod 运行，服务端基于 .NET Generic Host，双方复用同一套协议和序列化源码。
 
-### IDE 选择
-C#开发的主流商业IDE有Microsoft Visual Studio以及Jetbrains Rider，前者仅适用Windows操作系统但对.NET适配最佳；后者有Linux和MacOs的分发，但适配相对较弱，读者可以自行权衡。
-> 使用Rider进行本项目开发时，可在`资源管理器`中右键`ChatInputBox/ChatInputBox`和`MiaoNet.Shared`两个共享项目，以修复Rider在分析无目标构建项目时出现的LSP解析错误。
+## 前置要求
 
-### 前置要求
-- .NET 8.0+ SDK（服务端需要 .NET 10.0）
-- Celeste 游戏本体（已安装 Everest mod loader）
-- Git
+- .NET 10 SDK。客户端、MockClient 和工具以 `net8.0` 为目标，服务端和测试以 `net10.0` 为目标。
+- 构建客户端需要 Celeste 和 Everest 4465+。
+- Git。
+- 支持 .NET 的 IDE，例如 Visual Studio、Rider 或 VS Code。
 
-### 设置Celeste安装目录
-为了构建和测试MiaoNet，你需要在本地有一个Celeste游戏安装。客户端构建时需要引用Celeste的程序集。
+仓库使用 `global.json`，允许 SDK 从 8.0 滚动到更新的主版本。可用以下命令确认环境：
 
-设置方式（按优先级）：
-1. 通过MSBuild属性传入：`dotnet build -p:CelesteRootPath=/path/to/Celeste`
-2. 通过环境变量：//TODO 未来重构构建系统。 
-3. 默认值：`C:\Program Files (x86)\Steam\steamapps\common\Celeste`
-
-Linux下典型路径为 `~/.local/share/Steam/steamapps/common/Celeste`。
-
-### 项目结构
-| 项目 | 说明 |
-|------|------|
-| MiaoNet.Client | 客户端，作为Celeste mod加载 |
-| MiaoNet.Server | 服务端，独立运行的控制台程序 |
-| MiaoNet.Shared | 客户端和服务端共享的代码（协议、数据结构等） |
-| MiaoNet.MockClient | 模拟客户端，用于本地调试和压测 |
-| ChatInputBox | 聊天输入框UI组件（共享项目） |
-| MiaoNet.UnitTest | 单元测试 |
-| PacketDumpInspector | 数据包抓包分析工具 |
-
-## 构建
-
-### 构建客户端
 ```bash
-dotnet build source/MiaoNet.Client/MiaoNet.Client.csproj
+dotnet --version
+dotnet sln MiaoNet.slnx list
 ```
-构建成功后会自动在Celeste的Mods目录下创建符号链接（`MiaoNet_link`），启动游戏即可加载。
 
-### 构建服务端
+`MiaoNet.Shared`、`MiaoNet.ClientShared` 和 `ChatInputBox` 是 `Microsoft.Build.NoTargets` 源码项目，实际代码通过 `Compile Include` 链接进消费者。若 IDE 对这些项目的分析异常，可暂时卸载对应的 NoTargets 项目；这不影响消费者项目的构建。
+
+## 设置 Celeste 路径
+
+客户端构建需要 `CelesteRootPath` 指向游戏根目录，该目录应直接包含 `Celeste.dll`、`Celeste.Mod.mm.dll` 和 Everest 依赖程序集。推荐在命令行传入：
+
+```bash
+dotnet build source/MiaoNet.Client/MiaoNet.Client.csproj \
+  -p:CelesteRootPath=/path/to/Celeste
+```
+
+Windows 的 Steam 默认路径通常是：
+
+```text
+C:\Program Files (x86)\Steam\steamapps\common\Celeste
+```
+
+Linux 的 Steam 安装通常位于：
+
+```text
+~/.local/share/Steam/steamapps/common/Celeste
+```
+
+如需长期覆盖，可在 IDE 的项目构建参数中配置该属性。不要把个人绝对路径提交到共享的 `Directory.Build.props` 或项目文件。
+
+## 项目概览
+
+| 项目 | 目标框架 | 用途 |
+|---|---|---|
+| `MiaoNet.Client` | `net8.0` | Everest 客户端 Mod |
+| `MiaoNet.Server` | `net10.0` | 独立服务端 |
+| `MiaoNet.Shared` | `net8.0` NoTargets | 协议与共享数据源码 |
+| `MiaoNet.ClientShared` | `net8.0` NoTargets | 客户端连接源码 |
+| `MiaoNet.MockClient` | `net8.0` | 模拟连接与基础压测 |
+| `ChatInputBox` | `net8.0` NoTargets | 聊天 UI 源码组件 |
+| `ChatInputBoxExample` | `net8.0` | ChatInputBox Everest 示例 |
+| `MiaoNet.UnitTest` | `net10.0` | MSTest 测试 |
+| `PacketDumpInspector` | `net8.0` | 数据包转储检查工具 |
+
+## 构建与测试
+
+构建客户端：
+
+```bash
+dotnet build source/MiaoNet.Client/MiaoNet.Client.csproj \
+  -p:CelesteRootPath=/path/to/Celeste
+```
+
+客户端项目使用 `ModAssetsCopyType=link`。构建后输出会进入 `source/MiaoNet.Client/ModFolder/Code/`，并在 `Celeste/Mods/MiaoNet_link` 创建符号链接。Windows 创建目录链接可能需要开发者模式或管理员权限。
+
+构建服务端并运行测试：
+
 ```bash
 dotnet build source/MiaoNet.Server/MiaoNet.Server.csproj
+dotnet test source/MiaoNet.UnitTest/MiaoNet.UnitTest.csproj
 ```
 
-## 本地调试
+构建整个解决方案也会包含两个 Everest 项目，因此仍需有效的 `CelesteRootPath`：
 
-### 编译宏说明
-项目通过条件编译宏控制不同的构建行为，定义在 `source/Directory.Build.props` 中：
-
-| 宏 | 默认值 | 说明 |
-|----|--------|------|
-| `USE_LOCALHOST_PFX` | Debug时自动开启 | 使用内嵌的自签名证书，客户端连接`127.0.0.1`并跳过证书验证 |
-| `USE_CELEMIAO_AUTH` | false | 启用CeleMiao平台OAuth认证；关闭时使用简单的名字认证 |
-| `PACKET_TRACING` | Debug时自动开启 | 启用数据包追踪日志 |
-
-Debug构建默认启用 `USE_LOCALHOST_PFX`，客户端连接 `127.0.0.1:21473`，服务端使用内嵌的 `localhost.pfx` 证书。因此本地调试时无需额外配置SSL证书。
-
-### 启动本地服务端
 ```bash
-dotnet run --project source/MiaoNet.Server
+dotnet build MiaoNet.slnx -p:CelesteRootPath=/path/to/Celeste
 ```
-服务端默认监听 `0.0.0.0:21473`，配置文件为 `source/MiaoNet.Server/appsettings.json`。
 
-### 使用MockClient测试
-MockClient可以在不启动游戏的情况下模拟多个客户端连接服务器：
+## 本地联调
+
+### 编译属性
+
+属性定义在 `source/Directory.Build.props`，并转换为同名的大写条件编译符号：
+
+| MSBuild 属性 | 默认值 | 行为 |
+|---|---|---|
+| `UseLocalhostPfx` | Debug 为 `true`，其他配置为 `false` | 内嵌 `source/localhost.pfx`；客户端连接 `127.0.0.1:21473` 并接受本地证书 |
+| `UseCeleMiaoAuth` | `false` | 为 `true` 时使用 CeleMiao OAuth 认证，否则使用 `CustomAuthenticator` |
+
+客户端 Debug 构建还会定义 `PACKET_TRACING`，用于输出数据包追踪日志。
+
+### 启动服务端
+
 ```bash
-dotnet run --project source/MiaoNet.MockClient
+dotnet run --project source/MiaoNet.Server/MiaoNet.Server.csproj
 ```
-启动后输入要创建的模拟客户端数量，每个实例会：
-- 以随机名字连接本地服务器
-- 模拟进入 `Celeste/LostLevels` 地图
-- 每帧发送随机位置更新
-- 响应服务器的Ping和传送请求
 
-### 完整本地调试流程
-1. 启动服务端：`dotnet run --project source/MiaoNet.Server`
-2. 启动MockClient模拟其他玩家：`dotnet run --project source/MiaoNet.MockClient`
-3. 以Debug模式构建客户端：`dotnet build source/MiaoNet.Client/MiaoNet.Client.csproj`
-4. 启动Celeste游戏，客户端会自动连接本地服务器
+Debug 服务端默认读取：
 
-## 生产构建
-Release构建会关闭 `USE_LOCALHOST_PFX`，客户端将连接云端测试服务器并验证SSL证书：
+- `source/MiaoNet.Server/appsettings.json`
+- `source/MiaoNet.Server/appsettings.Development.json`
+- `source/MiaoNet.Server/content.json`
+- 前缀为 `MIAONET:` 的环境变量
+
+默认游戏连接监听 `0.0.0.0:21473`，内部 HTTP 管理接口监听 `http://localhost:21474/`。命令行工作目录必须能找到上述 JSON 文件；`dotnet run --project` 会使用项目目录。HTTP 端点见[服务端 API 文档](../source/MiaoNet.Server/Http/doc.md)。
+
+### 启动 MockClient
+
+服务端运行后执行：
+
 ```bash
-dotnet build source/MiaoNet.Client/MiaoNet.Client.csproj -c Release
+dotnet run --project source/MiaoNet.MockClient/MiaoNet.MockClient.csproj
 ```
 
-服务端生产部署需要在 `appsettings.json` 中配置真实的SSL证书路径：
+输入实例数量后，每个实例会以随机名称连接 `127.0.0.1:21473`，进入 `Celeste/LostLevels`，发送帧更新，并响应 Ping 与传送请求。MockClient 使用本地开发证书配置，适合验证连接、广播和基础压力，不替代真实游戏客户端测试。
+
+### 推荐流程
+
+1. 启动 Debug 服务端。
+2. 可选启动一个或多个 MockClient。
+3. Debug 构建客户端并启动 Celeste。
+4. 验证登录、频道/地图切换、聊天标签页、Ghost 同步与断线清理。
+
+## 生产配置
+
+Release 构建默认关闭本地证书模式。服务端需在 `MiaoServer` 配置节提供真实证书路径：
+
 ```json
 {
   "MiaoServer": {
@@ -99,36 +138,15 @@ dotnet build source/MiaoNet.Client/MiaoNet.Client.csproj -c Release
   }
 }
 ```
-服务端会每4小时检查证书文件是否更新，自动热重载。
 
-## 开发沟通规范
+服务端会监听证书文件变化并重新加载。认证、网络、超时和 HTTP 前缀的完整默认值见 `source/MiaoNet.Server/appsettings.json`；公告文本来自 `content.json`。生产环境还会将日志写入 `logs/yyyy-MM-dd.log`。
 
-### 沟通渠道
-- 功能讨论、Bug报告：通过 GitHub Issues 提交
-- 设计讨论、开放性问题：通过 GitHub Discussions 进行
+## 开发约定
 
-在着手实现之前，请先与项目管理者确认你的计划，尤其涉及对项目的部分重构——处理
-### 编码规范
-你的[编码风格](CodingStyle.md)需要尽量和项目一直，这样能长久保持项目的可读性。
+- 主开发分支是 `wip`，从它创建功能分支并向它提交 PR。
+- 遵循[编码规范](coding-style.md)。
+- 修改协议前先阅读[包系统](../source/MiaoNet.Shared/docs/packet-system.md)。包注册 ID 取决于 `AssemblyInfo.cs` 中的顺序，已有类型不能重排。
+- 修改共享源码时，至少构建一个实际消费者；NoTargets 项目本身不生成运行程序集。
+- 架构入口见[客户端文档](../source/MiaoNet.Client/docs/client-arch.md)、[服务端文档](../source/MiaoNet.Server/docs/server-arch.md)和[共享接口说明](../source/MiaoNet.Shared/docs/shared-interface.md)。
 
-### PR流程
-1. 从Github fork一份MiaoNet源码
-2. 从 `wip` 主分支创建功能分支，命名建议：`feat/功能名`、`fix/问题描述`、`refactor/重构内容`
-3. 开发完成后向 `wip` 分支提交 Pull Request
-4. PR标题简洁明了，描述中说明改动内容和测试情况
-5. 确保构建和测试通过后再请求审查
-
-### 代码审查
-- 所有合入 `wip` 的代码需要至少一位维护者审查
-- 收到反馈后及时回应，修改后重新请求审查
-
-## 我可以从哪里开始
-
-如果你刚加入项目，以下是一些适合上手的方向：
-
-- **熟悉协议层**：阅读 `MiaoNet.Shared` 中的 Packet 定义，理解客户端和服务端之间的通信协议
-- **阅读设计文档**：`document`目录下的AIGC文档（bushi） ，描述了整体架构
-- **跑通本地环境**：按照上面的调试流程启动服务端 + MockClient + 游戏客户端，确认能正常连接
-- **查看 GitHub Issues**：参与一些功能增量开发一类的简单工作
-- **完善MockClient**：MockClient目前只实现了基础的Ping响应和传送请求处理，可以补充更多协议的模拟行为，并让它更有可读性
-- **补充测试**：为 `MiaoNet.Shared` 中的序列化/反序列化逻辑编写单元测试
+适合初次参与的任务包括补充共享序列化测试、完善 MockClient 协议覆盖、修正文档以及处理范围较小的 Issue。

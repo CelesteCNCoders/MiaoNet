@@ -1,156 +1,74 @@
-# 命令系统
+# 客户端命令系统
 
-## 结构概览
+聊天输入以 `/` 开头时由 `CommandParser` 解析；其他文本按当前 `ChatChannel` 发送。
 
-```
-source/MiaoNet.Client/Command/
-├── MiaoNetCommand.cs               — 命令定义（Name, Aliases, Segments, OnExecute）
-├── MiaoNetCommand.Commands.cs      — 所有命令的实现（静态方法）
-├── MiaoNetCommand.Context.cs       — 命令执行上下文（发包、提示、Request）
-├── CommandParser.cs                — 命令文本解析
-└── CommandSegmentType.cs           — 参数类型枚举
-```
+## 结构和流程
 
-## 解析流程
-
-```
-用户在聊天框输入 "/tp wheat"
-    │
-    ▼
-ChatComponent 检测到 "/" 前缀
-    │
-    ▼
-CommandParser.Parse("/tp wheat")
-    │
-    ├── 提取命令名 "tp"
-    ├── 在 Commands 列表中匹配（Name 或 Aliases）
-    ├── 按空格分割参数 ["wheat"]
-    ├── 校验参数数量（与 Segments.Count 对比）
-    └── 返回 ParseResult + matchedCommand + segments
-    │
-    ▼
-matchedCommand.OnExecute(new Context(miaoNetContext, segments))
-    │
-    └── 返回 null 表示成功，返回 string 表示错误消息
+```text
+ChatComponent
+  -> CommandParser.Parse
+  -> 按 Name/Aliases 匹配 MiaoNetCommand
+  -> 按 Segments 校验和拆分参数
+  -> MiaoNetCommand.Context 执行 OnExecute
+  -> 本地提示或 QueuePacket/Request
 ```
 
-## 命令定义
+`MiaoNetCommand` 包含 `Name`、`Aliases`、`Segments`、`CaptureRestSegments` 和 `OnExecute`。当 `CaptureRestSegments=true` 时，最后一个参数保留剩余文本，供聊天、频道名等包含空格的值使用。
 
-```csharp
-public sealed partial class MiaoNetCommand
-{
-    public string Name { get; }                          // 主命令名
-    public IReadOnlyList<string>? Aliases { get; }       // 别名列表
-    public IReadOnlyList<CommandSegmentType> Segments { get; } // 参数类型列表
-    public bool CaptureRestSegments { get; }             // 最后一个参数捕获剩余文本
-    public ExecuteHandler OnExecute { get; }             // 执行委托
-}
-```
+## 参数和补全
 
-`CaptureRestSegments = true` 时，最后一个参数会包含该位置之后的所有文本（不再按空格分割），用于消息类命令。
+| `CommandSegmentType` | 候选范围 |
+|---|---|
+| `Text` | 不提供固定候选 |
+| `Emote` | 表情列表 |
+| `Player` | 全服玩家 |
+| `PlayerSameChannel` | 当前频道玩家 |
+| `PlayerSameMap` | 同频道且同地图玩家 |
+| `Channel` | 已有频道 |
+| `ChatChannelType` | `global`、`channel`、`map` |
+| `CommandName` | 所有命令名 |
 
-## 参数类型 CommandSegmentType
+`ChatCompletionProvider` 同时处理命令/参数和 Emoji 补全，匹配不区分大小写并使用包含匹配。补全只影响输入体验，最终参数数量仍由 `CommandParser` 校验。
 
-| 类型 | 含义 | 自动补全范围 |
-|------|------|-------------|
-| `Text` | 任意文本 | 无 |
-| `Emote` | 表情名 | 表情列表 |
-| `Player` | 任意在线玩家 | 全服玩家 |
-| `PlayerSameChannel` | 同频道玩家 | 当前频道玩家 |
-| `PlayerSameMap` | 同地图玩家 | 当前地图玩家 |
-| `Channel` | 频道名 | 已有频道 |
-| `ChatChannelType` | 聊天频道类型 | Global/Channel/Map |
-| `CommandName` | 命令名 | 命令列表 |
+## 当前命令
 
-参数类型同时用于解析校验和 `ChatCompletionProvider` 的自动补全提示。
+| 命令 | 别名 | 参数 | 作用 |
+|---|---|---|---|
+| `/help` | `?`, `？`, `h` | 无 | 列出命令 |
+| `/help-command` | `??`, `？？`, `hc` | 文本 | 显示单个命令帮助 |
+| `/say` | 无 | 文本... | 按当前聊天范围发送 |
+| `/emote` | `e` | 文本... | 发送解析后的表情或文字表情 |
+| `/teleport` | `tp` | 同频道玩家 | 按设置选择传送模式 |
+| `/teleport-no-session` | `tpns` | 同频道玩家 | 不携带 Session 传送 |
+| `/teleport-with-session` | `tpws` | 同频道玩家 | 请求目标 Session 后传送 |
+| `/random-teleport` | `rtp` | 无 | 随机传送到同频道玩家 |
+| `/back` | 无 | 无 | 返回传送前的存档/位置 |
+| `/whisper` | `w`, `msg` | 玩家 + 文本... | 私聊 |
+| `/channel` | `join` | 频道... | 加入现有频道或创建频道 |
+| `/locate` | `lc` | 同频道玩家 | 显示玩家位置 |
+| `/watch` | `wt` | 同地图玩家 | 开始观战 |
+| `/unwatch` | `uw`, `uwt` | 无 | 停止观战 |
+| `/clear` | `cls` | 无 | 清空全部聊天记录和标签页记录 |
+| `/group-photo-mode` | `gpm`, `hy` | 无 | 切换合影模式 |
+| `/interactions` | `int` | 无 | 切换玩家互动 |
+| `/chat` | `c` | 聊天范围 | 修改默认聊天范围 |
+| `/map-chat` | `mc` | 文本... | 发送地图聊天 |
+| `/channel-chat` | `cc` | 文本... | 发送频道聊天 |
+| `/global-chat` | `gc` | 文本... | 发送全服聊天 |
 
-## 执行上下文 Context
+聊天打开时，`LeftShift+Tab` 在 `ALL`、`Global`、`Channel`、`Map` 标签间循环，并在进入频道标签时同步默认发送范围。普通 `Tab` 仍由输入框用于补全。
 
-```csharp
-public readonly struct Context
-{
-    MiaoNetContext MiaoNetContext    // 完整上下文
-    IReadOnlyList<string> Segments   // 解析后的参数列表
+## 执行上下文
 
-    void QueuePacket(packet)         // 发包
-    void Request<T>(packet, callback) // Request-Response
-    void TipMessage(message)         // 显示提示（本地聊天）
-    void TipErrorMessage(message)    // 显示错误（本地聊天）
-    void AddLocalChat(chatText)      // 添加本地聊天条目
-}
-```
+`MiaoNetCommand.Context` 向命令提供当前 `MiaoNetContext` 和已解析参数，并封装 `QueuePacket`、泛型 `Request`、本地普通/错误提示及聊天条目插入。命令在游戏主线程执行，可以访问 `ClientState` 和 Celeste 场景。
 
-命令在主线程执行，可安全访问 `ClientState` 和游戏引擎。
+## 传送
 
-## 命令列表
+无 Session 模式用目标地图与房间新建 `Session`；带 Session 模式发送 `PacketTeleportRequest`，服务端转发 `PacketBeTeleportedRequest` 给目标玩家，响应成功后用返回的 `PlayerSessionData` 创建关卡。启用临时存档时，客户端先保存当前存档并进入 Debug Save，`/back` 可恢复传送前状态。
 
-| 命令 | 别名 | 参数 | 功能 |
-|------|------|------|------|
-| `/help` | `?`, `？`, `h` | — | 列出所有命令 |
-| `/help-command` | `??`, `？？`, `hc` | `<命令名>` | 查看单个命令帮助 |
-| `/say` | — | `<文本...>` | 按当前聊天频道发送消息 |
-| `/emote` | `e` | `<表情...>` | 发送表情 |
-| `/teleport` | `tp` | `<玩家>` | 传送到玩家（根据设置选择模式） |
-| `/teleport-no-session` | `tpns` | `<玩家>` | 无存档传送 |
-| `/teleport-with-session` | `tpws` | `<玩家>` | 带存档传送（请求对方 Session 数据） |
-| `/random-teleport` | `rtp` | — | 随机传送到同频道的一个玩家 |
-| `/back` | — | — | 返回传送前的位置（恢复存档） |
-| `/whisper` | `w`, `msg` | `<玩家> <文本...>` | 私聊 |
-| `/channel` | `join` | `<频道名...>` | 加入频道（不存在则创建） |
-| `/locate` | `lc` | `<玩家>` | 查看玩家当前位置 |
-| `/watch` | `wt` | `<玩家>` | 观战同地图玩家 |
-| `/unwatch` | `uw`, `uwt` | — | 停止观战 |
-| `/clear` | `cls` | — | 清空聊天记录 |
-| `/group-photo-mode` | `gpm`, `hy` | — | 切换合照模式 |
-| `/interactions` | `int` | — | 切换玩家互动 |
-| `/chat` | `c` | `<频道类型>` | 切换默认聊天频道 |
-| `/map-chat` | `mc` | `<文本...>` | 发送地图聊天 |
-| `/channel-chat` | `cc` | `<文本...>` | 发送频道聊天 |
-| `/global-chat` | `gc` | `<文本...>` | 发送全服聊天 |
+## 添加命令
 
-## 传送系统
-
-传送是最复杂的命令，有两种模式：
-
-### NoSession（无存档传送）
-
-直接创建目标地图的 Session 并加载，不携带当前游戏进度。
-
-### WithSession（带存档传送）
-
-1. 向目标玩家发送 `PacketTeleportRequest`
-2. 目标玩家收到后回复 `PacketBeTeleportedResponse`（包含其 Session 数据）
-3. 收到响应后用对方 Session 数据重建 Level
-
-### 传送流程（两种模式共用）
-
-```
-保存当前存档 (if moveToDebugSave)
-    │
-    ▼
-切换到 Debug Save（允许传送到任意地图）
-    │
-    ▼
-播放 ScreenWipe 过渡动画
-    │
-    ▼
-创建 Session → LevelLoader → 进入目标关卡
-    │
-    ▼
-/back 可恢复原存档
-```
-
-## 本地化
-
-命令帮助文本通过 Celeste 的 `Dialog` 系统本地化：
-
-- 命令描述：`miaonet_commands_{name}_description`
-- 参数名：`miaonet_commands_{name}_s{i}_name`
-- 参数描述：`miaonet_commands_{name}_s{i}_description`
-
-## 添加新命令
-
-1. 在 `MiaoNetCommand.Commands.cs` 的 `Commands` 列表中添加 `new MiaoNetCommand(...)`
-2. 实现对应的 `static string? CommandName(Context context)` 方法
-3. 在 Dialog 文件中添加本地化 key
-4. 参数类型选择合适的 `CommandSegmentType`（影响自动补全）
+1. 在 `MiaoNetCommand.Commands.cs` 的 `Commands` 列表添加定义。
+2. 实现静态执行方法并选择准确的 `CommandSegmentType`。
+3. 在英文和简体中文 Dialog 文件添加描述及参数 key。
+4. 为解析、参数数量和关键执行分支添加测试。

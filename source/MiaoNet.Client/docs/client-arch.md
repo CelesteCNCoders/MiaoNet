@@ -1,261 +1,115 @@
-# MiaoNet Client 架构概览
+# MiaoNet 客户端架构
 
-## 项目结构
+`MiaoNet.Client` 是 Everest Mod 项目，目标框架为 `net8.0`。它通过 `CelesteMod.props` 引用本地 Celeste/Everest 程序集，并把 `MiaoNet.Shared`、`MiaoNet.ClientShared` 和 `ChatInputBox` 的源码链接进客户端程序集。
 
-```
+## 目录
+
+```text
 source/MiaoNet.Client/
-├── Game/
-│   ├── MiaoNetModule.cs                — Everest Mod 入口（Load/Unload/Hook）
-│   ├── MiaoNetModuleSettings.cs        — 用户设置（持久化）
-│   ├── MenuMiaoNetOptions.cs           — 设置菜单 UI
-│   ├── MiaoNetFont.cs                  — 字体加载
-│   ├── MiaoNetSFX.cs                   — 音效常量
-│   ├── MiaoNetTag.cs                   — ECS Tag
-│   ├── MiaoNetCommands.cs              — 调试控制台命令
-│   ├── MInputHack.cs                   — 输入劫持工具
-│   ├── OuiConflict.cs                  — CelesteNet 冲突检测 UI
-│   ├── ScreenClamper.cs                — UI 屏幕边界约束
-│   ├── SpriteIDTracker.cs              — Sprite ID 反查
-│   └── Settings/                       — 设置枚举（SyncMode, ClipType, ButtonMode 等）
-├── Connection/
-│   ├── MiaoNetContext.cs               — 核心上下文（组件容器、主循环、收发队列）
-│   ├── MiaoNetContext.Connection.cs    — 连接线程（握手、收发 Task）
-│   ├── MiaoNetContext.PacketHandling.cs— 包分发 + 事件触发
-│   ├── MiaoServerConnection.cs         — 底层 TLS/TCP 连接封装
-│   └── ConnectionStatus.cs             — 连接状态消息
-├── Data/
-│   ├── ClientState.cs                  — 客户端全局状态（玩家列表、频道列表、Self）
-│   ├── OnlinePlayer.cs                 — 其他在线玩家数据
-│   ├── OnlineChannel.cs                — 频道数据
-│   ├── MiaoNetChatText.cs              — 聊天文本格式
-│   └── BakedEmoteData.cs               — 表情数据
-├── Components/
-│   ├── MiaoNetComponent.cs             — 组件基类（Update/Render/OnConnected/OnDisconnected）
-│   ├── MainComponent.cs                — 玩家同步核心（帧发送、Ghost 管理）
-│   ├── MainComponent.Interactions.cs   — 玩家互动（抓取等）
-│   ├── MainComponent.Watching.cs       — 观战模式
-│   ├── ChatComponent.cs                — 聊天 UI + 消息收发
-│   ├── ChatCompletionProvider.cs       — 聊天自动补全
-│   ├── EmoteComponent.cs               — 表情轮盘
-│   ├── DebugMapComponent.cs            — Debug Map 覆盖层
-│   ├── PlayerListComponent.cs          — 玩家列表 UI
-│   ├── PlayerListComponent.Entry.cs    — 玩家列表条目
-│   ├── PlayerListComponent.ChannelEntry.cs — 频道条目
-│   └── StatusComponent.cs              — 连接状态 UI
-├── Entity/
-│   ├── MiaoNetEntity.cs                — MiaoNet ECS 实体基类
-│   ├── MiaoNetGhost.cs                 — Ghost（其他玩家投影）核心
-│   ├── MiaoNetGhostEntity.cs           — Ghost 引擎实体包装
-│   ├── GhostNameTag.cs                 — 名字标签
-│   ├── GhostEmote.cs                   — Ghost 表情显示
-│   ├── GhostFollower.cs                — Ghost 的 Follower
-│   ├── GhostDeadBody.cs                — Ghost 死亡体
-│   ├── GhostRenderLayerEntity.cs       — 渲染层级控制
-│   ├── EmoteWheel.cs                   — 表情选择轮盘实体
-│   ├── Fireworks.cs                    — 烟花实体
-│   ├── FireworksComponent.cs           — 烟花组件
-│   ├── GroupPhotoPlatform.cs           — 合照平台
-│   └── IdleHover.cs                    — 空闲悬浮动画
-├── Command/
-│   ├── MiaoNetCommand.cs               — 聊天命令系统入口
-│   ├── MiaoNetCommand.Commands.cs      — 具体命令实现（/tp, /rtp, /channel 等）
-│   ├── MiaoNetCommand.Context.cs       — 命令执行上下文
-│   └── CommandParser.cs                — 命令解析器
-├── ClientRC/
-│   └── ClientRC.cs                     — 本地 HTTP 回调（认证码接收）
-├── Misc/
-│   ├── AvatarManager.cs                — 头像下载与缓存
-│   ├── SingleThreadedSynchronizationContext.cs — 连接线程同步上下文
-│   ├── SingleThreadedTaskScheduler.cs  — 连接线程 TaskScheduler
-│   ├── ChatChannelMatcher.cs           — 聊天频道匹配
-│   ├── GameLanguage.cs                 — 语言工具
-│   ├── TokenDataUtils.cs               — Token 辅助
-│   └── ...
-└── ModInterop/
-    ├── CollabUtils2Interop.cs          — Collab Utils 2 兼容
-    └── SpeedrunToolInterop.cs          — SpeedrunTool 兼容
+├── Game/              Everest 入口、Hook、设置、字体、资源和控制台命令
+├── Connection/        MiaoNetContext、连接线程、包分发和连接状态
+├── Components/        同步、聊天、表情、玩家列表、Debug Map、状态 UI
+├── Data/              ClientState、OnlinePlayer/Channel、聊天消息和传送数据
+├── Entity/             Ghost、名称标签、表情、烟花、合影平台等游戏实体
+├── Command/            聊天命令定义、解析、参数类型和执行上下文
+├── ClientRC/           OAuth 回调使用的本地 HTTP 回调页
+├── Misc/               头像缓存、线程调度、语言和序列化辅助
+├── ModInterop/         CollabUtils2、SpeedrunTool、Extended Variants 等兼容层
+└── ModFolder/          Everest manifest、Dialog、音频、贴图和 shader
 ```
 
-## 分层设计
+## 运行时分层
 
-```
-┌─────────────────────────────────────────────────┐
-│  游戏引擎层 (MiaoNetModule — Everest Hook)       │  IL Hook / On Hook / 事件
-├─────────────────────────────────────────────────┤
-│  组件层 (MainComponent / ChatComponent / ...)    │  游戏逻辑 + UI 渲染
-├─────────────────────────────────────────────────┤
-│  上下文层 (MiaoNetContext)                       │  包分发、事件总线、组件容器
-├─────────────────────────────────────────────────┤
-│  数据层 (ClientState / OnlinePlayer / ...)       │  客户端状态管理
-├─────────────────────────────────────────────────┤
-│  网络层 (MiaoServerConnection)                   │  TLS/TCP 收发
-└─────────────────────────────────────────────────┘
-```
-
-## 线程模型
-
-```
-游戏主线程 (Monocle Engine)
-    │
-    ├── MiaoNetContext.Update()     — 消费 receiveQueue / mainThreadQueue
-    ├── MiaoNetContext.Render()     — 渲染组件
-    └── 组件 Update/Render
-
-连接线程 (MiaoNet Connection)
-    │
-    ├── StartConnectionAsync        — 握手流程
-    ├── DoReceivingAndProcessingAsync — 收包 → HandleDirectPacket / receiveQueue
-    └── SendPacketsLoopAsync        — sendChannel 批量写出
-
-SingleThreadedSynchronizationContext  — 连接线程的 SyncCtx，支持 async/await + Post
+```text
+Celeste/Everest Hook (MiaoNetModule)
+        |
+Components (Main, Chat, PlayerList, Emote, DebugMap, Status)
+        |
+MiaoNetContext (生命周期、队列、事件、包分发、Request-Response)
+        |
+ClientState / OnlinePlayer / OnlineChannel
+        |
+MiaoServerConnection (TLS/TCP，位于 MiaoNet.ClientShared)
+        |
+MiaoNet.Shared (包、数据结构、二进制序列化)
 ```
 
-### 线程间通信
+## MiaoNetContext
+
+`MiaoNetContext` 是客户端中枢，负责：
+
+1. 在游戏主线程驱动组件的 `Update` 和 `Render`。
+2. 启动和取消名为 `MiaoNet Connection` 的连接线程。
+3. 保存 `MiaoServerConnection`、`ClientState`、`PooledStringManager` 和待处理请求。
+4. 将收到的包交给 `PacketDispatcher`，把响应包按 `RequestID` 回调给发起者。
+5. 在断线时清空接收队列、请求、状态、头像缓存状态并通知所有组件。
+
+连接线程会创建 `SingleThreadedSynchronizationContext` 与对应的 TaskScheduler，依次完成 TLS/TCP 建连、版本检查、认证握手，再等待首个 `PacketClientInitial`。初始化必须回到游戏主线程执行；之后连接线程持续收包和发包，任一管线结束都会触发断线清理。
+
+## 线程与队列
+
+```text
+游戏主线程
+  MiaoNetContext.Update() -> mainThreadQueue -> receiveQueue -> PacketDispatcher -> Components
+  MiaoNetContext.Render() -> 可渲染组件
+
+连接线程
+  MiaoServerConnection.ReceivePacketsLoopAsync()
+  MiaoServerConnection.SendPacketsLoopAsync()
+```
 
 | 方向 | 机制 | 用途 |
-|------|------|------|
-| 连接线程 → 主线程 | `receiveQueue` (ConcurrentQueue) | 收到的包排队等主线程处理 |
-| 连接线程 → 主线程 | `mainThreadQueue` (ConcurrentQueue\<Action>) | 连接状态变更、头像加载等 |
-| 主线程 → 连接线程 | `MiaoServerConnection.QueuePacket` | 发包投递 |
-| 连接线程特殊处理 | `HandleDirectPacket` | Ping 直接回复 Pong，不入队 |
+|---|---|---|
+| 连接线程 -> 主线程 | `receiveQueue` | 排队处理普通收到的包 |
+| 连接线程 -> 主线程 | `mainThreadQueue` | 初始化、状态提示、头像纹理准备等必须在主线程执行的动作 |
+| 主线程 -> 连接线程 | `MiaoServerConnection.QueuePacket` | 将包放入发送队列 |
+| 连接线程内直接处理 | `HandleDirectPacket` | Ping 立即回复 Pong；可异步准备新玩家头像 |
+| 主线程内 | `pendingRequests` | 用 `RequestID` 分发 `PacketResponse` |
 
-## 连接生命周期
+## 组件
 
-```
-MiaoNetContext.Connect()
-    │
-    ▼
-ConnectionThread 启动（新线程 + SingleThreadedSynchronizationContext）
-    │
-    ▼
-MiaoServerConnection.CreateAsync (TCP + TLS)
-    │
-    ▼
-Version Check (发送本地版本，校验服务端版本)
-    │
-    ▼
-Handshake (发送认证数据，接收 HandshakeAckData)
-    │
-    ▼
-接收 PacketClientInitial → mainThreadQueue 通知主线程创建 ClientState
-    │
-    ▼
-主线程 OnConnected() → 组件初始化
-    │
-    ▼
-Receive + Send Task 并行运行
-    │
-    ▼
-任一 Task 结束 / 取消 → OnDisconnected() → 清理状态
-```
+所有组件继承 `MiaoNetComponent`，由上下文统一管理生命周期：
 
-## MiaoNetContext 核心上下文
+| 组件 | 主要职责 |
+|---|---|
+| `MainComponent` | 每帧发送 `PacketPlayerFrame`，处理位置/房间变化、Ghost、观战和互动 |
+| `ChatComponent` | 输入框、聊天标签页、历史记录、消息收发和命令执行 |
+| `PlayerListComponent` | 按频道显示在线玩家及频道 |
+| `EmoteComponent` | 表情轮盘与表情发送 |
+| `DebugMapComponent` | Debug Map 场景中的覆盖渲染 |
+| `StatusComponent` | 连接、认证、断线和错误状态提示 |
 
-客户端的中枢，职责：
+`ChatComponent` 会在连接时创建 `Global`、`Channel`、`Map` 三个标签页。`ChatMessageFactory` 将服务端消息转换为 ChatInputBox 的富文本，支持提及高亮和私聊回执；断线时会清理标签页、消息和输入历史。
 
-1. **组件容器** — 持有所有 `MiaoNetComponent` 实例，驱动其 Update/Render
-2. **包分发** — `PacketDispatcher` 将收到的包路由到 `HandlePacket` 重载
-3. **事件总线** — 暴露 C# event（`PlayerJoined`、`PlayerMapChanged` 等），组件订阅
-4. **Request-Response** — `pendingRequests` 字典管理异步请求回调
-5. **连接管理** — 启动/断开连接线程，维护 `MiaoServerConnection` 生命周期
+## 状态模型
 
-### 包处理流程
+`ClientState` 从 `PacketClientInitial` 初始化，包含：
 
-```
-连接线程收包
-    │
-    ├── HandleDirectPacket (Ping → 立即 Pong，不入队)
-    │
-    └── receiveQueue.Enqueue
-            │
-            ▼
-        主线程 Update()
-            │
-            ├── PacketResponse → pendingRequests 回调
-            │
-            └── 其他包 → PacketDispatcher → HandlePacket 重载
-                    │
-                    └── 更新 ClientState + 触发事件
-```
+- `Players`：不含自己的在线玩家字典；
+- `AllPlayers`：包含 `Self` 的枚举；
+- `Channels`：频道字典；
+- `Self`、`SelfChannel` 和 `SelfState`；
+- 玩家加入、离开、切频道、位置/在场状态和初始状态更新方法。
 
-## 组件系统
+位置使用 `PlayerLocation`：它由 `PlayerMapLocation`（地图 SID、章节模式）和房间名组成，支持空位置、Debug Map、正常地图，以及 `None`、`Incremental`、`FullSync` 三种变化结果。地图变化时，服务端会发送初始状态快照；同地图房间变化只更新位置。
 
-所有组件继承 `MiaoNetComponent`，由 `MiaoNetContext` 统一驱动：
+## 同步与 Ghost
 
-| 组件 | 职责 |
-|------|------|
-| `MainComponent` | 帧同步发送、Ghost 创建/销毁/更新、位置变更处理 |
-| `ChatComponent` | 聊天 UI、消息收发、命令解析 |
-| `EmoteComponent` | 表情轮盘 UI、表情发送 |
-| `PlayerListComponent` | 玩家列表 UI（按频道分组） |
-| `DebugMapComponent` | Debug Map 模式下的覆盖渲染 |
-| `StatusComponent` | 连接状态消息显示 |
+`MainComponent` 构造 `PlayerStateDelta` 并通过 `PacketPlayerFrame` 发送位置、动画、缩放、冲刺、Follower、持有物和风向的变化。服务端转发为 `PacketContextualPlayerNotification<PacketPlayerFrame>`，客户端据此更新对应 `MiaoNetGhost`。
 
-### MainComponent 核心逻辑
+Ghost 由 `MiaoNetGhost` 和 `MiaoNetGhostEntity` 表示，并组合名称标签、表情、Follower、死亡体、头发和持有物渲染。地图切换或离开地图会创建/销毁 Ghost；`GroupPhotoPlatform`、`Fireworks`、`EmoteWheel` 等实体由对应组件按状态管理。
 
-- **帧同步发送**：每帧构建 `PacketPlayerFrame`（位置、动画、Follower、Holdable、风向等），投递到发送队列
-- **Ghost 管理**：根据 `ShouldSyncFrom` 判定是否需要为某玩家创建 Ghost 实体
-- **位置变更**：监听 `MiaoNetModule.PlayerLocationChanged` 事件，发送 `PacketPlayerMapChanged`
-- **响应处理**：收到 `PacketPlayerMapChangedResponse` 后批量创建 Ghost
+## Everest 集成点
 
-## 数据模型
+`MiaoNetModule` 在 Everest 生命周期中注册/注销 Hook，并把上下文接入游戏循环。当前集成覆盖：
 
-### ClientState
+- `Engine.Update` 和 `Engine.RenderCore`：驱动上下文；
+- `Level.OnLoadLevel`、`Level.OnExit`：发送 `PacketPlayerLocationChanged`；
+- `Player.Die`、`Player.Added`：同步死亡和传送后的状态；
+- `Player.Play`：同步玩家音频；
+- `PlayerCollider.Check`：互动/观战时调整碰撞；
+- 设置菜单、Debug 控制台命令和与其他 Mod 的兼容 Hook。
 
-初始化自 `PacketClientInitial`，维护：
-- `players: Dictionary<int, OnlinePlayer>` — 其他在线玩家
-- `channels: Dictionary<int, OnlineChannel>` — 频道列表
-- `Self: OnlinePlayer` — 自己
+## 连接与认证
 
-### OnlinePlayer
-
-```csharp
-int ID
-OnlineChannel Channel
-PlayerInfo Info
-PlayerLocation Location
-PlayerState? State
-PlayerGraphicsInfo? GraphicsInfo
-PlayerGlobalFlags GlobalFlags
-int LastPing
-```
-
-### OnlineChannel
-
-```csharp
-int ID
-ChannelInfo Info
-HashSet<OnlinePlayer> Players
-```
-
-## 与游戏引擎的集成
-
-客户端作为 Everest Mod 运行，通过 MonoMod 的 IL/On Hook 接入 Celeste 引擎：
-
-| Hook | 用途 |
-|------|------|
-| `Engine.Update` (IL) | 注入 `MiaoNetContext.Update()` |
-| `Engine.RenderCore` (IL) | 注入 `MiaoNetContext.Render()` |
-| `Level.OnLoadLevel` | 触发 `PlayerLocationChanged` |
-| `Level.OnExit` | 触发 `PlayerLocationChanged(Empty)` |
-| `Player.Die` | 触发 `PlayerDied` |
-| `Player.Added` | 处理传送后的 spawn 位置 |
-| `Player.Play` | 触发 `PlayerSoundPlayed`（音频同步） |
-| `PlayerCollider.Check` | 被抓取 / 观战时跳过碰撞 |
-
-## Ghost 渲染
-
-`MiaoNetGhost` 是 `MiaoNetEntity`（继承 Celeste 的 `Entity`），表示其他玩家在本地场景中的投影：
-
-- 接收 `PacketPlayerFrame` 更新位置、动画、朝向
-- 播放 PlayerSprite 动画、管理 Follower/Holdable/Hair
-- 处理死亡/复活动画（`GhostDeadBody`）
-- 名字标签（`GhostNameTag`）+ 表情气泡（`GhostEmote`）
-
-## 命令系统
-
-聊天输入以 `/` 开头时进入命令模式：
-
-- `CommandParser` 解析命令名和参数
-- `MiaoNetCommand.Commands.cs` 实现具体命令（`/tp`, `/rtp`, `/channel`, `/emote` 等）
-- 命令在主线程执行，可访问完整 `MiaoNetContext`
+Debug 构建定义 `USE_LOCALHOST_PFX`，客户端默认连接 `127.0.0.1:21473`，并使用嵌入的 `localhost.pfx`。Release 构建默认连接 `s.saplonily.top:21473`，验证服务器证书。认证实现由 `UseCeleMiaoAuth` 选择：关闭时将 `PlayerInfo` 作为自定义认证数据，开启时走 CeleMiao OAuth 和 `ClientRC` 本地回调。

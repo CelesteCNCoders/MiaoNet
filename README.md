@@ -1,80 +1,74 @@
 # MiaoNet
 
-CelesteNet 的一个重写, 以应对数以百计的蔚蓝联机玩家.  
-称为 MiaoNet, 在可能与之前基于 CelesteNet 的 Miao.CelesteNet(也可能被称为 MiaoNet) 混淆时可以使用 MiaoNet+ 进行区分.  
-目前该项目仍在早期的开发中(如你所见目前分支名也叫 wip).  
+MiaoNet 是面向大量玩家场景的 Celeste 联机项目，也是对 CelesteNet 思路的一次重写。为避免与早期基于 CelesteNet 的 `Miao.CelesteNet` 混淆，也可称为 MiaoNet+。
 
-尽管目前服务端侧的逻辑依然比较混乱.
+项目仍处于早期开发阶段，主要开发分支为 `wip`。当前仓库包含 Everest 客户端 Mod、独立服务端、共享协议代码、模拟客户端、聊天组件、测试和数据包检查工具。
 
 ## 项目结构
 
-- `document`: 项目文档
-  - `artifacts`: 由于项目启用了 `artifact` 风格的编译产物输出, 这里就会存放相应的编译产物
-  - `ChatInputBox`: 聊天栏以及聊天历史记录库, 分离开来避免和 MiaoNet 耦合太强(难道还有别的地方会用到它吗 :L)
-  - `MiaoNet.Client`: MiaoNet 客户端, 作为一个蔚蓝 Mod
-    - `Command`: MiaoNet 指令相关
-    - `Components`: 借鉴于 CelesteNet, 客户端不同部分的显示以及发包等
-    - `Data`: 客户端的一些数据类
-    - `Entity`: 游戏中会用到的实体, 例如其他玩家的实体 `MiaoNetGhost`
-    - `Game`: 游戏本体相关的逻辑, 如 Everest 要求的 `Module` 类以及设置类等
-    - `Misc`: 杂项
-    - `ModFolder`: Mod 的资源文件
-  - `MiaoNet.Server`: MiaoNet 服务端
-    - `Data`: 服务器的一些数据类
-    - `Http`: 部分后台的 HTTP api
-    - `Server`: 大部分服务器逻辑
-        - `Authentication`: 验证相关逻辑(例如获取论坛侧相关信息)
-        - `Certificate`: SSL 证书管理
-        - `Connection`: 不完整的一些连接抽象
-        - `Options`: 服务器选项
-        - `Utils`: 杂项
-  - `MiaoNet.Shared`: 共享项目, 包含 Client 以及 Server 共有的部分(例如包的结构定义)
-    - `Connection`: 连接相关共享类
-    - `Data`: 一些储存数据的类(枚举, 玩家所在地图的结构体等)
-    - `Helpers`: 网络包以及相关序列化
-    - `Packet`: 包相关的东西
-      - `Packets`: MiaoNet 中所有的包
-    - `PlayerList`: 目前包含玩家列表排序相关逻辑
-    - `Primitives`: 一些简单数据类
-  - `MiaoNet.UnitTest`: 一些单元测试(虽然现在没什么东西能测的), 引用了 `MiaoNet.Server` 项目,
-在一些客户端独有的但可(或者需要)单元测试的时候会单独引用一些源文件过来, 例如目前的客户端侧的指令.
+| 路径 | 说明 |
+|---|---|
+| `docs/` | 开发、贡献与问题反馈文档 |
+| `source/MiaoNet.Client/` | Everest 客户端 Mod，包括连接、同步、聊天、命令、Ghost 和 Mod 资源 |
+| `source/MiaoNet.ClientShared/` | 客户端与 MockClient 共用的 TLS/TCP 连接代码 |
+| `source/MiaoNet.Server/` | 基于 .NET Generic Host 的独立服务端，包括认证、TLS、状态、管理 API 和指标 |
+| `source/MiaoNet.Shared/` | 客户端与服务端共享的协议、数据结构和二进制序列化代码 |
+| `source/ChatInputBox/` | 可复用的聊天输入、历史记录、标签页和补全组件，附 Everest 示例项目 |
+| `source/MiaoNet.MockClient/` | 本地连接与基础压测用模拟客户端 |
+| `source/MiaoNet.UnitTest/` | MSTest 测试项目 |
+| `source/PacketDumpInspector/` | MiaoNet 数据包转储检查工具 |
+
+更详细的入口见：
+
+- [开发上手指南](docs/developing-MiaoNet.md)
+- [客户端架构](source/MiaoNet.Client/docs/client-arch.md)
+- [服务端架构](source/MiaoNet.Server/docs/server-arch.md)
+- [共享包系统](source/MiaoNet.Shared/docs/packet-system.md)
+- [ChatInputBox](source/ChatInputBox/ChatInputBox/docs/chatinputbox.md)
+
+## 环境要求
+
+- .NET 10 SDK。仓库的 `global.json` 允许从 8.0 向最新主版本滚动，但服务端和测试项目以 `net10.0` 为目标，因此完整构建需要 .NET 10。
+- 构建客户端时需要 Celeste，以及 Everest 4465 或更高版本。
+- Git。
+
+## 快速开始
+
+```bash
+git clone https://github.com/CelesteCNCoders/MiaoNet.git
+cd MiaoNet
+```
+
+构建客户端时传入 Celeste 根目录。该目录应直接包含 `Celeste.dll` 和 `Celeste.Mod.mm.dll`：
+
+```bash
+dotnet build source/MiaoNet.Client/MiaoNet.Client.csproj \
+  -p:CelesteRootPath=/path/to/Celeste
+```
+
+构建完成后会将程序集写入 `source/MiaoNet.Client/ModFolder/Code/`，并在 `Celeste/Mods/` 下创建指向 `ModFolder` 的 `MiaoNet_link`。启动 Celeste 后即可由 Everest 加载。
+
+服务端和测试不依赖 Celeste：
+
+```bash
+dotnet build source/MiaoNet.Server/MiaoNet.Server.csproj
+dotnet test source/MiaoNet.UnitTest/MiaoNet.UnitTest.csproj
+```
+
+完整的本地服务端、MockClient 和生产配置流程见[开发上手指南](docs/developing-MiaoNet.md)。
 
 ## 项目进度
 
-[见该 Issue](https://github.com/CelesteCNCoders/MiaoNet/issues/2)
+当前计划与进度见 [GitHub Issue #2](https://github.com/CelesteCNCoders/MiaoNet/issues/2)。
 
-## 构建MiaoNet
+## 参与贡献
 
-### 环境配置
-- Celeste的Mod管理器安装（Everest / Olympus / CeleMod)
-- .NET 8.0+ SDK
+提交代码前请阅读 [Contributing.md](Contributing.md) 和[编码规范](docs/coding-style.md)。问题反馈格式见[反馈规范](docs/how-to-issue.md)。
 
-- MSBuild构建工具
+## License
 
-### 1. 下载MiaoNet
-从Github克隆：
-```bash
-git clone git@github.com:CelesteCNCoders/MiaoNet.git
-cd MiaoNet
-```
-或下载.zip压缩包并解压。
-
-### 2. 构建MiaoNet
-以Beta版游玩测试服仅需要构建MiaoNet.Client。在构造前，确认您的Celeste安装路径是否和项目预设的`C:\Program Files (x86)\Steam\steamapps\common\Celeste`相符。如若这不是您的Celeste安装路径，则需要在构建时手动指定。
-
-> ⚠️ 如何获取Celeste安装路径：如果您的Celeste通过Steam平台安装，可在“库”中右键“Celeste”条目，选择“管理” > “浏览本地文件”以获取安装路径。
-
-```bash
-dotnet build source/MiaoNet.Client/MiaoNet.Client.csproj\
-  -p:CelesteRootPath=/path/to/Celeste
-```
-构建完成后`MiaoNet_Link`文件链接将在游戏Mod目录下生成，此时使用Mod加载器选中即可游玩测试服。
-
-## LICENSE
-
-本项目部分借鉴了 [CelesteNet](https://github.com/0x0ade/CelesteNet)([MIT](https://github.com/0x0ade/CelesteNet/blob/e962823cf9666024fd255db9cb5d72a3a5c4d7c6/LICENSE))
-的一些实现, 约定, 以及一些其所使用的[图片资源](./source/MiaoNet.Client/ModFolder/Graphics/Atlases/Gui/miaonet).
+许可文本见 [LICENSE.txt](LICENSE.txt)。项目部分参考了 [CelesteNet](https://github.com/0x0ade/CelesteNet) 的实现、约定与部分图片资源。
 
 ## Credits
 
-- sky scale: 绘制了直播模式以及合影模式的图标(`live_mode.png`, `group_photo_mode.png`)
+- sky scale：绘制直播模式和合影模式图标（`live_mode.png`、`group_photo_mode.png`）。
