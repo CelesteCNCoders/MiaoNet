@@ -111,15 +111,8 @@ public sealed class ChatMessageListView
             var state = getOrInitViewState(item);
             if (state.ShowTimer > 0f)
             {
-                if (NewMessagesShowing == NewMessageShowingMode.HideAll)
-                {
-                    state.ShowTimer = 0f;
-                    state.FadeOut = 0f;
-                }
-                else
-                {
-                    state.ShowTimer -= Engine.RawDeltaTime;
-                }
+                // NoNewMessage now renders an empty list so no need to manually fade message out anymore.
+                state.ShowTimer -= Engine.RawDeltaTime;
             }
             else
             {
