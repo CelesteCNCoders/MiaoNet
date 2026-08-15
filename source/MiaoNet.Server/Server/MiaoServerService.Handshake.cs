@@ -94,7 +94,10 @@ partial class MiaoServerService
                 minorClient = BinaryPrimitives.ReadUInt16LittleEndian(span[2..4]);
                 buildClient = BinaryPrimitives.ReadUInt16LittleEndian(span[4..6]);
 
-                passed = major == majorClient && minor == minorClient && build == buildClient;
+                passed = Connection.IsVersionCompatible(
+                    new Version(majorClient, minorClient, buildClient),
+                    version
+                );
             }
             finally
             {
