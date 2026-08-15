@@ -44,14 +44,9 @@ public sealed partial class MiaoServerService
 
         var delta = packet.StateDelta;
 
-        int fc = delta.FollowerInitials is not null
-            ? delta.FollowerInitials.Length
-            : delta.FollowerDeltas is not null
-                ? delta.FollowerDeltas.Length
-                : 0;
-        if (fc > 12)
+        if (!PlayerPacketValidator.HasValidFollowerCount(delta))
         {
-            logger.LogWarning(AppEvents.Game, "Player {p} is taking up to {n} followers", player.Info, fc);
+            logger.LogWarning(AppEvents.Game, "Player {p} sent too many followers in a frame.", player.Info);
             await connection.DisconnectAsync(DisconnectReason.Kicked, "Too many followers");
             return;
         }
@@ -144,6 +139,12 @@ public sealed partial class MiaoServerService
                 player.Info, newLocation
             );
             await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
+            return;
+        }
+        if (!PlayerPacketValidator.HasValidFollowerCount(packet.InitialState))
+        {
+            logger.LogWarning(AppEvents.GameState, "Player {p} sent too many followers in its initial state.", player.Info);
+            await connection.DisconnectAsync(DisconnectReason.Kicked, "Too many followers");
             return;
         }
 
