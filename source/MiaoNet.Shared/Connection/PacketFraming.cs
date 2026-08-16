@@ -78,7 +78,11 @@ public static class PacketFraming
             cancellationToken
         );
         if (headerBytesRead < Connection.PacketHeaderSize)
+        {
+            if (headerBytesRead > 0)
+                throw new PacketTruncatedException(isPayload: false, headerBytesRead, Connection.PacketHeaderSize);
             return null;
+        }
 
         ushort payloadSize = BinaryPrimitives.ReadUInt16LittleEndian(headerMemory.Span);
         ushort packetID = BinaryPrimitives.ReadUInt16LittleEndian(headerMemory.Span[sizeof(ushort)..]);
@@ -96,7 +100,7 @@ public static class PacketFraming
                     cancellationToken
                 );
                 if (payloadBytesRead < payloadSize)
-                    return null;
+                    throw new PacketTruncatedException(isPayload: true, payloadBytesRead, payloadSize);
             }
 
             try

@@ -14,6 +14,8 @@ internal static class SR
         = "Packet type with id {0} is not found.";
     public const string PacketTooLarge
         = "Packet \"{0}\" is too large with payload size {1}; the maximum is {2}.";
+    public const string PacketTruncated
+        = "Packet {0} is truncated: read {1} of {2} bytes.";
     public const string PacketHasDataLeft
         = "Packet id {0} read finished but left {1} bytes not read.";
     public const string HasDataLeft

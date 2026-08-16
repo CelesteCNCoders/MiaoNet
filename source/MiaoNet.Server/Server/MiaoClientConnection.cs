@@ -178,7 +178,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
     private async Task HandleClientProcessingAsync(CancellationToken token)
     {
-        await ProcessPacketsAsync(
+        long leftoverBytes = await ProcessPacketsAsync(
             pipe.Reader,
             this,
             async (packet, bytesConsumed) =>
@@ -188,10 +188,19 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
             },
             token
         );
+        if (leftoverBytes > 0)
+        {
+            logger.LogWarning(
+                AppEvents.Connection,
+                "Connection id {id} closed with {leftover} leftover bytes that do not form a complete packet frame.",
+                ID,
+                leftoverBytes
+            );
+        }
         logger.LogDebug("Processing task of id {id} finished.", ID);
     }
 
-    internal static async Task ProcessPacketsAsync(
+    internal static async Task<long> ProcessPacketsAsync(
         PipeReader pipeReader,
         IPacketSerializationContext context,
         Func<IContextualPacket, int, ValueTask> packetHandler,
@@ -200,10 +209,10 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     {
         try
         {
+            long leftoverBytes = 0;
             while (true)
             {
                 ReadResult result = await pipeReader.ReadAsync(token);
-                ReadOnlySequence<byte> oldBuffer = result.Buffer;
                 ReadOnlySequence<byte> buffer = result.Buffer;
                 while (true)
                 {
@@ -214,10 +223,15 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
                     await packetHandler(packet, bytesConsumed);
                 }
 
+                long leftover = buffer.Length;
                 pipeReader.AdvanceTo(buffer.Start, buffer.End);
                 if (result.IsCompleted)
+                {
+                    leftoverBytes = leftover;
                     break;
+                }
             }
+            return leftoverBytes;
         }
         finally
         {
@@ -246,7 +260,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         logger.LogDebug("Sending task of id {id} finished.", ID);
     }
 
-    private static bool TryParsePacket(
+    internal static bool TryParsePacket(
         ref ReadOnlySequence<byte> sequence,
         [NotNullWhen(true)] out IContextualPacket? packet,
         IPacketSerializationContext context
