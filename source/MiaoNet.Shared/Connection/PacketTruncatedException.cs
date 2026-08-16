@@ -14,7 +14,7 @@ public sealed class PacketTruncatedException : Exception
         : base(string.Format(
             CultureInfo.InvariantCulture,
             SR.PacketTruncated,
-            isPayload ? "payload" : "header",
+            isPayload ? SR.PacketPartPayload : SR.PacketPartHeader,
             bytesRead,
             expectedBytes
         ))

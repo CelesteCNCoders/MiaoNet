@@ -68,7 +68,7 @@ public static class PacketFraming
     )
     {
         if (headerMemory.Length < Connection.PacketHeaderSize)
-            throw new ArgumentException("The packet header buffer is too small.", nameof(headerMemory));
+            throw new ArgumentException(SR.PacketHeaderBufferTooSmall, nameof(headerMemory));
 
         headerMemory = headerMemory[..Connection.PacketHeaderSize];
         int headerBytesRead = await stream.ReadAtLeastAsync(
