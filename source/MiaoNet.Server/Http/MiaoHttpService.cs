@@ -78,30 +78,35 @@ public sealed partial class MiaoHttpService : BackgroundService
             {
                 break;
             }
-            try
-            {
-                Uri? uri = context.Request.Url;
-                if (uri is null)
-                {
-                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    context.Response.Close();
-                    continue;
-                }
 
-                string path = uri.AbsolutePath;
-                NameValueCollection query = HttpUtility.ParseQueryString(uri.Query);
+            _ = HandleContextAsync(context);
+        }
+    }
 
-                _ = HandleRequestAsync(path, query, context);
-            }
-            catch (Exception e)
+    private async Task HandleContextAsync(HttpListenerContext context)
+    {
+        try
+        {
+            Uri? uri = context.Request.Url;
+            if (uri is null)
             {
-                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                logger.LogError(AppEvents.Http, e, "Error when handling request \"{url}\" from {ep}", context.Request.RawUrl, context.Request.RemoteEndPoint);
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                return;
             }
-            finally
-            {
-                context.Response.Close();
-            }
+
+            string path = uri.AbsolutePath;
+            NameValueCollection query = HttpUtility.ParseQueryString(uri.Query);
+
+            await HandleRequestAsync(path, query, context);
+        }
+        catch (Exception e)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+            logger.LogError(AppEvents.Http, e, "Error when handling request \"{url}\" from {ep}", context.Request.RawUrl, context.Request.RemoteEndPoint);
+        }
+        finally
+        {
+            context.Response.Close();
         }
     }
 
