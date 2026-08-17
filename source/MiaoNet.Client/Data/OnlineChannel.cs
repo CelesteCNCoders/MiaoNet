@@ -8,6 +8,8 @@ public sealed class OnlineChannel
 
     public ChannelInfo Info { get; }
 
+    public bool IsPrivate => Info.IsPrivate;
+
     public HashSet<OnlinePlayer> Players { get; }
 
     public OnlineChannel(int id, ChannelInfo channelInfo)

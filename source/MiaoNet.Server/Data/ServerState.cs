@@ -27,13 +27,16 @@ public sealed class ServerState : IPlayerScope
 
         players = ImmutableDictionary<int, MiaoClientConnection>.Empty;
         channels = ImmutableDictionary<int, ServerChannel>.Empty
-            .Add(0, new ServerChannel(0, new ChannelInfo("main")));
+            .Add(
+                ChannelInfo.MainChannelID,
+                new ServerChannel(ChannelInfo.MainChannelID, new ChannelInfo("main"))
+            );
     }
 
     public ServerPlayer CreateNewPlayer(PlayerInfo playerInfo)
     {
         int id = Interlocked.Increment(ref nextPlayerID);
-        ServerChannel channel = channels[0];
+        ServerChannel channel = channels[ChannelInfo.MainChannelID];
         ServerPlayer player = new(channel, id, playerInfo);
         return player;
     }
@@ -43,6 +46,20 @@ public sealed class ServerState : IPlayerScope
         int id = Interlocked.Increment(ref nextChannelID);
         ServerChannel channel = new(id, channelInfo);
         return channel;
+    }
+
+    public bool TryGetChannelByName(string name, [NotNullWhen(true)] out ServerChannel? channel)
+    {
+        foreach (var c in channels.Values)
+        {
+            if (c.Info.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                channel = c;
+                return true;
+            }
+        }
+        channel = null;
+        return false;
     }
 
     public void AddPlayer(MiaoClientConnection connection)
@@ -63,7 +80,7 @@ public sealed class ServerState : IPlayerScope
         bool result = ImmutableInterlocked.Update(ref players, (d, c) => d.Remove(c.ID), connection);
         Debug.Assert(result);
         connection.Player.Channel.OnRemovePlayer(connection);
-        RemoveChannelIfEmpty(connection.Player.Channel);
+        TryRemoveEmptyChannel(connection.Player.Channel);
     }
 
     public void PlayerChannelMove(MiaoClientConnection connection, ServerChannel from, ServerChannel to)
@@ -74,12 +91,16 @@ public sealed class ServerState : IPlayerScope
         from.OnRemovePlayer(connection);
         connection.Player.Channel = to;
         to.OnAddPlayer(connection);
-        RemoveChannelIfEmpty(from);
+        TryRemoveEmptyChannel(from);
     }
 
-    private void RemoveChannelIfEmpty(ServerChannel channel)
+    /// <summary>
+    /// Removes the channel if it is empty and not the always-retained main channel.
+    /// Does nothing otherwise.
+    /// </summary>
+    private void TryRemoveEmptyChannel(ServerChannel channel)
     {
-        if (channel.Players.Count == 0 && channel.ID != 0)
+        if (channel.Players.Count == 0 && channel.ID != ChannelInfo.MainChannelID)
         {
             bool result = ImmutableInterlocked.Update(ref channels, (d, c) => d.Remove(c.ID), channel);
             Debug.Assert(result);

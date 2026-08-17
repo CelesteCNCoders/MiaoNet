@@ -151,6 +151,7 @@ miaonet_connection_status_ssl_error= 连接 SSL 错误：(0) ((1))
 miaonet_connection_status_revocation_check_failed= 连接建立失败。证书吊销检查失败
 
 miaonet_player_list_channel_header= #(0) | (1) 位玩家
+miaonet_private_channel_name= <私有频道>
 
 miaonet_chat_disabled= 聊天已被设置为禁用
 

@@ -38,14 +38,14 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         channelPlayerList = new();
         context.ClientInitialized += Context_ClientInitialized;
         // TODO surely full-rebuild is not necessary
+        // channel created/removed events are removed
+        // we may reintroduce those if needed
         context.PlayerJoined += _ => BuildPlayerList();
         context.PlayerLeft += _ => BuildPlayerList();
         context.PlayerLocationChanged += (p, _) => UpdatePlayer(p);
         context.PingDataReceived += Context_PingDataReceived;
         context.SelfChannelMoved += _ => BuildPlayerList();
         context.PlayerChannelMoved += (_, _) => BuildPlayerList();
-        context.ChannelCreated += _ => BuildPlayerList();
-        context.ChannelRemoved += _ => BuildPlayerList();
 
         texPlayerDebugMap = GFX.Gui["miaonet/debug_map"];
         texPlayerPaused = GFX.Gui["miaonet/paused"];
@@ -70,6 +70,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 #if MOCK_DATA
         int id = 0;
         channelPlayerList.Clear();
+
         OnlineChannel cMain = new(0, new ChannelInfo("main"));
         List<PlayerListEntry> mainChannelPlayerList = [
             CreateTestPlayer(cMain, "sapcc", "Celeste/1-ForsakenCity", "a-01"),
@@ -85,6 +86,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         ];
         foreach (var item in mainChannelPlayerList)
             cMain.Players.Add(item.Player);
+
         OnlineChannel cOther = new(1, new ChannelInfo("xinzhan"));
         List<PlayerListEntry> otherChannelPlayerList = [
             CreateTestPlayer(cOther, "O5DZ", "StrawberryJam2021/Advanced/Lobby", "a-00"),
@@ -93,19 +95,30 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         ];
         foreach (var item in otherChannelPlayerList)
             cOther.Players.Add(item.Player);
+
         OnlineChannel cOther2 = new(2, new ChannelInfo("xinzhan2"));
         List<PlayerListEntry> otherChannel2PlayerList = [
-            CreateTestPlayer(cOther, "someone2", "StrawberryJam2021/Advanced/Lobby", "a-01"),
-            CreateTestPlayer(cOther, "someone3", "Celeste/9-Core", "f-0j"),
+            CreateTestPlayer(cOther2, "someone2", "StrawberryJam2021/Advanced/Lobby", "a-01"),
+            CreateTestPlayer(cOther2, "someone3", "Celeste/9-Core", "f-0j"),
         ];
-        for (int i = 0; i < 16; i++)
-            otherChannel2PlayerList.Add(CreateTestPlayer(cOther, $"P {i}", "Celeste/9-Core", "f-0j"));
+        for (int i = 0; i < 3; i++)
+            otherChannel2PlayerList.Add(CreateTestPlayer(cOther2, $"P {i}", "Celeste/9-Core", "f-0j"));
         foreach (var item in otherChannel2PlayerList)
             cOther2.Players.Add(item.Player);
+
+        OnlineChannel pv = new(ChannelInfo.PrivateChannelVirtualID, new ChannelInfo("!<private>"));
+        List<PlayerListEntry> pvChannelPlayerList = [
+            CreateTestPlayer(pv, "someone4", string.Empty, string.Empty),
+            CreateTestPlayer(pv, "someone5", string.Empty, string.Empty),
+        ];
+        foreach (var item in pvChannelPlayerList)
+            pv.Players.Add(item.Player);
+
         channelPlayerList.AddRange([
             new(cMain, mainChannelPlayerList),
             new(cOther, otherChannelPlayerList),
-            new(cOther2, otherChannel2PlayerList)
+            new(cOther2, otherChannel2PlayerList),
+            new(pv, pvChannelPlayerList)
         ]);
         SortPlayerList();
         return;
@@ -128,6 +141,10 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
         foreach (var (_, channel) in state.Channels)
         {
+            // hide the local virtual private channel when it has no players
+            if (channel.ID == ChannelInfo.PrivateChannelVirtualID && channel.Players.Count == 0)
+                continue;
+
             var playerListEntries = new List<PlayerListEntry>();
 
             // add self
@@ -145,6 +162,15 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         channelPlayerList.RemoveAt(selfChannelEntryIndex);
         channelPlayerList.Insert(0, selfChannelEntry);
         SortPlayerList();
+
+        // the local virtual private channel is always pinned to the bottom of the list
+        int privateChannelEntryIndex = channelPlayerList.FindIndex(e => e.Channel.ID == ChannelInfo.PrivateChannelVirtualID);
+        if (privateChannelEntryIndex >= 0)
+        {
+            var privateChannelEntry = channelPlayerList[privateChannelEntryIndex];
+            channelPlayerList.RemoveAt(privateChannelEntryIndex);
+            channelPlayerList.Add(privateChannelEntry);
+        }
 #endif
     }
 

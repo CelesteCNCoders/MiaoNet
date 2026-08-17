@@ -70,6 +70,7 @@ public partial class MiaoHttpService
             {
                 ID = c.Key,
                 Name = c.Value.Info.Name,
+                IsPrivate = c.Value.IsPrivate,
                 Players = c.Value.Players.Select(static c => new
                 {
                     ID = c.ID,

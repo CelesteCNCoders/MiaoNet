@@ -25,8 +25,6 @@ partial class MiaoNetContext
     public event Action<OnlinePlayer>? PlayerGrabJumpOut;
     public event Action<PacketPlayerChannelMovedResponse>? SelfChannelMoved;
     public event PacketPlayerNotificationHandler<PacketPlayerChannelMovedNotification>? PlayerChannelMoved;
-    public event Action<OnlineChannel>? ChannelCreated;
-    public event Action<OnlineChannel>? ChannelRemoved;
 
     private void RegisterPacketHandlers(PacketHandlerRegister r)
     {
@@ -78,7 +76,6 @@ partial class MiaoNetContext
         ClientState.OnPlayerLeft(packet.PlayerID);
         PlayerLeft?.Invoke(player);
         player.State = null;
-        HandleChannelRemoveIfEmpty(player.Channel);
     }
 
     private void HandlePacket(PacketContextualPlayerNotification<PacketPlayerFrame> packet)
@@ -241,47 +238,27 @@ partial class MiaoNetContext
     private void HandlePacket(PacketPlayerChannelMovedResponse packet)
     {
         EnsureState();
-        ClientState.OnSelfChannelMove(packet.ChannelID, out var p, out var c);
+        ClientState.OnSelfChannelMove(packet.ChannelID, packet.ChannelPlayers);
         if (packet.Players is not null)
         {
             foreach (var playerInMap in packet.Players)
                 ClientState.ApplyPlayerMovedInitialData(playerInMap);
         }
-        if (packet.ChannelPlayers is not null)
-        {
-            foreach (var info in packet.ChannelPlayers)
-                ClientState.ApplyPlayerPresenceData(info);
-        }
         SelfChannelMoved?.Invoke(packet);
-        HandleChannelRemoveIfEmpty(p);
-    }
-
-    private void HandleChannelRemoveIfEmpty(OnlineChannel channel)
-    {
-        EnsureState();
-        if (channel.Players.Count == 0 && ClientState.SelfChannel != channel && channel.ID != 0)
-        {
-            ClientState.OnChannelRemoved(channel.ID);
-            ChannelRemoved?.Invoke(channel);
-        }
     }
 
     private void HandlePacket(PacketPlayerChannelMovedNotification packet)
     {
         EnsureState();
-        ClientState.OnPlayerChannelMove(packet.PlayerID, packet.ChannelID, out var pl, out var p, out var c);
+        ClientState.OnPlayerChannelMove(packet.PlayerID, packet.ChannelID, packet.Presence, out var pl);
         if (packet.InitialData is not null)
             ClientState.ApplyPlayerMovedInitialData(packet.PlayerID, packet.InitialData.Value);
-        if (packet.Presence is not null)
-            ClientState.ApplyPlayerPresenceData(packet.PlayerID, packet.Presence.Value);
         PlayerChannelMoved?.Invoke(pl, packet);
-        HandleChannelRemoveIfEmpty(p);
     }
 
     private void HandlePacket(PacketChannelCreated packet)
     {
         EnsureState();
-        var channel = ClientState.OnNewChannelCreated(packet.ChannelID, packet.ChannelInfo);
-        ChannelCreated?.Invoke(channel);
+        ClientState.OnNewChannelCreated(packet.ChannelID, packet.ChannelInfo);
     }
 }

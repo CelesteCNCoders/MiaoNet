@@ -128,15 +128,19 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
             {
                 // fetch online players infos
                 var channels = serverState.Channels
+                    .Where(c => !c.Value.IsPrivate || c.Value.ID == newPlayer.Channel.ID)
                     .Select(c => new PacketClientInitial.Channel(c.Value.ID, c.Value.Info));
+
                 // cross-channel players are name-only: only same-channel players get
-                // their real location/global flags, everyone else gets empty placeholders
+                // their real location/global flags, everyone else gets empty placeholders.
                 var playerInfos =
                     from pair in serverState.Players
                     let p = pair.Value.Player
                     let sameChannel = p.Channel.ID == newPlayer.Channel.ID
+                    let hidden = p.Channel.IsPrivate && !sameChannel
                     select new PacketClientInitial.Player(
-                        p.Channel.ID, p.ID, p.Info,
+                        hidden ? ChannelInfo.PrivateChannelVirtualID : p.Channel.ID,
+                        p.ID, p.Info,
                         sameChannel ? p.Location : PlayerLocation.Empty,
                         sameChannel ? p.GlobalFlags : PlayerGlobalFlags.None
                     );
@@ -159,11 +163,32 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                 serverState.AddPlayer(newConnection);
 
                 // and then tell other clients a new player came
-                tellOthersOneJoinedTask = BroadcastToScopeExceptAsync(
-                    new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.ID, newPlayer.Info),
-                    serverState,
-                    newPlayer.ID
-                );
+                if (newPlayer.Channel.IsPrivate)
+                {
+                    // if the new player is in private channel initially
+                    // they are only visible to members of that channel
+                    tellOthersOneJoinedTask = Task.WhenAll(
+                        BroadcastToScopeExceptAsync(
+                            new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.ID, newPlayer.Info),
+                            newPlayer.Channel,
+                            newPlayer.ID
+                        ),
+                        BroadcastToScopeExceptAsync(
+                            new PacketPlayerJoined(ChannelInfo.PrivateChannelVirtualID, newPlayer.ID, newPlayer.Info),
+                            serverState,
+                            newPlayer.ID,
+                            c => !newPlayer.Channel.Players.Contains(c)
+                        )
+                    );
+                }
+                else
+                {
+                    tellOthersOneJoinedTask = BroadcastToScopeExceptAsync(
+                        new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.ID, newPlayer.Info),
+                        serverState,
+                        newPlayer.ID
+                    );
+                }
             }
 
             await sendStateTask;

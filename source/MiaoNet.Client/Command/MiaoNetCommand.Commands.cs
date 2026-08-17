@@ -626,18 +626,8 @@ partial class MiaoNetCommand
     private static string? Channel(Context context)
     {
         string channelName = context.Segments[0];
-        var channel = context.MiaoNetContext.ClientState
-            !.Channels.FirstOrDefault(p => p.Value.Info.Name == channelName);
-
-        if (channel.Value is null)
-        {
-            context.QueuePacket(new PacketChannelCreateAndJoin(new ChannelInfo(channelName)));
-        }
-        else
-        {
-            context.QueuePacket(new PacketPlayerChannelMove(channel.Value.ID));
-        }
-
+        // the name is resolved server-side
+        context.QueuePacket(new PacketPlayerChannelMove(channelName));
         return null;
     }
 
