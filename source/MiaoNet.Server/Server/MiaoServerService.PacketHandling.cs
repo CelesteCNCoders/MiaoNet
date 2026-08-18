@@ -465,11 +465,27 @@ public sealed partial class MiaoServerService
     {
         if (!ServerState.Players.TryGetValue(packet.PlayerID, out var p))
             return;
-        // holding requires the same channel and the same map
-        if (p.Player.Channel != connection.Player.Channel
-            || p.Player.Location.Map != connection.Player.Location.Map)
+        // Both grab and release packets are only valid inside the normal sync scope.
+        if (!p.Player.ShouldSyncFrom(connection.Player))
             return;
-        // TODO verify this action server-side
+
+        if (!packet.IsRelease && !PlayerInteractionValidator.CanGrab(connection.Player, p.Player))
+        {
+            logger.LogWarning(
+                AppEvents.GameState,
+                "Player {source} tried to grab {target} outside an enabled sync scope.",
+                connection.Player.Info,
+                p.Player.Info
+            );
+            return;
+        }
+
+        if (packet.IsRelease && !PlayerInteractionValidator.IsValidReleaseForce(packet.Force))
+        {
+            logger.LogWarning(AppEvents.GameState, "Player {source} sent an invalid release force.", connection.Player.Info);
+            return;
+        }
+
         PacketPlayerGrabPlayer send = packet.IsRelease ? new(connection.ID, packet.Force) : new(connection.ID);
         await p.QueuePacketAsync(send);
     }
