@@ -138,14 +138,6 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
         item.AddDescription(menu, Dialog.Clean("miaonet_options_ignore_cert_revocation_status_tip"));
 
-        /*
-        item = new TextMenu.OnOff(
-            Dialog.Get("miaonet_options_use_sync_refresh"), false
-        );
-        menu.Add(item);
-        item.AddDescription(menu, Dialog.Clean("miaonet_options_use_sync_refresh_tip"));
-        */
-
         #endregion
 
         #region Visuals
