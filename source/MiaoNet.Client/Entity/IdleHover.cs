@@ -58,6 +58,11 @@ public sealed class IdleHover : MiaoNetEntity
     {
         base.Render();
 
+        var settings = MiaoNetModule.Settings;
+
+        if (settings.GroupPhotoMode)
+            return;
+        
         Level level = SceneAs<Level>();
         Vector2 pos = parentEntity.Position;
         // - name offset - popup offset
@@ -67,7 +72,7 @@ public sealed class IdleHover : MiaoNetEntity
         hoverTexture.DrawJustified(
             pos,
             new Vector2(0.5f, 1f),
-            Color.White * MiaoNetModule.Settings.PlayerOpacityValue, 
+            Color.White * settings.PlayerOpacityValue, 
             scale
         );
     }
