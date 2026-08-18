@@ -10,9 +10,7 @@ public static class MiaoNetChatText
     private static readonly Color ColorAnnouncements = new Color(0x1b, 0xc2, 0xff);
 
     public static ChatText CreateAnnouncement(string text)
-        => new ChatText([
-            new(ColorAnnouncements, text)
-        ]);
+        => new ChatText(ChatText.Parse(text, ColorAnnouncements));
 
     public static ChatText CreateCommandTip(string text)
         => new ChatText([new(ColorCommand, text)]);
