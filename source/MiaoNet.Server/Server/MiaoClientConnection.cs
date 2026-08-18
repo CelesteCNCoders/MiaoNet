@@ -16,10 +16,6 @@ namespace MiaoNet.Server;
 public sealed class MiaoClientConnection : IPacketSerializationContext
 {
     public const int TcpBufferSize = 2048;
-    public const int UdpBufferSize = 1344;
-    public const int MaxPacketPartSize = 4096;
-    public const int PacketChannelSize = 64;
-    public const int PacketBatchSize = 1344;
 
     // TODO timeout of request
     public delegate Task ResponseHandler(PacketResponse response);
@@ -244,15 +240,59 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         // TODO avoid using MemoryStream
         MemoryStream ms = new(512);
         var channelReader = sendChannel.Reader;
+        TimeSpan batchInterval = server.SendBatchInterval;
+        int batchSize = server.SendBatchSize;
+        TimeProvider timeProvider = TimeProvider.System;
+
+        // TODO yes obviously client should handle batching too
+
+        // wait for data
         while (await channelReader.WaitToReadAsync(token))
         {
-            while (channelReader.TryRead(out var packet) && ms.Position < PacketBatchSize)
-                WritePacket(ms, packet, this);
+            Task? window = null;
+            while (true)
+            {
+                // then read them
+                bool flush = false;
+                while (channelReader.TryRead(out var packet))
+                {
+                    WritePacket(ms, packet, this);
+                    if (!packet.CanBatch || ms.Position >= batchSize)
+                    {
+                        flush = true;
+                        break;
+                    }
+                }
+
+                if (flush) break;
+
+                // not full, wait for more data
+                // and also start a timer, we'll flush when the timer elapses or the batch size is reached
+                window ??= Task.Delay(batchInterval, timeProvider, token);
+                Task<bool> waitTask = channelReader.WaitToReadAsync(token).AsTask();
+                if (await Task.WhenAny(waitTask, window) == window)
+                {
+                    // timer elapsed or cancelled, flush it
+                    await window;
+                    break;
+                }
+                else
+                {
+                    // if channel completed, flush the remaining data and exit
+                    // else, continue the loop to read more data
+                    bool channelCompleted = !await waitTask;
+                    if (channelCompleted)
+                        break;
+                    else
+                        continue;
+                }
+            }
 
             int size = checked((int)ms.Position);
-            var buffer = ms.GetBuffer().AsMemory(0, size);
+            Debug.Assert(size > 0);
 
-            await networkConnection.Stream.WriteAsync(buffer, token);
+            var mem = ms.GetBuffer().AsMemory(0, size);
+            await networkConnection.Stream.WriteAsync(mem, token);
             metricsService.RecordPacketTcpUpload(size);
 
             ms.Seek(0, SeekOrigin.Begin);

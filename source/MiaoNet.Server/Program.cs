@@ -1,6 +1,7 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using MiaoNet.Shared;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,7 +11,7 @@ using NReco.Logging.File;
 
 namespace MiaoNet.Server;
 
-public static class Program
+public static partial class Program
 {
     public static void Main(string[] args)
     {
@@ -81,7 +82,13 @@ public static class Program
 
         using (IHost host = builder.Build())
         {
+            if (OperatingSystem.IsWindows())
+                _ = timeBeginPeriod(1);
+
             host.Run();
         }
     }
+
+    [LibraryImport("winmm.dll")]
+    private static partial uint timeBeginPeriod(uint uPeriod);
 }
