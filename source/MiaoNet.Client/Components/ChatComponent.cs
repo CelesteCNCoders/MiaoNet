@@ -82,10 +82,10 @@ public sealed partial class ChatComponent : MiaoNetComponent
         chatMessageBox.ChatMessageListView.ShowDuration = settings.ChatDisplayDuration;
         chatMessageBox.ChatMessageListView.NewMessagesShowing = settings.NewMessagesShowing switch
         {
-            NewMessageShowingMode.ShowAll => global::Celeste.Mod.ChatInputBox.NewMessageShowingMode.ShowAll,
-            NewMessageShowingMode.WithTab => global::Celeste.Mod.ChatInputBox.NewMessageShowingMode.WithTab,
-            NewMessageShowingMode.HideAll => global::Celeste.Mod.ChatInputBox.NewMessageShowingMode.HideAll,
-            _ => global::Celeste.Mod.ChatInputBox.NewMessageShowingMode.ShowAll
+            NewMessageShowingMode.ShowAll => ChatInputBox.NewMessageShowingMode.ShowAll,
+            NewMessageShowingMode.WithTab => ChatInputBox.NewMessageShowingMode.WithTab,
+            NewMessageShowingMode.HideAll => ChatInputBox.NewMessageShowingMode.HideAll,
+            _ => ChatInputBox.NewMessageShowingMode.ShowAll
         };
         chatMessageBox.ChatMessageListView.IdleHeight = settings.IdleChatHeightValue;
         chatMessageBox.ChatMessageListView.ActiveHeight = settings.ActiveChatHeightValue;
