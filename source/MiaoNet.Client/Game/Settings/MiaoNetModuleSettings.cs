@@ -294,8 +294,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
             bindings.Add(new(0, i < 8 ? Keys.D1 + i : Keys.None));
         EmoteButtons = bindings;
         CreateFireworksButton = new(0, 0);
-        PlayerListScrollUp = new(0, Keys.PageUp);
-        PlayerListScrollDown = new(0, Keys.PageDown);
+        PlayerListScrollUp = new(0, Keys.Up);
+        PlayerListScrollDown = new(0, Keys.Down);
         EmoteWheelSendEmote = new(Buttons.RightStick, 0);
     }
 
