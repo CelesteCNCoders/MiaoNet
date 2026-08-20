@@ -3,21 +3,21 @@ namespace MiaoNet.Shared;
 // client to server
 public sealed class PacketPlayerChannelMove : IContextlessPacket<PacketPlayerChannelMove>
 {
-    public int TargetChannelID { get; }
+    public string TargetChannelName { get; }
 
-    public PacketPlayerChannelMove(int targetChannelID)
+    public PacketPlayerChannelMove(string targetChannelName)
     {
-        TargetChannelID = targetChannelID;
+        TargetChannelName = targetChannelName;
     }
 
     public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(TargetChannelID);
+        writer.Write(TargetChannelName);
     }
 
     public static PacketPlayerChannelMove Deserialize(ref RefBinaryReader reader)
     {
-        return new(reader.ReadInt32());
+        return new(reader.ReadString());
     }
 }
 

@@ -155,6 +155,7 @@ miaonet_connection_status_ssl_error= Connection SSL Error：(0) ((1))
 miaonet_connection_status_revocation_check_failed= Connection establishment failed. Failed to check certificate revocation status.
 
 miaonet_player_list_channel_header= #(0) | (1) Player(s)
+miaonet_private_channel_name= <Private>
 
 miaonet_chat_disabled= Chat has been set to disabled
 
@@ -233,6 +234,7 @@ miaonet_commands_teleport_tip= Teleporting to (0)...
 miaonet_commands_teleport_failed_tip= Teleport failed, (0)
 miaonet_commands_teleport_failed_nosuchplayer= no such player
 miaonet_commands_teleport_failed_otherdenied= the other denied
+miaonet_commands_teleport_failed_otherdoesnotresponse = the other does not response
 miaonet_commands_teleport_success= Teleported to (0)
 miaonet_commands_teleport_success_nosession= Teleported to (0)'s location
 miaonet_commands_teleport_back_notice= You're currently using a temporary save. Type "/back" to return to your original save.

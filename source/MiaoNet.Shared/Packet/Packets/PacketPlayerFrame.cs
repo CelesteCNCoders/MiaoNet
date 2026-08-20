@@ -2,6 +2,8 @@ namespace MiaoNet.Shared;
 
 public sealed class PacketPlayerFrame : IContextualPacket<PacketPlayerFrame>
 {
+    public bool CanBatch => true;
+
     public PlayerStateDelta StateDelta { get; }
 
     public PacketPlayerFrame(PlayerStateDelta stateDelta)

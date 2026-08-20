@@ -36,6 +36,8 @@ public sealed class PacketContextualPlayerNotification<TPacket>
 
     public TPacket Packet { get; }
 
+    public bool CanBatch => Packet.CanBatch;
+
     public PacketContextualPlayerNotification(int playerID, TPacket packet)
         => (PlayerID, Packet) = (playerID, packet);
 

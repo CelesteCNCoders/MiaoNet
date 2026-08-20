@@ -40,6 +40,12 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
     public int DisconnectTimeout => options.DisconnectTimeout;
 
+    public TimeSpan SendBatchInterval => TimeSpan.FromSeconds(1.0 / options.SendBatchFrequency);
+
+    public int SendBatchSize => options.SendBatchSize;
+
+    public TimeSpan RequestTimeout => TimeSpan.FromMilliseconds(options.RequestTimeout);
+
     public MiaoServerService(
         ILogger<MiaoServerService> logger,
         IOptions<MiaoServerOptions> options,
@@ -124,15 +130,19 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
             {
                 // fetch online players infos
                 var channels = serverState.Channels
+                    .Where(c => !c.Value.IsPrivate || c.Value.ID == newPlayer.Channel.ID)
                     .Select(c => new PacketClientInitial.Channel(c.Value.ID, c.Value.Info));
+
                 // cross-channel players are name-only: only same-channel players get
-                // their real location/global flags, everyone else gets empty placeholders
+                // their real location/global flags, everyone else gets empty placeholders.
                 var playerInfos =
                     from pair in serverState.Players
                     let p = pair.Value.Player
                     let sameChannel = p.Channel.ID == newPlayer.Channel.ID
+                    let hidden = p.Channel.IsPrivate && !sameChannel
                     select new PacketClientInitial.Player(
-                        p.Channel.ID, p.ID, p.Info,
+                        hidden ? ChannelInfo.PrivateChannelVirtualID : p.Channel.ID,
+                        p.ID, p.Info,
                         sameChannel ? p.Location : PlayerLocation.Empty,
                         sameChannel ? p.GlobalFlags : PlayerGlobalFlags.None
                     );
@@ -155,11 +165,32 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                 serverState.AddPlayer(newConnection);
 
                 // and then tell other clients a new player came
-                tellOthersOneJoinedTask = BroadcastToScopeExceptAsync(
-                    new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.ID, newPlayer.Info),
-                    serverState,
-                    newPlayer.ID
-                );
+                if (newPlayer.Channel.IsPrivate)
+                {
+                    // if the new player is in private channel initially
+                    // they are only visible to members of that channel
+                    tellOthersOneJoinedTask = Task.WhenAll(
+                        BroadcastToScopeExceptAsync(
+                            new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.ID, newPlayer.Info),
+                            newPlayer.Channel,
+                            newPlayer.ID
+                        ),
+                        BroadcastToScopeExceptAsync(
+                            new PacketPlayerJoined(ChannelInfo.PrivateChannelVirtualID, newPlayer.ID, newPlayer.Info),
+                            serverState,
+                            newPlayer.ID,
+                            c => !newPlayer.Channel.Players.Contains(c)
+                        )
+                    );
+                }
+                else
+                {
+                    tellOthersOneJoinedTask = BroadcastToScopeExceptAsync(
+                        new PacketPlayerJoined(newPlayer.Channel.ID, newPlayer.ID, newPlayer.Info),
+                        serverState,
+                        newPlayer.ID
+                    );
+                }
             }
 
             await sendStateTask;
@@ -215,28 +246,28 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
                 async Task<TimeSpan?> PingFor(MiaoClientConnection connection, int timeout)
                 {
-                    TaskCompletionSource responseTcs = new();
+                    TaskCompletionSource<TimeSpan?> responseTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
                     var start = stopwatch.Elapsed;
-                    await connection.RequestAsync(new PacketPing(), OnResponse);
-
-                    Task timeoutTask = Task.Delay(timeout, CancellationToken.None);
-                    Task completedTask = await Task.WhenAny(responseTcs.Task, timeoutTask);
-                    if (completedTask == responseTcs.Task)
-                    {
-                        var end = stopwatch.Elapsed;
-                        return end - start;
-                    }
-                    else
-                    {
-                        logger.LogInformation(AppEvents.Connection, "{p} timeouted heartbeat.", connection.Player.Info);
-                        await connection.DisconnectAsync(DisconnectReason.Timeout);
-                        return null;
-                    }
+                    await connection.RequestAsync(
+                        new PacketPing(),
+                        OnResponse,
+                        TimeSpan.FromMilliseconds(timeout),
+                        OnTimeout,
+                        token
+                    );
+                    return await responseTcs.Task.WaitAsync(token);
 
                     Task OnResponse(PacketPong pong)
                     {
-                        responseTcs.SetResult();
+                        responseTcs.TrySetResult(stopwatch.Elapsed - start);
                         return Task.CompletedTask;
+                    }
+
+                    async Task OnTimeout()
+                    {
+                        logger.LogInformation(AppEvents.Connection, "{p} timed out heartbeat.", connection.Player.Info);
+                        await connection.DisconnectAsync(DisconnectReason.Timeout);
+                        responseTcs.TrySetResult(null);
                     }
                 }
 

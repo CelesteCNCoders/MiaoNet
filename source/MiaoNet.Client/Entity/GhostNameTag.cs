@@ -42,9 +42,11 @@ public sealed class GhostNameTag : MiaoNetEntity
     {
         base.Render();
 
-        const float Scale = 1f / 2f;
+        const float BaseScale = 1f / 2f;
         const float Margin = 8f;
         const float FadeRadius = 128f;
+
+        float scale = BaseScale * SceneAs<Level>().Zoom;
 
         var f = ExtendedVariantInterop.GetCurrentVariantValue;
         bool upsideDown = f is not null && (bool)f.Invoke("UpsideDown");
@@ -59,7 +61,7 @@ public sealed class GhostNameTag : MiaoNetEntity
             position.Y = Celeste.TargetHeight - position.Y;
         Vector2 clampedPosition = ScreenClamper.ClampIntoScreen(
             position,
-            MiaoNetFont.Measure(Text) * Scale,
+            MiaoNetFont.Measure(Text) * scale,
             justify,
             Margin
         );
@@ -78,7 +80,7 @@ public sealed class GhostNameTag : MiaoNetEntity
             Text,
             clampedPosition,
             justify,
-            Vector2.One * Scale,
+            Vector2.One * scale,
             Color * alpha
         );
     }

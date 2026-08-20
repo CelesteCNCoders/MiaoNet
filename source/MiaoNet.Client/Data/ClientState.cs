@@ -38,6 +38,11 @@ public sealed class ClientState
         players = new();
         channels = new();
 
+        channels.Add(
+            ChannelInfo.PrivateChannelVirtualID,
+            new OnlineChannel(ChannelInfo.PrivateChannelVirtualID, new ChannelInfo(Dialog.Get("miaonet_private_channel_name")))
+        );
+
         foreach (var channel in clientInitial.Channels)
             channels.Add(channel.ID, new OnlineChannel(channel.ID, channel.ChannelInfo));
         foreach (var player in clientInitial.Players)
@@ -63,7 +68,7 @@ public sealed class ClientState
     public OnlineChannel OnNewChannelCreated(int channelID, ChannelInfo channelInfo)
     {
         var channel = new OnlineChannel(channelID, channelInfo);
-        channels.Add(channelID, channel);
+        channels.TryAdd(channelID, channel);
         return channel;
     }
 
@@ -73,73 +78,135 @@ public sealed class ClientState
         var channel = player.Channel;
         channel.Players.Remove(player);
         players.Remove(playerID);
+        RemoveChannelIfNeeded(channel);
     }
 
-    public void OnChannelRemoved(int channelID)
+    private void RemoveChannel(int channelID)
     {
+        SafeGuard.Assert(channelID != ChannelInfo.PrivateChannelVirtualID);
+
         var channel = channels[channelID];
         SafeGuard.Assert(channel.Players.Count == 0);
         channels.Remove(channelID);
     }
 
-    public void OnSelfChannelMove(int channelID, out OnlineChannel previous, out OnlineChannel current)
+    private void RemoveChannelIfNeeded(OnlineChannel channel)
     {
-        var c = GetChannel(channelID);
-        previous = Self.Channel;
-        Self.Channel = c;
-        current = c;
-
-        if (previous != current)
+        if (channel.Players.Count == 0
+            && SelfChannel != channel
+            && channel.ID != ChannelInfo.MainChannelID
+            && channel.ID != ChannelInfo.PrivateChannelVirtualID)
         {
-            foreach (var player in previous.Players)
-                ClearPlayerPresenceInfo(player);
+            RemoveChannel(channel.ID);
         }
-        return;
     }
 
-    public void OnPlayerChannelMove(int playerID, int channelID, out OnlinePlayer player, out OnlineChannel previous, out OnlineChannel current)
+    public void OnSelfChannelMove(int channelID, IEnumerable<PlayerPresenceDataWithID>? channelPlayers)
+    {
+        var target = GetChannel(channelID);
+        var previous = Self.Channel;
+        Self.Channel = target;
+
+        foreach (var player in previous.Players)
+            ClearPlayerPresenceInfo(player);
+
+        if (channelPlayers is not null)
+        {
+            foreach (var info in channelPlayers)
+                ApplyPlayerPresenceData(info);
+        }
+
+        if (previous != target)
+        {
+            if (previous.IsPrivate)
+            {
+                // we're leaving a private channel
+                // move its remaining members into the virtual private channel
+                var virtualChannel = GetChannel(ChannelInfo.PrivateChannelVirtualID);
+                foreach (var player in previous.Players.ToArray())
+                    MovePlayerToChannel(player, virtualChannel);
+                RemoveChannel(previous.ID);
+            }
+            else
+            {
+                RemoveChannelIfNeeded(previous);
+            }
+        }
+
+        // we're joining a private channel
+        // move its members into the real private channel
+        if (target.IsPrivate && channelPlayers is not null)
+        {
+            foreach (var info in channelPlayers)
+                MovePlayerToChannel(GetPlayer(info.PlayerID), target);
+        }
+    }
+
+    public void OnPlayerChannelMove(int playerID, int channelID, PlayerPresenceData? presence, out OnlinePlayer player)
     {
         player = GetPlayer(playerID);
-        previous = player.Channel;
-        current = GetChannel(channelID);
+        var previous = player.Channel;
+        var current = GetChannel(channelID);
+
+        MovePlayerToChannel(player, current);
+
+        if (current != previous)
+        {
+            ClearPlayerPresenceInfo(player);
+            RemoveChannelIfNeeded(previous);
+        }
+
+        if (presence is not null)
+            ApplyPlayerPresenceData(player, presence.Value);
+    }
+
+    private void MovePlayerToChannel(OnlinePlayer player, OnlineChannel channel)
+    {
+        SafeGuard.Assert(players.ContainsValue(player));
 
         bool result = player.Channel.Players.Remove(player);
         SafeGuard.Assert(result);
-        player.Channel = current;
-        current.Players.Add(player);
 
-        if (current != Self.Channel)
-            ClearPlayerPresenceInfo(player);
-
-        return;
+        player.Channel = channel;
+        channel.Players.Add(player);
     }
 
-    private static void ClearPlayerPresenceInfo(OnlinePlayer player)
+    private void ClearPlayerPresenceInfo(OnlinePlayer player)
     {
+        SafeGuard.Assert(players.ContainsValue(player));
+
         player.Location = PlayerLocation.Empty;
         player.LastPing = -1;
         player.State = null;
         player.GlobalFlags = PlayerGlobalFlags.None;
     }
 
+    public void ApplyPlayerPresenceData(OnlinePlayer player, PlayerPresenceData info)
+    {
+        SafeGuard.Assert(players.ContainsValue(player));
+
+        player.Location = info.Location;
+        player.GlobalFlags = info.GlobalFlags;
+    }
+
     public void ApplyPlayerPresenceData(PlayerPresenceDataWithID info)
         => ApplyPlayerPresenceData(info.PlayerID, info.Data);
 
     public void ApplyPlayerPresenceData(int playerID, PlayerPresenceData info)
+        => ApplyPlayerPresenceData(GetPlayer(playerID), info);
+
+    public void ApplyPlayerMovedInitialData(OnlinePlayer player, PlayerMovedInitialData data)
     {
-        var player = GetPlayer(playerID);
-        player.Location = info.Location;
-        player.GlobalFlags = info.GlobalFlags;
+        SafeGuard.Assert(players.ContainsValue(player));
+
+        player.State = data.InitialState;
     }
 
     public void ApplyPlayerMovedInitialData(PlayerMovedInitialDataWithID data)
         => ApplyPlayerMovedInitialData(data.PlayerID, data.InitialData);
 
     public void ApplyPlayerMovedInitialData(int playerID, PlayerMovedInitialData data)
-    {
-        var player = GetPlayer(playerID);
-        player.State = data.InitialState;
-    }
+        => ApplyPlayerMovedInitialData(GetPlayer(playerID), data);
 
     public bool TryGetPlayer(int playerID, [NotNullWhen(true)] out OnlinePlayer? player)
         => players.TryGetValue(playerID, out player);
@@ -155,6 +222,7 @@ public sealed class ClientState
     {
         if (players.TryGetValue(playerID, out player))
             return true;
+
         if (Self.ID == playerID)
         {
             player = Self;

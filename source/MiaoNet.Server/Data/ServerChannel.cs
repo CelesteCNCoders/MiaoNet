@@ -13,6 +13,8 @@ public sealed class ServerChannel : IPlayerScope
 
     public ChannelInfo Info { get; }
 
+    public bool IsPrivate => Info.IsPrivate;
+
     public ImmutableHashSet<MiaoClientConnection> Players => players;
 
     IEnumerable<MiaoClientConnection> IPlayerScope.Players => players;

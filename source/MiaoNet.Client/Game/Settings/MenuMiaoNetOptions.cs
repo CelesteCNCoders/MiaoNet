@@ -138,14 +138,6 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
         item.AddDescription(menu, Dialog.Clean("miaonet_options_ignore_cert_revocation_status_tip"));
 
-        /*
-        item = new TextMenu.OnOff(
-            Dialog.Get("miaonet_options_use_sync_refresh"), false
-        );
-        menu.Add(item);
-        item.AddDescription(menu, Dialog.Clean("miaonet_options_use_sync_refresh_tip"));
-        */
-
         #endregion
 
         #region Visuals
@@ -213,7 +205,7 @@ public static class MenuMiaoNetOptions
         #endregion
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_player_opacity"), 1, 10, settings.PlayerOpacity
+            Dialog.Get("miaonet_options_player_opacity"), 0, 10, settings.PlayerOpacity
         ).Change(v => settings.PlayerOpacity = v);
         menu.Add(item);
 
@@ -223,7 +215,7 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_player_name_opacity"), 1, 10, settings.PlayerNameOpacity
+            Dialog.Get("miaonet_options_player_name_opacity"), 0, 10, settings.PlayerNameOpacity
         ).Change(v => settings.PlayerNameOpacity = v);
         menu.Add(item);
 
@@ -247,7 +239,7 @@ public static class MenuMiaoNetOptions
         }
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_emote_opacity"), 1, 10, settings.EmoteOpacity
+            Dialog.Get("miaonet_options_emote_opacity"), 0, 10, settings.EmoteOpacity
         ).Change(v => settings.EmoteOpacity = v);
         menu.Add(item);
 

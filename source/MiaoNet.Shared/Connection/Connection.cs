@@ -13,6 +13,10 @@ public static class Connection
 
     public const int HandshakeHeadLength = 16;
 
+    public const int PacketHeaderSize = sizeof(ushort) * 2;
+
+    public const int MaxPayloadSize = ushort.MaxValue;
+
     // allows only TLS 1.2 or TLS 1.3
     public const SslProtocols AllowedSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13;
 

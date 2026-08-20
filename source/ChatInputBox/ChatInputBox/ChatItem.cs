@@ -6,13 +6,15 @@ public class ChatItem
 {
     private string? dateTimeText;
     private ChatText messageText;
-    
+
     private const float Margin = 16f;
     private const float Padding = 8f;
     private const float MessageXPadding = 8f;
     private const float MessageYPadding = 8f;
-    
-    private const float TimeTextWidthRatio = 3.25f;
+
+    // width of "00:00:00", the max width of the time text, though we need to avoid hardcoding...
+    private const float TimeTextWidthRatio = 3.5625f;
+    private const float TimeTextXPadding = 2f;
 
     public ChatItem(DateTime dateTime, ChatText messageText)
     {
@@ -28,7 +30,7 @@ public class ChatItem
     {
         float lineHeight = textRenderer.LineHeight;
         float messageLineHeight = lineHeight + 2 * MessageYPadding;
-        float timeTextMaxWidth = TimeTextWidthRatio * lineHeight;
+        float timeTextMaxWidth = TimeTextWidthRatio * lineHeight + 2 * TimeTextXPadding;
         float lineWidth = MeasureSingleMessage(messageText, textRenderer);
         if (dateTimeText is not null)
             lineWidth += timeTextMaxWidth;
@@ -44,10 +46,10 @@ public class ChatItem
 
         float curX = x + MessageXPadding;
         float curY = y - MessageYPadding;
-        
+
         if (dateTimeText is not null)
         {
-            textRenderer.Draw(dateTimeText, new Vector2(curX, curY), new Vector2(0f, 1f), Color.CornflowerBlue * drawAlpha);
+            textRenderer.Draw(dateTimeText, new Vector2(curX + TimeTextXPadding, curY), new Vector2(0f, 1f), Color.CornflowerBlue * drawAlpha);
             curX += timeTextMaxWidth;
         }
 
@@ -65,10 +67,10 @@ public class ChatItem
             Draw.Rect(xi, yi, wi, hi, color);
         }
     }
-    
+
     private float MeasureSingleMessage(ChatText chatText, IScalelessTextRenderer textRenderer)
         => chatText.Segments.Aggregate(0f, (v, seg) => v += textRenderer.Measure(seg.Text).X);
-    
+
     private static string FormatDateTime(DateTime dateTime)
         => dateTime.ToLocalTime().ToString("T", CultureInfo.InvariantCulture);
 }

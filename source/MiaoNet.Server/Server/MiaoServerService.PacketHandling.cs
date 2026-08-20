@@ -12,7 +12,6 @@ public sealed partial class MiaoServerService
         r.Register<PacketPlayerFrame>(HandlePacketAsync);
         r.Register<PacketPlayerLocationChanged>(HandlePacketAsync);
         r.Register<PacketPlayerChannelMove>(HandlePacketAsync);
-        r.Register<PacketChannelCreateAndJoin>(HandlePacketAsync);
         r.Register<PacketSendChatMessage>(HandlePacketAsync);
         r.Register<PacketSendEmote>(HandlePacketAsync);
         r.Register<PacketSendEmoteText>(HandlePacketAsync);
@@ -192,26 +191,51 @@ public sealed partial class MiaoServerService
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerChannelMove packet)
     {
-        if (!serverState.Channels.TryGetValue(packet.TargetChannelID, out var channel))
-        {
-            // TODO tell the client?
-            return;
-        }
         var player = connection.Player;
 
         ValueTask responseTask;
         Task sameMapTask;
         Task sameChannelTask;
         Task crossChannelTask;
+        Task createdBroadcastTask = Task.CompletedTask;
+        ValueTask createdTask = default;
+        bool notifyChannelCreated = false;
 
         using (stateLock.AcquireWriteLock())
         {
-            channel.Maps.TryGetValue(player.Location.Map, out ServerMap? mapTo);
+            if (!serverState.TryGetChannelByName(packet.TargetChannelName, out ServerChannel? targetChannel))
+            {
+                // not found, create a new channel with the given name
+                targetChannel = serverState.CreateNewChannel(new ChannelInfo(packet.TargetChannelName));
+                serverState.AddChannel(targetChannel);
+
+                if (targetChannel.IsPrivate)
+                {
+                    // tell only the creator this channel is created
+                    notifyChannelCreated = true;
+                }
+                else
+                {
+                    // tell everyone
+                    createdBroadcastTask = BroadcastToScopeAsync(
+                        new PacketChannelCreated(targetChannel.ID, targetChannel.Info),
+                        serverState
+                    );
+                }
+            }
+            else if (targetChannel.IsPrivate && !targetChannel.Players.Contains(connection))
+            {
+                // channel is private, and the player is not in it
+                // tell the player they should create the channel locally
+                notifyChannelCreated = true;
+            }
+
+            targetChannel.Maps.TryGetValue(player.Location.Map, out ServerMap? mapTo);
             mapTo?.StateLock.EnterWriteLock();
             try
             {
-                var channelPlayers = new List<PlayerPresenceDataWithID>(channel.Players.Count);
-                foreach (var c in channel.Players)
+                var channelPlayers = new List<PlayerPresenceDataWithID>(targetChannel.Players.Count);
+                foreach (var c in targetChannel.Players)
                 {
                     if (c.ID == connection.ID)
                         continue;
@@ -221,13 +245,16 @@ public sealed partial class MiaoServerService
                 }
                 var mapPlayers = mapTo?.GetPlayerMovedInitialDatas(connection);
 
-                var responsePacket = new PacketPlayerChannelMovedResponse(channel.ID, mapPlayers, channelPlayers);
+                if (notifyChannelCreated)
+                    createdTask = connection.QueuePacketAsync(new PacketChannelCreated(targetChannel.ID, targetChannel.Info));
+
+                var responsePacket = new PacketPlayerChannelMovedResponse(targetChannel.ID, mapPlayers, channelPlayers);
                 responseTask = connection.QueuePacketAsync(responsePacket);
 
                 // same-map players in the target channel get state + presence
                 var sameMapNotification = new PacketPlayerChannelMovedNotification(
                     connection.ID,
-                    channel.ID,
+                    targetChannel.ID,
                     player.State is null ? null : new PlayerMovedInitialData(player.State),
                     new PlayerPresenceData(player.Location, player.GlobalFlags)
                 );
@@ -237,23 +264,28 @@ public sealed partial class MiaoServerService
 
                 var sameChannelNotification = new PacketPlayerChannelMovedNotification(
                     connection.ID,
-                    channel.ID,
+                    targetChannel.ID,
                     null,
                     new PlayerPresenceData(player.Location, player.GlobalFlags)
                 );
                 sameChannelTask = BroadcastToScopeExceptAsync(
                     sameChannelNotification,
-                    channel,
+                    targetChannel,
                     connection.ID,
                     c => mapTo is null || !mapTo.Players.Contains(c)
                 );
 
-                var crossChannelNotification = new PacketPlayerChannelMovedNotification(connection.ID, channel.ID);
+                // players in other channels get only a "moved" notification
+                // and for private channels, the virtual id is used instead of the real channel id
+                var crossChannelNotification = new PacketPlayerChannelMovedNotification(
+                    connection.ID,
+                    targetChannel.IsPrivate ? ChannelInfo.PrivateChannelVirtualID : targetChannel.ID
+                );
                 crossChannelTask = BroadcastToScopeExceptAsync(
                     crossChannelNotification,
                     serverState,
                     connection.ID,
-                    c => c.Player.Channel != channel
+                    c => c.Player.Channel != targetChannel
                 );
             }
             finally
@@ -261,39 +293,16 @@ public sealed partial class MiaoServerService
                 mapTo?.StateLock.ExitWriteLock();
             }
 
-            serverState.PlayerChannelMove(connection, player.Channel, channel);
+            serverState.PlayerChannelMove(connection, player.Channel, targetChannel);
         }
 
+        if (notifyChannelCreated)
+            await createdTask;
+        await createdBroadcastTask;
         await responseTask;
         await sameMapTask;
         await sameChannelTask;
         await crossChannelTask;
-    }
-
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketChannelCreateAndJoin packet)
-    {
-        Task createdTask;
-        Task movedTask;
-        ValueTask responseTask;
-
-        using (stateLock.AcquireWriteLock())
-        {
-            var channel = serverState.CreateNewChannel(packet.ChannelInfo);
-            serverState.AddChannel(channel);
-            serverState.PlayerChannelMove(connection, connection.Player.Channel, channel);
-
-            createdTask = BroadcastToScopeAsync(new PacketChannelCreated(channel.ID, channel.Info), serverState);
-            movedTask = BroadcastToScopeExceptAsync(
-                new PacketPlayerChannelMovedNotification(connection.ID, channel.ID),
-                serverState,
-                connection.ID
-            );
-            responseTask = connection.QueuePacketAsync(new PacketPlayerChannelMovedResponse(channel.ID, null, null));
-        }
-
-        await createdTask;
-        await movedTask;
-        await responseTask;
     }
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketSendChatMessage packet)
@@ -380,9 +389,13 @@ public sealed partial class MiaoServerService
             && target.Player.Channel == connection.Player.Channel)
         {
             logger.LogInformation(AppEvents.Game, "{p} is requesting to teleport to {p2}.", connection.Player.Info, target.Player.Info);
-            await target.RequestAsync(new PacketBeTeleportedRequest(connection.ID), OnOtherResponse);
+            await target.RequestAsync(
+                new PacketBeTeleportedRequest(connection.ID),
+                OnOtherResponse,
+                RequestTimeout,
+                OnOtherTimeout
+            );
 
-            // TODO timeout
             Task OnOtherResponse(PacketBeTeleportedResponse response)
             {
                 if (response.Accepted)
@@ -401,6 +414,20 @@ public sealed partial class MiaoServerService
                         new(PacketTeleportResponse.TeleportFailedReason.OtherDenied, null)
                     ).AsTask();
                 }
+            }
+
+            Task OnOtherTimeout()
+            {
+                logger.LogInformation(
+                    AppEvents.Game,
+                    "{p}'s teleport request to {p2} timed out.",
+                    connection.Player.Info,
+                    target.Player.Info
+                );
+                return connection.ResponseAsync(
+                    request,
+                    new(PacketTeleportResponse.TeleportFailedReason.OtherDoesNotResponse, null)
+                ).AsTask();
             }
         }
         else
@@ -456,11 +483,27 @@ public sealed partial class MiaoServerService
     {
         if (!ServerState.Players.TryGetValue(packet.PlayerID, out var p))
             return;
-        // holding requires the same channel and the same map
-        if (p.Player.Channel != connection.Player.Channel
-            || p.Player.Location.Map != connection.Player.Location.Map)
+        // Both grab and release packets are only valid inside the normal sync scope.
+        if (!p.Player.ShouldSyncFrom(connection.Player))
             return;
-        // TODO verify this action server-side
+
+        if (!packet.IsRelease && !PlayerInteractionValidator.CanGrab(connection.Player, p.Player))
+        {
+            logger.LogWarning(
+                AppEvents.GameState,
+                "Player {source} tried to grab {target} outside an enabled sync scope.",
+                connection.Player.Info,
+                p.Player.Info
+            );
+            return;
+        }
+
+        if (packet.IsRelease && !PlayerInteractionValidator.IsValidReleaseForce(packet.Force))
+        {
+            logger.LogWarning(AppEvents.GameState, "Player {source} sent an invalid release force.", connection.Player.Info);
+            return;
+        }
+
         PacketPlayerGrabPlayer send = packet.IsRelease ? new(connection.ID, packet.Force) : new(connection.ID);
         await p.QueuePacketAsync(send);
     }

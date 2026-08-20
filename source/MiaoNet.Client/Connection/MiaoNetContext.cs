@@ -14,8 +14,9 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     private readonly ConcurrentDictionary<int, Action<PacketResponse>> pendingRequests;
     //private int warningTimes;
 
-    private CancellationTokenSource? cts;
-    private readonly ConcurrentQueue<IContextualPacket> receiveQueue;
+    private readonly ConnectionLifecycleCoordinator connectionLifecycle;
+    private ConnectionOperation? activeConnectionOperation;
+    private readonly ConcurrentQueue<(long Generation, IContextualPacket Packet)> receiveQueue;
     private readonly ConcurrentQueue<Action> mainThreadQueue;
 
     private readonly List<MiaoNetComponent> components;
@@ -98,6 +99,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         receiveQueue = new();
         pendingRequests = new();
         mainThreadQueue = new();
+        connectionLifecycle = new();
 
         var main = MainComponent = new MainComponent(this);
         var pl = new PlayerListComponent(this);
@@ -118,57 +120,97 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public void Connect()
     {
-        if (cts is not null)
+        if (activeConnectionOperation is not null)
             return;
-        cts = new();
+
         // TODO hmmm tbh this is ugly, we'd better get a more elegant way to do this
         ShowAvatar = MiaoNetModule.Settings.ShowAvatar;
+        long generation = connectionLifecycle.Begin();
+#if USE_CELEMIAO_AUTH
+        string? authenticationCode = ClientRC.AuthenticationCode;
+        ClientRC.AuthenticationCode = null;
+        ConnectionOperation operation = new(
+            generation,
+            ShowAvatar,
+            TargetServer,
+            TargetPort,
+            authenticationCode,
+            MiaoNetModule.Settings.TokenData
+        );
+#else
+        ConnectionOperation operation = new(generation, ShowAvatar, TargetServer, TargetPort);
+#endif
+        activeConnectionOperation = operation;
+
         Thread connectionThread = new(new ParameterizedThreadStart(ConnectionThread));
-        connectionThread.Name = "MiaoNet Connection";
-        connectionThread.Start(cts.Token);
+        connectionThread.Name = $"MiaoNet Connection {generation}";
+        connectionThread.IsBackground = true;
+        connectionThread.Start(operation);
         StatusComponent.ShowStatusMessage(ConnectionStatus.Connecting, true);
     }
 
     public void OnConnected()
     {
-        PooledStringManager = new(KnownPooledStrings.All);
         components.ForEach(c => c.OnConnected());
     }
 
     public void Disconnect()
     {
-        if (connection is not null)
-            StatusComponent.ShowStatusMessage(ConnectionStatus.Disconnected);
-        OnDisconnected();
+        if (activeConnectionOperation is not null)
+        {
+            StatusComponent.ShowStatusMessage(
+                connection is not null ? ConnectionStatus.Disconnected : ConnectionStatus.Cancelled
+            );
+        }
+        OnDisconnected(activeConnectionOperation?.Generation);
     }
 
     public void DisconnectByException(Exception exception)
     {
         StatusComponent.ShowStatusMessage(ConnectionStatus.DisconnectedWithLocalReason(exception.Message));
-        OnDisconnected();
+        OnDisconnected(activeConnectionOperation?.Generation);
     }
 
     public void OnDisconnected()
+        => OnDisconnected(activeConnectionOperation?.Generation);
+
+    private void OnDisconnected(long? generation)
     {
-        cts?.Cancel();
-        cts = null;
+        if (generation is null)
+            return;
+
+        ConnectionOperation? operation = activeConnectionOperation;
+        if (operation is null || operation.Generation != generation.Value)
+            return;
+        if (!connectionLifecycle.TryEnd(generation.Value))
+            return;
+
+        activeConnectionOperation = null;
+        operation.Cancel();
+        bool hadConnection = connection is not null;
+
         // any better ways?
-        while (receiveQueue.TryDequeue(out var packet))
+        List<PacketDisconnected>? terminalPackets = null;
+        while (receiveQueue.TryDequeue(out var received))
         {
-            if (packet is PacketDisconnected dc)
-                packetDispatcher.DispatchPacket(dc);
+            if (received.Generation == generation.Value && received.Packet is PacketDisconnected dc)
+                (terminalPackets ??= []).Add(dc);
         }
-        receiveQueue.Clear();
         pendingRequests.Clear();
         clientState = null;
         hasComponentFocus = false;
         PooledStringManager = null;
         components?.ForEach(c => c.OnDisconnected());
-        if (connection is null)
-            return;
-        connection.Dispose();
         connection = null;
-        AvatarManager.PersistStateToDisk();
+        operation.CloseConnection(false);
+        if (hadConnection)
+            AvatarManager.PersistStateToDisk();
+
+        if (terminalPackets is not null)
+        {
+            foreach (PacketDisconnected packet in terminalPackets)
+                packetDispatcher.DispatchPacket(packet);
+        }
     }
 
     public void Update()
@@ -186,8 +228,11 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             while (mainThreadQueue.TryDequeue(out var item))
                 item();
 
-            while (receiveQueue.TryDequeue(out var packet))
-                HandleQueuedPacket(packet);
+            while (receiveQueue.TryDequeue(out var received))
+            {
+                if (connectionLifecycle.IsCurrent(received.Generation))
+                    HandleQueuedPacket(received.Packet);
+            }
 
             if (!HasConnection)
                 return;
@@ -202,13 +247,22 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         }
     }
 
-    private void OnInitialized(MiaoServerConnection connection, PacketClientInitial packetClientInitial)
+    private void OnInitialized(ConnectionOperation operation, MiaoServerConnection connection, PacketClientInitial packetClientInitial)
     {
+        if (!connectionLifecycle.TryMarkConnected(operation.Generation))
+            return;
+
 #if USE_CELEMIAO_AUTH
         MiaoNetModule.Settings.LastName = packetClientInitial.SelfPlayerInfo.Name;
+        if (operation.RefreshedAuthenticationData is not null)
+        {
+            MiaoNetModule.Settings.TokenData = operation.RefreshedAuthenticationData;
+            Logger.Info(LT.MiaoNetConnection, "Server sent new auth data, accepted.");
+        }
 #endif
         clientState = new(packetClientInitial);
         PlayerPresenceMessage = packetClientInitial.PlayerPresenceMessage;
+        PooledStringManager = operation.PooledStringManager;
         this.connection = connection;
         ClientInitialized?.Invoke(clientState);
         StatusComponent.ShowStatusMessage(ConnectionStatus.Connected);
@@ -218,37 +272,41 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     }
 
     // warn: this is called on Connection Thread
-    private bool HandleDirectPacket(IContextualPacket packet)
+    private bool HandleDirectPacket(ConnectionOperation operation, MiaoServerConnection connection, IContextualPacket packet)
     {
+        if (!connectionLifecycle.IsCurrent(operation.Generation))
+            return true;
+
         if (packet is PacketPing ping)
         {
-            Response(ping, new PacketPong());
+            PacketPong pong = new() { RequestID = ping.RequestID };
+            connection.QueuePacket(pong);
             return true;
         }
         else if (packet is PacketPlayerJoined joined)
         {
-            if (ShowAvatar)
+            if (operation.ShowAvatar)
             {
                 SynchronizationContext.Current!.Post(async s =>
                 {
                     PacketPlayerJoined joined = (PacketPlayerJoined)s!;
-                    await SafePrepareAvatarAsync(joined.PlayerID, joined.PlayerInfo);
+                    await SafePrepareAvatarAsync(operation, joined.PlayerID, joined.PlayerInfo);
                 }, joined);
             }
         }
         return false;
     }
 
-    private async Task SafePrepareAvatarAsync(int playerID, PlayerInfo playerInfo)
+    private async Task SafePrepareAvatarAsync(ConnectionOperation operation, int playerID, PlayerInfo playerInfo)
     {
-        SafeGuard.Assert(ShowAvatar);
+        SafeGuard.Assert(operation.ShowAvatar);
         try
         {
             string sid = $"\0mn_avt_{playerID}";
 
             if (string.IsNullOrEmpty(playerInfo.AvatarUrl))
             {
-                mainThreadQueue.Enqueue(() =>
+                QueueForOperation(operation.Generation, () =>
                 {
                     Emoji.Register(sid, GFX.Gui["miaonet/missing_avatar"], 64, 64);
                     Emoji.Fill(MiaoNetFont.ENZhsFont);
@@ -259,7 +317,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             if (!Uri.TryCreate(playerInfo.AvatarUrl, UriKind.Absolute, out Uri? uri))
             {
                 Logger.Warn(LT.MiaoNetAvatar, $"Invalid url \"{playerInfo.AvatarUrl}\" for player {playerInfo.DisplayName}.");
-                mainThreadQueue.Enqueue(() =>
+                QueueForOperation(operation.Generation, () =>
                 {
                     Emoji.Register(sid, GFX.Gui["miaonet/missing_avatar"], 64, 64);
                     Emoji.Fill(MiaoNetFont.ENZhsFont);
@@ -267,9 +325,9 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                 return;
             }
 
-            string avatarPath = await AvatarManager.GetAsync(uri);
+            string avatarPath = await AvatarManager.GetAsync(uri).ConfigureAwait(false);
 
-            mainThreadQueue.Enqueue(() =>
+            QueueForOperation(operation.Generation, () =>
             {
                 MTexture tex;
                 try
@@ -295,6 +353,15 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             );
             Logger.LogDetailed(e);
         }
+    }
+
+    private void QueueForOperation(long generation, Action action)
+    {
+        mainThreadQueue.Enqueue(() =>
+        {
+            if (connectionLifecycle.IsCurrent(generation))
+                action();
+        });
     }
 
     private void HandleQueuedPacket(IContextualPacket packet)

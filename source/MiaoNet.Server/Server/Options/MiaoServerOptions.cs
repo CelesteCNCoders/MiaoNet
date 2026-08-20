@@ -1,4 +1,4 @@
-﻿using MiaoNet.Shared;
+using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
 
@@ -13,6 +13,12 @@ public sealed class MiaoServerOptions
     public int HeartbeatTimeoutThreshold { get; set; } = 15000;
 
     public int DisconnectTimeout { get; set; } = 3000;
+
+    public double SendBatchFrequency { get; set; } = 1.0;
+
+    public int SendBatchSize { get; set; } = 1344;
+
+    public int RequestTimeout { get; set; } = 10000;
 
     public required CertificateOptions Certificate { get; set; }
 
