@@ -3,6 +3,7 @@ using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
+[Tracked]
 public sealed class MiaoNetGhost : MiaoNetGhostEntity
 {
     // prevent it from being AfterUpdated by Level.Update
@@ -176,6 +177,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                 Scene.Add(e);
         }
 
+
         if (OnlinePlayer.IsPaused)
             return;
 
@@ -249,8 +251,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             playerHair.StepYSinePerSegment = 0f;
             playerHair.StepPerSegment.Y += windDirection.Y * 0.5f;
         }
-
-        playerHair.AfterUpdate();
 
         if (!level.Paused)
         {
@@ -762,6 +762,25 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         if (respawning)
         {
             DeathEffect.Draw(Position, playerHair.Color, deadEase);
+        }
+    }
+
+    public void HairAfterUpdate()
+    {
+        if (dead)
+            return;
+
+        if (OnlinePlayer.IsPaused)
+        {
+            // only keep the position
+            // yes this is kinda hacky
+            Vector2 offset = playerHair.Sprite.HairOffset * new Vector2((float)playerHair.Facing, 1f);
+            Vector2 expectedNode0Position = playerHair.Sprite.RenderPosition + new Vector2(0f, -9f * playerHair.Sprite.Scale.Y) + offset;
+            playerHair.MoveHairBy(expectedNode0Position - playerHair.Nodes[0]);
+        }
+        else
+        {
+            playerHair.AfterUpdate();
         }
     }
 }
