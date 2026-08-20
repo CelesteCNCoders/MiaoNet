@@ -80,7 +80,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     }
 
     [MemberNotNullWhen(true, nameof(connection), nameof(ClientState), nameof(PlayerPresenceMessage))]
-    public bool HasConnection => connection is not null;
+    public bool HasConnection => connection is not null && clientState is not null;
 
     public ClientState? ClientState => clientState;
 
@@ -185,31 +185,60 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         if (!connectionLifecycle.TryEnd(generation.Value))
             return;
 
-        activeConnectionOperation = null;
-        operation.Cancel();
+        // Stop publishing the connection before invoking extensible cleanup code.
+        // A cleanup callback can fail or re-enter this method, but observers must
+        // never see a live connection paired with an already-cleared client state.
         bool hadConnection = connection is not null;
-
-        // any better ways?
-        List<PacketDisconnected>? terminalPackets = null;
-        while (receiveQueue.TryDequeue(out var received))
-        {
-            if (received.Generation == generation.Value && received.Packet is PacketDisconnected dc)
-                (terminalPackets ??= []).Add(dc);
-        }
-        pendingRequests.Clear();
+        activeConnectionOperation = null;
+        connection = null;
         clientState = null;
+        PlayerPresenceMessage = null;
         hasComponentFocus = false;
         PooledStringManager = null;
-        components?.ForEach(c => c.OnDisconnected());
-        connection = null;
-        operation.CloseConnection(false);
+
+        List<PacketDisconnected>? terminalPackets = null;
+        List<CleanupStep> cleanupSteps =
+        [
+            new("cancel connection operation", operation.Cancel),
+            new("drain receive queue", () =>
+            {
+                while (receiveQueue.TryDequeue(out var received))
+                {
+                    if (received.Generation == generation.Value && received.Packet is PacketDisconnected dc)
+                        (terminalPackets ??= []).Add(dc);
+                }
+            }),
+            new("clear pending requests", pendingRequests.Clear),
+        ];
+        if (components is not null)
+        {
+            cleanupSteps.AddRange(components.Select<MiaoNetComponent, CleanupStep>(component =>
+                new($"disconnect component {component.GetType().FullName}", component.OnDisconnected)));
+        }
+
+        List<CleanupStep> finalSteps =
+        [
+            new("close connection operation", () => operation.CloseConnection(false)),
+        ];
         if (hadConnection)
-            AvatarManager.PersistStateToDisk();
+            finalSteps.Add(new("persist avatar state", AvatarManager.PersistStateToDisk));
+
+        List<CleanupFailure> failures = [.. BestEffortCleanup.Run(cleanupSteps, finalSteps)];
 
         if (terminalPackets is not null)
         {
             foreach (PacketDisconnected packet in terminalPackets)
-                packetDispatcher.DispatchPacket(packet);
+            {
+                failures.AddRange(BestEffortCleanup.Run(
+                    [new("dispatch terminal disconnect packet", () => packetDispatcher.DispatchPacket(packet))],
+                    []));
+            }
+        }
+
+        foreach (CleanupFailure failure in failures)
+        {
+            Logger.Error(LT.MiaoNet, $"Failed to {failure.StepName}.");
+            Logger.LogDetailed(failure.Exception, LT.MiaoNet);
         }
     }
 
