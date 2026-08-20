@@ -16,7 +16,7 @@ namespace MiaoNet.Server;
 public sealed class MiaoClientConnection : IPacketSerializationContext
 {
     public const int TcpBufferSize = 2048;
-    public const int PacketChannelSize = 64;
+    public const int PacketChannelSize = 256;
     public const int MaxPendingRequests = 64;
 
     // TODO timeout of request
