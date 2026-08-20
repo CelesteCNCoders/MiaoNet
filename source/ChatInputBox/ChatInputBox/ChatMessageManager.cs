@@ -83,7 +83,7 @@ public class ChatMessageManager
     
     public void CycleTab(int offset)
     {
-        activeTabIndex = (activeTabIndex + offset + 1) % (tab.Count + 1) - 1;
+        activeTabIndex = ((activeTabIndex + offset + 1) + (tab.Count + 1)) % (tab.Count + 1) - 1;
     }
 
     public void SetActiveTab(string name)
