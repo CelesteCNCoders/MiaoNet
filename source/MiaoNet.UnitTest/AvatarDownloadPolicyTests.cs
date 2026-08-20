@@ -50,4 +50,14 @@ public sealed class AvatarDownloadPolicyTests
         Assert.IsFalse(AvatarDownloadPolicy.IsSupportedImage(png));
         Assert.IsFalse(AvatarDownloadPolicy.IsSupportedImage("not an image"u8));
     }
+
+    [TestMethod]
+    public void RejectsGifAndJpegImages()
+    {
+        ReadOnlySpan<byte> gif = [71, 73, 70, 56, 57, 97, 64, 0, 64, 0];
+        ReadOnlySpan<byte> jpeg = [0xff, 0xd8, 0xff, 0xc0, 0, 7, 8, 0, 64, 0, 64];
+
+        Assert.IsFalse(AvatarDownloadPolicy.IsSupportedImage(gif));
+        Assert.IsFalse(AvatarDownloadPolicy.IsSupportedImage(jpeg));
+    }
 }
