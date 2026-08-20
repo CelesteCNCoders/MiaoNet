@@ -389,9 +389,13 @@ public sealed partial class MiaoServerService
             && target.Player.Channel == connection.Player.Channel)
         {
             logger.LogInformation(AppEvents.Game, "{p} is requesting to teleport to {p2}.", connection.Player.Info, target.Player.Info);
-            await target.RequestAsync(new PacketBeTeleportedRequest(connection.ID), OnOtherResponse);
+            await target.RequestAsync(
+                new PacketBeTeleportedRequest(connection.ID),
+                OnOtherResponse,
+                RequestTimeout,
+                OnOtherTimeout
+            );
 
-            // TODO timeout
             Task OnOtherResponse(PacketBeTeleportedResponse response)
             {
                 if (response.Accepted)
@@ -410,6 +414,20 @@ public sealed partial class MiaoServerService
                         new(PacketTeleportResponse.TeleportFailedReason.OtherDenied, null)
                     ).AsTask();
                 }
+            }
+
+            Task OnOtherTimeout()
+            {
+                logger.LogInformation(
+                    AppEvents.Game,
+                    "{p}'s teleport request to {p2} timed out.",
+                    connection.Player.Info,
+                    target.Player.Info
+                );
+                return connection.ResponseAsync(
+                    request,
+                    new(PacketTeleportResponse.TeleportFailedReason.OtherDoesNotResponse, null)
+                ).AsTask();
             }
         }
         else
