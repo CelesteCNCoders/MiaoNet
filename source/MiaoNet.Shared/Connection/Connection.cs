@@ -21,8 +21,8 @@ public static class Connection
     /// <summary>
     /// Returns whether two MiaoNet versions are compatible according to the
     /// protocol's SemVer policy. Patch releases are wire-compatible, while a
-    /// change to either major or minor requires a matching client and server.
+    /// change to major requires a matching client and server.
     /// </summary>
     public static bool IsVersionCompatible(Version client, Version server)
-        => client.Major == server.Major && client.Minor == server.Minor;
+        => client.Major == server.Major && client.Minor <= server.Minor && (client.Major != 0 || client.Minor == server.Minor);
 }
