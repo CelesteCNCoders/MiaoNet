@@ -126,9 +126,11 @@ public sealed class ChatCompletionProvider : ICompletionProvider
                     return GetPlayerNameCompletions(state.SelfChannel.Players.Where(p => p.ShouldSyncFrom(state.Self)), part);
                 case CommandSegmentType.Channel:
                     return from pair in state.Channels
-                           let i = pair.Value.Info
-                           where i.Name.Contains(part, sc)
-                           select new Completion(i.Name, i.Name, remove);
+                           let c = pair.Value
+                           where c.ID != ChannelInfo.PrivateChannelVirtualID && !c.IsPrivate
+                           let name = c.Info.Name
+                           where name.Contains(part, sc)
+                           select new Completion(name, name, remove);
                 case CommandSegmentType.CommandName:
                     return GetCommandNameCompletions(parser, part);
                 case CommandSegmentType.ChatChannelType:
