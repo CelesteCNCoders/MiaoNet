@@ -1,4 +1,4 @@
-﻿namespace MiaoNet.Server;
+namespace MiaoNet.Server;
 
 public sealed class MiaoMetricsService
 {
@@ -22,15 +22,15 @@ public sealed class MiaoMetricsService
         Interlocked.Increment(ref sessionsCount);
     }
 
-    public void RecordPacketTcpUpload(int bytes)
+    public void RecordPacketTcpUpload(int packetsCount, int bytes)
     {
-        Interlocked.Increment(ref tcpUploadByPackets);
+        Interlocked.Add(ref tcpUploadByPackets, packetsCount);
         Interlocked.Add(ref tcpUploadByBytes, bytes);
     }
 
-    public void RecordPacketTcpDownload(int bytes)
+    public void RecordPacketTcpDownload(int packetsCount, int bytes)
     {
-        Interlocked.Increment(ref tcpDownloadByPackets);
+        Interlocked.Add(ref tcpDownloadByPackets, packetsCount);
         Interlocked.Add(ref tcpDownloadByBytes, bytes);
     }
 }

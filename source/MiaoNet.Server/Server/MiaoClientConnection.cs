@@ -331,7 +331,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
             this,
             async (packet, bytesConsumed) =>
             {
-                metricsService.RecordPacketTcpDownload(bytesConsumed);
+                metricsService.RecordPacketTcpDownload(1, bytesConsumed);
                 await server.HandlePacketAsync(this, packet);
             },
             token
@@ -401,6 +401,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         // wait for data
         while (await channelReader.WaitToReadAsync(token))
         {
+            int packetsCount = 0;
             Task? window = null;
             while (true)
             {
@@ -409,6 +410,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
                 while (channelReader.TryRead(out var packet))
                 {
                     WritePacket(ms, packet, this);
+                    packetsCount++;
                     if (!packet.CanBatch || ms.Position >= batchSize)
                     {
                         flush = true;
@@ -445,7 +447,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
             var mem = ms.GetBuffer().AsMemory(0, size);
             await networkConnection.Stream.WriteAsync(mem, token);
-            metricsService.RecordPacketTcpUpload(size);
+            metricsService.RecordPacketTcpUpload(packetsCount, size);
 
             ms.Seek(0, SeekOrigin.Begin);
         }
