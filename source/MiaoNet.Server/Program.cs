@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using MiaoNet.Shared;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,7 +11,7 @@ using NReco.Logging.File;
 
 namespace MiaoNet.Server;
 
-public static class Program
+public static partial class Program
 {
     public static void Main(string[] args)
     {
@@ -31,7 +32,8 @@ public static class Program
 
         builder.Configuration
             .AddJsonFile("appsettings.json", false)
-            .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true);
+            .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
+            .AddJsonFile("content.json", false);
 
         builder.Configuration.AddEnvironmentVariables("MIAONET:");
 
@@ -60,8 +62,8 @@ public static class Program
         );
 
         builder.Services.AddSingleton<MiaoClientConnectionFactory>(p =>
-            (id, con, player, server) => new MiaoClientConnection(
-                id, con, player,
+            (con, player, server) => new MiaoClientConnection(
+                con, player,
                 p.GetRequiredService<ILogger<MiaoClientConnection>>(),
                 server,
                 p.GetRequiredService<MiaoMetricsService>()
@@ -70,8 +72,8 @@ public static class Program
 
         builder.Services.AddSingleton<MiaoServerService>();
         builder.Services.AddSingleton<IMiaoServerService>(p => p.GetRequiredService<MiaoServerService>());
-        builder.Services.AddSingleton<MiaoMetricsService>();
         builder.Services.AddHostedService(s => s.GetRequiredService<MiaoServerService>());
+        builder.Services.AddSingleton<MiaoMetricsService>();
 #if USE_LOCALHOST_PFX
         builder.Services.AddSingleton<IMiaoCertificateService, LocalMiaoCertificateService>();
 #else
@@ -88,11 +90,15 @@ public static class Program
 
         builder.Services.AddHostedService<MiaoHttpService>();
 
-        builder.Services.AddMetrics();
-
         using (IHost host = builder.Build())
         {
+            if (OperatingSystem.IsWindows())
+                _ = timeBeginPeriod(1);
+
             host.Run();
         }
     }
+
+    [LibraryImport("winmm.dll")]
+    private static partial uint timeBeginPeriod(uint uPeriod);
 }

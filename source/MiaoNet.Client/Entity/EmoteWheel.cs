@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Input;
 
@@ -34,7 +34,7 @@ public sealed class EmoteWheel : MiaoNetEntity
 
     public EmoteWheel(Entity tracking)
     {
-        Tag = MiaoNetTag.Tag | TagsExt.SubHUD;
+        Tag = MiaoNetTag.Hud;
         Tracking = tracking;
 
         previews = new();

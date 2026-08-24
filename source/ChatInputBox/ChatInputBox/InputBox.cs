@@ -8,7 +8,7 @@ public sealed class InputBox
 {
     public const float CaretBlinkInterval = 0.5f;
 
-    private readonly ITextRenderer textRenderer;
+    private readonly IScalelessTextRenderer textRenderer;
     private readonly ICompletionProvider completionProvider;
 
     private readonly TextBuffer buffer;
@@ -52,7 +52,7 @@ public sealed class InputBox
         downButton.SetRepeat(0.4f, 0.05f);
     }
 
-    public InputBox(ITextRenderer textRenderer, ICompletionProvider completionProvider)
+    public InputBox(IScalelessTextRenderer textRenderer, ICompletionProvider completionProvider)
     {
         this.textRenderer = textRenderer;
         this.completionProvider = completionProvider;
@@ -96,13 +96,17 @@ public sealed class InputBox
 
     public void Update()
     {
-        if (rightButton.Pressed)
+        if (!MInput.Keyboard.CurrentState.IsKeyDown(Keys.LeftShift) &&
+            !MInput.Keyboard.CurrentState.IsKeyDown(Keys.RightShift) &&
+            rightButton.Pressed)
         {
             rightButton.ConsumePress();
             if (buffer.MoveCaretForward())
                 SetAlwaysShowCaretTimer();
         }
-        else if (leftButton.Pressed)
+        else if (!MInput.Keyboard.CurrentState.IsKeyDown(Keys.LeftShift) &&
+                 !MInput.Keyboard.CurrentState.IsKeyDown(Keys.RightShift) &&
+                 leftButton.Pressed)
         {
             leftButton.ConsumePress();
             if (buffer.MoveCaretBackward())

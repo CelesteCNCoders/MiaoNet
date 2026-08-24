@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using MiaoNet.ClientShared;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
@@ -10,26 +11,105 @@ namespace Celeste.Mod.MiaoNet;
 // TODO this is ugly, we need a refactor on this
 partial class MiaoNetContext
 {
+    private sealed class ConnectionOperation : IPacketSerializationContext
+    {
+        private const int EndedFlag = 1;
+        private const int ThreadCompletedFlag = 2;
+
+        private readonly CancellationTokenSource cancellation = new();
+        private MiaoServerConnection? ownedConnection;
+        private int completionState;
+
+        internal long Generation { get; }
+        internal bool ShowAvatar { get; }
+        internal string TargetServer { get; }
+        internal int TargetPort { get; }
+        internal CancellationToken Token => cancellation.Token;
+        internal PooledStringManager PooledStringManager { get; } = new(KnownPooledStrings.All);
+#if USE_CELEMIAO_AUTH
+        internal string? AuthenticationCode { get; }
+        internal byte[]? TokenData { get; }
+        internal byte[]? RefreshedAuthenticationData { get; set; }
+#endif
+
+        PooledStringManager IPacketSerializationContext.PooledStringManager => PooledStringManager;
+
+        internal ConnectionOperation(long generation, bool showAvatar, string targetServer, int targetPort)
+        {
+            Generation = generation;
+            ShowAvatar = showAvatar;
+            TargetServer = targetServer;
+            TargetPort = targetPort;
+        }
+
+#if USE_CELEMIAO_AUTH
+        internal ConnectionOperation(
+            long generation,
+            bool showAvatar,
+            string targetServer,
+            int targetPort,
+            string? authenticationCode,
+            byte[]? tokenData
+        ) : this(generation, showAvatar, targetServer, targetPort)
+        {
+            AuthenticationCode = authenticationCode;
+            TokenData = tokenData;
+        }
+#endif
+
+        internal void SetConnection(MiaoServerConnection connection)
+        {
+            if (Interlocked.CompareExchange(ref ownedConnection, connection, null) is not null)
+                throw new InvalidOperationException("The operation already owns a connection.");
+        }
+
+        internal void Cancel()
+        {
+            cancellation.Cancel();
+            MarkCompletion(EndedFlag);
+        }
+
+        internal void MarkThreadCompleted()
+            => MarkCompletion(ThreadCompletedFlag);
+
+        internal void CloseConnection(bool shutdown)
+        {
+            MiaoServerConnection? connection = Interlocked.Exchange(ref ownedConnection, null);
+            connection?.Close(shutdown);
+        }
+
+        private void MarkCompletion(int flag)
+        {
+            int state = Interlocked.Or(ref completionState, flag) | flag;
+            if (state == (EndedFlag | ThreadCompletedFlag))
+                cancellation.Dispose();
+        }
+    }
+
     private void ConnectionThread(object? param)
     {
-        var connectionToken = (CancellationToken)param!;
+        var operation = (ConnectionOperation)param!;
+        CancellationToken connectionToken = operation.Token;
 
         if (connectionToken.IsCancellationRequested)
+        {
+            operation.MarkThreadCompleted();
             return;
+        }
 
         SingleThreadedSynchronizationContext syncCtx = new();
         SingleThreadedTaskScheduler taskScheduler = new(syncCtx);
         SynchronizationContext.SetSynchronizationContext(syncCtx);
 
         CancellationTokenSource threadCts = new();
-        _ = StartConnectionAsync(this, connectionToken).ContinueWith(t =>
+        _ = StartConnectionAsync(operation, connectionToken).ContinueWith(t =>
         {
             threadCts.Cancel();
             if (t.IsFaulted)
             {
                 Logger.Error(LT.MiaoNetConnection, "Unhandled exception in connection thread!");
                 // throw to main thread
-                mainThreadQueue.Enqueue(() => throw t.Exception);
+                QueueForOperation(operation.Generation, () => throw t.Exception!);
             }
         }, taskScheduler);
 
@@ -46,15 +126,15 @@ partial class MiaoNetContext
         finally
         {
             threadCts.Dispose();
+            operation.MarkThreadCompleted();
         }
 
         Logger.Info(LT.MiaoNetConnection, "Connection thread exited.");
-        return;
 
-        async Task StartConnectionAsync(IPacketSerializationContext context, CancellationToken token)
+        async Task StartConnectionAsync(ConnectionOperation operation, CancellationToken token)
         {
 #if USE_CELEMIAO_AUTH
-            if (MiaoNetModule.Settings.TokenData is null or { Length: 0 } && ClientRC.AuthenticationCode is null)
+            if (operation.TokenData is null or { Length: 0 } && operation.AuthenticationCode is null)
             {
                 QueueDisconnectStatus(Dialog.Get("miaonet_connection_status_no_token"));
                 return;
@@ -67,30 +147,28 @@ partial class MiaoNetContext
             }
 #endif
 
-            string host = TargetServer;
-            int Port = TargetPort;
+            string host = operation.TargetServer;
+            int Port = operation.TargetPort;
 
             EndPoint ep = IPAddress.TryParse(host, out var ipa)
                 ? new IPEndPoint(ipa, Port)
                 : new DnsEndPoint(host, Port);
 
-            byte langCode = 0;
+            LanguageCode langCode = GameLanguage.GetLanguageCode(Dialog.Language.Id);
             HandshakeData.NetMod[] netMods = [];
 
             HandshakeData handshakeData;
 
 #if USE_CELEMIAO_AUTH
-            if (ClientRC.AuthenticationCode is null)
+            if (operation.AuthenticationCode is null)
             {
-                handshakeData = new HandshakeData(langCode, false, MiaoNetModule.Settings.TokenData!, netMods);
+                handshakeData = new HandshakeData(langCode, false, operation.TokenData!, netMods);
             }
             else
             {
                 Logger.Info(LT.MiaoNetConnection, "Auth code is not null, set isAuthorize to true to log in.");
-                handshakeData = new HandshakeData(langCode, true, Encoding.UTF8.GetBytes(ClientRC.AuthenticationCode), netMods);
+                handshakeData = new HandshakeData(langCode, true, Encoding.UTF8.GetBytes(operation.AuthenticationCode), netMods);
             }
-
-            ClientRC.AuthenticationCode = null;
 #else
             var settings = MiaoNetModule.Settings;
             string name = settings.Name;
@@ -107,17 +185,20 @@ partial class MiaoNetContext
             Logger.Info(LT.MiaoNetConnection, $"Trying connecting to {ep}...");
             MiaoServerConnection? connection = null;
 
-            IAsyncEnumerator<IContextualPacket> packetsAsyncEnumerator;
+            IAsyncEnumerator<IContextualPacket>? packetsAsyncEnumerator = null;
+            using CancellationTokenSource sessionCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            CancellationToken sessionToken = sessionCts.Token;
             try
             {
                 bool revocationCheck = !MiaoNetModule.Settings.IgnoreCertRevocationStatus;
-                connection = await MiaoServerConnection.CreateAsync(ep, TargetServer, revocationCheck, token);
+                connection = await MiaoServerConnection.CreateAsync(ep, operation.TargetServer, revocationCheck, token);
+                operation.SetConnection(connection);
 
-                Version localVersion = MiaoNetModule.Instance.Metadata.Version;
+                Version localVersion = Connection.Version;
                 Version? version = await connection.MakeVersionCheck(localVersion, token);
                 if (version is not null)
                 {
-                    connection.Dispose();
+                    operation.CloseConnection(true);
                     QueueDisconnectStatus(ConnectionStatus.VersionNotMatch(localVersion, version));
                     return;
                 }
@@ -130,36 +211,25 @@ partial class MiaoNetContext
                 var r = handshakeAck.AuthenticationResultType;
                 if (r != AuthenticationResultType.Success)
                 {
-                    connection.Dispose();
+                    operation.CloseConnection(true);
                     string? reason = handshakeAck.DeniedReason;
-                    if (reason is not null)
+                    string status = r switch
                     {
-                        QueueDisconnectStatus(reason);
-                    }
-                    if (r == AuthenticationResultType.InvalidTokenData)
-                    {
-                        QueueDisconnectStatus(ConnectionStatus.InvalidTokenData);
-                    }
-                    else if (r == AuthenticationResultType.InternalServerError)
-                    {
-                        QueueDisconnectStatus(ConnectionStatus.InternalServerError);
-                    }
-                    else if (r == AuthenticationResultType.Suspended && reason is null)
-                    {
-                        QueueDisconnectStatus(ConnectionStatus.Suspended);
-                    }
+                        AuthenticationResultType.InvalidTokenData => ConnectionStatus.InvalidTokenData,
+                        AuthenticationResultType.InternalServerError => ConnectionStatus.InternalServerError,
+                        AuthenticationResultType.Suspended when reason is null => ConnectionStatus.Suspended,
+                        _ => reason ?? ConnectionStatus.DisconnectedExceptionally,
+                    };
+                    QueueDisconnectStatus(status);
                     return;
                 }
 
 #if USE_CELEMIAO_AUTH
                 if (handshakeAck.AuthenticationData is not null)
-                {
-                    MiaoNetModule.Settings.TokenData = handshakeAck.AuthenticationData;
-                    Logger.Info(LT.MiaoNetConnection, "Server sent new auth data, accepted.");
-                }
+                    operation.RefreshedAuthenticationData = handshakeAck.AuthenticationData;
 #endif
 
-                packetsAsyncEnumerator = connection.ReceivePacketsLoopAsync(context, token).GetAsyncEnumerator(token);
+                packetsAsyncEnumerator = connection.ReceivePacketsLoopAsync(operation, sessionToken).GetAsyncEnumerator(sessionToken);
 
                 await packetsAsyncEnumerator.MoveNextAsync();
                 IContextualPacket? packetInitial = packetsAsyncEnumerator.Current;
@@ -169,48 +239,51 @@ partial class MiaoNetContext
                         Logger.Warn(LT.MiaoNetConnection, $"Remote sent empty or invalid initial reply.");
                     else
                         Logger.Warn(LT.MiaoNetConnection, $"Remote sent a weird initial packet {packetInitial.GetType()}.");
-                    connection.Dispose();
+                    await DisposePacketsAsync();
+                    operation.CloseConnection(false);
                     QueueDisconnectStatus(ConnectionStatus.DisconnectedExceptionally);
                     return;
                 }
                 else
                 {
                     Logger.Info(LT.MiaoNetConnection, $"Connected to {ep}.");
-                    TaskCompletionSource ackTaskSource = new();
+                    TaskCompletionSource ackTaskSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
                     mainThreadQueue.Enqueue(() =>
                     {
-#if USE_CELEMIAO_AUTH
-                        MiaoNetModule.Settings.LastName = clientInitial.SelfPlayerInfo.Name;
-#endif
-                        clientState = new(clientInitial);
-                        this.connection = connection;
-                        ClientInitialized?.Invoke(clientState);
-                        StatusComponent.ShowStatusMessage(ConnectionStatus.Connected);
-                        OnConnected();
-                        ackTaskSource.SetResult();
+                        try
+                        {
+                            if (connectionLifecycle.IsCurrent(operation.Generation))
+                                OnInitialized(operation, connection, clientInitial);
+                        }
+                        finally
+                        {
+                            ackTaskSource.TrySetResult();
+                        }
                     });
                     // wait until the main thread ack we've finished connecting
-                    await ackTaskSource.Task;
-                    if (ShowAvatar)
+                    await ackTaskSource.Task.WaitAsync(token);
+                    if (operation.ShowAvatar)
                     {
                         foreach (var p in clientInitial.Players)
-                            _ = SafePrepareAvatarAsync(p.PlayerID, p.PlayerInfo);
-                        _ = SafePrepareAvatarAsync(clientInitial.PlayerID, clientInitial.SelfPlayerInfo);
+                            _ = SafePrepareAvatarAsync(operation, p.PlayerID, p.PlayerInfo);
+                        _ = SafePrepareAvatarAsync(operation, clientInitial.PlayerID, clientInitial.SelfPlayerInfo);
                     }
                 }
 
             }
-            catch (OperationCanceledException e)
-            when (e.CancellationToken == token)
+            catch (OperationCanceledException)
+            when (token.IsCancellationRequested)
             {
-                connection?.Dispose();
+                await DisposePacketsAsync();
+                operation.CloseConnection(false);
                 Logger.Info(LT.MiaoNetConnection, "Connection cancelled");
                 QueueDisconnectStatus(ConnectionStatus.Cancelled);
                 return;
             }
             catch (MiaoSslException e)
             {
-                connection?.Dispose();
+                await DisposePacketsAsync();
+                operation.CloseConnection(false);
                 Logger.Error(LT.MiaoNetConnection, $"Ssl error: {e.SslPolicyErrors}. {e.X509ChainStatusFlags}");
                 Logger.LogDetailed(e, LT.MiaoNetConnection);
                 if (e.X509ChainStatusFlags.HasFlag(X509ChainStatusFlags.RevocationStatusUnknown | X509ChainStatusFlags.OfflineRevocation))
@@ -221,7 +294,8 @@ partial class MiaoNetContext
             }
             catch (Exception e)
             {
-                connection?.Dispose();
+                await DisposePacketsAsync();
+                operation.CloseConnection(false);
                 SocketException? se = (e as IOException)?.InnerException as SocketException;
                 Logger.Error(LT.MiaoNetConnection, $"Error when connecting: {e}");
                 QueueDisconnectStatus(ConnectionStatus.ConnectFailedWithReason((se ?? e).Message));
@@ -230,60 +304,78 @@ partial class MiaoNetContext
 
             try
             {
-                using (CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(token))
+                Task receiveTask = DoReceivingAndProcessingAsync(packetsAsyncEnumerator, operation, connection, sessionToken);
+                Task sendTask = connection.SendPacketsLoopAsync(operation, sessionToken);
+
+                await Task.WhenAny(receiveTask, sendTask);
+                await sessionCts.CancelAsync();
+
+                Exception? failure = null;
+                foreach (Task task in new[] { receiveTask, sendTask })
                 {
-                    Task receiveTask = DoReceivingAndProcessingAsync(packetsAsyncEnumerator, context, cts.Token);
-                    Task sendTask = connection.SendPacketsLoopAsync(context, cts.Token);
-
-                    Task task = await Task.WhenAny(receiveTask, sendTask);
-                    if (task.IsFaulted)
-                        await task;
-                    cts.Cancel();
-
-                    async Task DoReceivingAndProcessingAsync(
-                        IAsyncEnumerator<IContextualPacket> packets,
-                        IPacketSerializationContext context,
-                        CancellationToken token
-                    )
+                    try
                     {
-#if PACKET_TRACING
-                        System.Text.Json.JsonSerializerOptions options = new()
-                        {
-                            IncludeFields = true,
-                            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All),
-                            Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
-                        };
-#endif
-                        while (await packets.MoveNextAsync())
-                        {
-                            var packet = packets.Current;
-
-                            if (!HandleDirectPacket(packet))
-                                receiveQueue.Enqueue(packet);
-#if PACKET_TRACING
-                            string typeName = packet.GetType().ToString();
-                            if (
-                                !typeName.Contains("Frame", StringComparison.Ordinal)
-                                && !typeName.Contains("PingData", StringComparison.Ordinal)
-                                && !typeName.Contains("UpdateOnlineStatus", StringComparison.Ordinal)
-                                && !typeName.Contains("PlayedAudio", StringComparison.Ordinal)
-                                && !typeName.Contains("PacketPing", StringComparison.Ordinal)
-                            )
-                            {
-                                var pColor = Console.ForegroundColor;
-                                Console.ForegroundColor = ConsoleColor.Green;
-                                Console.WriteLine($"== Type: {packet.GetType()} ==");
-                                Console.ForegroundColor = ConsoleColor.DarkGreen;
-                                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize((object)packet, options));
-                                Console.ForegroundColor = pColor;
-                            }
-#endif
-                        }
+                        await task;
+                    }
+                    catch (OperationCanceledException) when (sessionCts.IsCancellationRequested)
+                    {
+                    }
+                    catch (Exception e)
+                    {
+                        failure ??= e;
                     }
                 }
+
+                if (failure is not null)
+                    throw failure;
+                token.ThrowIfCancellationRequested();
+
+                async Task DoReceivingAndProcessingAsync(
+                    IAsyncEnumerator<IContextualPacket> packets,
+                    ConnectionOperation operation,
+                    MiaoServerConnection connection,
+                    CancellationToken token
+                )
+                {
+#if PACKET_TRACING
+                    System.Text.Json.JsonSerializerOptions options = new()
+                    {
+                        IncludeFields = true,
+                        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All),
+                        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+                    };
+#endif
+                    while (await packets.MoveNextAsync())
+                    {
+                        var packet = packets.Current;
+
+                        if (!HandleDirectPacket(operation, connection, packet))
+                            receiveQueue.Enqueue((operation.Generation, packet));
+#if PACKET_TRACING
+                        string typeName = packet.GetType().ToString();
+                        if (
+                            !typeName.Contains("Frame", StringComparison.Ordinal)
+                            && !typeName.Contains("PingData", StringComparison.Ordinal)
+                            && !typeName.Contains("UpdateOnlineStatus", StringComparison.Ordinal)
+                            && !typeName.Contains("PlayedAudio", StringComparison.Ordinal)
+                            && !typeName.Contains("PacketPing", StringComparison.Ordinal)
+                        )
+                        {
+                            var pColor = Console.ForegroundColor;
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine($"== Type: {packet.GetType()} ==");
+                            Console.ForegroundColor = ConsoleColor.DarkGreen;
+                            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize((object)packet, options));
+                            Console.ForegroundColor = pColor;
+                        }
+#endif
+                    }
+                }
+
+                QueueDisconnectStatus(ConnectionStatus.Disconnected);
             }
-            catch (OperationCanceledException e)
-            when (e.CancellationToken == token)
+            catch (OperationCanceledException)
+            when (token.IsCancellationRequested)
             {
                 Logger.Info(LT.MiaoNetConnection, "Connection cancelled.");
                 QueueDisconnectStatus(ConnectionStatus.Cancelled);
@@ -297,18 +389,34 @@ partial class MiaoNetContext
                 QueueDisconnectStatus(ConnectionStatus.DisconnectedWithReason(e.Message));
                 return;
             }
+            finally
+            {
+                await DisposePacketsAsync();
+            }
+
+            async ValueTask DisposePacketsAsync()
+            {
+                if (packetsAsyncEnumerator is not null)
+                {
+                    await packetsAsyncEnumerator.DisposeAsync();
+                    packetsAsyncEnumerator = null;
+                }
+            }
         }
 
         void QueueDisconnectStatus(string statusMessage)
         {
-            mainThreadQueue.Enqueue(() =>
+            QueueForOperation(operation.Generation, () =>
             {
                 StatusComponent.ShowStatusMessage(statusMessage);
-                OnDisconnected();
+                OnDisconnected(operation.Generation);
             });
         }
 
         void QueueStatus(string statusMessage)
-            => mainThreadQueue.Enqueue(() => StatusComponent.ShowStatusMessage(statusMessage, true));
+            => QueueForOperation(
+                operation.Generation,
+                () => StatusComponent.ShowStatusMessage(statusMessage, true)
+            );
     }
 }

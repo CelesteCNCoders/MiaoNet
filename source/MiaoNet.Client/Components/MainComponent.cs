@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
 using MonoMod.Utils;
-using FFlags = MiaoNet.Shared.PacketPlayerFrame.FrameFlags;
+using FFlags = MiaoNet.Shared.PlayerStateDelta.FrameFlags;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -31,15 +31,16 @@ public sealed partial class MainComponent : MiaoNetComponent
 
         context.PlayerLeft += Context_PlayerLeft;
         context.PlayerFrameNotification += Context_PlayerFrameNotification;
-        context.PlayerMapChanged += Context_PlayerMapChanged;
-        context.PlayerMapRoomChanged += Context_PlayerMapRoomChanged;
-        context.PlayerMapChangeResponded += Context_PlayerMapChangeResponded;
+        context.PlayerLocationChanged += Context_PlayerLocationChanged;
+        context.PlayerLocationChangeResponded += Context_PlayerLocationChangeResponded;
         context.PlayerLiveStateNotification += Context_PlayerLiveStateNotification;
         context.PlayerGlobalFlagsChanged += Context_PlayerGlobalFlagsChanged;
         context.PlayerCreatedFireworks += Context_PlayerCreatedFireworks;
         context.PlayerAudioPlayed += Context_PlayerAudioPlayed;
         context.PlayerGrabPlayer += Context_PlayerGrabPlayer;
         context.PlayerGrabJumpOut += Context_PlayerGrabJumpOut;
+        context.SelfChannelMoved += Context_SelfChannelMoved;
+        context.PlayerChannelMoved += Context_PlayerChannelMoved;
 
         MiaoNetModule.PlayerLocationChanged += MiaoNetModule_OnPlayerLocationChanged;
         MiaoNetModule.PlayerSoundPlayed += MiaoNetModule_PlayerSoundPlayed;
@@ -51,6 +52,8 @@ public sealed partial class MainComponent : MiaoNetComponent
     {
         if (Engine.Scene is Level level)
             MiaoNetModule_OnPlayerLocationChanged(PlayerLocation.FetchFrom(level.Session), true);
+        else if (Engine.Scene is Editor.MapEditor debugMap)
+            MiaoNetModule_OnPlayerLocationChanged(new PlayerLocation(debugMap.mapData.Area, string.Empty), true);
     }
 
     public override void OnDisconnected()
@@ -90,8 +93,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Interactions, settings.PlayerInteractions);
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.GroupPhotoMode, settings.GroupPhotoMode);
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Watching, playerWatching is not null);
-            bool hasGolden = player?.Leader.Followers.Any(f => f.Entity is Strawberry { Golden: true }) == true;
-            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.TakingGolden, hasGolden);
+            globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.TakingGolden, level?.Session.GrabbedGolden == true);
             if (previousGlobalFlags != globalFlags)
             {
                 self.GlobalFlags = globalFlags;
@@ -111,9 +113,6 @@ public sealed partial class MainComponent : MiaoNetComponent
             SafeGuard.Assert(TryGetAndSendState(level, PlayerLocation.FetchFrom(level.Session)));
             pendingMapChanged = false;
         }
-
-        //if (level.OnRawInterval(1f))
-        //    errCount = Math.Max(0, errCount - 1);
 
         if (player is null || player.Dead)
             return;
@@ -202,23 +201,33 @@ public sealed partial class MainComponent : MiaoNetComponent
         bool currentDashing = player.StateMachine.State is Player.StDash;
         int currentDashes = player.Dashes;
 
-        FFlags flags = FFlags.None;
+        PlayerStateFlags stateFlags = PlayerStateFlags.None;
+
         if (player.Facing is Facings.Left)
-            flags |= FFlags.FacingLeft;
+            stateFlags |= PlayerStateFlags.FacingLeft;
+
         if (currentDashing)
-            flags |= FFlags.Dashing;
+            stateFlags |= PlayerStateFlags.Dashing;
+
+        if (player.StateMachine.State == Player.StStarFly)
+            stateFlags |= PlayerStateFlags.StarFlying;
+
+        if (MiaoNetModule.Settings.PlayerInteractions && player.InControl)
+            stateFlags |= PlayerStateFlags.Interactions;
+
+        if (player.Ducking)
+            stateFlags |= PlayerStateFlags.Ducking;
+
+        if (player.IsTired)
+            stateFlags |= PlayerStateFlags.Tired;
+
+        FFlags flags = FFlags.None;
+
         if (currentDashes != selfState.Dashes)
             flags |= FFlags.DashesChange;
-        if (player.StateMachine.State == Player.StStarFly)
-            flags |= FFlags.StarFlying;
+
         if (selfState.WindDirection != player.windDirection)
             flags |= FFlags.HasWindDirection;
-        if (MiaoNetModule.Settings.PlayerInteractions && player.InControl)
-            flags |= FFlags.Interactions;
-        if (player.Ducking)
-            flags |= FFlags.Ducking;
-        if (player.IsTired)
-            flags |= FFlags.Tired;
 
         HoldableInfo? holdableInfo = null;
         FollowerInfo[]? followerInitials;
@@ -243,7 +252,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             holdableInfo = FetchHoldableInfo(player.Holding, selfState.HoldableInfo);
         }
 
-        selfState.Dashing = currentDashing;
+        selfState.StateFlags = stateFlags;
         selfState.Dashes = (byte)currentDashes;
         selfState.WindDirection = player.windDirection;
         if (followerInitials is not null)
@@ -255,28 +264,28 @@ public sealed partial class MainComponent : MiaoNetComponent
         else
             selfState.HoldableInfo = new HoldableInfo();
 
-        var packetFrame = new PacketPlayerFrame(
+        var stateDelta = new PlayerStateDelta(
             player.Position,
             player.Sprite.CurrentAnimationID,
             (ushort)player.Sprite.CurrentAnimationFrame,
             player.Sprite.Scale,
-            flags
+            flags, stateFlags
         );
 
-        if (packetFrame.DashesChange)
-            packetFrame.Dashes = (byte)currentDashes;
-        if (packetFrame.HasHoldable)
-            packetFrame.HoldableInfo = (HoldableInfo)holdableInfo!;
-        if (packetFrame.Dashing)
-            packetFrame.DashDirection = (byte)(player.DashDir.Angle() / MathF.Tau * byte.MaxValue);
-        if (packetFrame.HasFollowerInitials)
-            packetFrame.FollowerInitials = followerInitials;
-        else if (packetFrame.HasFollowerDeltas)
-            packetFrame.FollowerDeltas = followerDeltas;
-        if (packetFrame.HasWindDirection)
-            packetFrame.WindDirection = player.windDirection;
+        if (stateDelta.DashesChange)
+            stateDelta.Dashes = (byte)currentDashes;
+        if (stateDelta.HasHoldable)
+            stateDelta.HoldableInfo = (HoldableInfo)holdableInfo!;
+        if (stateDelta.StateFlags.HasFlag(PlayerStateFlags.Dashing))
+            stateDelta.DashDirection = (byte)(player.DashDir.Angle() / MathF.Tau * byte.MaxValue);
+        if (stateDelta.HasFollowerInitials)
+            stateDelta.FollowerInitials = followerInitials;
+        else if (stateDelta.HasFollowerDeltas)
+            stateDelta.FollowerDeltas = followerDeltas;
+        if (stateDelta.HasWindDirection)
+            stateDelta.WindDirection = player.windDirection;
 
-        context.QueuePacket(packetFrame);
+        context.QueuePacket(new PacketPlayerFrame(stateDelta));
     }
 
     #region holdable & follower info fetching
@@ -346,12 +355,18 @@ public sealed partial class MainComponent : MiaoNetComponent
             Sprite spr = entity.Get<Sprite>();
 
             // TODO Strawberry Jam's RefillShard's sprite only contains Path
-            string sprID = SpriteIDTracker.LookupID(spr) ?? string.Empty;
-            return new FollowerInfo(
-                type, sprID,
-                spr.CurrentAnimationID, (ushort)spr.CurrentAnimationFrame,
-                offset: (Vector2S)(entity.Position - leaderEntityPosition)
-            );
+            Vector2S offset = (Vector2S)(entity.Position - leaderEntityPosition);
+            return spr is not null
+                ? new FollowerInfo(
+                    type, SpriteIDTracker.LookupID(spr) ?? string.Empty,
+                    spr.CurrentAnimationID, (ushort)spr.CurrentAnimationFrame,
+                    offset: (Vector2S)(entity.Position - leaderEntityPosition)
+                )
+                : new FollowerInfo(
+                    type, string.Empty,
+                    string.Empty, 0,
+                    offset
+                );
         }
     }
 
@@ -377,12 +392,10 @@ public sealed partial class MainComponent : MiaoNetComponent
         {
             Entity entity = follower.Entity;
             Sprite spr = entity.Get<Sprite>();
-            Vector2 offset = entity.Position - leaderEntityPosition;
-            return new(
-                spr.CurrentAnimationID,
-                (ushort)spr.CurrentAnimationFrame,
-                (Vector2S)offset
-            );
+            Vector2S offset = (Vector2S)(entity.Position - leaderEntityPosition);
+            return spr is not null
+                ? new FollowerInfoDelta(spr.CurrentAnimationID, (ushort)spr.CurrentAnimationFrame, offset)
+                : new FollowerInfoDelta(string.Empty, 0, offset);
         }
     }
     #endregion
@@ -399,20 +412,40 @@ public sealed partial class MainComponent : MiaoNetComponent
             else
                 return false;
         }
-        PlayerState initialState = new PlayerState(player.Position, (byte)player.Dashes, Engine.DeltaTime)
+        PlayerStateFlags stateFlags = PlayerStateFlags.None;
+
+        if (player.StateMachine.State is Player.StDash)
+            stateFlags |= PlayerStateFlags.Dashing;
+
+        if (body is not null)
+            stateFlags |= PlayerStateFlags.Dead;
+
+        if (player.Facing == Facings.Left)
+            stateFlags |= PlayerStateFlags.FacingLeft;
+
+        if (MiaoNetModule.Settings.PlayerInteractions)
+            stateFlags |= PlayerStateFlags.Interactions;
+
+        if (player.Ducking)
+            stateFlags |= PlayerStateFlags.Ducking;
+
+        PlayerState initialState = new PlayerState()
         {
+            Position = player.Position,
+            Animation = player.Sprite.CurrentAnimationID,
+            AnimationFrame = (ushort)player.Sprite.CurrentAnimationFrame,
+            Scale = player.Sprite.Scale,
+            Dashes = (byte)player.Dashes,
+            DeltaTime = Engine.DeltaTime,
             PlayerSpriteMode = player.Sprite.Mode,
             FollowerInfos = FetchFollowerInitials(player.Leader.Entity, player.Leader.Followers, MaxFollowersCount),
-            Dashing = player.StateMachine.State is Player.StDash,
-            Dead = body is not null,
-            FacingLeft = player.Facing == Facings.Left,
             WindDirection = player.windDirection,
-            Interactions = MiaoNetModule.Settings.PlayerInteractions,
-            Ducking = player.Ducking
+            HoldableInfo = player.Holding is not null ? FetchHoldableInfo(player.Holding, new()) : new(),
+            StateFlags = stateFlags
         };
-        // FIXME server maybe late to ack this
+
         ClientState.SelfState = initialState;
-        PacketPlayerMapChanged p = new(location, initialState);
+        PacketPlayerLocationChanged p = new(location, initialState);
         context.QueuePacket(p);
         return true;
     }
@@ -423,19 +456,21 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (!HasState)
             return;
         var changeResult = ClientState.OnPlayerLocationChanged(location);
-        if (changeResult is PlayerLocation.ChangeResult.All || forceFullChange)
-        {
-            TryDisableGroupPhotoModeAndTip();
+        bool fullSync = forceFullChange || changeResult is PlayerLocation.ChangeResult.FullSync;
+        if (changeResult is PlayerLocation.ChangeResult.None && !fullSync)
+            return;
 
-            foreach (var pair in ghosts)
-                pair.Value.RemoveSelf();
-            ghosts.Clear();
-            CleanUpInteractions(Engine.Scene as Level);
+        TryDisableGroupPhotoModeAndTip();
+
+        if (fullSync)
+        {
+            Level? level = Engine.Scene as Level;
+            CleanUpGhosts(level);
+            CleanUpInteractions(level);
 
             if (location.IsInMap)
             {
-                Scene scene = Engine.Scene;
-                if (scene is Level level)
+                if (level is not null)
                 {
                     // we assume player will at least exists in 2 frames...
                     if (!TryGetAndSendState(level, location))
@@ -447,7 +482,7 @@ public sealed partial class MainComponent : MiaoNetComponent
                         };
                     }
                 }
-                else if (scene is LevelLoader levelLoader)
+                else if (Engine.Scene is LevelLoader)
                 {
                     if (pendingMapChanged)
                         Logger.Warn(LT.MiaoNet, "pendingMapChanged is still true, is this a bug?");
@@ -460,16 +495,15 @@ public sealed partial class MainComponent : MiaoNetComponent
             }
             else
             {
-                PacketPlayerMapChanged p = new(location, null);
-                context.QueuePacket(p);
+                context.QueuePacket(new PacketPlayerLocationChanged(location, null));
             }
-        }
-        else if (changeResult is PlayerLocation.ChangeResult.RoomOnly)
-        {
-            TryDisableGroupPhotoModeAndTip();
 
-            PacketPlayerMapRoomChanged p = new(location.MapRoom);
-            context.QueuePacket(p);
+            foreach (var pair in ClientState.Players)
+                pair.Value.State = null;
+        }
+        else
+        {
+            context.QueuePacket(new PacketPlayerLocationChanged(location, null));
         }
 
         void TryDisableGroupPhotoModeAndTip()
@@ -482,25 +516,41 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
-    private void Context_PlayerMapChanged(OnlinePlayer player, PacketPlayerMapChangedNotification packet)
+    private void CleanUpGhosts(Level? level)
     {
-        Logger.Debug(LT.MiaoNet, $"Player map changed: {player}, state: {packet.InitialState}.");
-        HandleLocationChanging(player, packet.GraphicsInfo, packet.InitialState);
+        if (level is not null)
+        {
+            foreach (var g in ghosts)
+                level.CompletelyRemove(g.Value);
+        }
+        ghosts.Clear();
     }
 
-    private void Context_PlayerMapRoomChanged(OnlinePlayer player, string room)
+    private void Context_PlayerLocationChanged(OnlinePlayer player, PacketPlayerLocationChangedNotification packet)
     {
-        Logger.Debug(LT.MiaoNet, $"Player map room changed: {player}.");
-        HandleLocationChanging(player, null, null);
+        Logger.Debug(LT.MiaoNet, $"LocationChanging: {player.Info.Name} to {packet.Location}");
+        if (Engine.Scene is not Level level)
+            return;
+
+        bool roomOnly = packet.InitialState is null
+            && packet.Location.IsInMap
+            && ClientState.Self.Location.Map == packet.Location.Map;
+
+        if (roomOnly)
+            return;
+        HandleLocationChanging(level, player);
     }
 
-    private void Context_PlayerMapChangeResponded(PacketPlayerMapChangedResponse packet)
+    private void Context_PlayerLocationChangeResponded(PacketPlayerLocationChangedResponse packet)
     {
-        Logger.Debug(LT.MiaoNet, $"Map changed responded, players count: {packet.PlayersInMap.Length}");
-        foreach (var item in packet.PlayersInMap)
+        if (Engine.Scene is not Level level)
+            return;
+        Logger.Debug(LT.MiaoNet, $"LocationChangeResponding: Players count = {packet.Players.Count}");
+        CleanUpGhosts(level);
+        foreach (var item in packet.Players)
         {
             OnlinePlayer player = ClientState.GetPlayer(item.PlayerID);
-            HandleLocationChanging(player, player.GraphicsInfo, player.State);
+            HandleLocationChanging(level, player);
         }
     }
 
@@ -509,16 +559,20 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (Engine.Scene is not Level level)
             return;
 
+        var delta = packet.StateDelta;
+
         if (ghosts.TryGetValue(player.ID, out var ghost))
         {
             if (!ghost.BeingHeldLocally)
-                ghost.Position = packet.Position;
+                ghost.Position = delta.Position;
 
-            ghost.UpdateInteractions(packet.Interactions);
-            ghost.UpdateSprite(packet.Animation, packet.AnimationFrame, packet.FacingLeft, packet.Scale);
-            if (packet.HasHoldable)
+            // hmmm can we avoid these tons of updates?
+
+            ghost.UpdateInteractions(delta.StateFlags.HasFlag(PlayerStateFlags.Interactions));
+            ghost.UpdateSprite(delta.Animation, delta.AnimationFrame, delta.StateFlags.HasFlag(PlayerStateFlags.FacingLeft), delta.Scale);
+            if (delta.HasHoldable)
             {
-                var hi = packet.HoldableInfo;
+                var hi = delta.HoldableInfo;
                 if (hi.Type == HoldableType.Jelly)
                     ghost.UpdateHoldable(
                         hi.Type,
@@ -538,29 +592,26 @@ public sealed partial class MainComponent : MiaoNetComponent
             {
                 ghost.UpdateNoHoldable();
             }
-            if (packet.HasFollowerInitials)
-                ghost.OnFollowerInitials(packet.FollowerInitials);
-            else if (packet.HasFollowerDeltas)
-                ghost.OnFollowerDeltas(packet.FollowerDeltas);
+            if (delta.HasFollowerInitials)
+                ghost.OnFollowerInitials(delta.FollowerInitials);
+            else if (delta.HasFollowerDeltas)
+                ghost.OnFollowerDeltas(delta.FollowerDeltas);
 
-            if (packet.HasWindDirection)
-                ghost.UpdateWind(packet.WindDirection);
+            if (delta.HasWindDirection)
+                ghost.UpdateWind(delta.WindDirection);
 
             ghost.UpdateDashing(
-                packet.Dashing, packet.DashDirection / (float)byte.MaxValue * MathF.Tau,
-                packet.DashesChange, packet.Dashes
+                delta.StateFlags.HasFlag(PlayerStateFlags.Dashing), delta.DashDirection / (float)byte.MaxValue * MathF.Tau,
+                delta.DashesChange, delta.Dashes
             );
-            ghost.NotifyStarFlying(packet.StarFlying);
-            ghost.UpdateDucking(packet.Ducking);
-            ghost.UpdateTired(packet.Tired);
+            ghost.UpdateStarFlying(delta.StateFlags.HasFlag(PlayerStateFlags.StarFlying));
+            ghost.UpdateDucking(delta.StateFlags.HasFlag(PlayerStateFlags.Ducking));
+            ghost.UpdateTired(delta.StateFlags.HasFlag(PlayerStateFlags.Tired));
         }
         else
         {
+            // server can be late to know we aren't in the previous location
             Logger.Warn(LT.MiaoNetSync, $"Notified but ghost does not exists for {player.Info}");
-            // TODO something that records the warning times
-            // if there are so many warnings then we may have to
-            // disconnect from the server (a server or client bug?)
-            //OnWarn();
         }
     }
 
@@ -589,9 +640,9 @@ public sealed partial class MainComponent : MiaoNetComponent
             state = ClientState.SelfState;
             SafeGuard.Assert(state is not null);
         }
-        if (state.Dead)
+        if (state.StateFlags.HasFlag(PlayerStateFlags.Dead))
         {
-            state.Dead = false;
+            state.StateFlags &= ~PlayerStateFlags.Dead;
             var type = fromSL ? LiveStateType.RespawnFromSL : LiveStateType.Respawn;
             PacketPlayerLiveState packet = new(type, player.Position);
             context.QueuePacket(packet);
@@ -604,9 +655,9 @@ public sealed partial class MainComponent : MiaoNetComponent
             return;
         CleanUpInteractions(player.SceneAs<Level>());
         var state = ClientState.SelfState!;
-        if (!state.Dead)
+        if (!state.StateFlags.HasFlag(PlayerStateFlags.Dead))
         {
-            state.Dead = true;
+            state.StateFlags |= PlayerStateFlags.Dead;
             PacketPlayerLiveState packet = new(LiveStateType.Die, direction);
             context.QueuePacket(packet);
         }
@@ -632,7 +683,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (!ghosts.TryGetValue(player.ID, out var ghost))
             return;
         ghost.OnUpdatePaused(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Paused));
-        ghost.OnUpdateWatching();
+        ghost.OnUpdateWatching(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
     }
 
     private void Context_PlayerCreatedFireworks(OnlinePlayer player, Color color, float initialSpeed)
@@ -672,46 +723,43 @@ public sealed partial class MainComponent : MiaoNetComponent
             ghost.OnPlayAudio(audio.Event);
     }
 
-    #endregion
-
-    private void HandleLocationChanging(OnlinePlayer other, PlayerGraphicsInfo? graphicsInfo, PlayerState? initialState)
+    private void Context_PlayerChannelMoved(OnlinePlayer player, PacketPlayerChannelMovedNotification notification)
     {
         if (Engine.Scene is not Level level)
             return;
+        HandleLocationChanging(level, player);
+    }
 
-        bool needGhost = ClientState.Self.ShouldSyncFrom(other);
-        Logger.Debug(LT.MiaoNet, $"needGhost of {other.Info} = {needGhost}");
+    private void Context_SelfChannelMoved(PacketPlayerChannelMovedResponse response)
+    {
+        if (Engine.Scene is not Level level)
+            return;
+        CleanUpGhosts(level);
+        if (response.Players is not null)
+        {
+            foreach (var p in response.Players)
+                HandleLocationChanging(level, ClientState.GetPlayer(p.PlayerID));
+        }
+    }
 
+    #endregion
+
+    private void HandleLocationChanging(Level level, OnlinePlayer other)
+    {
         if (ghosts.TryGetValue(other.ID, out MiaoNetGhost? ghost))
         {
-            if (needGhost)
-            {
-                ghost.GraphicsInfo = graphicsInfo;
-                if (initialState is not null)
-                    ghost.ApplyState(initialState);
-                level!.Add(ghost);
-            }
-            else
-            {
-                level.CompletelyRemove(ghost);
-                ghosts.Remove(other.ID);
-            }
+            level.CompletelyRemove(ghost);
+            ghosts.Remove(other.ID);
+        }
+        if (other.State is not null && other.Location.IsInMap)
+        {
+            ghosts[other.ID] = ghost = new(other, context.ShowAvatar);
+            level.Add(ghost);
+            Logger.Debug(LT.MiaoNet, $"Created ghost for {other.Info}");
         }
         else
         {
-            if (needGhost)
-            {
-                if (initialState is null)
-                {
-                    // the server maybe late to know that we're already in a same map
-                    // but...
-                    // TODO make local state changes wait for server to confirm
-                    return;
-                }
-                ghosts[other.ID] = ghost = new(other, graphicsInfo, initialState!, context.ShowAvatar);
-                level!.Add(ghost);
-                Logger.Debug(LT.MiaoNet, $"added ghost for {other.Info}!");
-            }
+            Logger.Debug(LT.MiaoNet, $"Removed ghost for {other.Info}");
         }
     }
 

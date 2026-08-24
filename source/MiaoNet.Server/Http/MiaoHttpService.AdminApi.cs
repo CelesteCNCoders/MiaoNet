@@ -118,13 +118,13 @@ public sealed partial class MiaoHttpService
             connectionID = p.Key,
             name = p.Value.Player.Info.Name,
             authID = p.Value.Player.Info.AuthID,
-            channel = p.Value.Player.Channel.StateInfo.Name,
+            channel = p.Value.Player.Channel.Info.Name,
             location = p.Value.Player.Location.ToString()
         });
         var channels = miaoServerService.Channels.Select(static c => new
         {
             id = c.Key,
-            name = c.Value.StateInfo.Name,
+            name = c.Value.Info.Name,
             players = c.Value.Players.Count
         });
         await WriteJsonAsync(context, (int)HttpStatusCode.OK, new { players, channels });

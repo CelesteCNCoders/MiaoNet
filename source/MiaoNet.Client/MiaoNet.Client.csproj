@@ -18,8 +18,9 @@
   <ItemGroup>
     <Compile Include="../MiaoNet.Shared/**/*.cs" Exclude="../MiaoNet.Shared/Primitives/**/*.cs" LinkBase="0-Shared" />
     <Compile Include="../ChatInputBox/ChatInputBox/**/*.cs" LinkBase="0-Shared/ChatInputBox" />
+		<Compile Include="../MiaoNet.ClientShared/**/*.cs" LinkBase="1-ClientShared" />
 
-    <None Include="CelesteMod*" Visible="false" />
+		<None Include="CelesteMod*" Visible="false" />
   </ItemGroup>
 
   <ItemGroup Condition="$(UseLocalhostPfx) == 'true'">

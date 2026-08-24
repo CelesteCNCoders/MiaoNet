@@ -1,49 +1,75 @@
 # MiaoNet
 
-CelesteNet 的一个重写, 以应对数以百计的蔚蓝联机玩家.  
-称为 MiaoNet, 在可能与之前基于 CelesteNet 的 Miao.CelesteNet(也可能被称为 MiaoNet) 混淆时可以使用 MiaoNet+ 进行区分.  
-目前该项目仍在早期的开发中(如你所见目前分支名也叫 wip).
+MiaoNet 是面向大量玩家场景的 Celeste 联机项目，也是对 CelesteNet 思路的一次重写。为避免与早期基于 CelesteNet 的 `Miao.CelesteNet` 混淆，也可称为 MiaoNet+。
 
-喵服论坛([bbs.celemiao.com](https://bbs.celemiao.com)) 中有关该项目的帖子: [新群服进度追踪](https://bbs.celemiao.com/d/347-xin-qun-fu-jin-du-zhui-zong)
+项目仍处于早期开发阶段，主要开发分支为 `wip`。当前仓库包含 Everest 客户端 Mod、独立服务端、共享协议代码、模拟客户端、聊天组件、测试和数据包检查工具。
+
+## 编译时认证模式
+
+`Release` 默认启用 CeleMiao OAuth 认证，并要求服务端配置
+`MiaoServer:Authentication` 下的 `ClientID`、`ClientSecret` 和
+`EncryptionPassword`；任一配置缺失或为空时，服务端会拒绝启动。
+`Debug` 默认保留无需论坛账号的本地开发认证。
+
+认证模式会同时影响客户端登录流程和服务端认证器，两端应使用相同设置构建。如需显式覆盖默认值，可向 MSBuild 传入
+`-p:UseCeleMiaoAuth=true` 或 `-p:UseCeleMiaoAuth=false`。发布到公网的构建不应关闭该选项。
 
 ## 项目结构
 
-- `document`: 项目文档
-- `source`: 项目源码
-  - `artifacts`: 由于项目启用了 `artifact` 风格的编译产物输出, 这里就会存放相应的编译产物
-  - `ChatInputBox`: 聊天栏以及聊天历史记录库, 分离开来避免和 MiaoNet 耦合太强(难道还有别的地方会用到它吗 :L)
-  - `MiaoNet.Client`: MiaoNet 客户端, 作为一个蔚蓝 Mod
-    - `Components`: 借鉴于 CelesteNet, 管理客户端不同部分的显示以及发包等
-    - `Data`: 客户端独有的数据类
-    - `Entity`: 游戏中会用到的实体, 例如其他玩家的实体 `MiaoNetGhost`
-    - `Game`: 游戏本体相关的逻辑
-    - `Misc`: 目前只有一个单线程同步上下文类的实现
-    - `ModFolder`: Mod 的资源文件
-  - `MiaoNet.Server`: MiaoNet 服务端
-    - `Data`: 服务器特有的一些数据类
-    - `Http`: 提供后台管理 HTTP api 相关的类
-    - `Primitives`: 一些服务端需要的客户端所有的结构/枚举
-    - `Server`: 实际管理客户端连接等相关的类
-  - `MiaoNet.Shared`: 共享项目, 包含 Client 以及 Server 共有的部分(例如包的结构定义)
-    - `Command`: MiaoNet 中可用的指令
-    - `Data`: 一些储存数据的类(枚举, 玩家所在地图的结构体等)
-    - `Helpers`: 目前包含包的序列化/反序列化的逻辑
-    - `Packet`: 包相关的东西
-      - `Packets`: MiaoNet 中所有的包
-    - `PlayerList`: 目前包含玩家列表排序相关逻辑
-  - `MiaoNet.UnitTest`: 一些单元测试(虽然现在没什么东西能测的), 引用了 `MiaoNet.Server` 项目,
-在一些客户端独有的但可(或者需要)单元测试的时候会单独引用一些源文件过来, 例如目前的客户端侧的指令.
+| 路径 | 说明 |
+|---|---|
+| `docs/` | 开发、贡献与问题反馈文档 |
+| `source/MiaoNet.Client/` | Everest 客户端 Mod，包括连接、同步、聊天、命令、Ghost 和 Mod 资源 |
+| `source/MiaoNet.ClientShared/` | 客户端与 MockClient 共用的 TLS/TCP 连接代码 |
+| `source/MiaoNet.Server/` | 基于 .NET Generic Host 的独立服务端，包括认证、TLS、状态、管理 API 和指标 |
+| `source/MiaoNet.Shared/` | 客户端与服务端共享的协议、数据结构和二进制序列化代码 |
+| `source/ChatInputBox/` | 可复用的聊天输入、历史记录、标签页和补全组件，附 Everest 示例项目 |
+| `source/MiaoNet.MockClient/` | 本地连接与基础压测用模拟客户端 |
+| `source/MiaoNet.UnitTest/` | MSTest 测试项目 |
+| `source/PacketDumpInspector/` | MiaoNet 数据包转储检查工具 |
 
-有关连接具体如何进行可以参考 [`document/Connection.md` 这个文档](./document/Connection.md),
-一些碎碎的设计相关的杂念可以在 [`document/Design.md`](./document/Design.md) 中找到.  
-有关的更详细的但是是 AI 生成并稍微人工调整的勉强还能看的文档可以在 [`document/AIGC`](./document/AIGC) 中找到.  
-**注意这部分文档可以预见的是会经常过时, 建议还是以阅读代码为主.**
+更详细的入口见：
 
-~~目前服务器端的设计非常糟糕, 在阅读时注意好血压(x), 在思考如何设计使得不会有太多多线程问题~~
+- [开发上手指南](docs/developing-MiaoNet.md)
+- [客户端架构](source/MiaoNet.Client/docs/client-arch.md)
+- [服务端架构](source/MiaoNet.Server/docs/server-arch.md)
+- [共享包系统](source/MiaoNet.Shared/docs/packet-system.md)
+- [ChatInputBox](source/ChatInputBox/ChatInputBox/docs/chatinputbox.md)
+
+## 环境要求
+
+- .NET 10 SDK。仓库的 `global.json` 允许从 8.0 向最新主版本滚动，但服务端和测试项目以 `net10.0` 为目标，因此完整构建需要 .NET 10。
+- 构建客户端时需要 Celeste，以及 Everest 4465 或更高版本。
+- Git。
+
+## 快速开始
+
+```bash
+git clone https://github.com/CelesteCNCoders/MiaoNet.git
+cd MiaoNet
+```
+
+构建客户端时传入 Celeste 根目录。该目录应直接包含 `Celeste.dll` 和 `Celeste.Mod.mm.dll`：
+
+```bash
+dotnet build source/MiaoNet.Client/MiaoNet.Client.csproj \
+  -p:CelesteRootPath=/path/to/Celeste
+```
+
+构建完成后会将程序集写入 `source/MiaoNet.Client/ModFolder/Code/`，并在 `Celeste/Mods/` 下创建指向 `ModFolder` 的 `MiaoNet_link`。启动 Celeste 后即可由 Everest 加载。
+
+服务端和测试不依赖 Celeste：
+
+```bash
+dotnet build source/MiaoNet.Server/MiaoNet.Server.csproj
+dotnet test source/MiaoNet.UnitTest/MiaoNet.UnitTest.csproj
+```
+
+完整的本地服务端、MockClient 和生产配置流程见[开发上手指南](docs/developing-MiaoNet.md)。
 
 ## 项目进度
 
-[见该 Issue](https://github.com/CelesteCNCoders/MiaoNet/issues/2)
+当前计划与进度见 [GitHub Issue #2](https://github.com/CelesteCNCoders/MiaoNet/issues/2)。
 
 ## 服务端 HTTP 接口与管理后台
 
@@ -71,11 +97,14 @@ CelesteNet 的一个重写, 以应对数以百计的蔚蓝联机玩家.
 若要对公网开放管理后台或 API, 需将其改为如 `http://+:21474/` 的前缀(或配置反向代理),
 并且**务必**配置强随机的 `MiaoServer:ApiToken`.
 
-## LICENSE
+## 参与贡献
 
-本项目部分借鉴了 [CelesteNet](https://github.com/0x0ade/CelesteNet)([MIT](https://github.com/0x0ade/CelesteNet/blob/e962823cf9666024fd255db9cb5d72a3a5c4d7c6/LICENSE))
-的一些实现, 约定, 以及一些其所使用的[图片资源](./source/MiaoNet.Client/ModFolder/Graphics/Atlases/Gui/miaonet).
+提交代码前请阅读 [Contributing.md](Contributing.md) 和[编码规范](docs/coding-style.md)。问题反馈格式见[反馈规范](docs/how-to-issue.md)。
+
+## License
+
+许可文本见 [LICENSE.txt](LICENSE.txt)。项目部分参考了 [CelesteNet](https://github.com/0x0ade/CelesteNet) 的实现、约定与部分图片资源。
 
 ## Credits
 
-- sky scale: 绘制了直播模式以及合影模式的图标(`live_mode.png`, `group_photo_mode.png`)
+- sky scale：绘制直播模式和合影模式图标（`live_mode.png`、`group_photo_mode.png`）。

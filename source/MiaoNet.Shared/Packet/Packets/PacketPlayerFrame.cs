@@ -1,138 +1,23 @@
-using System.Diagnostics.CodeAnalysis;
-
 namespace MiaoNet.Shared;
 
-// total size(min):
-// (2 + 2) + 8 + 4 + 2 + 8 + 2 = 28 bytes
-// TODO it can be smaller
 public sealed class PacketPlayerFrame : IContextualPacket<PacketPlayerFrame>
 {
-    [Flags]
-    public enum FrameFlags : ushort
+    public bool CanBatch => true;
+
+    public PlayerStateDelta StateDelta { get; }
+
+    public PacketPlayerFrame(PlayerStateDelta stateDelta)
     {
-        None = 0,
-        FacingLeft = 1 << 0, // true -> face left, false -> face right
-        Dashing = 1 << 1,
-        DashesChange = 1 << 2,
-        HasHoldable = 1 << 3,
-        StarFlying = 1 << 4,
-        HasFollowerInitials = 1 << 5,
-        HasFollowerDeltas = 1 << 6,
-        HasWindDirection = 1 << 7,
-        Interactions = 1 << 8,
-        Ducking = 1 << 9,
-        Tired = 1 << 10
-    }
-
-    #region flags
-
-    public bool FacingLeft => Flags.HasFlag(FrameFlags.FacingLeft);
-
-    public bool DashesChange => Flags.HasFlag(FrameFlags.DashesChange);
-
-    public bool Dashing => Flags.HasFlag(FrameFlags.Dashing);
-
-    public bool HasHoldable => Flags.HasFlag(FrameFlags.HasHoldable);
-
-    public bool StarFlying => Flags.HasFlag(FrameFlags.StarFlying);
-
-    [MemberNotNullWhen(true, nameof(FollowerInitials))]
-    public bool HasFollowerInitials => Flags.HasFlag(FrameFlags.HasFollowerInitials);
-
-    [MemberNotNullWhen(true, nameof(FollowerDeltas))]
-    public bool HasFollowerDeltas => Flags.HasFlag(FrameFlags.HasFollowerDeltas);
-
-    public bool HasWindDirection => Flags.HasFlag(FrameFlags.HasWindDirection);
-
-    public bool Interactions => Flags.HasFlag(FrameFlags.Interactions);
-
-    public bool Ducking => Flags.HasFlag(FrameFlags.Ducking);
-
-    public bool Tired => Flags.HasFlag(FrameFlags.Tired);
-
-    #endregion
-
-    public Vector2 Position { get; }
-
-    public PooledString Animation { get; }
-
-    public ushort AnimationFrame { get; }
-
-    public Vector2 Scale { get; }
-
-    public FrameFlags Flags { get; }
-
-    /// <summary>Included only when <see cref="DashesChange"/>.</summary>
-    public byte Dashes { get; set; }
-
-    /// <summary>Included only when <see cref="Dashing"/>.</summary>
-    public byte DashDirection { get; set; }
-
-    /// <summary>Included only when <see cref="HasHoldable"/>.</summary>
-    public HoldableInfo HoldableInfo { get; set; }
-
-    public FollowerInfo[]? FollowerInitials { get; set; }
-
-    public FollowerInfoDelta[]? FollowerDeltas { get; set; }
-
-    /// <summary>Included only when <see cref="HasWindDirection"/>.</summary>
-    public Vector2 WindDirection { get; set; }
-
-    public PacketPlayerFrame(
-        Vector2 position,
-        PooledString animation, ushort animationFrame,
-        Vector2 scale,
-        FrameFlags flags
-    )
-    {
-        Position = position;
-        AnimationFrame = animationFrame;
-        Animation = animation;
-        Scale = scale;
-        Flags = flags;
+        StateDelta = stateDelta;
     }
 
     public void Serialize(ref RefBinaryWriter writer, IPacketSerializationContext context)
     {
-        writer.Write(Position);
-        writer.Write(Animation, context.PooledStringManager);
-        writer.Write(AnimationFrame);
-        writer.Write(Scale);
-        writer.Write((ushort)Flags);
-        if (DashesChange)
-            writer.Write(Dashes);
-        if (HasHoldable)
-            writer.Write(HoldableInfo, context.PooledStringManager);
-        if (Dashing)
-            writer.Write(DashDirection);
-        if (HasFollowerInitials)
-            writer.WriteSmall(FollowerInitials, context.PooledStringManager);
-        else if (HasFollowerDeltas)
-            writer.WriteSmall(FollowerDeltas, context.PooledStringManager);
-        if (HasWindDirection)
-            writer.Write(WindDirection);
+        writer.Write(StateDelta, context.PooledStringManager);
     }
 
     public static PacketPlayerFrame Deserialize(ref RefBinaryReader reader, IPacketSerializationContext context)
     {
-        Vector2 position = reader.ReadVector2();
-        PooledString animation = reader.Read<PooledString, PooledStringManager>(context.PooledStringManager);
-        ushort animationFrame = reader.ReadUInt16();
-        Vector2 scale = reader.ReadVector2();
-        FrameFlags flags = (FrameFlags)reader.ReadUInt16();
-        var packet = new PacketPlayerFrame(position, animation, animationFrame, scale, flags);
-        if (packet.DashesChange)
-            packet.Dashes = reader.ReadByte();
-        if (packet.HasHoldable)
-            packet.HoldableInfo = reader.Read<HoldableInfo, PooledStringManager>(context.PooledStringManager);
-        if (packet.Dashing)
-            packet.DashDirection = reader.ReadByte();
-        if (packet.HasFollowerInitials)
-            packet.FollowerInitials = reader.ReadSmallArray<FollowerInfo, PooledStringManager>(context.PooledStringManager);
-        else if (packet.HasFollowerDeltas)
-            packet.FollowerDeltas = reader.ReadSmallArray<FollowerInfoDelta, PooledStringManager>(context.PooledStringManager);
-        if (packet.HasWindDirection)
-            packet.WindDirection = reader.ReadVector2();
-        return packet;
+        return new(reader.Read<PlayerStateDelta, PooledStringManager>(context.PooledStringManager));
     }
 }

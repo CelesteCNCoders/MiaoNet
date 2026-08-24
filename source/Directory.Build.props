@@ -4,8 +4,8 @@
     <LangVersion>preview</LangVersion>
     <UseLocalhostPfx>false</UseLocalhostPfx>
     <UseLocalhostPfx Condition="$(Configuration) == 'Debug'">true</UseLocalhostPfx>
-    <UseCeleMiaoAuth>false</UseCeleMiaoAuth>
-    <UseCeleMiaoAuth Condition="$(Configuration) == 'Release'">true</UseCeleMiaoAuth>
+    <UseCeleMiaoAuth Condition="'$(UseCeleMiaoAuth)' == '' and '$(Configuration)' == 'Release'">true</UseCeleMiaoAuth>
+    <UseCeleMiaoAuth Condition="'$(UseCeleMiaoAuth)' == ''">false</UseCeleMiaoAuth>
 
     <DefineConstants Condition="$(UseLocalhostPfx) == 'true'">$(DefineConstants);USE_LOCALHOST_PFX</DefineConstants>
     <DefineConstants Condition="$(UseCeleMiaoAuth) == 'true'">$(DefineConstants);USE_CELEMIAO_AUTH</DefineConstants>

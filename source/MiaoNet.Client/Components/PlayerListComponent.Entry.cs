@@ -17,7 +17,7 @@ public sealed partial class PlayerListComponent
         public Color MapNameColor = DefaultColor;
         public Color MapSideColor = DefaultColor;
         public MTexture? AreaIconTexture;
-        public string? AreaSideText;
+        public string? AreaModeText;
         public string? PingText;
 
         PlayerLocation IPlayerListEntry.Location => Player.Location;
@@ -42,25 +42,25 @@ public sealed partial class PlayerListComponent
                 MapName = null;
                 MapRoom = null;
                 AreaIconTexture = null;
-                AreaSideText = null;
+                AreaModeText = null;
                 MapNameColor = MapSideColor = DefaultColor;
             }
             else
             {
-                AreaSideText = loc.SideCharacter.ToString();
+                AreaModeText = loc.Map.AreaModeCharacter.ToString();
 
-                var areaData = AreaData.Get(loc.MapSid);
+                var areaData = AreaData.Get(loc.Map.Sid);
                 if (areaData is not null)
                 {
                     IsLocallyKnownMap = true;
                     MapName = Dialog.Get(areaData.Name);
-                    MapRoom = Clip(loc.MapRoom, clipType);
+                    MapRoom = Clip(loc.Room, clipType);
 
                     string iconPath = areaData.Icon;
                     string? lobbySid;
                     AreaData? lobbyAreaData;
                     if (
-                        (lobbySid = CollabUtils2Interop.GetLobbyForMap?.Invoke(loc.MapSid)) is not null &&
+                        (lobbySid = CollabUtils2Interop.GetLobbyForMap?.Invoke(loc.Map.Sid)) is not null &&
                         (lobbyAreaData = AreaData.Get(lobbySid)) is not null
                     )
                     {
@@ -76,8 +76,8 @@ public sealed partial class PlayerListComponent
                 else
                 {
                     IsLocallyKnownMap = false;
-                    MapName = Clip(loc.MapSid, clipType);
-                    MapRoom = Clip(loc.MapRoom, clipType);
+                    MapName = Clip(loc.Map.Sid, clipType);
+                    MapRoom = Clip(loc.Room, clipType);
                     AreaIconTexture = null;
                     MapNameColor = MapSideColor = DefaultColor;
                 }

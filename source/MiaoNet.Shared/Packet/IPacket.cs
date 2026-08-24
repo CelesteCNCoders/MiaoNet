@@ -2,7 +2,7 @@ namespace MiaoNet.Shared;
 
 public interface IContextualPacket : IContextualRefBinarySerializable<IPacketSerializationContext>
 {
-    public static virtual PacketFlags PacketFlags => PacketFlags.None;
+    public bool CanBatch => false;
 }
 
 public interface IContextualPacket<out T> : IContextualPacket, IContextualRefBinarySerializable<T, IPacketSerializationContext>

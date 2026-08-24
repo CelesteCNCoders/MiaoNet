@@ -138,14 +138,6 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
         item.AddDescription(menu, Dialog.Clean("miaonet_options_ignore_cert_revocation_status_tip"));
 
-        /*
-        item = new TextMenu.OnOff(
-            Dialog.Get("miaonet_options_use_sync_refresh"), false
-        );
-        menu.Add(item);
-        item.AddDescription(menu, Dialog.Clean("miaonet_options_use_sync_refresh_tip"));
-        */
-
         #endregion
 
         #region Visuals
@@ -213,7 +205,7 @@ public static class MenuMiaoNetOptions
         #endregion
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_player_opacity"), 1, 10, settings.PlayerOpacity
+            Dialog.Get("miaonet_options_player_opacity"), 0, 10, settings.PlayerOpacity
         ).Change(v => settings.PlayerOpacity = v);
         menu.Add(item);
 
@@ -223,8 +215,13 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_player_name_opacity"), 1, 10, settings.PlayerNameOpacity
+            Dialog.Get("miaonet_options_player_name_opacity"), 0, 10, settings.PlayerNameOpacity
         ).Change(v => settings.PlayerNameOpacity = v);
+        menu.Add(item);
+
+        item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_offscreen_player_name_opacity"), 0, 10, settings.OffScreenPlayerNameOpacity
+        ).Change(v => settings.OffScreenPlayerNameOpacity = v);
         menu.Add(item);
 
         {
@@ -242,7 +239,7 @@ public static class MenuMiaoNetOptions
         }
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_emote_opacity"), 1, 10, settings.EmoteOpacity
+            Dialog.Get("miaonet_options_emote_opacity"), 0, 10, settings.EmoteOpacity
         ).Change(v => settings.EmoteOpacity = v);
         menu.Add(item);
 
@@ -379,12 +376,13 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.PlayerPresenceMessages = v);
         menu.Add(item);
 
-        item = new TextMenu.OnOff(
-            Dialog.Get("miaonet_options_no_new_messages_showing"),
-            settings.NoNewMessagesShowing
-        ).Change(v => settings.NoNewMessagesShowing = v);
+        item = new EnumSlider<NewMessageShowingMode>(
+            Dialog.Get("miaonet_options_new_messages_showing_mode"),
+            value => Dialog.Get($"miaonet_options_new_messages_showing_mode_{value}"),
+            settings.NewMessagesShowing
+        ).Change(v => settings.NewMessagesShowing = v);
         menu.Add(item);
-        item.AddDescription(menu, Dialog.Clean("miaonet_options_no_new_messages_showing_tip"));
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_new_messages_showing_mode_tip"));
 
         #endregion
 
@@ -561,8 +559,6 @@ public static class MenuMiaoNetOptions
             Add(new Header(Dialog.Clean("BTN_CONFIG_TITLE")));
             Add(new InputMappingInfo(false));
 
-            AddMapForceLabel(Dialog.Get("miaonet_options_button_chat"), settings.ChatButton.Binding);
-            AddMapForceLabel(Dialog.Get("miaonet_options_button_chat_command"), settings.ChatCommandButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list"), settings.PlayerListButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_create_fireworks"), settings.CreateFireworksButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list_scroll_up"), settings.PlayerListScrollUp.Binding);

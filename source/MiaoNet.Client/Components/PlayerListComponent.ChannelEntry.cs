@@ -24,7 +24,7 @@ public sealed partial class PlayerListComponent
             Header = PFormat.Format(
                 CultureInfo.CurrentCulture,
                 Dialog.Get("miaonet_player_list_channel_header"),
-                Channel.Name,
+                Channel.Info.Name,
                 Players.Count
             );
         }

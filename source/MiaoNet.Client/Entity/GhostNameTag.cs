@@ -14,7 +14,7 @@ public sealed class GhostNameTag : MiaoNetEntity
 
     private GhostNameTag(Entity entity, string text, Color color)
     {
-        Tag = MiaoNetTag.Tag | TagsExt.SubHUD;
+        Tag = MiaoNetTag.Hud;
         Entity = entity;
         Text = text;
         Color = color;
@@ -42,25 +42,45 @@ public sealed class GhostNameTag : MiaoNetEntity
     {
         base.Render();
 
+        const float BaseScale = 1f / 2f;
+        const float Margin = 8f;
+        const float FadeRadius = 128f;
+
+        float scale = BaseScale * SceneAs<Level>().Zoom;
+
+        var f = ExtendedVariantInterop.GetCurrentVariantValue;
+        bool upsideDown = f is not null && (bool)f.Invoke("UpsideDown");
+
+        Vector2 justify = new Vector2(1f / 2f, !upsideDown ? 1f : 0f);
+
         Vector2 worldPosition = Entity.Position;
         worldPosition.Y -= 16f;
-        float alpha = IsOnSelf
-            ? MiaoNetModule.Settings.SelfNameOpacityValue
-            : MiaoNetModule.Settings.PlayerNameOpacityValue;
-        const float Scale = 1f / 2f;
-        const float Margin = 8f;
 
-        Vector2 position = ScreenClamper.ClampIntoScreen(
-            SceneAs<Level>().WorldToScreen(worldPosition),
-            MiaoNetFont.Measure(Text) * Scale,
-            new Vector2(1f / 2f, 1f),
+        Vector2 position = SceneAs<Level>().WorldToScreen(worldPosition);
+        if (upsideDown)
+            position.Y = Celeste.TargetHeight - position.Y;
+        Vector2 clampedPosition = ScreenClamper.ClampIntoScreen(
+            position,
+            MiaoNetFont.Measure(Text) * scale,
+            justify,
             Margin
         );
 
-        MiaoNetFont.DrawOutlineBottomCentered(
+        var settings = MiaoNetModule.Settings;
+        float alpha = IsOnSelf
+            ? settings.SelfNameOpacityValue
+            : position == clampedPosition
+                ? settings.PlayerNameOpacityValue
+                : Calc.LerpClamp(
+                    settings.PlayerNameOpacityValue,
+                    settings.OffScreenPlayerNameOpacityValue,
+                    Vector2.DistanceSquared(position, clampedPosition) / (FadeRadius * FadeRadius)
+                );
+        MiaoNetFont.DrawOutline(
             Text,
-            position,
-            Vector2.One * Scale,
+            clampedPosition,
+            justify,
+            Vector2.One * scale,
             Color * alpha
         );
     }

@@ -1,4 +1,4 @@
-﻿using MiaoNet.Shared;
+using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -10,14 +10,11 @@ public sealed class GhostFollower : MiaoNetGhostEntity
     private readonly BloomPoint? bloomPoint;
     private readonly VertexLight? vertexLight;
 
-    public Follower Follower { get; }
-
     public GhostFollower(MiaoNetGhost ghost, Vector2 offset, FollowerType type, string spriteID)
         : base(ghost.Position + offset)
     {
         Tag |= ghost.Tag;
-        Depth = ghost.Depth + 1;
-        Add(Follower = new() { MoveTowardsLeader = false });
+        Depth = Depths.Player + 1;
 
         if (GFX.SpriteBank.SpriteData.ContainsKey(spriteID))
         {
@@ -34,7 +31,6 @@ public sealed class GhostFollower : MiaoNetGhostEntity
         float scale = Math.Min(1f, SizeLimit / Math.Max(sprite.Width, sprite.Height));
         sprite.Scale = Vector2.One * scale;
         Add(sprite);
-        Add(new MirrorReflection());
         if (type is FollowerType.Strawberry or FollowerType.StrawberrySeed)
         {
             Add(bloomPoint = new BloomPoint(1f, 12f));

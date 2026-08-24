@@ -1,20 +1,21 @@
+using MiaoNet.Shared;
+
 namespace Celeste.Mod.MiaoNet;
 
 public sealed class OnlineChannel
 {
-    public int ID { get; set; }
+    public int ID { get; }
 
-    public string Name { get; set; }
+    public ChannelInfo Info { get; }
 
-    public Dictionary<int, OnlinePlayer> Players { get; set; }
+    public bool IsPrivate => Info.IsPrivate;
 
-    public OnlineChannel(int id, string name)
+    public HashSet<OnlinePlayer> Players { get; }
+
+    public OnlineChannel(int id, ChannelInfo channelInfo)
     {
         ID = id;
-        Name = name;
+        Info = channelInfo;
         Players = new();
     }
-
-    public override string ToString()
-        => $"C-{Name}:{ID}";
 }

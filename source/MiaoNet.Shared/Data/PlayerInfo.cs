@@ -3,7 +3,7 @@ namespace MiaoNet.Shared;
 public sealed class PlayerInfo : IRefBinarySerializable<PlayerInfo>
 {
     /// <summary>from authenticator</summary>
-    public int AuthID { get; set; }
+    public int AuthID { get; }
 
     public string Name { get; }
 

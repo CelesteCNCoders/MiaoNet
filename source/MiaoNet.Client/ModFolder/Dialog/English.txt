@@ -41,6 +41,7 @@ miaonet_options_active_chat_height= Active Chat Height
 miaonet_options_player_opacity= Player Opacity
 miaonet_options_self_name_opactiy= Self Name Opacity
 miaonet_options_player_name_opacity= Name Opacity
+miaonet_options_offscreen_player_name_opacity= Off-screen Name Opacity
 miaonet_options_distance_based_opacity= Player Distance Based Opacity
 miaonet_options_min_player_opacity_multiplier= Min Player Opacity Multiplier
 miaonet_options_emote_opacity= Emote Opacity
@@ -92,10 +93,17 @@ miaonet_options_teleport_behaviour= Teleport Command Behaviour
 miaonet_options_teleport_behaviour_nosession= Map and room only
 miaonet_options_teleport_behaviour_withsession= Request other's session
 miaonet_options_player_presence_message= Player Presence Chat Messages
-miaonet_options_no_new_messages_showing= No New Messages Showing
-miaonet_options_no_new_messages_showing_tip=
-	This hides new messages when chat is not open.
+miaonet_options_new_messages_showing_mode= New Messages Showing Mode
+miaonet_options_new_messages_showing_mode_tip=
+	This defines what new messages will be shown when chat is not open.
+	- Show All: Show all the new messages.
+	- With Tab: Maintain new messages filtering consistency with tabs.
+	- Hide All: No new messages showing.
 	This option will not be saved.
+
+miaonet_options_new_messages_showing_mode_showall= Show All
+miaonet_options_new_messages_showing_mode_withtab= With Tab
+miaonet_options_new_messages_showing_mode_hideall= Hide All
 
 miaonet_options_button_chat= Open Chat
 miaonet_options_button_chat_command= Input Commands
@@ -147,10 +155,8 @@ miaonet_connection_status_connection_aborted= Connection aborted
 miaonet_connection_status_ssl_error= Connection SSL Error：(0) ((1))
 miaonet_connection_status_revocation_check_failed= Connection establishment failed. Failed to check certificate revocation status.
 
-miaonet_context_player_joined= (0) joined MiaoNet
-miaonet_context_player_left= (0) left MiaoNet
-
 miaonet_player_list_channel_header= #(0) | (1) Player(s)
+miaonet_private_channel_name= <Private>
 
 miaonet_chat_disabled= Chat has been set to disabled
 
@@ -163,6 +169,7 @@ miaonet_command_status_player_not_found= Player "(0)" not found
 miaonet_command_status_player_not_in_map= Player "(0)" is not in a map
 miaonet_command_status_player_is_self= "(0)" is yourself!
 miaonet_command_status_player_map_missing= Map "(1)" where player "(0)" is in is missing
+miaonet_command_status_no_available_player= No player in map & not taking golden strawberry
 miaonet_command_status_channel_not_found= Channel "(0)" not found
 miaonet_command_help_title= == MiaoNet Command Help ((0)) ==
 miaonet_command_help_not_found= Command "(0)" not found
@@ -183,6 +190,7 @@ miaonet_commands_teleport_no_session_s0_description= The player that teleported 
 miaonet_commands_teleport_with_session_description= Teleport to a player and fetch their session.
 miaonet_commands_teleport_with_session_s0_name= Player
 miaonet_commands_teleport_with_session_s0_description= The player that teleported to.
+miaonet_commands_random_teleport_description= Teleport to a random player in map and isn't carrying a golden strawberry.
 miaonet_commands_whisper_description= Whipser a message to a player.
 miaonet_commands_whisper_s0_name= Player
 miaonet_commands_whisper_s0_description= The player that will be whispered to.
@@ -202,6 +210,18 @@ miaonet_commands_watch_description= Watch a player.
 miaonet_commands_watch_s0_name= Player
 miaonet_commands_watch_s0_description= The player to be watched.
 miaonet_commands_unwatch_description= Stop watching a player.
+miaonet_commands_channel_description= Join or create a channel.
+miaonet_commands_channel_s0_name= Name
+miaonet_commands_channel_s0_description= The name of channel to join or create.
+miaonet_commands_chat_description= Set default chat channel type.
+miaonet_commands_chat_s0_name= Type
+miaonet_commands_chat_s0_description= Chat channel type (global/g channel/c map/m).
+miaonet_commands_global_chat_description= Send a global chat.
+miaonet_commands_global_chat_s0_name= Text
+miaonet_commands_global_chat_s0_description= Chat message.
+miaonet_commands_channel_chat_description= Send a channel chat.
+miaonet_commands_channel_chat_s0_name= Text
+miaonet_commands_channel_chat_s0_description= Chat message.
 miaonet_commands_map_chat_description= Send a map chat.
 miaonet_commands_map_chat_s0_name= Text
 miaonet_commands_map_chat_s0_description= Chat message.
@@ -215,6 +235,7 @@ miaonet_commands_teleport_tip= Teleporting to (0)...
 miaonet_commands_teleport_failed_tip= Teleport failed, (0)
 miaonet_commands_teleport_failed_nosuchplayer= no such player
 miaonet_commands_teleport_failed_otherdenied= the other denied
+miaonet_commands_teleport_failed_otherdoesnotresponse= the other does not response
 miaonet_commands_teleport_success= Teleported to (0)
 miaonet_commands_teleport_success_nosession= Teleported to (0)'s location
 miaonet_commands_teleport_back_notice= You're currently using a temporary save. Type "/back" to return to your original save.
@@ -230,12 +251,15 @@ miaonet_commands_watch_others_watching= Player (0) is already watching others
 miaonet_commands_watch_not_same_map= You're not in map (1) where (0) in
 miaonet_commands_unwatch_none_unwatched= No player being watched currently
 miaonet_commands_unwatch_unwatched= Stop watching player (0)
+miaonet_commands_chat_chat_channel_switched= Chat channel type switched to (0)
+miaonet_commands_chat_chat_channel_type_not_found= Unknown chat channel type "(0)"
 
 miaonet_lb= [
 miaonet_rb= ]
-miaonet_chat_map_chat= {+ miaonet_lb}Map Chat{+ miaonet_rb}
 miaonet_chat_whisper_sent= {+ miaonet_lb}whisper to (0){+ miaonet_rb} (1)
 miaonet_chat_whisper_received= {+ miaonet_lb}whisper{+ miaonet_rb} (0)
+miaonet_chat_map_chat= {+ miaonet_lb}Map Chat{+ miaonet_rb}
+miaonet_chat_channel_chat= {+ miaonet_lb}Channel Chat{+ miaonet_rb}
 
 miaonet_oui_conflict_title= MiaoNet Mod Conflict
 miaonet_oui_conflict_description=

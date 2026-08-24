@@ -34,6 +34,9 @@
     <None Update="Http/Admin/admin.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="content.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup Condition="$(UseLocalhostPfx) == 'true'">

@@ -3,12 +3,25 @@ using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
+[Tracked]
 public sealed class MiaoNetGhost : MiaoNetGhostEntity
 {
+    // prevent it from being AfterUpdated by Level.Update
+    private sealed class GhostHair : PlayerHair
+    {
+        public GhostHair(PlayerSprite sprite)
+            : base(sprite)
+        {
+        }
+    }
+
     private PlayerSprite playerSprite;
-    private readonly PlayerHair playerHair;
+    private readonly GhostHair playerHair;
     private readonly GhostNameTag nameTag;
-    private readonly Leader leader;
+    private bool followersActive = true;
+    private readonly List<GhostFollower> followers;
+
+    private Vector2 lastPosition;
 
     private VertexLight? vertexLight;
 
@@ -61,41 +74,58 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
     public Vector2 LastReleaseForce { get; private set; }
 
+    private static bool ReceiveFollowers => MiaoNetModule.Settings.FollowersSyncMode.HasReceive;
+
     [AllowNull]
     public PlayerGraphicsInfo GraphicsInfo
     {
-        get => field;
+        get;
         set => field = value ?? PlayerGraphicsInfo.Default;
     }
 
-    public MiaoNetGhost(
-        OnlinePlayer player,
-        PlayerGraphicsInfo? playerGraphicsInfo,
-        PlayerState initialState,
-        bool avatar
-    )
+    public MiaoNetGhost(OnlinePlayer player, bool avatar)
     {
-        Tag = MiaoNetTag.Tag;
+        Tag = MiaoNetTag.Normal;
         Depth = Depths.Player + 1;
         OnlinePlayer = player;
-        GraphicsInfo = playerGraphicsInfo;
+        GraphicsInfo = player.GraphicsInfo;
+        var initialState = player.State!;
+
         facing = Facings.Right;
         playerSprite = SafeCreatePlayerSprite(initialState.PlayerSpriteMode);
-        Add(leader = new Leader(new Vector2(0f, -8f)));
-        Add(new MirrorReflection());
-        UpdateLightSettings(MiaoNetModule.Settings.PlayerLight);
+        followersActive = ReceiveFollowers;
+        followers = new();
 
-        playerHair = new PlayerHair(playerSprite);
+        playerHair = new GhostHair(playerSprite) { Facing = facing };
 
-        playerHair.Facing = facing;
-        Add(playerHair);
-
-        Add(playerSprite);
         nameTag = new(this, player, avatar);
-        playerHair.Start();
 
-        ApplyState(initialState);
-        UpdateHairCount();
+        dashes = initialState.Dashes;
+        lastDashedDashes = dashes;
+        Position = initialState.Position;
+        windDirection = initialState.WindDirection;
+        OnFollowerInitials(initialState.FollowerInfos);
+        UpdateWind(initialState.WindDirection);
+
+        PlayerStateFlags stateFlags = initialState.StateFlags;
+        dashing = stateFlags.HasFlag(PlayerStateFlags.Dashing);
+        UpdateStarFlying(stateFlags.HasFlag(PlayerStateFlags.StarFlying));
+        UpdateInteractions(stateFlags.HasFlag(PlayerStateFlags.Interactions));
+        UpdateDucking(stateFlags.HasFlag(PlayerStateFlags.Ducking));
+        tired = stateFlags.HasFlag(PlayerStateFlags.Tired);
+        bool facingLeft = stateFlags.HasFlag(PlayerStateFlags.FacingLeft);
+        // TODO dead
+
+        UpdateSprite(initialState.Animation, initialState.AnimationFrame, facingLeft, initialState.Scale);
+
+        if (dashing)
+            lastDashDirection = initialState.LastDashDirection;
+
+        Add(playerHair);
+        Add(playerSprite);
+        ResetHair();
+
+        UpdateLightSettings(MiaoNetModule.Settings.PlayerLight);
 
         pDashA = new(Player.P_DashA);
         pDashB = new(Player.P_DashB);
@@ -103,7 +133,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         pDashColorBaseB = (pDashB.Color, pDashB.Color2);
 
         OnUpdatePaused(player.IsPaused);
-        OnUpdateWatching();
+        OnUpdateWatching(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
 
         selfHoldable = new(1f / 5f)
         {
@@ -125,8 +155,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
     public override void Update()
     {
-        base.Update();
-
         // Save Load issue
         if (selfHoldable.Holder?.Holding != selfHoldable)
             selfHoldable.Holder = null;
@@ -135,25 +163,30 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
         // TODO these can be prevented server-side
         // thus we should introduce PlayerGlobalSettings
-        bool fr = MiaoNetModule.Settings.FollowersSyncMode.HasReceive;
-        if (!fr && leader.Active)
+        bool fr = ReceiveFollowers;
+        if (!fr && followersActive)
         {
-            leader.Active = false;
-            foreach (var e in leader.Followers)
-                e.Entity.RemoveSelf();
+            followersActive = false;
+            foreach (var e in followers)
+                Scene.CompletelyRemove(e);
         }
-        else if (fr && !leader.Active)
+        else if (fr && !followersActive)
         {
-            leader.Active = true;
-            foreach (var e in leader.Followers)
-                Scene.Add(e.Entity);
+            followersActive = true;
+            foreach (var e in followers)
+                Scene.Add(e);
         }
+
 
         if (OnlinePlayer.IsPaused)
             return;
 
+        base.Update();
+
         if (dead)
             return;
+
+        Level level = SceneAs<Level>();
 
         // simulate hair color
         if (starFlying)
@@ -177,7 +210,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         }
 
         // TODO apply others' delta time
-        if (Scene.OnRawInterval(0.05f))
+        if (level.OnRawInterval(0.05f))
             flash = !flash;
 
         if (flash && tired)
@@ -200,7 +233,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         else if (dashes > 1)
         {
             // TODO apply others' delta time
-            float timeActive = Scene.RawTimeActive;
+            float timeActive = level.RawTimeActive;
             playerHair.StepPerSegment = new Vector2(
                 MathF.Sin(timeActive * 2f) * 0.7f - ((float)facing * 3f),
                 MathF.Sin(timeActive * 1f)
@@ -218,9 +251,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             playerHair.StepYSinePerSegment = 0f;
             playerHair.StepPerSegment.Y += windDirection.Y * 0.5f;
         }
-        if (!Scene.Paused)
+
+        if (!level.Paused)
         {
-            if (dashing && !dead)
+            if (dashing)
             {
                 float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
                 // TODO apply graphics info
@@ -238,17 +272,26 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                     type.Color2 = pDashColorBaseB.Item2 * alpha;
                 }
 
-                SceneAs<Level>().ParticlesFG.Emit(
-                    type,
-                    Position + Calc.Random.Range(Vector2.One * -2f, Vector2.One * 2f),
-                    lastDashDirection
-                );
+                // TODO apply others' delta time
+                if (lastPosition != Position && level.OnRawInterval(0.02f))
+                    level.ParticlesFG.Emit(
+                        type,
+                        Position + Random.Shared.Range(Vector2.One * -2f, Vector2.One * 2f),
+                        lastDashDirection
+                    );
+            }
+            else if (starFlying)
+            {
+                // TODO apply others' delta time
+                if (level.OnRawInterval(0.02f))
+                {
+                    float angle = (Position - lastPosition).Angle();
+                    level.Particles.Emit(FlyFeather.P_Flying, 1, Center, Vector2.One * 2f, angle);
+                }
             }
         }
-        else
-        {
-            playerHair.AfterUpdate();
-        }
+
+        lastPosition = Position;
     }
 
     private void OnPlayer(Player player)
@@ -283,8 +326,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         {
             if (vertexLight is null)
             {
-                // TODO player duck light offset
-                vertexLight = new VertexLight(new Vector2(0f, -8f), Color.White, 0.96f, 32, 64);
+                vertexLight = new VertexLight(GetLightOffset(ducking), Color.White, 0.96f, 32, 64);
                 Add(vertexLight);
             }
             vertexLight.Visible = true;
@@ -296,36 +338,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         }
     }
 
-    #region state updates
+    private static Vector2 GetLightOffset(bool duck)
+        => duck ? new Vector2(0f, -3f) : new Vector2(0f, -8f);
 
-    [MemberNotNull(nameof(hitbox))]
-    public void ApplyState(PlayerState state)
-    {
-        if (playerSprite.Mode != state.PlayerSpriteMode)
-        {
-            var pAnim = playerSprite.CurrentAnimationID;
-            var pFrame = playerSprite.CurrentAnimationFrame;
-            playerSprite.RemoveSelf();
-            playerSprite = SafeCreatePlayerSprite(state.PlayerSpriteMode);
-            if (playerSprite.Has(pAnim))
-            {
-                playerSprite.Play(pAnim);
-                playerSprite.SetAnimationFrame(pFrame);
-            }
-            playerHair.Sprite = playerSprite;
-            Add(playerSprite);
-            playerHair.Start();
-            UpdateHairCount();
-        }
-        dashes = state.Dashes;
-        lastDashedDashes = dashes;
-        Position = state.Position;
-        windDirection = state.WindDirection;
-        UpdateFacing(state.FacingLeft);
-        OnFollowerInitials(state.FollowerInfos);
-        UpdateDucking(state.Ducking);
-        UpdateWind(state.WindDirection);
-    }
+    #region state updates
 
     private static PlayerSprite SafeCreatePlayerSprite(PlayerSpriteMode spriteMode)
     {
@@ -394,35 +410,36 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         {
             GhostFollower gf = new(this, info.Offset, info.Type, info.SpriteID);
             gf.UpdateSprite(info.AnimationID, info.AnimationFrame);
-            leader.GainFollower(gf.Follower);
-            Scene?.Add(gf);
+            followers.Add(gf);
+            if (followersActive)
+                Scene?.Add(gf);
         }
     }
 
     public void OnFollowerDeltas(FollowerInfoDelta[] deltas)
     {
-        if (deltas.Length != leader.Followers.Count)
+        if (deltas.Length != followers.Count)
         {
             Logger.Error(
                 LT.MiaoNet,
-                $"Received {deltas.Length} follower deltas but there's only {leader.Followers.Count} followers."
+                $"Received {deltas.Length} follower deltas but there's only {followers.Count} followers."
             );
             // let it crash
         }
         for (int i = 0; i < deltas.Length; i++)
         {
             FollowerInfoDelta delta = deltas[i];
-            var gf = leader.Followers[i].EntityAs<GhostFollower>();
+            var gf = followers[i];
             gf.UpdateSprite(delta.AnimationID, delta.AnimationFrame);
-            gf.Position = leader.Entity.Position + delta.Offset;
+            gf.Position = Position + delta.Offset;
         }
     }
 
     private void CleanUpFollowers()
     {
-        foreach (var follower in leader.Followers)
-            Scene?.CompletelyRemove(follower.Entity);
-        leader.Followers.Clear();
+        foreach (var follower in followers)
+            Scene?.CompletelyRemove(follower);
+        followers.Clear();
     }
 
     private void AddTrail(int dashes)
@@ -482,6 +499,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                     Add(playerSprite);
                     if (vertexLight is not null)
                         Add(vertexLight);
+                    Scene.OnEndOfFrame += new(ResetHair);
                     lastBody = null;
                 }
             );
@@ -498,12 +516,13 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             Add(playerSprite);
             if (vertexLight is not null)
                 Add(vertexLight);
+            Scene.OnEndOfFrame += new(ResetHair);
             lastBody?.RemoveSelf();
         }
     }
 
     // TODO start star flying sync?
-    public void NotifyStarFlying(bool starFlying)
+    public void UpdateStarFlying(bool starFlying)
     {
         if (this.starFlying != starFlying)
         {
@@ -520,7 +539,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                 playerHair.SimulateMotion = true;
             }
             this.starFlying = starFlying;
-
         }
     }
 
@@ -589,6 +607,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         this.ducking = ducking;
         hitbox = ducking ? duckHitbox : normalHitbox;
         Collider = hitbox;
+        vertexLight?.Position = GetLightOffset(ducking);
     }
 
     public void UpdateTired(bool tired)
@@ -608,6 +627,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             {
                 playerHair.Active = false;
                 idleHover = new(this);
+                idleHover.Visible = this.Visible;
                 if (Scene is not null)
                 {
                     Scene.Add(idleHover);
@@ -625,7 +645,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         }
     }
 
-    public void OnUpdateWatching()
+    public void OnUpdateWatching(bool watching)
     {
         UpdateVisible();
     }
@@ -633,8 +653,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     private void UpdateVisible()
     {
         bool watching = OnlinePlayer.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching);
+
         Visible = (!dead || respawning) && !watching;
         nameTag.Visible = !watching;
+        idleHover?.Visible = this.Visible;
     }
 
     private void UpdateCollidable()
@@ -668,12 +690,17 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     private void UpdateHairCount(int count)
     {
         playerSprite.HairCount = count;
-        playerHair.AfterUpdate();
     }
 
     private void UpdateHairCount()
     {
         UpdateHairCount(GraphicsInfo.GetHairInfo(dashes).Length);
+    }
+
+    private void ResetHair()
+    {
+        playerHair.Start();
+        playerHair.AfterUpdate();
     }
 
     #endregion
@@ -684,11 +711,13 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         scene.Add(nameTag);
         if (idleHover is not null)
             scene.Add(idleHover);
-        foreach (var follower in leader.Followers)
+        if (followersActive)
         {
-            Entity e = follower.Entity;
-            if (e.Scene is null)
-                scene.Add(e);
+            foreach (var follower in followers)
+            {
+                if (follower.Scene is null)
+                    scene.Add(follower);
+            }
         }
     }
 
@@ -733,6 +762,25 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         if (respawning)
         {
             DeathEffect.Draw(Position, playerHair.Color, deadEase);
+        }
+    }
+
+    public void HairAfterUpdate()
+    {
+        if (dead)
+            return;
+
+        if (OnlinePlayer.IsPaused)
+        {
+            // only keep the position
+            // yes this is kinda hacky
+            Vector2 offset = playerHair.Sprite.HairOffset * new Vector2((float)playerHair.Facing, 1f);
+            Vector2 expectedNode0Position = playerHair.Sprite.RenderPosition + new Vector2(0f, -9f * playerHair.Sprite.Scale.Y) + offset;
+            playerHair.MoveHairBy(expectedNode0Position - playerHair.Nodes[0]);
+        }
+        else
+        {
+            playerHair.AfterUpdate();
         }
     }
 }

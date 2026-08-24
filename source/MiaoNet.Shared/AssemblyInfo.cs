@@ -10,15 +10,9 @@ using MiaoNet.Shared;
     typeof(PacketPlayerLiveState),
     typeof(PacketPlayerNotification<PacketPlayerLiveState>),
 
-    typeof(PacketPlayerMapChanged),
-    typeof(PacketPlayerMapChangedNotification),
-    typeof(PacketPlayerMapChangedResponse),
-
-    typeof(PacketPlayerMapRoomChanged),
-    typeof(PacketPlayerNotification<PacketPlayerMapRoomChanged>),
-
-    typeof(PacketPlayerChannelMove),
-    typeof(PacketPlayerNotification<PacketPlayerChannelMove>),
+    typeof(PacketPlayerLocationChanged),
+    typeof(PacketPlayerLocationChangedNotification),
+    typeof(PacketPlayerLocationChangedResponse),
 
     typeof(PacketChatMessage),
     typeof(PacketSendChatMessage),
@@ -54,5 +48,8 @@ using MiaoNet.Shared;
     typeof(PacketCreateFireworks),
     typeof(PacketPlayerNotification<PacketCreateFireworks>),
 
-    typeof(PacketSendMapChatMessage),
+    typeof(PacketPlayerChannelMove),
+    typeof(PacketPlayerChannelMovedResponse),
+    typeof(PacketPlayerChannelMovedNotification),
+    typeof(PacketChannelCreated)
 ])]

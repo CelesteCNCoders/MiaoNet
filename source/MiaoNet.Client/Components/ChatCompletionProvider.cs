@@ -7,6 +7,8 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class ChatCompletionProvider : ICompletionProvider
 {
+    private const StringComparison sc = StringComparison.CurrentCultureIgnoreCase;
+
     private readonly MiaoNetContext context;
     private readonly CommandParser parser;
 
@@ -29,11 +31,46 @@ public sealed class ChatCompletionProvider : ICompletionProvider
         if (completions is not null)
             return completions;
 
+        completions = GetMentionCompletions(emojiApplied);
+        if (completions is not null)
+            return completions;
+
         completions = GetCommandCompletions(emojiApplied);
         if (completions is not null)
             return completions;
 
         return null;
+    }
+
+    private IEnumerable<Completion>? GetMentionCompletions(string input)
+    {
+        int atIndex = FindLastMentionAtIndex(input);
+        if (atIndex == -1)
+            return null;
+
+        string partial = input[(atIndex + 1)..];
+        for (int i = 0; i < partial.Length; i++)
+        {
+            if (char.IsWhiteSpace(partial[i]))
+                return null;
+        }
+
+        int remove = partial.Length;
+        var state = context.ClientState!;
+        return from p in state.AllPlayers
+               let name = p.Info.Name
+               where name.StartsWith(partial, sc)
+               select new Completion(name, name, remove);
+
+        static int FindLastMentionAtIndex(string input)
+        {
+            for (int i = input.Length - 1; i >= 0; i--)
+            {
+                if (input[i] == '@' && (i == 0 || char.IsWhiteSpace(input[i - 1])))
+                    return i;
+            }
+            return -1;
+        }
     }
 
     private static IEnumerable<Completion>? GetEmojiCompletions(string input)
@@ -65,12 +102,7 @@ public sealed class ChatCompletionProvider : ICompletionProvider
         // everest forced InvariantCulture, so the followings are actually equivalent to InvariantCultureIgnoreCase
         // we'll keep using CurrentCultureIgnoreCase to keep semantics
         if (!endsWithSpace && segments is null or { Count: 0 })
-        {
-            return from cmd in parser.Commands
-                   where cmd.Name.Contains(commandName, StringComparison.CurrentCultureIgnoreCase)
-                   || cmd.Aliases?.Any(a => a.Contains(commandName, StringComparison.CurrentCultureIgnoreCase)) == true
-                   select new Completion(cmd.Name, cmd.Name, commandName.Length);
-        }
+            return GetCommandNameCompletions(parser, commandName);
 
         if (matchedCommand is not null)
         {
@@ -83,23 +115,44 @@ public sealed class ChatCompletionProvider : ICompletionProvider
                 var segType = matchedCommand.Segments[ind];
                 string part = ind >= segments.Count ? string.Empty : segments[ind];
                 int remove = part.Length;
+                var state = context.ClientState!;
                 switch (segType)
                 {
                 case CommandSegmentType.Player:
-                    return from pair in context.ClientState!.Players
-                           let i = pair.Value.Info
-                           where i.Name.Contains(part, StringComparison.CurrentCultureIgnoreCase)
-                           select new Completion(i.Name, i.DisplayName, remove);
+                    return GetPlayerNameCompletions(state.Players.Select(p => p.Value), part);
+                case CommandSegmentType.PlayerSameChannel:
+                    return GetPlayerNameCompletions(state.SelfChannel.Players, part);
                 case CommandSegmentType.PlayerSameMap:
-                    return from pair in context.ClientState!.Players
-                           let i = pair.Value.Info
-                           where i.Name.Contains(part, StringComparison.CurrentCultureIgnoreCase)
-                           where pair.Value.ShouldSyncFrom(context.ClientState.Self)
-                           select new Completion(i.Name, i.DisplayName, remove);
+                    return GetPlayerNameCompletions(state.SelfChannel.Players.Where(p => p.ShouldSyncFrom(state.Self)), part);
+                case CommandSegmentType.Channel:
+                    return from pair in state.Channels
+                           let c = pair.Value
+                           where c.ID != ChannelInfo.PrivateChannelVirtualID && !c.IsPrivate
+                           let name = c.Info.Name
+                           where name.Contains(part, sc)
+                           select new Completion(name, name, remove);
+                case CommandSegmentType.CommandName:
+                    return GetCommandNameCompletions(parser, part);
+                case CommandSegmentType.ChatChannelType:
+                    return from n in ChatChannelMatcher.Names
+                           where n.Contains(part, sc)
+                           select new Completion(n, n, remove);
                 }
             }
         }
 
         return null;
+
+        static IEnumerable<Completion>? GetCommandNameCompletions(CommandParser parser, string commandName)
+            => from cmd in parser.Commands
+               where cmd.Name.Contains(commandName, sc)
+               || cmd.Aliases?.Any(a => a.Contains(commandName, sc)) == true
+               select new Completion(cmd.Name, cmd.Name, commandName.Length);
+
+        static IEnumerable<Completion>? GetPlayerNameCompletions(IEnumerable<OnlinePlayer> players, string part)
+            => from p in players
+               let i = p.Info
+               where i.Name.Contains(part, sc)
+               select new Completion(i.Name, i.DisplayName, part.Length);
     }
 }

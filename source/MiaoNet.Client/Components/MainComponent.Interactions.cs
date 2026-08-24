@@ -156,22 +156,20 @@ partial class MainComponent
             }
             else
             {
-                var playerEntity = level.Tracker.GetEntity<Player>();
-                if (playerEntity is not null)
+                Player? playerEntity = level.Tracker.GetEntity<Player>();
+                if (playerEntity is not null
+                    && playerEntity.InControl
+                    && ghosts.TryGetValue(player.ID, out MiaoNetGhost? ghost))
                 {
-                    if (playerEntity.InControl)
-                    {
-                        // let them hold us
-                        heldByPlayerGhost = ghosts[player.ID];
-                        OnHeldBy(playerEntity);
-                    }
-                    else
-                    {
-                        // not now
-                        context.QueuePacket(new PacketPlayerGrabJumpOut(player.ID));
-                    }
+                    // let them hold us
+                    heldByPlayerGhost = ghost;
+                    OnHeldBy(playerEntity);
                 }
-                // should we tell the other that no player locally found?
+                else
+                {
+                    // The sender may have left our sync scope while the packet was queued.
+                    context.QueuePacket(new PacketPlayerGrabJumpOut(player.ID));
+                }
             }
         }
         else

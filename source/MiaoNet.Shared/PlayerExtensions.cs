@@ -6,6 +6,8 @@ using Celeste.Mod.MiaoNet;
 
 namespace MiaoNet.Shared;
 
+// TODO avoid using these server-side
+#if true
 public static class PlayerExtensions
 {
     /// <summary>this &lt;--- other</summary>
@@ -24,7 +26,7 @@ public static class PlayerExtensions
         if (other.Location.IsInDebugMap)
             return false;
 
-        if (!player.Location.IsSameMapWith(other.Location))
+        if (player.Location.Map != other.Location.Map)
             return false;
 
         return true;
@@ -35,3 +37,4 @@ public static class PlayerExtensions
         => connection.Player.ShouldSyncFrom(other.Player);
 #endif
 }
+#endif

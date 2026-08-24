@@ -14,12 +14,12 @@ public partial class MiaoHttpService
     private async Task<List<(int AuthID, string Name)>> KickByAuthIDAsync(int aid, string reason)
     {
         List<(int, string)> kicked = new();
-        foreach (var p in miaoServerService.ServerState.AllPlayers)
+        foreach (var p in miaoServerService.ServerState.Players)
         {
             if (p.Value.Player.Info.AuthID == aid)
             {
                 kicked.Add((aid, p.Value.Player.Info.Name));
-                await p.Value.Connection.DisconnectAsync(DisconnectReason.Kicked, reason);
+                await p.Value.DisconnectAsync(DisconnectReason.Kicked, reason);
             }
         }
         return kicked;
@@ -29,7 +29,7 @@ public partial class MiaoHttpService
     {
         if (!miaoServerService.Players.TryGetValue(cid, out var client))
             return new();
-        await client.Connection.DisconnectAsync(DisconnectReason.Kicked, reason);
+        await client.DisconnectAsync(DisconnectReason.Kicked, reason);
         return new() { (client.Player.Info.AuthID, client.Player.Info.Name) };
     }
 
@@ -91,21 +91,20 @@ public partial class MiaoHttpService
     {
         context.Response.ContentType = MediaTypeNames.Application.Json;
 
-        var state = miaoServerService.ServerState;
-
 #pragma warning disable IDE0037
         var response = new
         {
-            PlayersCount = state.AllPlayers.Count,
-            Channels = state.AllChannels.Select(static c => new
+            PlayersCount = miaoServerService.Players.Count,
+            Channels = miaoServerService.Channels.Select(static c => new
             {
                 ID = c.Key,
-                Name = c.Value.StateInfo.Name,
-                Players = c.Value.Players.Select(static p => new
+                Name = c.Value.Info.Name,
+                IsPrivate = c.Value.IsPrivate,
+                Players = c.Value.Players.Select(static c => new
                 {
-                    ID = p.Key,
-                    Name = p.Value.Player.Info.Name,
-                    Location = p.Value.Player.Location.ToString()
+                    ID = c.ID,
+                    Name = c.Player.Info.Name,
+                    Location = c.Player.Location.ToString()
                 })
             })
         };
@@ -144,7 +143,7 @@ public partial class MiaoHttpService
         var values = miaoMetricsService.Get();
         var ret = new
         {
-            OnlinePlayersCount = miaoServerService.ServerState.AllPlayers.Count,
+            OnlinePlayersCount = miaoServerService.Players.Count,
             Metrics = values,
             GC = new
             {

@@ -4,7 +4,7 @@ namespace MiaoNet.Server;
 
 public interface IMiaoServerService
 {
-    public IReadOnlyDictionary<int, ServerState.Client> Players { get; }
+    public IReadOnlyDictionary<int, MiaoClientConnection> Players { get; }
 
     public IReadOnlyDictionary<int, ServerChannel> Channels { get; }
 

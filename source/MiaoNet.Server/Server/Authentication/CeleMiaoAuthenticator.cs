@@ -27,11 +27,24 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
     public const string EndPointAuth = "api/celeste/user?access_token=";
 
     public CeleMiaoAuthenticator(IOptions<MiaoServerOptions> options, ILogger<CeleMiaoAuthenticator> logger)
+        : this(options, logger, new HttpClient())
+    {
+    }
+
+    internal CeleMiaoAuthenticator(
+        IOptions<MiaoServerOptions> options,
+        ILogger<CeleMiaoAuthenticator> logger,
+        HttpClient httpClient
+    )
     {
         var authOptions = options.Value.Authentication;
-        if (authOptions.ClientID is null || authOptions.ClientSecret is null || authOptions.EncryptionPassword is null)
+        if (string.IsNullOrWhiteSpace(authOptions.ClientID)
+            || string.IsNullOrWhiteSpace(authOptions.ClientSecret)
+            || string.IsNullOrWhiteSpace(authOptions.EncryptionPassword))
         {
-            throw new Exception("ClientID, ClientSecret and EncryptionPassword must be configured when using CeleMiaoAuthenticator.");
+            throw new InvalidOperationException(
+                "ClientID, ClientSecret and EncryptionPassword must be configured when using CeleMiaoAuthenticator."
+            );
         }
         clientID = authOptions.ClientID;
         clientSecret = authOptions.ClientSecret;
@@ -44,7 +57,7 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
             // blame bbs
             NumberHandling = JsonNumberHandling.AllowReadingFromString
         };
-        httpClient = new HttpClient();
+        this.httpClient = httpClient;
         // TODO add version info
         string ua = "MiaoNet.Server.CeleMiaoAuthenticator";
         logger.LogInformation(AppEvents.Auth, "Using User-Agent \"{ua}\"", ua);

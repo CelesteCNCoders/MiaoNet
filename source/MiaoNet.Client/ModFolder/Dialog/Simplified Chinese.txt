@@ -40,9 +40,10 @@ miaonet_options_active_chat_height= 聚焦聊天高度
 miaonet_options_player_opacity= 玩家不透明度
 miaonet_options_self_name_opactiy= 自身名称不透明度
 miaonet_options_player_name_opacity= 名称不透明度
+miaonet_options_offscreen_player_name_opacity= 离屏名称不透明度
 miaonet_options_distance_based_opacity= 玩家近距离透明
 miaonet_options_min_player_opacity_multiplier= 最小玩家不透明度倍率
-miaonet_options_emote_opacity= Emote 不透明度
+miaonet_options_emote_opacity= 表情不透明度
 miaonet_options_group_photo_platform_type= 合影平台类型
 miaonet_options_followers_sync_mode= 玩家跟随物
 miaonet_options_followers_sync_mode_tip= 
@@ -60,7 +61,7 @@ miaonet_options_interactions= 交互
 miaonet_options_player_interactions= 玩家交互
 miaonet_options_live_mode= 直播模式
 miaonet_options_live_mode_tip= 
-	这会禁用聊天，拒收来自任何玩家的聊天信息和 Emote，
+	这会禁用聊天，拒收来自任何玩家的聊天信息和表情，
 	以及隐藏玩家列表中未知的地图。
 	此选项不会被保存。
 miaonet_options_fireworks= 烟花
@@ -73,26 +74,32 @@ miaonet_options_open_settings_file_tip=
 	使用默认打开方式打开本 Mod 的设置文件，
 	有需要时请选择文本编辑器作为打开方式。
 	该功能在非 Windows 系统上可能不会起效。
-miaonet_options_reload_emote_settings= 重载 Emote 设置
+miaonet_options_reload_emote_settings= 重载表情设置
 miaonet_options_key_bindings= 按键设置
 
 miaonet_options_behaviours= 行为
 miaonet_options_player_list_button_mode= 玩家列表展示模式
 miaonet_options_player_list_button_mode_press= 按下
 miaonet_options_player_list_button_mode_hold= 按住
-miaonet_options_enable_emote_wheel= 启用 Emote 轮盘
-miaonet_options_teleport_temp_save= Teleport 指令临时存档
+miaonet_options_enable_emote_wheel= 启用表情轮盘
+miaonet_options_teleport_temp_save= 传送指令临时存档
 miaonet_options_teleport_temp_save_tip= 
-	开启后会在执行 Teleport 指令时
+	开启后会在执行传送指令时
 	前往临时存档而不是保持在当前所在存档
-miaonet_options_teleport_behaviour= Teleport 指令行为
+miaonet_options_teleport_behaviour= 传送指令行为
 miaonet_options_teleport_behaviour_nosession= 仅地图和房间
 miaonet_options_teleport_behaviour_withsession= 请求部分存档信息
 miaonet_options_player_presence_message= 聊天栏玩家进出消息
-miaonet_options_no_new_messages_showing= 聊天栏不显示新消息
-miaonet_options_no_new_messages_showing_tip=
-	这会在不打开聊天栏时不显示新的消息
+miaonet_options_new_messages_showing_mode= 聊天栏新消息显示模式
+miaonet_options_new_messages_showing_mode_tip=
+	设置不打开聊天栏时收到新消息的显示行为。
+	- 全部显示：显示所有新消息。
+	- 当前标签页：显示与所选标签页一致的新消息。
+	- 全不显示：不显示新消息。
 	此选项不会被保存。
+miaonet_options_new_messages_showing_mode_showall= 全部显示
+miaonet_options_new_messages_showing_mode_withtab= 当前标签页
+miaonet_options_new_messages_showing_mode_hideall= 全不显示
 
 miaonet_options_button_chat= 打开聊天栏
 miaonet_options_button_chat_command= 输入指令
@@ -100,9 +107,9 @@ miaonet_options_button_player_list= 打开玩家列表
 miaonet_options_button_create_fireworks= 生成烟花
 miaonet_options_button_player_list_scroll_up= 向上滚动玩家列表
 miaonet_options_button_player_list_scroll_down= 向下滚动玩家列表
-miaonet_options_button_emote_wheel_send_emote= Emote 轮盘发送 Emote
-miaonet_options_button_emotes= Emotes
-miaonet_options_button_emote_i= 发送 Emote (0)
+miaonet_options_button_emote_wheel_send_emote= 表情轮盘发送表情
+miaonet_options_button_emotes= 表情
+miaonet_options_button_emote_i= 发送表情 (0)
 
 miaonet_options_sync_mode_none= 关
 miaonet_options_sync_mode_receive= 仅接收
@@ -144,10 +151,8 @@ miaonet_connection_status_connection_aborted= 连接被强制断开
 miaonet_connection_status_ssl_error= 连接 SSL 错误：(0) ((1))
 miaonet_connection_status_revocation_check_failed= 连接建立失败。证书吊销检查失败
 
-miaonet_context_player_joined= (0) 加入了 MiaoNet
-miaonet_context_player_left= (0) 退出了 MiaoNet
-
 miaonet_player_list_channel_header= #(0) | (1) 位玩家
+miaonet_private_channel_name= <私有频道>
 
 miaonet_chat_disabled= 聊天已被设置为禁用
 
@@ -160,6 +165,7 @@ miaonet_command_status_player_not_found= 未找到玩家 "(0)"
 miaonet_command_status_player_not_in_map= 玩家 "(0)" 不在地图内
 miaonet_command_status_player_is_self= "(0)" 是你自己！
 miaonet_command_status_player_map_missing= 本地不存在玩家 "(0)" 所在的地图 "(1)"
+miaonet_command_status_no_available_player= 没有在地图内且未持有金草莓的玩家可作为目标
 miaonet_command_status_channel_not_found= 未找到频道 "(0)"
 miaonet_command_help_title= == MiaoNet 指令帮助 ((0)) ==
 miaonet_command_help_not_found= 未找到指令 "(0)"
@@ -171,7 +177,7 @@ miaonet_commands_help_command_s0_description= 指令名称。
 miaonet_commands_say_description= 发送一条原始的聊天消息。
 miaonet_commands_say_s0_name= 文本
 miaonet_commands_say_s0_description= 要发送的消息。
-miaonet_commands_emote_description= 发送一个文字 Emote。
+miaonet_commands_emote_description= 发送一个文字表情。
 miaonet_commands_emote_s0_name= 文本
 miaonet_commands_emote_s0_description= 要发送的文字。
 miaonet_commands_teleport_no_session_description= 不带存档信息地传送到另一个玩家所在的房间。
@@ -180,6 +186,7 @@ miaonet_commands_teleport_no_session_s0_description= 要传送到的玩家。
 miaonet_commands_teleport_with_session_description= 携带存档信息地传送到另一个玩家。
 miaonet_commands_teleport_with_session_s0_name= 玩家名称
 miaonet_commands_teleport_with_session_s0_description= 要传送到的玩家。
+miaonet_commands_random_teleport_description= 随机传送到一个未带金的图内玩家
 miaonet_commands_whisper_description= 发送一条私聊信息。
 miaonet_commands_whisper_s0_name= 玩家名称
 miaonet_commands_whisper_s0_description= 私聊的玩家。
@@ -199,19 +206,32 @@ miaonet_commands_watch_description= 观看一个玩家。
 miaonet_commands_watch_s0_name= 玩家名称
 miaonet_commands_watch_s0_description= 要观看的玩家。
 miaonet_commands_unwatch_description= 停止观看玩家。
-miaonet_commands_map_chat_description= 发送一个地图聊天。
+miaonet_commands_channel_description= 加入或创建一个频道。
+miaonet_commands_channel_s0_name= 频道名称
+miaonet_commands_channel_s0_description= 要加入或创建的频道名称。
+miaonet_commands_chat_description= 设置默认聊天频道类型。
+miaonet_commands_chat_s0_name= 类型
+miaonet_commands_chat_s0_description= 聊天频道类型（全局：global/g，频道：channel/c，地图: map/m）。
+miaonet_commands_global_chat_description= 发送全局聊天消息。
+miaonet_commands_global_chat_s0_name= 文本
+miaonet_commands_global_chat_s0_description= 聊天内容。
+miaonet_commands_channel_chat_description= 发送频道聊天消息。
+miaonet_commands_channel_chat_s0_name= 文本
+miaonet_commands_channel_chat_s0_description= 聊天内容。
+miaonet_commands_map_chat_description= 发送地图聊天消息。
 miaonet_commands_map_chat_s0_name= 文本
 miaonet_commands_map_chat_s0_description= 聊天内容。
 
 miaonet_commands_teleport_notice= 
-	使用 Teleport 指令默认会保存你的当前游戏进度并将存档切换至一个临时存档。
-	你可以在选项中找到 "Teleport 指令临时存档" 项更改这个行为。
+	使用传送指令默认会保存你的当前游戏进度并将存档切换至一个临时存档。
+	你可以在选项中找到 "传送指令临时存档" 项更改这个行为。
 	使用 "/back" 指令重新回到你的存档，或者之后手动退出并选择你自己的存档。
 	再次执行该指令以继续。
 miaonet_commands_teleport_tip= 正在传送到 (0)...
 miaonet_commands_teleport_failed_tip= 传送失败，(0)
 miaonet_commands_teleport_failed_nosuchplayer= 对方玩家不存在
 miaonet_commands_teleport_failed_otherdenied= 对方拒绝了传送
+miaonet_commands_teleport_failed_otherdoesnotresponse= 对方无响应
 miaonet_commands_teleport_success= 已传送到 (0)
 miaonet_commands_teleport_success_nosession= 已传送到 (0) 的所在位置
 miaonet_commands_teleport_back_notice= 正在使用临时存档，输入 "/back" 返回你的存档
@@ -227,12 +247,15 @@ miaonet_commands_watch_others_watching= 玩家 (0) 已在观看其他玩家
 miaonet_commands_watch_not_same_map= 当前不在玩家 (0) 所在地图 (1) 中
 miaonet_commands_unwatch_none_unwatched= 当前不在观看任何玩家
 miaonet_commands_unwatch_unwatched= 停止观看玩家 (0)
+miaonet_commands_chat_chat_channel_switched= 聊天频道已切换至 (0)
+miaonet_commands_chat_chat_channel_type_not_found= 未知的聊天频道类型 "(0)"
 
 miaonet_lb= [
 miaonet_rb= ]
 miaonet_chat_whisper_sent= {+ miaonet_lb}私聊 (0){+ miaonet_rb} (1)
 miaonet_chat_whisper_received= {+ miaonet_lb}私聊{+ miaonet_rb} (0)
 miaonet_chat_map_chat= {+ miaonet_lb}地图聊天{+ miaonet_rb}
+miaonet_chat_channel_chat= {+ miaonet_lb}频道聊天{+ miaonet_rb}
 
 miaonet_oui_conflict_title= MiaoNet Mod 冲突
 miaonet_oui_conflict_description= 

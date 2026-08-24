@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Input;
 using YamlDotNet.Serialization;
 
@@ -17,27 +18,14 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 
 #if USE_CELEMIAO_AUTH
 
-    // encrypted using the user's environment string so that 
-    // someone can't just leak it by taking a screenshot of the settings file.
     [YamlIgnore]
     public byte[]? TokenData { get; set; }
 
-    // This is for Serializer
-    // but we can't make it private...
-    public string? TokenDataEncrypted
+    // for serializer, byte[] will be serialized into an array of numbers in yaml
+    public string? TokenDataEncoded
     {
-        get => TokenData is null ? null : TokenDataUtils.Encrypt(TokenData);
-        set
-        {
-            if (value is null)
-            {
-                TokenData = null;
-                return;
-            }
-            TokenData = TokenDataUtils.TryDecrypt(value, out byte[]? tokenData)
-                ? tokenData
-                : null;
-        }
+        get => TokenData is null ? null : Convert.ToBase64String(TokenData);
+        set => TokenData = value is null ? null : Convert.FromBase64String(value);
     }
 
     public string? LastName { get; set; }
@@ -124,6 +112,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 
     public int PlayerNameOpacity { get; set; } = 8;
 
+    public int OffScreenPlayerNameOpacity { get; set; } = 4;
+
     public int SelfNameOpacity { get; set; } = 8;
 
     public bool DistanceBasedOpacity { get; set; } = false;
@@ -161,6 +151,12 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     [YamlIgnore] public float ChatBackgroundOpacityValue => ChatBackgroundOpacity / 10f;
 
     [YamlIgnore] public float ChatTextOpacityValue => ChatTextOpacity / 10f;
+
+    [YamlIgnore] public float IdleChatHeightValue => IdleChatHeight / 10f;
+
+    [YamlIgnore] public float ActiveChatHeightValue => ActiveChatHeight / 10f;
+
+    [YamlIgnore] public float OffScreenPlayerNameOpacityValue => OffScreenPlayerNameOpacity / 10f;
 
     #endregion
 
@@ -207,11 +203,18 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     public bool PlayerPresenceMessages { get; set; } = true;
 
     [YamlIgnore]
-    public bool NoNewMessagesShowing
+    public NewMessageShowingMode NewMessagesShowing
     {
         get;
-        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
-    }
+        set
+        {
+            field = value;
+            NotifySettingsChanged(SettingsCategory.VisualsUI);
+        }
+    } = NewMessageShowingMode.ShowAll;
+
+    [YamlIgnore]
+    public ChatChannel ChatChannel { get; set; } = ChatChannel.Global;
 
     #endregion
 
@@ -278,8 +281,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
             bindings.Add(new(0, i < 8 ? Keys.D1 + i : Keys.None));
         EmoteButtons = bindings;
         CreateFireworksButton = new(0, 0);
-        PlayerListScrollUp = new(0, Keys.PageUp);
-        PlayerListScrollDown = new(0, Keys.PageDown);
+        PlayerListScrollUp = new(0, Keys.Up);
+        PlayerListScrollDown = new(0, Keys.Down);
         EmoteWheelSendEmote = new(Buttons.RightStick, 0);
     }
 

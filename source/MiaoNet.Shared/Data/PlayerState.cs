@@ -4,81 +4,64 @@ using System.Text.Json.Serialization;
 
 namespace MiaoNet.Shared;
 
-/// <summary>
-/// Player's position, dashes and so on.
-/// </summary>
-public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, PooledStringManager>
+public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, PooledStringManager>,
+    ICloneable
 {
-    public Vector2 Position { get; set; }
+    public required Vector2 Position { get; set; }
 
-    public bool FacingLeft { get; set; }
+    public required PooledString Animation { get; set; }
 
-    public byte Dashes { get; set; }
+    public required ushort AnimationFrame { get; set; }
 
-    // not serialized
-    public bool Dashing { get; set; }
+    public required Vector2 Scale { get; set; }
 
-    public float DeltaTime { get; set; }
+    public required PlayerStateFlags StateFlags { get; set; }
+
+    public required byte Dashes { get; set; }
+
+    // included only when StateFlags.Dashing
+    public float LastDashDirection { get; set; }
+
+    public required float DeltaTime { get; set; }
 
     // TODO some packets that update this property
-    public PlayerSpriteMode PlayerSpriteMode { get; set; }
+    public required PlayerSpriteMode PlayerSpriteMode { get; set; }
 
-    public bool Dead { get; set; }
+    public required HoldableInfo HoldableInfo { get; set; }
 
-    public HoldableInfo HoldableInfo { get; set; }
+    public required FollowerInfo[] FollowerInfos { get; set; }
 
-    public FollowerInfo[] FollowerInfos { get; set; }
+    public required Vector2 WindDirection { get; set; }
 
-    public Vector2 WindDirection { get; set; }
 
-    public bool Interactions { get; set; }
+    // REMIND update Clone() if there're new deep-clone needed props
 
-    public bool Ducking { get; set; }
-
-    public int HeldByPlayerID { get; set; }
-
-    public PlayerState(Vector2 position, byte dashes, float deltaTime)
+    public PlayerState()
     {
-        Position = position;
-        Dashes = dashes;
-        DeltaTime = deltaTime;
-        FacingLeft = false;
-        PlayerSpriteMode = PlayerSpriteMode.Madeline;
-        FollowerInfos = [];
-        WindDirection = Vector2.Zero;
-        Interactions = false;
-        Ducking = false;
-        HoldableInfo = new(HoldableType.None, null);
-        HeldByPlayerID = 0;
     }
 
-    public void Serialize(ref RefBinaryWriter writer, PooledStringManager pooledStringManager)
+    public void ApplyDelta(PlayerStateDelta delta)
     {
-        writer.Write(Position);
-        writer.Write(Dashes);
-        writer.Write(DeltaTime);
-        writer.Write(FacingLeft);
-        writer.Write((int)PlayerSpriteMode);
-        writer.Write(FollowerInfos, pooledStringManager);
-        writer.Write(WindDirection);
-        writer.Write(Interactions);
-        writer.Write(Ducking);
-        writer.Write(HoldableInfo, pooledStringManager);
-        writer.Write(HeldByPlayerID);
-    }
+        Position = delta.Position;
+        StateFlags = delta.StateFlags;
+        Animation = delta.Animation;
+        AnimationFrame = delta.AnimationFrame;
+        Scale = delta.Scale;
 
-    public static PlayerState Deserialize(ref RefBinaryReader reader, PooledStringManager pooledStringManager)
-        => new(reader.ReadVector2(), reader.ReadByte(), reader.ReadSingle())
-        {
-            FacingLeft = reader.ReadBoolean(),
-            PlayerSpriteMode = (PlayerSpriteMode)reader.ReadInt32(),
-            FollowerInfos = reader.ReadArray<FollowerInfo, PooledStringManager>(pooledStringManager),
-            WindDirection = reader.ReadVector2(),
-            Interactions = reader.ReadBoolean(),
-            Ducking = reader.ReadBoolean(),
-            HoldableInfo = reader.Read<HoldableInfo, PooledStringManager>(pooledStringManager),
-            HeldByPlayerID = reader.ReadInt32()
-        };
+        if (delta.DashesChange)
+            Dashes = delta.Dashes;
+
+        if (delta.HasFollowerInitials)
+            ApplyFollowersInitials(delta.FollowerInitials);
+        else if (delta.HasFollowerDeltas)
+            ApplyFollowersDeltas(delta.FollowerDeltas);
+
+        if (delta.HasWindDirection)
+            WindDirection = delta.WindDirection;
+
+        if (delta.HasHoldable)
+            ApplyHoldableInfo(delta.HoldableInfo);
+    }
 
     public void ApplyFollowersInitials(FollowerInfo[] followerInitials)
     {
@@ -119,6 +102,50 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
         HoldableInfo = holdableInfo with { Offset = offset };
     }
 
-    public override string ToString()
-        => $"({Position.X}, {Position.Y})";
+    public void Serialize(ref RefBinaryWriter writer, PooledStringManager pooledStringManager)
+    {
+        writer.Write(Position);
+        writer.Write(Animation, pooledStringManager);
+        writer.Write(AnimationFrame);
+        writer.Write(Scale);
+        writer.Write((byte)StateFlags);
+        writer.Write(Dashes);
+        writer.Write(DeltaTime);
+        writer.Write((int)PlayerSpriteMode);
+        writer.Write(FollowerInfos, pooledStringManager);
+        writer.Write(WindDirection);
+        writer.Write(HoldableInfo, pooledStringManager);
+        if (StateFlags.HasFlag(PlayerStateFlags.Dashing))
+            writer.Write(LastDashDirection);
+    }
+
+    public static PlayerState Deserialize(ref RefBinaryReader reader, PooledStringManager pooledStringManager)
+    {
+        PlayerState state = new()
+        {
+            Position = reader.ReadVector2(),
+            Animation = reader.Read<PooledString, PooledStringManager>(pooledStringManager),
+            AnimationFrame = reader.ReadUInt16(),
+            Scale = reader.ReadVector2(),
+            StateFlags = (PlayerStateFlags)reader.ReadByte(),
+            Dashes = reader.ReadByte(),
+            DeltaTime = reader.ReadSingle(),
+            PlayerSpriteMode = (PlayerSpriteMode)reader.ReadInt32(),
+            FollowerInfos = reader.ReadArray<FollowerInfo, PooledStringManager>(pooledStringManager),
+            WindDirection = reader.ReadVector2(),
+            HoldableInfo = reader.Read<HoldableInfo, PooledStringManager>(pooledStringManager),
+        };
+        if (state.StateFlags.HasFlag(PlayerStateFlags.Dashing))
+            state.LastDashDirection = reader.ReadSingle();
+        return state;
+    }
+
+    public PlayerState Clone()
+    {
+        PlayerState shallow = (PlayerState)MemberwiseClone();
+        shallow.FollowerInfos = (FollowerInfo[])FollowerInfos.Clone();
+        return shallow;
+    }
+
+    object ICloneable.Clone() => Clone();
 }

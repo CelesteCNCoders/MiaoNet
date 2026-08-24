@@ -28,6 +28,7 @@ public sealed class MiaoNetModule : EverestModule
     // TODO this is ugly
     public static Vector2? NextPlayerSpawnPosition { get; set; }
 
+    // forceFullChange: the player may re-enter a map so we have to re-send full state
     public delegate void PlayerLocationChangedHandler(PlayerLocation location, bool forceFullChange);
     public static event PlayerLocationChangedHandler? PlayerLocationChanged;
 
@@ -47,10 +48,17 @@ public sealed class MiaoNetModule : EverestModule
     public override void Load()
     {
         Instance = this;
+        Logger.SetLogLevel(LT.MiaoNetSync, LogLevel.Error);
 #if DEBUG
         Logger.SetLogLevel(LT.MiaoNetAvatar, LogLevel.Verbose);
         // TODO prevent those warnings server-side
-        Logger.SetLogLevel(LT.MiaoNetSync, LogLevel.Error);
+        Logger.SetLogLevel(LT.MiaoNet, LogLevel.Verbose);
+        Logger.SetLogLevel(LT.MiaoNetRC, LogLevel.Verbose);
+        Logger.SetLogLevel(LT.MiaoNetSync, LogLevel.Verbose);
+        Logger.SetLogLevel(LT.MiaoNetConnection, LogLevel.Verbose);
+        Logger.SetLogLevel(LT.MiaoNetPacketReading, LogLevel.Verbose);
+        Logger.SetLogLevel(LT.MiaoNetEmoteComponent, LogLevel.Verbose);
+        Logger.SetLogLevel(LT.MiaoNetEmoteData, LogLevel.Verbose);
 #endif
         using (new DetourConfigContext(RootConfig).Use())
         {
@@ -70,6 +78,7 @@ public sealed class MiaoNetModule : EverestModule
             On.Celeste.PlayerCollider.Check += PlayerCollider_Check;
             On.Celeste.Player.TransitionTo += Player_TransitionTo;
             IL.Celeste.LanguageSelectUI.SetNextLanguage += LanguageSelectUI_SetNextLanguage;
+            Everest.Events.Level.OnAfterUpdate += Level_OnAfterUpdate;
         }
         using (new DetourConfigContext(RootBeforeAllConfig).Use())
         {
@@ -77,7 +86,9 @@ public sealed class MiaoNetModule : EverestModule
         }
 
         SpeedrunToolCompat.Load();
+        BitsboltsCompat.Load();
         typeof(CollabUtils2Interop).ModInterop();
+        typeof(ExtendedVariantInterop).ModInterop();
 
 #if DEBUG
         Engine.Instance.IsMouseVisible = true;
@@ -106,16 +117,18 @@ public sealed class MiaoNetModule : EverestModule
         On.Celeste.PlayerCollider.Check -= PlayerCollider_Check;
         On.Celeste.Player.TransitionTo -= Player_TransitionTo;
         IL.Celeste.LanguageSelectUI.SetNextLanguage -= LanguageSelectUI_SetNextLanguage;
+        Everest.Events.Level.OnAfterUpdate -= Level_OnAfterUpdate;
 
         On.Celeste.PlayerSprite.ctor -= PlayerSprite_ctor;
 
         SpeedrunToolCompat.Unload();
+        BitsboltsCompat.Unload();
     }
 
     public override void LoadContent(bool firstLoad)
     {
         base.LoadContent(firstLoad);
-        GhostRenderLayerEntity.LoadContent();
+        MiaoNetGraphics.LoadContent();
     }
 
     public override void OnInputInitialize()
@@ -136,8 +149,14 @@ public sealed class MiaoNetModule : EverestModule
             item.Button?.Deregister();
     }
 
+    private static void Level_OnAfterUpdate(Level level)
+    {
+        foreach (MiaoNetGhost ghost in level.Tracker.GetEntities<MiaoNetGhost>().Cast<MiaoNetGhost>())
+            ghost.HairAfterUpdate();
+    }
+
     // do not dispose schinese textures
-    private void LanguageSelectUI_SetNextLanguage(ILContext il)
+    private static void LanguageSelectUI_SetNextLanguage(ILContext il)
     {
         VariableDefinition vdSChineseLang = new VariableDefinition(il.Import(typeof(Language)));
         il.Body.Variables.Add(vdSChineseLang);
@@ -237,9 +256,6 @@ public sealed class MiaoNetModule : EverestModule
                 return;
             foreach (var entity in engine.scene.Tracker.GetEntities<MiaoNetEntity>())
                 entity.Update();
-            foreach (var hair in engine.scene.Tracker.GetComponents<PlayerHair>())
-                if (hair.Entity is MiaoNetGhost or GhostDeadBody)
-                    ((PlayerHair)hair).AfterUpdate();
         });
 
         cur.GotoNext(MoveType.After, ins => ins.MatchCall<Game>("Update"));

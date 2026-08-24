@@ -103,7 +103,7 @@ public static class ClientRC
             else
             {
                 AuthenticationCode = code;
-                res.Redirect($"/success?lang={GameLanguage.GetRCLang()}");
+                res.Redirect($"/success?lang={GameLanguage.GetRCLang(Dialog.Language.Id)}");
             }
         }
         else if (endPoint == "/success")
