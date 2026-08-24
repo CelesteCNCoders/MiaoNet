@@ -389,12 +389,25 @@ public sealed partial class MiaoServerService
             && target.Player.Channel == connection.Player.Channel)
         {
             logger.LogInformation(AppEvents.Game, "{p} is requesting to teleport to {p2}.", connection.Player.Info, target.Player.Info);
-            await target.RequestAsync(
+            bool accepted = await target.RequestAsync(
                 new PacketBeTeleportedRequest(connection.ID),
                 OnOtherResponse,
                 RequestTimeout,
                 OnOtherTimeout
             );
+            if (!accepted)
+            {
+                logger.LogInformation(
+                    AppEvents.Game,
+                    "{p}'s teleport request to {target} could not be sent because the target has too many pending requests.",
+                    connection.Player.Info,
+                    target.Player.Info
+                );
+                await connection.ResponseAsync(
+                    request,
+                    new(PacketTeleportResponse.TeleportFailedReason.OtherDoesNotResponse, null)
+                );
+            }
 
             Task OnOtherResponse(PacketBeTeleportedResponse response)
             {

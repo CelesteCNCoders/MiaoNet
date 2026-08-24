@@ -248,13 +248,23 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                 {
                     TaskCompletionSource<TimeSpan?> responseTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
                     var start = stopwatch.Elapsed;
-                    await connection.RequestAsync(
+                    bool queued = await connection.RequestAsync(
                         new PacketPing(),
                         OnResponse,
                         TimeSpan.FromMilliseconds(timeout),
                         OnTimeout,
                         token
                     );
+                    if (!queued)
+                    {
+                        logger.LogInformation(
+                            AppEvents.Connection,
+                            "{p} has too many pending requests and will be disconnected.",
+                            connection.Player.Info
+                        );
+                        await connection.DisconnectAsync(DisconnectReason.Timeout);
+                        return null;
+                    }
                     return await responseTcs.Task.WaitAsync(token);
 
                     Task OnResponse(PacketPong pong)

@@ -91,14 +91,14 @@ public sealed class MiaoClientConnectionTests
             );
         }
 
-        await Assert.ThrowsExactlyAsync<InvalidOperationException>(async () =>
-            await connection.RequestAsync(
-                new PacketPing(),
-                _ => Task.CompletedTask,
-                TimeSpan.FromMinutes(1),
-                cancellationToken: cancellation.Token
-            )
+        bool accepted = await connection.RequestAsync(
+            new PacketPing(),
+            _ => Task.CompletedTask,
+            TimeSpan.FromMinutes(1),
+            cancellationToken: cancellation.Token
         );
+
+        Assert.IsFalse(accepted, "Requests beyond the cap should be rejected.");
 
         cancellation.Cancel();
     }

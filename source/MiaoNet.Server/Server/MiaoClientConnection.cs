@@ -19,7 +19,6 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     public const int PacketChannelSize = 256;
     public const int MaxPendingRequests = 64;
 
-    // TODO timeout of request
     public delegate Task ResponseHandler(PacketResponse response);
     public delegate Task ResponseHandler<in TResponse>(TResponse response) where TResponse : PacketResponse;
 
@@ -166,9 +165,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         => sendChannel.Writer.TryWrite(packet);
 
     // TODO maybe we can add a UserParam parameter to avoid closure
-    // TODO timeout
-    // TODO cancelling
-    public async ValueTask RequestAsync<TResponse>(
+    public async ValueTask<bool> RequestAsync<TResponse>(
         PacketRequest<TResponse> packet,
         ResponseHandler<TResponse> callback,
         TimeSpan timeout,
@@ -181,7 +178,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         if (Interlocked.Increment(ref pendingRequestCount) > MaxPendingRequests)
         {
             Interlocked.Decrement(ref pendingRequestCount);
-            throw new InvalidOperationException($"Connection {ID} has too many pending requests.");
+            return false;
         }
 
         int id = Interlocked.Increment(ref currentRequestID);
@@ -201,6 +198,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
         _ = ExpireRequestAsync(id, pending, timeout);
         await QueuePacketAsync(packet);
+        return true;
     }
 
     public ValueTask ResponseAsync<TResponse>(PacketRequest<TResponse> request, TResponse response)
