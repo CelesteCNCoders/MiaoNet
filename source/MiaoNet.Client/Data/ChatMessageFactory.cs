@@ -49,6 +49,39 @@ public sealed class ChatMessageFactory
         return CreateSentPrivateChat(other, context.ClientState!.Self, segments);
     }
 
+    // The key and the line to show once folded, for player messages only.
+    // Public chats drop the sender name since messages from different senders fold together,
+    // while private messages fold per sender so their prefix and name stay accurate.
+    public (string? Key, ChatText? FoldedText) CreateFoldInfo(OnlinePlayer? sender, PacketChatMessage packet)
+    {
+        string? selfName = context.ClientState?.Self.Info.Name;
+        var (segments, _) = ParseContent(packet.Content, ContentColor(packet.Type), selfName);
+
+        return packet.Type switch
+        {
+            ChatMessageType.Chat => (
+                $"chat:{packet.Content}",
+                new ChatText(segments)),
+            ChatMessageType.ChannelChat => (
+                $"channel:{packet.Content}",
+                CreateFoldedTypedChat(ColorChannelChat, "miaonet_chat_channel_chat", segments)),
+            ChatMessageType.MapChat => (
+                $"map:{packet.Content}",
+                CreateFoldedTypedChat(ColorMapChat, "miaonet_chat_map_chat", segments)),
+            ChatMessageType.PrivateMessage => (
+                $"pm:{packet.SourcePlayer}:{packet.Content}",
+                CreatePrivateChat(sender!, segments)),
+            _ => (null, null),
+        };
+    }
+
+    private static ChatText CreateFoldedTypedChat(Color prefixColor, string prefixDialogId, ImmutableArray<ChatTextSegment> content)
+        => new ChatText([
+            new(prefixColor, Dialog.Clean(prefixDialogId)),
+            new(ColorChatContent, " "),
+            ..content
+        ]);
+
     private ChatText CreatePublicChat(OnlinePlayer sender, ImmutableArray<ChatTextSegment> content)
         => new ChatText([
             new(sender.Info.Color, sender.GetDisplayName(true, context.ShowAvatar)),

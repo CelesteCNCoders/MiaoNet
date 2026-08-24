@@ -5,7 +5,7 @@ namespace Celeste.Mod.ChatInputBox;
 
 public sealed class ChatMessageListView
 {
-    private record struct ChatMessageViewState(float ShowTimer, float FadeOut = 1f);
+    private record struct ChatMessageViewState(float ShowTimer, float FadeOut = 1f, float CounterPopTimer = FoldCounter.PopDuration);
     private readonly Dictionary<ChatItem, ChatMessageViewState> viewStates = new();
 
 
@@ -38,13 +38,19 @@ public sealed class ChatMessageListView
 
     public NewMessageShowingMode NewMessagesShowing { get; set; } = NewMessageShowingMode.ShowAll;
 
+    public bool FancyFoldCounter { get; set; } = true;
+
+    // drives the rainbow color of the fold counter
+    private float counterAnimClock;
+
     public string? ActiveTabName => chatMessageManager.ActiveTabName;
 
     private ChatMessageViewState getOrInitViewState(ChatItem key)
     {
         if (!viewStates.TryGetValue(key, out var viewState))
         {
-            viewState = new(ShowDuration);
+            // a freshly folded line appears with its counter pop animation playing
+            viewState = key.RepeatCount > 1 ? new(ShowDuration, CounterPopTimer: 0f) : new(ShowDuration);
         }
         return viewState;
     }
@@ -88,6 +94,8 @@ public sealed class ChatMessageListView
 
     public void Update()
     {
+        counterAnimClock += Engine.RawDeltaTime;
+
         // this seems a fna bug...
         // we need to manually call `MouseState.Get()`
         float currentScrollWheelValue = Mouse.GetState().ScrollWheelValue;
@@ -109,6 +117,8 @@ public sealed class ChatMessageListView
         {
             var item = fullChatLog[i];
             var state = getOrInitViewState(item);
+            if (state.CounterPopTimer < FoldCounter.PopDuration)
+                state.CounterPopTimer += Engine.RawDeltaTime;
             if (state.ShowTimer > 0f)
             {
                 // NoNewMessage now renders an empty list so no need to manually fade message out anymore.
@@ -202,13 +212,16 @@ public sealed class ChatMessageListView
 
     private bool DrawSingleMessage(ChatItem chatItem, float x, float curY, float alpha)
     {
-        float fade = getOrInitViewState(chatItem).FadeOut;
+        var state = getOrInitViewState(chatItem);
+        float fade = state.FadeOut;
         if (active)
             fade = 1f;
         else if (fade == 0f)
             return false;
         fade *= alpha;
-        chatItem.render(x, curY, fade, BackgroundOpacity, TextOpacity, textRenderer);
+        chatItem.render(x, curY, fade, BackgroundOpacity, TextOpacity, textRenderer,
+            FancyFoldCounter, counterAnimClock,
+            state.CounterPopTimer / FoldCounter.PopDuration);
         return true;
 
     }

@@ -89,6 +89,8 @@ public sealed partial class ChatComponent : MiaoNetComponent
         };
         chatMessageBox.ChatMessageListView.IdleHeight = settings.IdleChatHeightValue;
         chatMessageBox.ChatMessageListView.ActiveHeight = settings.ActiveChatHeightValue;
+        chatMessageBox.FoldWindowSeconds = settings.FoldWindowSeconds;
+        chatMessageBox.ChatMessageListView.FancyFoldCounter = settings.FancyFoldCounter;
         float scale = settings.ChatUIScaleValue;
         textRenderer.Scale = scale;
         textRenderer.LineHeight = MiaoNetFont.ENZhsLineHeight * scale;
@@ -128,7 +130,13 @@ public sealed partial class ChatComponent : MiaoNetComponent
                 _ => null
             };
             string? tabName = ChatChannelMatcher.GetName(chatChannel);
-            chatMessageBox.AddChatMessage(packet.DateTime, received.Text, tabName);
+
+            string? foldKey = null;
+            ChatText? foldedText = null;
+            if (MiaoNetModule.Settings.MessageFolding)
+                (foldKey, foldedText) = chatMessageFactory.CreateFoldInfo(player, packet);
+
+            chatMessageBox.AddChatMessage(packet.DateTime, received.Text, tabName, foldKey, foldedText);
         }
         else
             Logger.Warn(LT.MiaoNet, $"Null chat message received for type {packet.Type}. Content: {packet.Content}");
