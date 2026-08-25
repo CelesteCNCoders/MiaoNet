@@ -72,9 +72,9 @@ miaonet_options_fireworks_tip=
 	When enabled, you can send fireworks 
 	and receive them from other players.
 	This option will not be saved.
-miaonet_options_open_settings_file= Open Settings File
-miaonet_options_open_settings_file_tip= 
-	Open the settings file of this mod.
+miaonet_options_open_emotes_file= Open Emotes File
+miaonet_options_open_emotes_file_tip= 
+	Open the emotes file of this mod.
 	Select a text editor for it if needed.
 miaonet_options_reload_emote_settings= Reload Emote Settings
 miaonet_options_key_bindings= Key Bindings

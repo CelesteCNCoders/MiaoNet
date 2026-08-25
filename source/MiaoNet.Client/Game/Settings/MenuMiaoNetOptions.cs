@@ -307,34 +307,14 @@ public static class MenuMiaoNetOptions
         item.AddDescription(menu, Dialog.Clean("miaonet_options_fireworks_tip"));
 
         item = new TextMenu.Button(
-            Dialog.Get("miaonet_options_open_settings_file")
-        ).Pressed(() =>
-        {
-            string path = Path.Combine(Everest.PathSettings, "modsettings-MiaoNet.celeste");
-            if (!File.Exists(path))
-                MiaoNetModule.Instance.SaveSettings();
-            ProcessStartInfo psi = new()
-            {
-                FileName = path,
-                UseShellExecute = true
-            };
-            Process.Start(psi);
-        });
+            Dialog.Get("miaonet_options_open_emotes_file")
+        ).Pressed(MiaoNetModule.Instance.OpenEmotesFile);
         menu.Add(item);
-        item.AddDescription(menu, Dialog.Clean("miaonet_options_open_settings_file_tip"));
+        item.AddDescription(menu, Dialog.Clean("miaonet_options_open_emotes_file_tip"));
 
         item = new TextMenu.Button(
             Dialog.Get("miaonet_options_reload_emote_settings")
-        ).Pressed(() =>
-        {
-            // load settings will not call on input initialize
-            // so let's do this like CelesteNet...
-            var o = MiaoNetModule.Settings;
-            MiaoNetModule.Instance.LoadSettings();
-            var n = MiaoNetModule.Settings;
-            o.Emotes = n.Emotes;
-            MiaoNetModule.Instance._Settings = o;
-        });
+        ).Pressed(MiaoNetModule.Instance.LoadEmotes);
         menu.Add(item);
 
         #endregion
