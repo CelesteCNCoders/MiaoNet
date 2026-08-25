@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -27,7 +28,14 @@ public static class AvatarManager
 
     static AvatarManager()
     {
-        httpClient = new();
+        SocketsHttpHandler handler = new()
+        {
+            AllowAutoRedirect = false,
+            UseProxy = false,
+            ConnectTimeout = TimeSpan.FromSeconds(10),
+            ConnectCallback = ConnectPublicHostAsync
+        };
+        httpClient = new(handler) { Timeout = TimeSpan.FromSeconds(20) };
         httpClient.DefaultRequestHeaders.Add("User-Agent", "MiaoNet Client Avatar Http Client");
         memoryCache = new();
 
@@ -76,6 +84,9 @@ public static class AvatarManager
 
     public static async ValueTask<string> GetAsync(Uri uri)
     {
+        if (!AvatarDownloadPolicy.IsAllowedUri(uri))
+            throw new InvalidDataException($"Avatar URL is not an allowed HTTPS URL: {uri}");
+
         if (memoryCache.TryGetValue(uri, out var cache) && File.Exists(Path.Combine(PathAvatarCache, cache.FileName)))
         {
             if (cache.CacheControlMaxAge is TimeSpan timeSpan && DateTime.UtcNow < cache.FetchTime + timeSpan)
@@ -86,14 +97,7 @@ public static class AvatarManager
 
             if (cache.ETag is not null || cache.LastModified is not null)
             {
-                HttpRequestMessage req = new(HttpMethod.Get, uri);
-
-                if (cache.ETag is not null)
-                    req.Headers.IfNoneMatch.Add(new(cache.ETag));
-                if (cache.LastModified is not null)
-                    req.Headers.IfModifiedSince = cache.LastModified;
-
-                var res = await httpClient.SendAsync(req);
+                using var res = await SendAsync(uri, cache);
 
                 cache.FetchTime = DateTime.UtcNow;
                 cache.CacheControlMaxAge = res.Headers.CacheControl?.MaxAge;
@@ -120,7 +124,8 @@ public static class AvatarManager
     FullFetch:
         {
             Logger.Debug(LT.MiaoNetAvatar, $"No cache found, requesting {uri}...");
-            var res = await httpClient.GetAsync(uri);
+            using var res = await SendAsync(uri, null);
+            res.EnsureSuccessStatusCode();
 
             var cacheControlMaxAge = res.Headers.CacheControl?.MaxAge;
             var lastModified = res.Content.Headers.LastModified;
@@ -144,10 +149,96 @@ public static class AvatarManager
 
     private static async Task FetchAndSave(HttpResponseMessage message, string fileName)
     {
-        var arr = await message.Content.ReadAsByteArrayAsync();
+        if (message.Content.Headers.ContentLength > AvatarDownloadPolicy.MaxDownloadBytes)
+            throw new InvalidDataException("Avatar is larger than the allowed download size.");
+
+        await using Stream source = await message.Content.ReadAsStreamAsync();
+        using MemoryStream destination = new();
+        byte[] buffer = new byte[16 * 1024];
+        int total = 0;
+        while (true)
+        {
+            int read = await source.ReadAsync(buffer);
+            if (read == 0)
+                break;
+            total = checked(total + read);
+            if (total > AvatarDownloadPolicy.MaxDownloadBytes)
+                throw new InvalidDataException("Avatar is larger than the allowed download size.");
+            destination.Write(buffer, 0, read);
+        }
+
+        byte[] arr = destination.ToArray();
+        if (!AvatarDownloadPolicy.IsSupportedImage(arr))
+            throw new InvalidDataException("Avatar is not a supported image or exceeds the dimension limit.");
 
         Directory.CreateDirectory(PathAvatarCache);
         string pathToAvatarCacheFile = Path.Combine(PathAvatarCache, fileName);
-        await File.WriteAllBytesAsync(pathToAvatarCacheFile, arr);
+        string temporaryPath = pathToAvatarCacheFile + ".tmp";
+        await File.WriteAllBytesAsync(temporaryPath, arr);
+        File.Move(temporaryPath, pathToAvatarCacheFile, true);
+    }
+
+    private static async Task<HttpResponseMessage> SendAsync(Uri initialUri, CacheInfo? cache)
+    {
+        Uri uri = initialUri;
+        for (int redirects = 0; ; redirects++)
+        {
+            if (!AvatarDownloadPolicy.IsAllowedUri(uri))
+                throw new InvalidDataException($"Avatar redirect is not an allowed HTTPS URL: {uri}");
+
+            using HttpRequestMessage request = new(HttpMethod.Get, uri);
+            if (cache is CacheInfo cacheInfo)
+            {
+                if (cacheInfo.ETag is not null)
+                    request.Headers.IfNoneMatch.Add(new(cacheInfo.ETag));
+                if (cacheInfo.LastModified is not null)
+                    request.Headers.IfModifiedSince = cacheInfo.LastModified;
+            }
+
+            HttpResponseMessage response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            if (!IsRedirect(response.StatusCode))
+                return response;
+
+            Uri? location = response.Headers.Location;
+            response.Dispose();
+            if (location is null || redirects >= AvatarDownloadPolicy.MaxRedirects)
+                throw new InvalidDataException("Avatar download has an invalid or excessive redirect chain.");
+            uri = location.IsAbsoluteUri ? location : new Uri(uri, location);
+        }
+    }
+
+    private static bool IsRedirect(HttpStatusCode statusCode)
+        => statusCode is HttpStatusCode.Moved
+            or HttpStatusCode.Redirect
+            or HttpStatusCode.RedirectMethod
+            or HttpStatusCode.TemporaryRedirect
+            or HttpStatusCode.PermanentRedirect;
+
+    private static async ValueTask<Stream> ConnectPublicHostAsync(
+        SocketsHttpConnectionContext context,
+        CancellationToken cancellationToken
+    )
+    {
+        IPAddress[] addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancellationToken);
+        IPAddress[] allowed = addresses.Where(AvatarDownloadPolicy.IsPublicAddress).ToArray();
+        if (allowed.Length == 0)
+            throw new InvalidDataException("Avatar host does not resolve to a public IP address.");
+
+        Exception? lastError = null;
+        foreach (IPAddress address in allowed)
+        {
+            Socket socket = new(address.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            try
+            {
+                await socket.ConnectAsync(new IPEndPoint(address, context.DnsEndPoint.Port), cancellationToken);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch (Exception e)
+            {
+                socket.Dispose();
+                lastError = e;
+            }
+        }
+        throw new IOException("Could not connect to an allowed avatar host.", lastError);
     }
 }
