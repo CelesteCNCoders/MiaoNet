@@ -169,15 +169,21 @@ public class ChatMessageManager
         }
     }
 
-    // keep fold entries from growing without bound in a long session,
-    // the window is widened here to tolerate clock jitter
+    // keep fold entries from growing without bound in a long session
+    private const int PruneThreshold = 128;
+    private const double PruneIntervalSeconds = 30;
+    private DateTime lastPruneTime = DateTime.MinValue;
+
+    // sweep only at most once per PruneIntervalSeconds, and never on small dicts,
+    // so a unique-message flood can't rescan the whole dict on every insert
     private void PruneFoldEntries(DateTime now)
     {
-        const int PruneThreshold = 128;
-        if (foldEntries.Count < PruneThreshold)
+        if (foldEntries.Count <= PruneThreshold
+            || (now - lastPruneTime).TotalSeconds < PruneIntervalSeconds)
             return;
 
-        DateTime cutoff = now.AddSeconds(-Math.Max(FoldWindowSeconds * 6f, 120f));
+        lastPruneTime = now;
+        DateTime cutoff = now.AddSeconds(-Math.Max(FoldWindowSeconds * 6, 120));
         foreach (var pair in foldEntries.Where(p => p.Value.LastTime < cutoff).ToList())
             foldEntries.Remove(pair.Key);
     }
