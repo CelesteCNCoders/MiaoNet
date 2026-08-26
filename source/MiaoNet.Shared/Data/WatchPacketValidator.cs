@@ -5,7 +5,7 @@ namespace MiaoNet.Shared;
 
 public static class WatchPacketValidator
 {
-    private const int MaxCassetteBlockHeight = 64;
+    public const int MaxCassetteBlockHeight = 4096;
     public const int MaxFlagCount = 4096;
     public const int MaxFlagUtf8Bytes = 1024;
     public const int MaxTouchSwitchCount = 4096;

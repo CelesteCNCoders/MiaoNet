@@ -5,7 +5,6 @@ namespace Celeste.Mod.MiaoNet;
 internal sealed class WatchCassetteBlockAdapter : IWatchEntityAdapter
 {
     private const int PayloadSize = 24;
-    private const int MaxBlockHeight = 64;
     private const byte ManagerType = 0;
     private const byte BlockType = 1;
     private static readonly WatchCassetteBlockAdapter instance = new();
@@ -206,7 +205,8 @@ internal sealed class WatchCassetteBlockAdapter : IWatchEntityAdapter
             && payload[3] <= 3
             && float.IsFinite(WatchEntityPayloadCodec.ReadSingle(payload, 4))
             && float.IsFinite(WatchEntityPayloadCodec.ReadSingle(payload, 8))
-            && WatchEntityPayloadCodec.ReadInt32(payload, 12) is >= 0 and <= MaxBlockHeight
+            && WatchEntityPayloadCodec.ReadInt32(payload, 12) is >= 0
+                and <= WatchPacketValidator.MaxCassetteBlockHeight
             && payload[16..].IndexOfAnyExcept((byte)0) < 0;
     }
 

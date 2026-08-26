@@ -343,6 +343,22 @@ public sealed class WatchPacketValidatorTests
             return payload;
         }
 
+        void AssertCassetteHeightValidity(int height, bool expected)
+        {
+            byte[] payload = CassetteBlockPayload();
+            BitConverter.GetBytes(height).CopyTo(payload, 12);
+            Assert.AreEqual(
+                expected,
+                WatchPacketValidator.IsValid(
+                    new WatchSceneSnapshot(
+                        Location, 0, [],
+                        [new(new(WatchEntityKind.CassetteBlock, 17, 1), payload)]
+                    )
+                ),
+                $"Expected CassetteBlock height {height} validity to be {expected}."
+            );
+        }
+
         static byte[] ClutterGroupPayload()
         {
             byte[] payload = new byte[24];
@@ -445,22 +461,10 @@ public sealed class WatchPacketValidatorTests
                 [new(new(WatchEntityKind.CassetteBlock, 17, 1), invalidCassettePosition)]
             )
         ));
-        byte[] blockedCassetteHeight = CassetteBlockPayload();
-        BitConverter.GetBytes(3).CopyTo(blockedCassetteHeight, 12);
-        Assert.IsTrue(WatchPacketValidator.IsValid(
-            new WatchSceneSnapshot(
-                Location, 0, [],
-                [new(new(WatchEntityKind.CassetteBlock, 17, 1), blockedCassetteHeight)]
-            )
-        ));
-        byte[] invalidCassetteHeight = CassetteBlockPayload();
-        BitConverter.GetBytes(65).CopyTo(invalidCassetteHeight, 12);
-        Assert.IsFalse(WatchPacketValidator.IsValid(
-            new WatchSceneSnapshot(
-                Location, 0, [],
-                [new(new(WatchEntityKind.CassetteBlock, 17, 1), invalidCassetteHeight)]
-            )
-        ));
+        foreach (int height in new[] { 3, 65, 128, 208, 4096 })
+            AssertCassetteHeightValidity(height, true);
+        foreach (int height in new[] { -1, 4097 })
+            AssertCassetteHeightValidity(height, false);
         byte[] invalidMovingState = new byte[24];
         invalidMovingState[0] = (byte)WatchMovingSolidType.BounceBlock;
         invalidMovingState[2] = 5;
