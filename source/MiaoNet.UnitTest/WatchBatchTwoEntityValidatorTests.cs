@@ -68,19 +68,11 @@ public sealed class WatchBatchTwoEntityValidatorTests
     }
 
     private static bool IsValid(WatchEntityState state)
-        => WatchPacketValidator.IsValid(new WatchSceneSnapshot(Location, 0, [], [], [state]));
+        => WatchValidatorTestHelper.IsValidState(Location, state);
 
     private static bool IsValidEvent(WatchEntityKind kind, byte eventID, byte[] payload)
-        => WatchPacketValidator.IsValid(new WatchSceneDelta(
-            1,
+        => WatchValidatorTestHelper.IsValidEvent(
             Location,
-            [],
-            [],
-            false,
-            false,
-            [],
-            WatchEntityStateMode.None,
-            [],
-            [new WatchEntityEvent(new WatchEntityKey(kind, (int)kind), eventID, payload)]
-        ));
+            new(new(kind, (int)kind), eventID, payload)
+        );
 }

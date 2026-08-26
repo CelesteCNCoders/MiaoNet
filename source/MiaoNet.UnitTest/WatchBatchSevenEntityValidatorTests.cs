@@ -76,8 +76,8 @@ public sealed class WatchBatchSevenEntityValidatorTests
     }
 
     private static bool Valid(WatchEntityState state)
-        => WatchPacketValidator.IsValid(new WatchSceneSnapshot(
+        => WatchValidatorTestHelper.IsValidState(
             new PlayerLocation("Celeste/0-Intro", AreaMode.Normal, "0"),
-            0, [], [], [state]
-        ));
+            state
+        );
 }

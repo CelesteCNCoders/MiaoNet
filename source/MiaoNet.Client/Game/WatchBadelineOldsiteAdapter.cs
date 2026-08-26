@@ -1,5 +1,4 @@
 using MiaoNet.Shared;
-using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 
 namespace Celeste.Mod.MiaoNet;
@@ -484,7 +483,7 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
         WatchEntityPayloadCodec.WriteSingle(payload, 12, state.FollowBehindTime);
         WatchEntityPayloadCodec.WriteSingle(payload, 16, state.FollowBehindIndexDelay);
         WatchEntityPayloadCodec.WriteSingle(payload, 20, state.HoveringTimer);
-        BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(24), state.Depth);
+        WatchEntityPayloadCodec.WriteInt32(payload, 24, state.Depth);
         return new(new WatchEntityKey(WatchEntityKind.BadelineOldsite, id), payload);
     }
 
@@ -519,7 +518,7 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
             followBehindTime,
             followBehindIndexDelay,
             hoveringTimer,
-            BinaryPrimitives.ReadInt32LittleEndian(payload[24..])
+            WatchEntityPayloadCodec.ReadInt32(payload, 24)
         );
         return true;
     }

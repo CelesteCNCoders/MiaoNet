@@ -1,5 +1,4 @@
 using MiaoNet.Shared;
-using System.Buffers.Binary;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -244,7 +243,7 @@ internal sealed class WatchTempleMirrorPortalAdapter : IWatchEntityAdapter
                 p[1] = WatchChapterAnimation.Encode(portal.curtain.Sprite.CurrentAnimationID);
                 p[2] = (byte)Math.Max(0, portal.curtain.Sprite.CurrentAnimationFrame);
             }
-            BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(4), portal.switchCounter);
+            WatchEntityPayloadCodec.WriteInt32(p, 4, portal.switchCounter);
             WatchEntityPayloadCodec.WriteSingle(p, 8, portal.DistortionFade);
             WatchEntityPayloadCodec.WriteSingle(p, 12, portal.bufferAlpha);
             WatchEntityPayloadCodec.WriteSingle(p, 16, portal.bufferTimer);
@@ -267,7 +266,7 @@ internal sealed class WatchTempleMirrorPortalAdapter : IWatchEntityAdapter
                 EnsurePresentation(portal);
             portal.Visible = (p[0] & 1) != 0;
             portal.canTrigger = false;
-            portal.switchCounter = BinaryPrimitives.ReadInt32LittleEndian(p[4..]);
+            portal.switchCounter = WatchEntityPayloadCodec.ReadInt32(p, 4);
             portal.DistortionFade = WatchEntityPayloadCodec.ReadSingle(p, 8);
             portal.bufferAlpha = WatchEntityPayloadCodec.ReadSingle(p, 12);
             portal.bufferTimer = WatchEntityPayloadCodec.ReadSingle(p, 16);
@@ -443,7 +442,7 @@ internal sealed class WatchWaveDashTutorialAdapter : IWatchEntityAdapter
             WatchEntityPayloadCodec.WriteSingle(p, 12, machine.cameraEase);
             WatchEntityPayloadCodec.WriteVector2(p, 16, machine.Position);
             WatchEntityPayloadCodec.WriteSingle(p, 24, machine.presentation?.ease ?? 0f);
-            BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(28), machine.presentation?.pageIndex ?? 0);
+            WatchEntityPayloadCodec.WriteInt32(p, 28, machine.presentation?.pageIndex ?? 0);
             WatchEntityPayloadCodec.WriteSingle(p, 32, machine.presentation?.pageEase ?? 0f);
             yield return new(new(Kind, id), p);
         }
@@ -468,7 +467,7 @@ internal sealed class WatchWaveDashTutorialAdapter : IWatchEntityAdapter
             {
                 machine.presentation.Viewing = (p[0] & 16) != 0;
                 machine.presentation.ease = WatchEntityPayloadCodec.ReadSingle(p, 24);
-                int pageIndex = BinaryPrimitives.ReadInt32LittleEndian(p[28..]);
+                int pageIndex = WatchEntityPayloadCodec.ReadInt32(p, 28);
                 machine.presentation.pageIndex = machine.presentation.pages.Count == 0
                     ? 0 : Math.Clamp(pageIndex, 0, machine.presentation.pages.Count - 1);
                 machine.presentation.pageEase = WatchEntityPayloadCodec.ReadSingle(p, 32);

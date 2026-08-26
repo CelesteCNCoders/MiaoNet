@@ -1,5 +1,4 @@
 using MiaoNet.Shared;
-using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 
 namespace Celeste.Mod.MiaoNet;
@@ -306,7 +305,7 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
         WatchEntityPayloadCodec.WriteSingle(payload, 16, state.AttackSpeed);
         WatchEntityPayloadCodec.WriteSingle(payload, 20, state.YApproachSpeed);
         WatchEntityPayloadCodec.WriteVector2(payload, 24, state.Scale);
-        BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(32), state.Depth);
+        WatchEntityPayloadCodec.WriteInt32(payload, 32, state.Depth);
         payload[36] = state.LightningFrame;
         WatchEntityPayloadCodec.WriteSingle(payload, 40, state.TimeRate);
         WatchEntityPayloadCodec.WriteSingle(payload, 44, state.Anxiety);
@@ -351,7 +350,7 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
             attackSpeed,
             yApproachSpeed,
             scale,
-            BinaryPrimitives.ReadInt32LittleEndian(payload[32..]),
+            WatchEntityPayloadCodec.ReadInt32(payload, 32),
             payload[36],
             WatchEntityPayloadCodec.ReadSingle(payload, 40),
             WatchEntityPayloadCodec.ReadSingle(payload, 44)

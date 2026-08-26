@@ -80,6 +80,12 @@ internal static class WatchSyntheticEntityIDTable<TEntity> where TEntity : class
 
 internal static class WatchEntityPayloadCodec
 {
+    public static void WriteInt32(Span<byte> payload, int offset, int value)
+        => BinaryPrimitives.WriteInt32LittleEndian(payload[offset..], value);
+
+    public static int ReadInt32(ReadOnlySpan<byte> payload, int offset)
+        => BinaryPrimitives.ReadInt32LittleEndian(payload[offset..]);
+
     public static void WriteSingle(Span<byte> payload, int offset, float value)
         => BinaryPrimitives.WriteInt32LittleEndian(
             payload[offset..],

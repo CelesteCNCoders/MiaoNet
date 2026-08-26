@@ -1,5 +1,4 @@
 using MiaoNet.Shared;
-using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 
 namespace Celeste.Mod.MiaoNet;
@@ -136,7 +135,7 @@ internal sealed class WatchBadelineDummyAdapter : IWatchEntityAdapter
         if (dummy.Hair.Facing == Facings.Left) payload[0] |= FacingLeftFlag;
         payload[1] = (byte)Math.Clamp(dummy.Sprite.CurrentAnimationFrame, 0, byte.MaxValue);
         WatchEntityPayloadCodec.WriteUInt16(payload, 2, WatchSpriteState.EncodeAnimation(dummy.Sprite));
-        BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(4), dummy.Depth);
+        WatchEntityPayloadCodec.WriteInt32(payload, 4, dummy.Depth);
         WatchEntityPayloadCodec.WriteVector2(payload, 8, dummy.Position);
         WatchEntityPayloadCodec.WriteVector2(payload, 16, dummy.Sprite.Scale);
         WatchEntityPayloadCodec.WriteSingle(payload, 24, dummy.Sprite.Rotation);
@@ -155,7 +154,7 @@ internal sealed class WatchBadelineDummyAdapter : IWatchEntityAdapter
         dummy.Hair.Visible = (payload[0] & HairVisibleFlag) != 0;
         dummy.Light.Visible = (payload[0] & LightVisibleFlag) != 0;
         dummy.Hair.Facing = (payload[0] & FacingLeftFlag) != 0 ? Facings.Left : Facings.Right;
-        dummy.Depth = BinaryPrimitives.ReadInt32LittleEndian(payload[4..]);
+        dummy.Depth = WatchEntityPayloadCodec.ReadInt32(payload, 4);
         dummy.Sprite.Scale = WatchEntityPayloadCodec.ReadVector2(payload, 16);
         dummy.Sprite.Rotation = WatchEntityPayloadCodec.ReadSingle(payload, 24);
         dummy.Sprite.Rate = WatchEntityPayloadCodec.ReadSingle(payload, 28);

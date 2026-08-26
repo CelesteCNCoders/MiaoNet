@@ -1,5 +1,4 @@
 using MiaoNet.Shared;
-using System.Buffers.Binary;
 using System.Collections;
 using System.Runtime.CompilerServices;
 
@@ -505,7 +504,7 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
         if (!WatchEntitySyncRegistry.IsApplyingRemoteState && !IsRemoteUsing(self))
         {
             byte[] payload = new byte[PayloadSize];
-            BinaryPrimitives.WriteInt32LittleEndian(payload, 0);
+            WatchEntityPayloadCodec.WriteInt32(payload, 0, 0);
             WatchEntityPayloadCodec.WriteVector2(payload, 4, target);
             Publish(self, UseEvent, payload);
         }
@@ -657,7 +656,7 @@ internal sealed class WatchLockBlockAdapter : IWatchEntityAdapter
         if (block is null || remoteUnlocks.Contains(block))
             return;
 
-        int keyID = BinaryPrimitives.ReadInt32LittleEndian(entityEvent.Payload.Span);
+        int keyID = WatchEntityPayloadCodec.ReadInt32(entityEvent.Payload.Span, 0);
         Key? key = WatchKeyAdapter.Find(level, keyID);
         block.opening = true;
         block.Collidable = false;
@@ -793,7 +792,7 @@ internal sealed class WatchLockBlockAdapter : IWatchEntityAdapter
         phases[(self.ID.Level, self.ID.ID)] = WatchEntityPhase.Active;
         int keyID = follower.Entity is Key key ? key.ID.ID : -1;
         byte[] payload = new byte[4];
-        BinaryPrimitives.WriteInt32LittleEndian(payload, keyID);
+        WatchEntityPayloadCodec.WriteInt32(payload, 0, keyID);
         if (self.Scene is Level level)
         {
             WatchEntitySyncRegistry.PublishEvent(

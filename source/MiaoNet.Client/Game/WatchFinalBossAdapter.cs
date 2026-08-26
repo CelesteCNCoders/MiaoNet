@@ -1,5 +1,4 @@
 using MiaoNet.Shared;
-using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 
 namespace Celeste.Mod.MiaoNet;
@@ -245,9 +244,9 @@ internal sealed class WatchFinalBossAdapter : IWatchEntityAdapter
         payload[1] = (byte)state.Animation;
         payload[2] = state.AnimationFrame;
         payload[3] = state.Facing < 0 ? (byte)1 : (byte)0;
-        BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(4), state.NodeIndex);
-        BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(8), state.PatternIndex);
-        BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(12), state.Depth);
+        WatchEntityPayloadCodec.WriteInt32(payload, 4, state.NodeIndex);
+        WatchEntityPayloadCodec.WriteInt32(payload, 8, state.PatternIndex);
+        WatchEntityPayloadCodec.WriteInt32(payload, 12, state.Depth);
         WatchEntityPayloadCodec.WriteVector2(payload, 16, state.Position);
         WatchEntityPayloadCodec.WriteVector2(payload, 24, state.Scale);
         WatchEntityPayloadCodec.WriteSingle(payload, 32, state.LightAlpha);
@@ -274,9 +273,9 @@ internal sealed class WatchFinalBossAdapter : IWatchEntityAdapter
             (WatchFinalBossAnimation)payload[1],
             payload[2],
             payload[3] == 1 ? -1 : 1,
-            BinaryPrimitives.ReadInt32LittleEndian(payload[4..]),
-            BinaryPrimitives.ReadInt32LittleEndian(payload[8..]),
-            BinaryPrimitives.ReadInt32LittleEndian(payload[12..]),
+            WatchEntityPayloadCodec.ReadInt32(payload, 4),
+            WatchEntityPayloadCodec.ReadInt32(payload, 8),
+            WatchEntityPayloadCodec.ReadInt32(payload, 12),
             position,
             scale,
             lightAlpha

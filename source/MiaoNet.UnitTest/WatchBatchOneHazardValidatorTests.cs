@@ -110,19 +110,8 @@ public sealed class WatchBatchOneHazardValidatorTests
     }
 
     private static bool IsValid(WatchEntityState state)
-        => WatchPacketValidator.IsValid(new WatchSceneSnapshot(Location, 0, [], [], [state]));
+        => WatchValidatorTestHelper.IsValidState(Location, state);
 
     private static bool IsValid(WatchEntityEvent entityEvent)
-        => WatchPacketValidator.IsValid(new WatchSceneDelta(
-            1,
-            Location,
-            [],
-            [],
-            false,
-            false,
-            [],
-            WatchEntityStateMode.None,
-            [],
-            [entityEvent]
-        ));
+        => WatchValidatorTestHelper.IsValidEvent(Location, entityEvent);
 }

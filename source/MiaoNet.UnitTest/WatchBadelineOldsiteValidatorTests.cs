@@ -82,14 +82,8 @@ public sealed class WatchBadelineOldsiteValidatorTests
     }
 
     private static bool IsValid(byte[] payload, int entityID = 41, ushort subID = 0)
-        => WatchPacketValidator.IsValid(new WatchSceneSnapshot(
+        => WatchValidatorTestHelper.IsValidState(
             Location,
-            0,
-            [],
-            [],
-            [new WatchEntityState(
-                new WatchEntityKey(WatchEntityKind.BadelineOldsite, entityID, subID),
-                payload
-            )]
-        ));
+            new(new(WatchEntityKind.BadelineOldsite, entityID, subID), payload)
+        );
 }

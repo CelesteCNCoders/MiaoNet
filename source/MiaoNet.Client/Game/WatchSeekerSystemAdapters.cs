@@ -1,5 +1,4 @@
 using MiaoNet.Shared;
-using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 
 namespace Celeste.Mod.MiaoNet;
@@ -432,7 +431,7 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
         WatchEntityPayloadCodec.WriteVector2(payload, 24, state.Scale);
         WatchEntityPayloadCodec.WriteSingle(payload, 32, state.LightAlpha);
         WatchEntityPayloadCodec.WriteSingle(payload, 36, state.AttackSpeed);
-        BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(40), state.Depth);
+        WatchEntityPayloadCodec.WriteInt32(payload, 40, state.Depth);
         return new(new WatchEntityKey(WatchEntityKind.SeekerSystem, id), payload);
     }
 
@@ -473,7 +472,7 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
             scale,
             lightAlpha,
             attackSpeed,
-            BinaryPrimitives.ReadInt32LittleEndian(payload[40..])
+            WatchEntityPayloadCodec.ReadInt32(payload, 40)
         );
         return true;
     }

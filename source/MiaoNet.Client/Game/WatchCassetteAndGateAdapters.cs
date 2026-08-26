@@ -1,4 +1,3 @@
-using System.Buffers.Binary;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
@@ -41,11 +40,11 @@ internal sealed class WatchCassetteBlockAdapter : IWatchEntityAdapter
         {
             byte[] payload = new byte[PayloadSize];
             payload[0] = ManagerType;
-            BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(4), manager.currentIndex);
+            WatchEntityPayloadCodec.WriteInt32(payload, 4, manager.currentIndex);
             WatchEntityPayloadCodec.WriteSingle(payload, 8, manager.beatTimer);
-            BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(12), manager.beatIndex);
+            WatchEntityPayloadCodec.WriteInt32(payload, 12, manager.beatIndex);
             WatchEntityPayloadCodec.WriteSingle(payload, 16, manager.tempoMult);
-            BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(20), manager.beatIndexOffset);
+            WatchEntityPayloadCodec.WriteInt32(payload, 20, manager.beatIndexOffset);
             yield return new WatchEntityState(new WatchEntityKey(Kind, 0), payload);
         }
 
@@ -62,7 +61,7 @@ internal sealed class WatchCassetteBlockAdapter : IWatchEntityAdapter
             payload[2] = (byte)block.Mode;
             payload[3] = (byte)block.Index;
             WatchEntityPayloadCodec.WriteVector2(payload, 4, block.Position);
-            BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(12), block.blockHeight);
+            WatchEntityPayloadCodec.WriteInt32(payload, 12, block.blockHeight);
             yield return new WatchEntityState(new WatchEntityKey(Kind, id, 1), payload);
         }
     }
@@ -127,7 +126,7 @@ internal sealed class WatchCassetteBlockAdapter : IWatchEntityAdapter
             bool collidable = (payload[1] & 4) != 0;
             CassetteBlock.Modes mode = (CassetteBlock.Modes)payload[2];
             Vector2 position = WatchEntityPayloadCodec.ReadVector2(payload, 4);
-            int blockHeight = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(12));
+            int blockHeight = WatchEntityPayloadCodec.ReadInt32(payload, 12);
             bool collidableChanged = block.Collidable != collidable;
             changed |= block.Activated != activated
                 || block.Visible != visible
@@ -161,11 +160,11 @@ internal sealed class WatchCassetteBlockAdapter : IWatchEntityAdapter
 
     private static bool ApplyRemoteManager(CassetteBlockManager manager, byte[] payload)
     {
-        int currentIndex = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(4));
+        int currentIndex = WatchEntityPayloadCodec.ReadInt32(payload, 4);
         float beatTimer = WatchEntityPayloadCodec.ReadSingle(payload, 8);
-        int beatIndex = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(12));
+        int beatIndex = WatchEntityPayloadCodec.ReadInt32(payload, 12);
         float tempoMult = WatchEntityPayloadCodec.ReadSingle(payload, 16);
-        int offset = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(20));
+        int offset = WatchEntityPayloadCodec.ReadInt32(payload, 20);
         bool changed = manager.currentIndex != currentIndex
             || manager.beatTimer != beatTimer
             || manager.beatIndex != beatIndex
@@ -207,7 +206,7 @@ internal sealed class WatchCassetteBlockAdapter : IWatchEntityAdapter
             && payload[3] <= 3
             && float.IsFinite(WatchEntityPayloadCodec.ReadSingle(payload, 4))
             && float.IsFinite(WatchEntityPayloadCodec.ReadSingle(payload, 8))
-            && BinaryPrimitives.ReadInt32LittleEndian(payload[12..]) is >= 0 and <= MaxBlockHeight
+            && WatchEntityPayloadCodec.ReadInt32(payload, 12) is >= 0 and <= MaxBlockHeight
             && payload[16..].IndexOfAnyExcept((byte)0) < 0;
     }
 

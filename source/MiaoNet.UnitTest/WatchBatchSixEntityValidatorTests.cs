@@ -108,11 +108,11 @@ public sealed class WatchBatchSixEntityValidatorTests
         => BitConverter.TryWriteBytes(payload.AsSpan(offset), value);
 
     private static bool IsValid(WatchEntityState state)
-        => WatchPacketValidator.IsValid(new WatchSceneSnapshot(Location, 0, [], [], [state]));
+        => WatchValidatorTestHelper.IsValidState(Location, state);
 
     private static bool IsValidEvent(WatchEntityKind kind, ushort subID, byte eventID, byte[]? payload = null)
-        => WatchPacketValidator.IsValid(new WatchSceneDelta(
-            1, Location, [], [], false, false, [], WatchEntityStateMode.None, [],
-            [new WatchEntityEvent(new WatchEntityKey(kind, (int)kind, subID), eventID, payload ?? [])]
-        ));
+        => WatchValidatorTestHelper.IsValidEvent(
+            Location,
+            new(new(kind, (int)kind, subID), eventID, payload ?? [])
+        );
 }

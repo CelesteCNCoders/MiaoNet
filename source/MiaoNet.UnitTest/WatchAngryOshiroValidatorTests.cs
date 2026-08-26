@@ -65,13 +65,7 @@ public sealed class WatchAngryOshiroValidatorTests
     }
 
     private static bool IsValid(WatchEntityKey key, byte[] payload)
-        => WatchPacketValidator.IsValid(new WatchSceneSnapshot(
-            Location,
-            0,
-            [],
-            [],
-            [new WatchEntityState(key, payload)]
-        ));
+        => WatchValidatorTestHelper.IsValidState(Location, new(key, payload));
 
     private static byte[] ValidPayload()
     {

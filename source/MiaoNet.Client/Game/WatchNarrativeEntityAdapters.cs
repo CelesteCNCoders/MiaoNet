@@ -200,7 +200,7 @@ internal sealed class WatchNarrativeNPCAdapter : IWatchEntityAdapter
         entity.Collidable = false;
         sprite.Scale = WatchEntityPayloadCodec.ReadVector2(p, 16);
         sprite.Rotation = WatchEntityPayloadCodec.ReadSingle(p, 32);
-        entity.Depth = BinaryPrimitives.ReadInt32LittleEndian(p[28..]);
+        entity.Depth = WatchEntityPayloadCodec.ReadInt32(p, 28);
         WatchSpriteState.ApplyAnimation(sprite, WatchEntityPayloadCodec.ReadUInt16(p, 2), p[1]);
     }
 
@@ -227,7 +227,7 @@ internal sealed class WatchNarrativeNPCAdapter : IWatchEntityAdapter
             WatchEntityPayloadCodec.WriteVector2(p, 8, npc.Position);
             WatchEntityPayloadCodec.WriteVector2(p, 16, npc.Sprite.Scale);
             WatchEntityPayloadCodec.WriteSingle(p, 24, npc.Light?.Alpha ?? 0f);
-            BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(28), npc.Depth);
+            WatchEntityPayloadCodec.WriteInt32(p, 28, npc.Depth);
             WatchEntityPayloadCodec.WriteSingle(p, 32, npc.Sprite.Rotation);
             yield return sync.GetValue(npc, static _ => new()).Capture(
                 new(Kind, id), p, 1, level.TimeActive,
@@ -379,7 +379,7 @@ internal sealed class WatchAscendManagerAdapter : IWatchEntityAdapter
             if (manager.Ch9Ending) p[0] |= 2;
             if (manager.introLaunch) p[0] |= 4;
             if (manager.outTheTop) p[0] |= 8;
-            BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(4), manager.index);
+            WatchEntityPayloadCodec.WriteInt32(p, 4, manager.index);
             WatchEntityPayloadCodec.WriteSingle(p, 8, manager.fade);
             WatchEntityPayloadCodec.WriteSingle(p, 12, manager.scroll);
             BinaryPrimitives.WriteUInt32LittleEndian(p.AsSpan(16), manager.background.PackedValue);
@@ -392,7 +392,7 @@ internal sealed class WatchAscendManagerAdapter : IWatchEntityAdapter
                 continue;
             byte[] p = new byte[HeightPayloadSize];
             if (display.Visible) p[0] |= 1;
-            BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(4), display.index);
+            WatchEntityPayloadCodec.WriteInt32(p, 4, display.index);
             WatchEntityPayloadCodec.WriteSingle(p, 8, Math.Clamp(display.ease, 0f, 1f));
             WatchEntityPayloadCodec.WriteSingle(p, 12, display.approach);
             WatchEntityPayloadCodec.WriteSingle(p, 16, display.pulse);
@@ -416,7 +416,7 @@ internal sealed class WatchAscendManagerAdapter : IWatchEntityAdapter
             {
                 if (p.Length != HeightPayloadSize)
                     continue;
-                int index = BinaryPrimitives.ReadInt32LittleEndian(p[4..]);
+                int index = WatchEntityPayloadCodec.ReadInt32(p, 4);
                 if (index != state.Key.EntityID || index < 0 || !desiredHeights.Add(index))
                     continue;
                 HeightDisplay display = GetOrCreateHeightDisplay(level, index);
@@ -435,7 +435,7 @@ internal sealed class WatchAscendManagerAdapter : IWatchEntityAdapter
             // vanilla map exists on both clients, so only runtime state follows.
             manager.introLaunch = (p[0] & 4) != 0;
             manager.outTheTop = (p[0] & 8) != 0;
-            manager.index = BinaryPrimitives.ReadInt32LittleEndian(p[4..]);
+            manager.index = WatchEntityPayloadCodec.ReadInt32(p, 4);
             manager.fade = Math.Clamp(WatchEntityPayloadCodec.ReadSingle(p, 8), 0f, 1f);
             manager.scroll = WatchEntityPayloadCodec.ReadSingle(p, 12);
             manager.background.PackedValue = BinaryPrimitives.ReadUInt32LittleEndian(p[16..]);
@@ -603,7 +603,7 @@ internal sealed class WatchIntroCarAdapter : IWatchEntityAdapter
             if (car.didHaveRider) p[0] |= 4;
             WatchEntityPayloadCodec.WriteVector2(p, 4, car.Position);
             WatchEntityPayloadCodec.WriteSingle(p, 12, car.startY);
-            BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(16), car.Depth);
+            WatchEntityPayloadCodec.WriteInt32(p, 16, car.Depth);
             yield return sync.GetValue(car, static _ => new()).Capture(new(Kind, id), p, 1,
                 level.TimeActive, WatchEntitySyncRegistry.IsCapturingCurrentState);
         }
@@ -626,7 +626,7 @@ internal sealed class WatchIntroCarAdapter : IWatchEntityAdapter
             car.Collidable = false;
             car.didHaveRider = (p[0] & 4) != 0;
             car.startY = WatchEntityPayloadCodec.ReadSingle(p, 12);
-            car.Depth = BinaryPrimitives.ReadInt32LittleEndian(p[16..]);
+            car.Depth = WatchEntityPayloadCodec.ReadInt32(p, 16);
         }
         return states.Count > 0 ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
@@ -739,7 +739,7 @@ internal sealed class WatchLookoutAdapter : IWatchEntityAdapter
             byte[] p = new byte[PayloadSize]; if (lookout.Visible) p[0] |= 1; if (lookout.interacting) p[0] |= 2;
             p[1] = (byte)Math.Max(0, lookout.sprite.CurrentAnimationFrame); WatchEntityPayloadCodec.WriteUInt16(p, 2, WatchSpriteState.EncodeAnimation(lookout.sprite));
             WatchEntityPayloadCodec.WriteSingle(p, 4, lookout.X); WatchEntityPayloadCodec.WriteSingle(p, 8, lookout.Y);
-            BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(12), lookout.node); WatchEntityPayloadCodec.WriteSingle(p, 16, lookout.nodePercent);
+            WatchEntityPayloadCodec.WriteInt32(p, 12, lookout.node); WatchEntityPayloadCodec.WriteSingle(p, 16, lookout.nodePercent);
             yield return new WatchEntityState(new(Kind, id), p);
         }
     }
@@ -756,7 +756,7 @@ internal sealed class WatchLookoutAdapter : IWatchEntityAdapter
             );
             if (lookout is null || state.Key.SubID != 0 || p.Length != PayloadSize) continue;
             lookout.Position = WatchEntityPayloadCodec.ReadVector2(p, 4); lookout.Visible = (p[0] & 1) != 0;
-            lookout.interacting = (p[0] & 2) != 0; lookout.talk.Enabled = false; lookout.node = BinaryPrimitives.ReadInt32LittleEndian(p[12..]); lookout.nodePercent = WatchEntityPayloadCodec.ReadSingle(p, 16);
+            lookout.interacting = (p[0] & 2) != 0; lookout.talk.Enabled = false; lookout.node = WatchEntityPayloadCodec.ReadInt32(p, 12); lookout.nodePercent = WatchEntityPayloadCodec.ReadSingle(p, 16);
             WatchSpriteState.ApplyAnimation(lookout.sprite, WatchEntityPayloadCodec.ReadUInt16(p, 2), p[1]);
         }
         return states.Count > 0 ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;

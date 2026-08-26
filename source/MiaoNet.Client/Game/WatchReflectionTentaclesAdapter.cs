@@ -1,5 +1,4 @@
 using MiaoNet.Shared;
-using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 
 namespace Celeste.Mod.MiaoNet;
@@ -247,9 +246,9 @@ internal sealed class WatchReflectionTentaclesAdapter : IWatchEntityAdapter
     {
         byte[] payload = new byte[PayloadSize];
         payload[0] = state.Flags;
-        BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(4), state.Index);
-        BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(8), state.SlideUntilIndex);
-        BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(12), state.Layer);
+        WatchEntityPayloadCodec.WriteInt32(payload, 4, state.Index);
+        WatchEntityPayloadCodec.WriteInt32(payload, 8, state.SlideUntilIndex);
+        WatchEntityPayloadCodec.WriteInt32(payload, 12, state.Layer);
         WatchEntityPayloadCodec.WriteVector2(payload, 16, state.Outwards);
         WatchEntityPayloadCodec.WriteVector2(payload, 24, state.LastOutwards);
         WatchEntityPayloadCodec.WriteSingle(payload, 32, state.Ease);
@@ -274,9 +273,9 @@ internal sealed class WatchReflectionTentaclesAdapter : IWatchEntityAdapter
             || p.Length != PayloadSize || (p[0] & ~VisibleFlag) != 0
             || p[1] != 0 || p[2] != 0 || p[3] != 0)
             return false;
-        int index = BinaryPrimitives.ReadInt32LittleEndian(p[4..]);
-        int slide = BinaryPrimitives.ReadInt32LittleEndian(p[8..]);
-        int layer = BinaryPrimitives.ReadInt32LittleEndian(p[12..]);
+        int index = WatchEntityPayloadCodec.ReadInt32(p, 4);
+        int slide = WatchEntityPayloadCodec.ReadInt32(p, 8);
+        int layer = WatchEntityPayloadCodec.ReadInt32(p, 12);
         float[] values = new float[9];
         for (int i = 0; i < values.Length; i++)
         {

@@ -253,7 +253,7 @@ internal sealed class WatchRoomEnvironmentAdapter : IWatchEntityAdapter
         payload[0] = state.Flags;
         payload[1] = state.BlackholeStrength;
         payload[2] = state.WindPattern;
-        BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(4), state.MusicProgress);
+        WatchEntityPayloadCodec.WriteInt32(payload, 4, state.MusicProgress);
         WatchEntityPayloadCodec.WriteSingle(payload, 8, state.BloomBaseAdd);
         WatchEntityPayloadCodec.WriteSingle(payload, 12, state.LightingAlphaAdd);
         WatchEntityPayloadCodec.WriteSingle(payload, 16, state.BloomStrength);
@@ -321,7 +321,7 @@ internal sealed class WatchRoomEnvironmentAdapter : IWatchEntityAdapter
         }
         value = new(
             payload[0], payload[1], payload[2],
-            BinaryPrimitives.ReadInt32LittleEndian(payload[4..]),
+            WatchEntityPayloadCodec.ReadInt32(payload, 4),
             numbers[0], numbers[1], numbers[2], numbers[3], numbers[4],
             numbers[5], numbers[6], new(numbers[7], numbers[8]),
             numbers[9], numbers[10], numbers[11], numbers[12], numbers[13],

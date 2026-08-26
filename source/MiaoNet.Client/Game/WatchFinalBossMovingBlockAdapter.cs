@@ -1,5 +1,4 @@
 using MiaoNet.Shared;
-using System.Buffers.Binary;
 using System.Collections;
 using System.Runtime.CompilerServices;
 
@@ -219,8 +218,8 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
     {
         byte[] payload = new byte[PayloadSize];
         payload[0] = state.Flags;
-        BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(4), state.BossNodeIndex);
-        BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(8), state.NodeIndex);
+        WatchEntityPayloadCodec.WriteInt32(payload, 4, state.BossNodeIndex);
+        WatchEntityPayloadCodec.WriteInt32(payload, 8, state.NodeIndex);
         WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Position);
         WatchEntityPayloadCodec.WriteVector2(payload, 20, state.MovementCounter);
         WatchEntityPayloadCodec.WriteSingle(payload, 28, state.StartDelay);
@@ -246,8 +245,8 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
             return false;
         value = new(
             p[0],
-            BinaryPrimitives.ReadInt32LittleEndian(p[4..]),
-            BinaryPrimitives.ReadInt32LittleEndian(p[8..]),
+            WatchEntityPayloadCodec.ReadInt32(p, 4),
+            WatchEntityPayloadCodec.ReadInt32(p, 8),
             position,
             movement,
             delay,
