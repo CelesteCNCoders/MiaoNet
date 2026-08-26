@@ -239,7 +239,27 @@ internal sealed class WatchBadelineBoostAdapter : IWatchEntityAdapter
 internal sealed class WatchFlingBirdAdapter : IWatchEntityAdapter
 {
     private const byte ActivateEvent = 1;
-    private const int PayloadSize = 20;
+    private const int PayloadSize = 56;
+    private const float AnchorInterval = 0.1f;
+    private const byte VisibleFlag = 1 << 0;
+    private const byte CollidableFlag = 1 << 1;
+    private const byte LightningRemovedFlag = 1 << 2;
+
+    private readonly record struct BirdState(
+        byte State,
+        byte Flags,
+        ushort SegmentIndex,
+        byte Animation,
+        byte AnimationFrame,
+        Vector2 Position,
+        Vector2 FlingSpeed,
+        Vector2 FlingTargetSpeed,
+        float FlingAccel,
+        Vector2 SpritePosition,
+        Vector2 SpriteScale,
+        float SpriteRotation
+    );
+
     private sealed class Info
     {
         public string Level { get; }
@@ -247,23 +267,71 @@ internal sealed class WatchFlingBirdAdapter : IWatchEntityAdapter
         public Info(string level, int id) { Level = level; ID = id; }
     }
 
+    private sealed class SyncInfo
+    {
+        private bool hasState;
+        private BirdState last;
+        private float nextAnchor;
+        private WatchEntityState state;
+
+        public WatchEntityState Capture(int id, BirdState current, float time, bool force)
+        {
+            bool signatureChanged = !hasState
+                || last.State != current.State
+                || last.Flags != current.Flags
+                || last.SegmentIndex != current.SegmentIndex
+                || last.Animation != current.Animation;
+            if (force || signatureChanged || time >= nextAnchor)
+            {
+                state = Encode(id, current);
+                last = current;
+                hasState = true;
+                nextAnchor = time + AnchorInterval;
+            }
+            return state;
+        }
+    }
+
+    private sealed class RemoteInfo
+    {
+        public bool HasState { get; set; }
+        public Vector2 PositionStart { get; set; }
+        public Vector2 PositionTarget { get; set; }
+        public Vector2 SpritePositionStart { get; set; }
+        public Vector2 SpritePositionTarget { get; set; }
+        public Vector2 SpriteScaleStart { get; set; }
+        public Vector2 SpriteScaleTarget { get; set; }
+        public float SpriteRotationStart { get; set; }
+        public float SpriteRotationTarget { get; set; }
+        public float Elapsed { get; set; }
+        public bool HasAnimation { get; set; }
+        public byte Animation { get; set; }
+        public Vector2 LastTrail { get; set; }
+    }
+
     private static readonly WatchFlingBirdAdapter instance = new();
     private static readonly ConditionalWeakTable<FlingBird, Info> infos = new();
+    private static readonly ConditionalWeakTable<FlingBird, SyncInfo> syncInfos = new();
+    private static readonly ConditionalWeakTable<FlingBird, RemoteInfo> remoteInfos = new();
     public WatchEntityKind Kind => WatchEntityKind.FlingBird;
 
     public static void Load()
     {
         On.Celeste.FlingBird.ctor_EntityData_Vector2 += FlingBird_ctor;
         On.Celeste.FlingBird.OnPlayer += FlingBird_OnPlayer;
+        On.Celeste.FlingBird.Update += FlingBird_Update;
         WatchEntitySyncRegistry.Register(instance);
     }
 
     public static void Unload()
     {
         WatchEntitySyncRegistry.Unregister(instance);
+        On.Celeste.FlingBird.Update -= FlingBird_Update;
         On.Celeste.FlingBird.OnPlayer -= FlingBird_OnPlayer;
         On.Celeste.FlingBird.ctor_EntityData_Vector2 -= FlingBird_ctor;
         infos.Clear();
+        syncInfos.Clear();
+        remoteInfos.Clear();
     }
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
@@ -272,18 +340,12 @@ internal sealed class WatchFlingBirdAdapter : IWatchEntityAdapter
         {
             if (!infos.TryGetValue(bird, out Info? info) || info.Level != level.Session.Level)
                 continue;
-            byte[] payload = new byte[PayloadSize];
-            payload[0] = (byte)bird.state;
-            if (bird.Visible) payload[1] |= 1;
-            if (bird.Collidable) payload[1] |= 2;
-            if (bird.LightningRemoved) payload[1] |= 4;
-            WatchEntityPayloadCodec.WriteUInt16(payload, 2,
-                checked((ushort)Math.Clamp(bird.segmentIndex, 0, ushort.MaxValue)));
-            WatchEntityPayloadCodec.WriteSingle(payload, 4, bird.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 8, bird.Position.Y);
-            WatchEntityPayloadCodec.WriteSingle(payload, 12, bird.flingSpeed.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 16, bird.flingSpeed.Y);
-            yield return new(new WatchEntityKey(Kind, info.ID), payload);
+            yield return syncInfos.GetValue(bird, static _ => new()).Capture(
+                info.ID,
+                Capture(bird),
+                level.TimeActive,
+                WatchEntitySyncRegistry.IsCapturingCurrentState
+            );
         }
     }
 
@@ -309,18 +371,7 @@ internal sealed class WatchFlingBirdAdapter : IWatchEntityAdapter
                 }
                 continue;
             }
-            ReadOnlySpan<byte> payload = state.Payload.Span;
-            bird.state = (FlingBird.States)payload[0];
-            bird.Visible = (payload[1] & 1) != 0;
-            bird.Collidable = (payload[1] & 2) != 0;
-            bird.LightningRemoved = (payload[1] & 4) != 0;
-            bird.segmentIndex = WatchEntityPayloadCodec.ReadUInt16(payload, 2);
-            bird.Position = new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 4),
-                WatchEntityPayloadCodec.ReadSingle(payload, 8));
-            bird.flingSpeed = new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 12),
-                WatchEntityPayloadCodec.ReadSingle(payload, 16));
+            Apply(bird, Decode(state));
             changed = true;
         }
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
@@ -336,21 +387,178 @@ internal sealed class WatchFlingBirdAdapter : IWatchEntityAdapter
         if (bird is null)
             return;
         Audio.Play("event:/new_content/game/10_farewell/bird_throw", bird.Position);
-        bird.sprite.Play("hoverStressed");
-        bird.state = FlingBird.States.Fling;
         bird.Collidable = false;
+    }
+
+    private static BirdState Capture(FlingBird bird)
+    {
+        byte flags = 0;
+        if (bird.Visible) flags |= VisibleFlag;
+        if (bird.Collidable) flags |= CollidableFlag;
+        if (bird.LightningRemoved) flags |= LightningRemovedFlag;
+        byte animation = bird.sprite?.CurrentAnimationID switch
+        {
+            "hover" => 0,
+            "hoverStressed" => 1,
+            "throw" => 2,
+            "fly" => 3,
+            _ => byte.MaxValue,
+        };
+        return new(
+            (byte)bird.state,
+            flags,
+            checked((ushort)Math.Clamp(bird.segmentIndex, 0, ushort.MaxValue)),
+            animation,
+            (byte)Math.Clamp(bird.sprite?.CurrentAnimationFrame ?? 0, 0, byte.MaxValue),
+            bird.Position,
+            bird.flingSpeed,
+            bird.flingTargetSpeed,
+            bird.flingAccel,
+            bird.sprite?.Position ?? Vector2.Zero,
+            bird.sprite?.Scale ?? Vector2.One,
+            bird.sprite?.Rotation ?? 0f
+        );
+    }
+
+    private static WatchEntityState Encode(int id, BirdState state)
+    {
+        byte[] payload = new byte[PayloadSize];
+        payload[0] = state.State;
+        payload[1] = state.Flags;
+        WatchEntityPayloadCodec.WriteUInt16(payload, 2, state.SegmentIndex);
+        payload[4] = state.Animation;
+        payload[5] = state.AnimationFrame;
+        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.X);
+        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Position.Y);
+        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.FlingSpeed.X);
+        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.FlingSpeed.Y);
+        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.FlingTargetSpeed.X);
+        WatchEntityPayloadCodec.WriteSingle(payload, 28, state.FlingTargetSpeed.Y);
+        WatchEntityPayloadCodec.WriteSingle(payload, 32, state.FlingAccel);
+        WatchEntityPayloadCodec.WriteSingle(payload, 36, state.SpritePosition.X);
+        WatchEntityPayloadCodec.WriteSingle(payload, 40, state.SpritePosition.Y);
+        WatchEntityPayloadCodec.WriteSingle(payload, 44, state.SpriteScale.X);
+        WatchEntityPayloadCodec.WriteSingle(payload, 48, state.SpriteScale.Y);
+        WatchEntityPayloadCodec.WriteSingle(payload, 52, state.SpriteRotation);
+        return new(new WatchEntityKey(WatchEntityKind.FlingBird, id), payload);
+    }
+
+    private static BirdState Decode(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        return new(
+            payload[0],
+            payload[1],
+            WatchEntityPayloadCodec.ReadUInt16(payload, 2),
+            payload[4],
+            payload[5],
+            new(
+                WatchEntityPayloadCodec.ReadSingle(payload, 8),
+                WatchEntityPayloadCodec.ReadSingle(payload, 12)
+            ),
+            new(
+                WatchEntityPayloadCodec.ReadSingle(payload, 16),
+                WatchEntityPayloadCodec.ReadSingle(payload, 20)
+            ),
+            new(
+                WatchEntityPayloadCodec.ReadSingle(payload, 24),
+                WatchEntityPayloadCodec.ReadSingle(payload, 28)
+            ),
+            WatchEntityPayloadCodec.ReadSingle(payload, 32),
+            new(
+                WatchEntityPayloadCodec.ReadSingle(payload, 36),
+                WatchEntityPayloadCodec.ReadSingle(payload, 40)
+            ),
+            new(
+                WatchEntityPayloadCodec.ReadSingle(payload, 44),
+                WatchEntityPayloadCodec.ReadSingle(payload, 48)
+            ),
+            WatchEntityPayloadCodec.ReadSingle(payload, 52)
+        );
+    }
+
+    private static void Apply(FlingBird bird, BirdState state)
+    {
+        RemoteInfo info = remoteInfos.GetValue(bird, static _ => new());
+        bool hard = WatchEntitySyncRegistry.IsApplyingLifecycleReset
+            || !info.HasState
+            || Vector2.DistanceSquared(bird.Position, state.Position) >= 96f * 96f;
+        if (hard)
+        {
+            bird.Position = state.Position;
+            info.PositionStart = info.PositionTarget = state.Position;
+            info.SpritePositionStart = info.SpritePositionTarget = state.SpritePosition;
+            info.SpriteScaleStart = info.SpriteScaleTarget = state.SpriteScale;
+            info.SpriteRotationStart = info.SpriteRotationTarget = state.SpriteRotation;
+            info.Elapsed = AnchorInterval;
+        }
+        else
+        {
+            info.PositionStart = bird.Position;
+            info.PositionTarget = state.Position;
+            info.SpritePositionStart = bird.sprite?.Position ?? state.SpritePosition;
+            info.SpritePositionTarget = state.SpritePosition;
+            info.SpriteScaleStart = bird.sprite?.Scale ?? state.SpriteScale;
+            info.SpriteScaleTarget = state.SpriteScale;
+            info.SpriteRotationStart = bird.sprite?.Rotation ?? state.SpriteRotation;
+            info.SpriteRotationTarget = state.SpriteRotation;
+            info.Elapsed = 0f;
+        }
+        info.HasState = true;
+        bird.state = (FlingBird.States)state.State;
+        bird.Visible = (state.Flags & VisibleFlag) != 0;
+        bird.Collidable = false;
+        bird.LightningRemoved = (state.Flags & LightningRemovedFlag) != 0;
+        bird.segmentIndex = state.SegmentIndex;
+        bird.flingSpeed = state.FlingSpeed;
+        bird.flingTargetSpeed = state.FlingTargetSpeed;
+        bird.flingAccel = state.FlingAccel;
+        if (bird.sprite is null)
+            return;
+        string? animation = state.Animation switch
+        {
+            0 => "hover",
+            1 => "hoverStressed",
+            2 => "throw",
+            3 => "fly",
+            _ => null,
+        };
+        if (animation is not null && bird.sprite.Has(animation))
+        {
+            bool animationChanged = !info.HasAnimation || info.Animation != state.Animation;
+            if (animationChanged)
+                bird.sprite.Play(animation, restart: true);
+            if (hard && bird.sprite.CurrentAnimationTotalFrames > 0)
+                bird.sprite.SetAnimationFrame(Math.Min(
+                    state.AnimationFrame,
+                    bird.sprite.CurrentAnimationTotalFrames - 1
+                ));
+            info.HasAnimation = true;
+            info.Animation = state.Animation;
+        }
+        if (hard)
+        {
+            bird.sprite.Position = state.SpritePosition;
+            bird.sprite.Scale = state.SpriteScale;
+            bird.sprite.Rotation = state.SpriteRotation;
+        }
     }
 
     private static bool TryValidate(WatchEntityState state)
     {
         ReadOnlySpan<byte> payload = state.Payload.Span;
-        return state.Key.Kind == WatchEntityKind.FlingBird && state.Key.SubID == 0
-            && payload.Length == PayloadSize && payload[0] <= 4
-            && (payload[1] & ~0b0000_0111) == 0
-            && float.IsFinite(WatchEntityPayloadCodec.ReadSingle(payload, 4))
-            && float.IsFinite(WatchEntityPayloadCodec.ReadSingle(payload, 8))
-            && float.IsFinite(WatchEntityPayloadCodec.ReadSingle(payload, 12))
-            && float.IsFinite(WatchEntityPayloadCodec.ReadSingle(payload, 16));
+        if (state.Key.Kind != WatchEntityKind.FlingBird || state.Key.SubID != 0
+            || payload.Length != PayloadSize || payload[0] > 4
+            || (payload[1] & ~0b0000_0111) != 0
+            || (payload[4] > 3 && payload[4] != byte.MaxValue)
+            || payload[6] != 0 || payload[7] != 0)
+            return false;
+        foreach (int offset in new[] { 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52 })
+        {
+            if (!float.IsFinite(WatchEntityPayloadCodec.ReadSingle(payload, offset)))
+                return false;
+        }
+        return WatchEntityPayloadCodec.ReadSingle(payload, 32) is >= 0f and <= 10000f;
     }
 
     private static void FlingBird_ctor(
@@ -362,6 +570,72 @@ internal sealed class WatchFlingBirdAdapter : IWatchEntityAdapter
     {
         orig(self, data, offset);
         infos.AddOrUpdate(self, new Info(data.Level.Name, data.ID));
+    }
+
+    private static void FlingBird_Update(On.Celeste.FlingBird.orig_Update orig, FlingBird self)
+    {
+        if (!MiaoNetModule.IsWatching)
+        {
+            orig(self);
+            return;
+        }
+        if (MiaoNetModule.IsWatchedPlayerPaused)
+            return;
+        foreach (Coroutine coroutine in self.Components.GetAll<Coroutine>())
+            coroutine.Active = false;
+        self.Components.Update();
+        self.Collidable = false;
+        if (!remoteInfos.TryGetValue(self, out RemoteInfo? info) || !info.HasState)
+            return;
+
+        info.Elapsed = Math.Min(AnchorInterval, info.Elapsed + Engine.DeltaTime);
+        float progress = info.Elapsed / AnchorInterval;
+        Vector2 expected = Vector2.Lerp(info.PositionStart, info.PositionTarget, progress);
+        if (self.state == FlingBird.States.Fling)
+        {
+            if (self.flingAccel > 0f)
+            {
+                self.flingSpeed = Calc.Approach(
+                    self.flingSpeed,
+                    self.flingTargetSpeed,
+                    self.flingAccel * Engine.DeltaTime
+                );
+                self.Position += self.flingSpeed * Engine.DeltaTime;
+            }
+            float correction = 1f - MathF.Pow(0.001f, Engine.DeltaTime);
+            self.Position = Vector2.Lerp(self.Position, expected, correction);
+        }
+        else
+        {
+            self.Position = expected;
+        }
+
+        if (self.sprite is not null)
+        {
+            self.sprite.Position = Vector2.Lerp(
+                info.SpritePositionStart,
+                info.SpritePositionTarget,
+                progress
+            );
+            self.sprite.Scale = Vector2.Lerp(
+                info.SpriteScaleStart,
+                info.SpriteScaleTarget,
+                progress
+            );
+            self.sprite.Rotation = MathHelper.Lerp(
+                info.SpriteRotationStart,
+                info.SpriteRotationTarget,
+                progress
+            );
+        }
+        if (self.Visible
+            && self.state is (FlingBird.States.Fling
+                or FlingBird.States.Move or FlingBird.States.Leaving)
+            && Vector2.DistanceSquared(info.LastTrail, self.Position) > 32f * 32f)
+        {
+            TrailManager.Add(self, self.trailColor, 1f, frozenUpdate: false, useRawDeltaTime: false);
+            info.LastTrail = self.Position;
+        }
     }
 
     private static void FlingBird_OnPlayer(

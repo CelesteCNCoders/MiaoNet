@@ -22,7 +22,7 @@ public sealed class WatchNextBatchEntityValidatorTests
             State(WatchEntityKind.Glider, new byte[24]),
             State(WatchEntityKind.TheoCrystalPedestal, [0]),
             State(WatchEntityKind.BadelineBoost, new byte[16]),
-            State(WatchEntityKind.FlingBird, new byte[20]),
+            State(WatchEntityKind.FlingBird, new byte[56]),
             State(WatchEntityKind.WallBooster, [0, 1]),
             State(WatchEntityKind.Torch, [1]),
             State(WatchEntityKind.TempleCrackedBlock, [1]),
@@ -45,8 +45,12 @@ public sealed class WatchNextBatchEntityValidatorTests
         validGoneHoldable[0] = (byte)WatchHoldablePhase.Gone;
         byte[] invalidHoldablePhase = new byte[24];
         invalidHoldablePhase[0] = (byte)WatchHoldablePhase.Gone + 1;
-        byte[] invalidBirdState = new byte[20];
+        byte[] invalidBirdState = new byte[56];
         invalidBirdState[0] = 5;
+        byte[] invalidBirdAnimation = new byte[56];
+        invalidBirdAnimation[4] = 4;
+        byte[] invalidBirdAccel = new byte[56];
+        BitConverter.TryWriteBytes(invalidBirdAccel.AsSpan(32), 10001f);
         byte[] validBadelineBoost = new byte[16];
         validBadelineBoost[1] = 0b0001_1111;
         BitConverter.TryWriteBytes(validBadelineBoost.AsSpan(12), 0.5f);
@@ -67,6 +71,8 @@ public sealed class WatchNextBatchEntityValidatorTests
         Assert.IsFalse(IsValid(State(WatchEntityKind.BadelineBoost, invalidBadelineBoostFlags)));
         Assert.IsFalse(IsValid(State(WatchEntityKind.BadelineBoost, invalidBadelineBoostProgress)));
         Assert.IsFalse(IsValid(State(WatchEntityKind.FlingBird, invalidBirdState)));
+        Assert.IsFalse(IsValid(State(WatchEntityKind.FlingBird, invalidBirdAnimation)));
+        Assert.IsFalse(IsValid(State(WatchEntityKind.FlingBird, invalidBirdAccel)));
         Assert.IsFalse(IsValid(State(WatchEntityKind.WallBooster, [2, 0])));
         Assert.IsFalse(IsValid(State(WatchEntityKind.Torch, [2])));
         Assert.IsFalse(IsValid(State(WatchEntityKind.TempleCrackedBlock, [2])));

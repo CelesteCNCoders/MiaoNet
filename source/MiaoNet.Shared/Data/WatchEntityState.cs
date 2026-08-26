@@ -55,6 +55,13 @@ public enum WatchEntityKind : ushort
     FinalBossBeam = 50,
     FinalBossMovingBlock = 51,
     ReflectionTentacles = 52,
+    LightningBreakerBox = 53,
+    Lightning = 54,
+    BirdPath = 55,
+    WhiteBlock = 56,
+    ForsakenCitySatellite = 57,
+    ReflectionHeartStatue = 58,
+    RidgeGate = 59,
 }
 
 public enum WatchFinalBossBeamPhase : byte

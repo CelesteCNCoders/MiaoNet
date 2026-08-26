@@ -85,6 +85,7 @@ public sealed class MiaoNetModule : EverestModule
             Everest.Events.Level.OnExit += Level_OnExit;
             Everest.Events.Level.OnLoadLevel += Level_OnLoadLevel;
             Everest.Events.Level.OnTransitionTo += Level_OnTransitionTo;
+            On.Celeste.Level.Update += Level_Update_After;
             IL.Celeste.Level.Update += Level_Update;
             SpriteIDTracker.Load();
             TouchSwitchIDTracker.Load();
@@ -124,6 +125,13 @@ public sealed class MiaoNetModule : EverestModule
             WatchFinalBossBeamAdapter.Load();
             WatchFinalBossMovingBlockAdapter.Load();
             WatchReflectionTentaclesAdapter.Load();
+            WatchLightningBreakerBoxAdapter.Load();
+            WatchLightningAdapter.Load();
+            WatchBirdPathAdapter.Load();
+            WatchWhiteBlockAdapter.Load();
+            WatchForsakenCitySatelliteAdapter.Load();
+            WatchReflectionHeartStatueAdapter.Load();
+            WatchRidgeGateAdapter.Load();
             WatchCassetteBlockAdapter.Load();
             WatchSwitchGateAdapter.Load();
             WatchClutterSystemAdapter.Load();
@@ -179,6 +187,7 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.Level.OnExit -= Level_OnExit;
         Everest.Events.Level.OnLoadLevel -= Level_OnLoadLevel;
         Everest.Events.Level.OnTransitionTo -= Level_OnTransitionTo;
+        On.Celeste.Level.Update -= Level_Update_After;
         IL.Celeste.Level.Update -= Level_Update;
         SpriteIDTracker.Unload();
         TouchSwitchIDTracker.Unload();
@@ -197,6 +206,13 @@ public sealed class MiaoNetModule : EverestModule
         WatchClutterSystemAdapter.Unload();
         WatchSwitchGateAdapter.Unload();
         WatchCassetteBlockAdapter.Unload();
+        WatchRidgeGateAdapter.Unload();
+        WatchReflectionHeartStatueAdapter.Unload();
+        WatchForsakenCitySatelliteAdapter.Unload();
+        WatchWhiteBlockAdapter.Unload();
+        WatchBirdPathAdapter.Unload();
+        WatchLightningAdapter.Unload();
+        WatchLightningBreakerBoxAdapter.Unload();
         WatchReflectionTentaclesAdapter.Unload();
         WatchFinalBossMovingBlockAdapter.Unload();
         WatchFinalBossBeamAdapter.Unload();
@@ -487,6 +503,19 @@ public sealed class MiaoNetModule : EverestModule
         Player? player = level.Tracker.GetEntity<Player>();
         if (player is not null)
             PlayerRoomTransition?.Invoke(level, next, player, direction);
+    }
+
+    private static void Level_Update_After(On.Celeste.Level.orig_Update orig, Level self)
+    {
+        // While watching, room entities still update their local visual state but
+        // must not retain Camera writes based on the hidden Player. Vanilla room
+        // transitions remain the sole exception and continue owning the Camera.
+        bool preserveCamera = IsWatching && self.transition is null;
+        Vector2 cameraPosition = self.Camera.Position;
+        orig(self);
+        if (preserveCamera && self.transition is null)
+            self.Camera.Position = cameraPosition;
+        Instance.miaoNetContext?.MainComponent.ApplyWatchCameraAfterLevelUpdate(self);
     }
 
     private static void LevelLoader_OnLoadingThread(Level level)

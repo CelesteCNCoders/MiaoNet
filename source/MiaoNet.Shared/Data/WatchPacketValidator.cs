@@ -264,10 +264,16 @@ public static class WatchPacketValidator
                     state.Payload.Span[12..]
                 )) is >= 0f and <= 1f,
             WatchEntityKind.FlingBird => state.Key.SubID == 0
-                && state.Payload.Length == 20
+                && state.Payload.Length == 56
                 && state.Payload.Span[0] <= 4
                 && (state.Payload.Span[1] & ~0b0000_0111) == 0
-                && HasFiniteSingles(state.Payload.Span, 4, 8, 12, 16),
+                && (state.Payload.Span[4] <= 3 || state.Payload.Span[4] == byte.MaxValue)
+                && state.Payload.Span[6] == 0 && state.Payload.Span[7] == 0
+                && HasFiniteSingles(
+                    state.Payload.Span,
+                    8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52
+                )
+                && ReadSingle(state.Payload.Span, 32) is >= 0f and <= 10000f,
             WatchEntityKind.WallBooster => state.Key.SubID == 0
                 && state.Payload.Length == 2
                 && state.Payload.Span[0] <= 1
@@ -298,6 +304,13 @@ public static class WatchPacketValidator
             WatchEntityKind.FinalBossBeam => IsValidFinalBossBeamPayload(state),
             WatchEntityKind.FinalBossMovingBlock => IsValidFinalBossMovingBlockPayload(state),
             WatchEntityKind.ReflectionTentacles => IsValidReflectionTentaclesPayload(state),
+            WatchEntityKind.LightningBreakerBox => IsValidLightningBreakerBoxPayload(state),
+            WatchEntityKind.Lightning => IsValidLightningPayload(state),
+            WatchEntityKind.BirdPath => IsValidBirdPathPayload(state),
+            WatchEntityKind.WhiteBlock => IsValidWhiteBlockPayload(state),
+            WatchEntityKind.ForsakenCitySatellite => IsValidSatellitePayload(state),
+            WatchEntityKind.ReflectionHeartStatue => IsValidReflectionHeartStatuePayload(state),
+            WatchEntityKind.RidgeGate => IsValidRidgeGatePayload(state),
             _ => false,
         };
 
@@ -457,8 +470,138 @@ public static class WatchPacketValidator
             WatchEntityKind.ReflectionTentacles => entityEvent.Key.SubID <= 3
                 && entityEvent.EventID is >= 1 and <= 2
                 && entityEvent.Payload.Length == 0,
+            WatchEntityKind.LightningBreakerBox => entityEvent.Key.SubID == 0
+                && entityEvent.EventID is >= 1 and <= 2
+                && entityEvent.Payload.Length == 8
+                && HasFiniteSingles(entityEvent.Payload.Span, 0, 4),
+            WatchEntityKind.Lightning => entityEvent.Key.SubID == 0
+                && entityEvent.EventID == 1
+                && entityEvent.Payload.Length == 0,
+            WatchEntityKind.BirdPath => entityEvent.Key.SubID == 0
+                && entityEvent.EventID is >= 1 and <= 2
+                && entityEvent.Payload.Length == 0,
+            WatchEntityKind.WhiteBlock or WatchEntityKind.ForsakenCitySatellite
+                or WatchEntityKind.RidgeGate =>
+                entityEvent.Key.SubID == 0
+                && entityEvent.EventID == 1
+                && entityEvent.Payload.Length == 0,
+            WatchEntityKind.ReflectionHeartStatue => entityEvent.Payload.Length == 0
+                && (entityEvent.EventID switch
+                {
+                    1 => entityEvent.Key.SubID is >= 1 and <= 4,
+                    2 => entityEvent.Key.SubID == 0,
+                    _ => false,
+                }),
             _ => false,
         };
+
+    private static bool IsValidLightningBreakerBoxPayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        return state.Key.SubID == 0
+            && payload.Length == 24
+            && (payload[0] & ~0b0000_0011) == 0
+            && payload[1] <= 2
+            && (payload[2] <= 3 || payload[2] == byte.MaxValue)
+            && HasFiniteSingles(payload, 4, 8, 12, 16, 20);
+    }
+
+    private static bool IsValidLightningPayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        return state.Key.SubID == 0
+            && payload.Length == 24
+            && (payload[0] & ~0b0000_1111) == 0
+            && payload[1] == 0 && payload[2] == 0 && payload[3] == 0
+            && HasFiniteSingles(payload, 4, 8, 12, 16, 20)
+            && ReadSingle(payload, 12) is >= 0f and <= 1f
+            && ReadSingle(payload, 16) is >= 0f and <= 0.6f
+            && ReadSingle(payload, 20) is >= 0f and <= 1f
+            && ((payload[0] & 0b0000_0100) != 0
+                || ((payload[0] & 0b0000_1000) == 0 && ReadSingle(payload, 20) == 0f));
+    }
+
+    private static bool IsValidBirdPathPayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        return state.Key.SubID == 0
+            && payload.Length == 32
+            && (payload[0] & ~0b0000_0011) == 0
+            && (payload[1] <= 4 || payload[1] == byte.MaxValue)
+            && payload[3] == 0
+            && HasFiniteSingles(payload, 4, 8, 12, 16, 20, 24, 28);
+    }
+
+    private static bool IsValidWhiteBlockPayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        return state.Key.SubID == 0
+            && payload.Length == 12
+            && (payload[0] & ~0b0001_1111) == 0
+            && payload[1] == 0 && payload[2] == 0 && payload[3] == 0
+            && HasFiniteSingles(payload, 4)
+            && ReadSingle(payload, 4) is >= 0f and <= 10f;
+    }
+
+    private static bool IsValidSatellitePayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        if (state.Key.SubID == 0)
+            return payload.Length == 16
+                && (payload[0] & ~0b0001_1111) == 0
+                && payload[1] <= 6
+                && HasValidDirections(payload, 2, payload[1], 6)
+                && HasFiniteSingles(payload, 8, 12);
+        return state.Key.SubID <= 5
+            && payload.Length == 48
+            && (payload[0] & ~0b0001_1111) == 0
+            && (payload[1] <= 5 || payload[1] == byte.MaxValue)
+            && payload[3] == 0
+            && HasFiniteSingles(payload, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40);
+    }
+
+    private static bool IsValidReflectionHeartStatuePayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        return state.Key.SubID == 0
+            && payload.Length == 12
+            && (payload[0] & ~0b0000_0111) == 0
+            && (payload[1] & ~0b0000_1111) == 0
+            && payload[2] <= 6
+            && payload[3] == 0 && payload[10] == 0 && payload[11] == 0
+            && HasValidDirections(payload, 4, payload[2], 6);
+    }
+
+    private static bool IsValidRidgeGatePayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        return state.Key.SubID == 0
+            && payload.Length == 24
+            && (payload[0] & ~0b0000_0111) == 0
+            && payload[1] == 0 && payload[2] == 0 && payload[3] == 0
+            && HasFiniteSingles(payload, 4, 8, 12, 16);
+    }
+
+    private static bool HasValidDirections(
+        ReadOnlySpan<byte> payload,
+        int offset,
+        int count,
+        int capacity
+    )
+    {
+        for (int index = 0; index < capacity; index++)
+        {
+            byte value = payload[offset + index];
+            if (index < count ? value is 0 or > 5 : value != 0)
+                return false;
+        }
+        return true;
+    }
+
+    private static float ReadSingle(ReadOnlySpan<byte> payload, int offset)
+        => BitConverter.Int32BitsToSingle(
+            BinaryPrimitives.ReadInt32LittleEndian(payload[offset..])
+        );
 
     private static bool IsValidFinalBossPayload(WatchEntityState state)
     {

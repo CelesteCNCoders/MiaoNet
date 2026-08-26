@@ -31,6 +31,7 @@ public sealed partial class MainComponent
     private PlayerLocation watchCameraLocation;
     private Vector2? watchCameraTarget;
     private bool watchCameraAwaitingFreshSample;
+    private bool watchCameraApplyAfterLevelUpdate;
 
     public bool WatchRequestPending { get; private set; }
 
@@ -43,6 +44,7 @@ public sealed partial class MainComponent
 
     private void UpdateWatching(Level level, Player player)
     {
+        watchCameraApplyAfterLevelUpdate = false;
         if (playerWatching is not null)
         {
             if (playerWatching.State is null)
@@ -112,7 +114,10 @@ public sealed partial class MainComponent
             if (level.InCutscene && !level.SkippingCutscene)
                 level.SkipCutscene();
 
-            UpdateWatchCamera(level);
+            // Level entities and CameraTargetTriggers update after the network
+            // component. Defer the authoritative sample until Level.Update has
+            // finished so room-local camera logic cannot overwrite it.
+            watchCameraApplyAfterLevelUpdate = true;
         }
     }
 
@@ -785,6 +790,19 @@ public sealed partial class MainComponent
             target,
             ((level.Camera.Position - target).Length() * 4f) * Engine.RawDeltaTime
         );
+    }
+
+    internal void ApplyWatchCameraAfterLevelUpdate(Level level)
+    {
+        if (!watchCameraApplyAfterLevelUpdate)
+            return;
+
+        watchCameraApplyAfterLevelUpdate = false;
+        if (playerWatching?.State is null || level.transition is not null)
+            return;
+
+        UpdateWatchCamera(level);
+        WatchLightningAdapter.RefreshRendererEdgesForCamera(level);
     }
 
     private void BufferWatchCameraSample(OnlinePlayer player, PlayerStateDelta delta)
