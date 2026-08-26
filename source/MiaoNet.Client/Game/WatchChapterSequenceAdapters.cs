@@ -7,6 +7,11 @@ internal sealed class WatchBadelineBoostAdapter : IWatchEntityAdapter
 {
     private const byte ActivateEvent = 1;
     private const int PayloadSize = 16;
+    private const byte EntityVisibleFlag = 1 << 0;
+    private const byte TravellingFlag = 1 << 1;
+    private const byte HoldingFlag = 1 << 2;
+    private const byte SpriteVisibleFlag = 1 << 3;
+    private const byte StretchVisibleFlag = 1 << 4;
 
     private sealed class Info
     {
@@ -24,12 +29,14 @@ internal sealed class WatchBadelineBoostAdapter : IWatchEntityAdapter
     {
         On.Celeste.BadelineBoost.ctor_EntityData_Vector2 += BadelineBoost_ctor;
         On.Celeste.BadelineBoost.OnPlayer += BadelineBoost_OnPlayer;
+        On.Celeste.BadelineBoost.Update += BadelineBoost_Update;
         WatchEntitySyncRegistry.Register(instance);
     }
 
     public static void Unload()
     {
         WatchEntitySyncRegistry.Unregister(instance);
+        On.Celeste.BadelineBoost.Update -= BadelineBoost_Update;
         On.Celeste.BadelineBoost.OnPlayer -= BadelineBoost_OnPlayer;
         On.Celeste.BadelineBoost.ctor_EntityData_Vector2 -= BadelineBoost_ctor;
         infos.Clear();
@@ -48,13 +55,15 @@ internal sealed class WatchBadelineBoostAdapter : IWatchEntityAdapter
                     : boost.Visible ? WatchEntityPhase.Ready : WatchEntityPhase.Gone;
             byte[] payload = new byte[PayloadSize];
             payload[0] = (byte)phase;
-            if (boost.Visible) payload[1] |= 1;
-            if (boost.travelling) payload[1] |= 2;
-            if (boost.holding is not null) payload[1] |= 4;
+            if (boost.Visible) payload[1] |= EntityVisibleFlag;
+            if (boost.travelling) payload[1] |= TravellingFlag;
+            if (boost.holding is not null) payload[1] |= HoldingFlag;
+            if (boost.sprite.Visible) payload[1] |= SpriteVisibleFlag;
+            if (boost.stretch.Visible) payload[1] |= StretchVisibleFlag;
             WatchEntityPayloadCodec.WriteUInt16(payload, 2, checked((ushort)Math.Clamp(boost.nodeIndex, 0, ushort.MaxValue)));
             WatchEntityPayloadCodec.WriteSingle(payload, 4, boost.Position.X);
             WatchEntityPayloadCodec.WriteSingle(payload, 8, boost.Position.Y);
-            WatchEntityPayloadCodec.WriteSingle(payload, 12, boost.sprite.Scale.Y);
+            WatchEntityPayloadCodec.WriteSingle(payload, 12, GetStretchProgress(boost));
             yield return new(new WatchEntityKey(Kind, info.ID), payload);
         }
     }
@@ -83,15 +92,26 @@ internal sealed class WatchBadelineBoostAdapter : IWatchEntityAdapter
             }
             ReadOnlySpan<byte> payload = state.Payload.Span;
             WatchEntityPhase phase = (WatchEntityPhase)payload[0];
-            boost.nodeIndex = WatchEntityPayloadCodec.ReadUInt16(payload, 2);
+            boost.nodeIndex = Math.Min(
+                WatchEntityPayloadCodec.ReadUInt16(payload, 2),
+                Math.Max(0, boost.nodes.Length - 1)
+            );
             boost.Position = new(
                 WatchEntityPayloadCodec.ReadSingle(payload, 4),
                 WatchEntityPayloadCodec.ReadSingle(payload, 8));
-            boost.sprite.Scale.Y = WatchEntityPayloadCodec.ReadSingle(payload, 12);
-            boost.travelling = (payload[1] & 2) != 0;
+            boost.travelling = (payload[1] & TravellingFlag) != 0;
             boost.holding = null;
-            boost.Visible = phase != WatchEntityPhase.Gone && (payload[1] & 1) != 0;
-            boost.Collidable = phase == WatchEntityPhase.Ready;
+            boost.Visible = phase != WatchEntityPhase.Gone
+                && (payload[1] & EntityVisibleFlag) != 0;
+            boost.sprite.Visible = (payload[1] & SpriteVisibleFlag) != 0;
+            ApplyStretchPresentation(
+                boost,
+                (payload[1] & StretchVisibleFlag) != 0,
+                WatchEntityPayloadCodec.ReadSingle(payload, 12)
+            );
+            // The watched client is the only authority for activation. The
+            // hidden transport Player must never start a local BoostRoutine.
+            boost.Collidable = false;
             changed = true;
         }
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
@@ -116,10 +136,43 @@ internal sealed class WatchBadelineBoostAdapter : IWatchEntityAdapter
         return state.Key.Kind == WatchEntityKind.BadelineBoost && state.Key.SubID == 0
             && payload.Length == PayloadSize
             && payload[0] <= (byte)WatchEntityPhase.Returning
-            && (payload[1] & ~0b0000_0111) == 0
+            && (payload[1] & ~0b0001_1111) == 0
             && float.IsFinite(WatchEntityPayloadCodec.ReadSingle(payload, 4))
             && float.IsFinite(WatchEntityPayloadCodec.ReadSingle(payload, 8))
-            && float.IsFinite(WatchEntityPayloadCodec.ReadSingle(payload, 12));
+            && WatchEntityPayloadCodec.ReadSingle(payload, 12) is >= 0f and <= 1f;
+    }
+
+    private static float GetStretchProgress(BadelineBoost boost)
+    {
+        if (!boost.travelling || !boost.stretch.Visible
+            || boost.nodeIndex <= 0 || boost.nodeIndex >= boost.nodes.Length)
+            return 0f;
+
+        Vector2 from = boost.nodes[boost.nodeIndex - 1];
+        Vector2 delta = boost.nodes[boost.nodeIndex] - from;
+        float lengthSquared = delta.LengthSquared();
+        return lengthSquared <= 0.0001f
+            ? 1f
+            : Math.Clamp(Vector2.Dot(boost.Position - from, delta) / lengthSquared, 0f, 1f);
+    }
+
+    private static void ApplyStretchPresentation(
+        BadelineBoost boost,
+        bool visible,
+        float easedProgress
+    )
+    {
+        visible &= boost.nodeIndex > 0 && boost.nodeIndex < boost.nodes.Length;
+        boost.stretch.Visible = visible;
+        if (!visible)
+            return;
+
+        Vector2 from = boost.nodes[boost.nodeIndex - 1];
+        Vector2 to = boost.nodes[boost.nodeIndex];
+        float stretch = Calc.YoYo(easedProgress);
+        boost.stretch.Rotation = Calc.Angle(to - from);
+        boost.stretch.Scale.X = 1f + stretch * 2f;
+        boost.stretch.Scale.Y = 1f - stretch * 0.75f;
     }
 
     private static void BadelineBoost_ctor(
@@ -139,6 +192,9 @@ internal sealed class WatchBadelineBoostAdapter : IWatchEntityAdapter
         Player player
     )
     {
+        if (MiaoNetModule.IsWatching)
+            return;
+
         bool wasAvailable = self.Collidable;
         orig(self, player);
         if (!wasAvailable || self.Collidable || WatchEntitySyncRegistry.IsApplyingRemoteState
@@ -146,6 +202,37 @@ internal sealed class WatchBadelineBoostAdapter : IWatchEntityAdapter
             return;
         WatchEntitySyncRegistry.PublishEvent(level,
             new WatchEntityEvent(new WatchEntityKey(WatchEntityKind.BadelineBoost, info.ID), ActivateEvent, []));
+    }
+
+    private static void BadelineBoost_Update(
+        On.Celeste.BadelineBoost.orig_Update orig,
+        BadelineBoost self
+    )
+    {
+        if (!MiaoNetModule.IsWatching)
+        {
+            orig(self);
+            return;
+        }
+        if (MiaoNetModule.IsWatchedPlayerPaused)
+            return;
+
+        // Preserve vanilla particles, light/bloom visibility and component
+        // clocks, but force the Update branch that cannot query Player or call
+        // Skip. Authoritative state restores the real travelling value.
+        bool travelling = self.travelling;
+        self.travelling = true;
+        self.holding = null;
+        try
+        {
+            orig(self);
+        }
+        finally
+        {
+            self.travelling = travelling;
+            self.holding = null;
+            self.Collidable = false;
+        }
     }
 }
 

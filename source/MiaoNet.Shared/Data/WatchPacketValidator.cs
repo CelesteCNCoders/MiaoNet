@@ -258,8 +258,11 @@ public static class WatchPacketValidator
             WatchEntityKind.BadelineBoost => state.Key.SubID == 0
                 && state.Payload.Length == 16
                 && state.Payload.Span[0] <= (byte)WatchEntityPhase.Returning
-                && (state.Payload.Span[1] & ~0b0000_0111) == 0
-                && HasFiniteSingles(state.Payload.Span, 4, 8, 12),
+                && (state.Payload.Span[1] & ~0b0001_1111) == 0
+                && HasFiniteSingles(state.Payload.Span, 4, 8, 12)
+                && BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(
+                    state.Payload.Span[12..]
+                )) is >= 0f and <= 1f,
             WatchEntityKind.FlingBird => state.Key.SubID == 0
                 && state.Payload.Length == 20
                 && state.Payload.Span[0] <= 4
@@ -290,6 +293,11 @@ public static class WatchPacketValidator
             WatchEntityKind.SeekerSystem => IsValidSeekerSystemPayload(state),
             WatchEntityKind.SeekerBarrier => IsValidSeekerBarrierPayload(state),
             WatchEntityKind.PlayerSeeker => IsValidPlayerSeekerPayload(state),
+            WatchEntityKind.FinalBoss => IsValidFinalBossPayload(state),
+            WatchEntityKind.FinalBossShot => IsValidFinalBossShotPayload(state),
+            WatchEntityKind.FinalBossBeam => IsValidFinalBossBeamPayload(state),
+            WatchEntityKind.FinalBossMovingBlock => IsValidFinalBossMovingBlockPayload(state),
+            WatchEntityKind.ReflectionTentacles => IsValidReflectionTentaclesPayload(state),
             _ => false,
         };
 
@@ -437,8 +445,85 @@ public static class WatchPacketValidator
                         && entityEvent.Payload.Span[1] <= 2,
                     _ => false,
                 },
+            WatchEntityKind.FinalBoss => entityEvent.Key.SubID == 0
+                && entityEvent.EventID is >= 1 and <= 2
+                && entityEvent.Payload.Length == 0,
+            WatchEntityKind.FinalBossBeam => entityEvent.Key.SubID != 0
+                && entityEvent.EventID == 1
+                && entityEvent.Payload.Length == 0,
+            WatchEntityKind.FinalBossMovingBlock => entityEvent.Key.SubID == 0
+                && entityEvent.EventID is >= 1 and <= 2
+                && entityEvent.Payload.Length == 0,
+            WatchEntityKind.ReflectionTentacles => entityEvent.Key.SubID <= 3
+                && entityEvent.EventID is >= 1 and <= 2
+                && entityEvent.Payload.Length == 0,
             _ => false,
         };
+
+    private static bool IsValidFinalBossPayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        return state.Key.SubID == 0
+            && payload.Length == 36
+            && (payload[0] & ~0b0001_1111) == 0
+            && (payload[1] <= (byte)WatchFinalBossAnimation.LookingUp
+                || payload[1] == (byte)WatchFinalBossAnimation.Unknown)
+            && payload[3] <= 1
+            && BinaryPrimitives.ReadInt32LittleEndian(payload[4..]) is >= 0 and <= 1024
+            && BinaryPrimitives.ReadInt32LittleEndian(payload[8..]) is >= 0 and <= 32
+            && HasFiniteSingles(payload, 16, 20, 24, 28, 32);
+    }
+
+    private static bool IsValidFinalBossShotPayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        return state.Key.SubID != 0
+            && payload.Length == 56
+            && (payload[0] & ~0b0000_0111) == 0
+            && payload[3] == 0
+            && HasFiniteSingles(payload, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52);
+    }
+
+    private static bool IsValidFinalBossBeamPayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        return state.Key.SubID != 0
+            && payload.Length == 28
+            && payload[0] <= (byte)WatchFinalBossBeamPhase.Dissipating
+            && payload[1] <= 2
+            && payload[3] == 0
+            && HasFiniteSingles(payload, 4, 8, 12, 16, 20, 24);
+    }
+
+    private static bool IsValidFinalBossMovingBlockPayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        return state.Key.SubID == 0
+            && payload.Length == 32
+            && (payload[0] & ~0b0000_1111) == 0
+            && payload[2] == 0 && payload[3] == 0
+            && BinaryPrimitives.ReadInt32LittleEndian(payload[4..]) is >= 0 and <= 1024
+            && BinaryPrimitives.ReadInt32LittleEndian(payload[8..]) is >= 0 and <= 1024
+            && HasFiniteSingles(payload, 12, 16, 20, 24, 28);
+    }
+
+    private static bool IsValidReflectionTentaclesPayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        if (state.Key.SubID > 3
+            || payload.Length != 52
+            || (payload[0] & ~0b0000_0001) != 0
+            || payload[1] != 0 || payload[2] != 0 || payload[3] != 0
+            || !HasFiniteSingles(payload, 16, 20, 24, 28, 32, 36, 40, 44, 48))
+            return false;
+
+        int index = BinaryPrimitives.ReadInt32LittleEndian(payload[4..]);
+        int slideUntilIndex = BinaryPrimitives.ReadInt32LittleEndian(payload[8..]);
+        int layer = BinaryPrimitives.ReadInt32LittleEndian(payload[12..]);
+        return index is >= 0 and <= 1024
+            && slideUntilIndex is >= -1 and <= 1024
+            && layer == state.Key.SubID;
+    }
 
     private static bool IsValidHoldableEntityPayload(ReadOnlySpan<byte> payload)
         => payload.Length == 24

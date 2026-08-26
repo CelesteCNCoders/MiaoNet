@@ -47,6 +47,13 @@ public sealed class WatchNextBatchEntityValidatorTests
         invalidHoldablePhase[0] = (byte)WatchHoldablePhase.Gone + 1;
         byte[] invalidBirdState = new byte[20];
         invalidBirdState[0] = 5;
+        byte[] validBadelineBoost = new byte[16];
+        validBadelineBoost[1] = 0b0001_1111;
+        BitConverter.TryWriteBytes(validBadelineBoost.AsSpan(12), 0.5f);
+        byte[] invalidBadelineBoostFlags = (byte[])validBadelineBoost.Clone();
+        invalidBadelineBoostFlags[1] |= 0b0010_0000;
+        byte[] invalidBadelineBoostProgress = (byte[])validBadelineBoost.Clone();
+        BitConverter.TryWriteBytes(invalidBadelineBoostProgress.AsSpan(12), 1.01f);
 
         Assert.IsFalse(IsValid(State(WatchEntityKind.Key, invalidKeyPhase)));
         Assert.IsFalse(IsValid(State(WatchEntityKind.LockBlock, new byte[3])));
@@ -56,6 +63,9 @@ public sealed class WatchNextBatchEntityValidatorTests
         Assert.IsFalse(IsValid(State(WatchEntityKind.Glider, new byte[23])));
         Assert.IsFalse(IsValid(State(WatchEntityKind.TheoCrystalPedestal, [2])));
         Assert.IsFalse(IsValid(State(WatchEntityKind.BadelineBoost, new byte[15])));
+        Assert.IsTrue(IsValid(State(WatchEntityKind.BadelineBoost, validBadelineBoost)));
+        Assert.IsFalse(IsValid(State(WatchEntityKind.BadelineBoost, invalidBadelineBoostFlags)));
+        Assert.IsFalse(IsValid(State(WatchEntityKind.BadelineBoost, invalidBadelineBoostProgress)));
         Assert.IsFalse(IsValid(State(WatchEntityKind.FlingBird, invalidBirdState)));
         Assert.IsFalse(IsValid(State(WatchEntityKind.WallBooster, [2, 0])));
         Assert.IsFalse(IsValid(State(WatchEntityKind.Torch, [2])));

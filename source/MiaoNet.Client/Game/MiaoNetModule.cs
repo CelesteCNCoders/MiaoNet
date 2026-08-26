@@ -119,6 +119,11 @@ public sealed class MiaoNetModule : EverestModule
             WatchSeekerSystemAdapter.Load();
             WatchSeekerBarrierAdapter.Load();
             WatchPlayerSeekerAdapter.Load();
+            WatchFinalBossAdapter.Load();
+            WatchFinalBossShotAdapter.Load();
+            WatchFinalBossBeamAdapter.Load();
+            WatchFinalBossMovingBlockAdapter.Load();
+            WatchReflectionTentaclesAdapter.Load();
             WatchCassetteBlockAdapter.Load();
             WatchSwitchGateAdapter.Load();
             WatchClutterSystemAdapter.Load();
@@ -192,6 +197,11 @@ public sealed class MiaoNetModule : EverestModule
         WatchClutterSystemAdapter.Unload();
         WatchSwitchGateAdapter.Unload();
         WatchCassetteBlockAdapter.Unload();
+        WatchReflectionTentaclesAdapter.Unload();
+        WatchFinalBossMovingBlockAdapter.Unload();
+        WatchFinalBossBeamAdapter.Unload();
+        WatchFinalBossShotAdapter.Unload();
+        WatchFinalBossAdapter.Unload();
         WatchPlayerSeekerAdapter.Unload();
         WatchSeekerBarrierAdapter.Unload();
         WatchSeekerSystemAdapter.Unload();
@@ -526,6 +536,16 @@ public sealed class MiaoNetModule : EverestModule
 
     private static PlayerDeadBody? Player_Die(On.Celeste.Player.orig_Die orig, Player self, Vector2 direction, bool evenIfInvincible, bool registerDeathInStats)
     {
+        // The real local Player remains in the Level while watching so vanilla
+        // room transitions can use it, but it is only a hidden transport
+        // surrogate. Hazards and moving solids must never turn that surrogate
+        // into a real PlayerDeadBody or it can respawn into the same hazard and
+        // start an independent death loop on the Watcher.
+        if (IsWatching
+            && self.Scene is Level level
+            && ReferenceEquals(level.Tracker.GetEntity<Player>(), self))
+            return null;
+
         var body = orig(self, direction, evenIfInvincible, registerDeathInStats);
         if (body is not null)
         {
@@ -543,7 +563,7 @@ public sealed class MiaoNetModule : EverestModule
         // finished. Notify watchers before that call so both clients begin the
         // same outgoing death wipe, rather than inferring it from the later
         // Player.Added respawn notification.
-        if (!self.finished && self.Scene is Level)
+        if (!IsWatching && !self.finished && self.Scene is Level)
             PlayerDeathWipeStarted?.Invoke();
         orig(self);
     }

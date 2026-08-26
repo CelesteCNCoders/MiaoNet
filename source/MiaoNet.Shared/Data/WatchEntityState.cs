@@ -50,6 +50,41 @@ public enum WatchEntityKind : ushort
     SeekerSystem = 45,
     SeekerBarrier = 46,
     PlayerSeeker = 47,
+    FinalBoss = 48,
+    FinalBossShot = 49,
+    FinalBossBeam = 50,
+    FinalBossMovingBlock = 51,
+    ReflectionTentacles = 52,
+}
+
+public enum WatchFinalBossBeamPhase : byte
+{
+    Charging = 0,
+    Active = 1,
+    Dissipating = 2,
+}
+
+public enum WatchFinalBossAnimation : byte
+{
+    Idle = 0,
+    Laugh = 1,
+    Attack1Begin = 2,
+    Attack1Recoil = 3,
+    GetHit = 4,
+    PretendDead = 5,
+    Attack1Loop = 6,
+    Attack2Begin = 7,
+    Attack2Aim = 8,
+    Attack2Lock = 9,
+    Attack2Recoil = 10,
+    Star = 11,
+    RecoverHit = 12,
+    ScaredIdle = 13,
+    ScaredTransition = 14,
+    Calm = 15,
+    LookUp = 16,
+    LookingUp = 17,
+    Unknown = byte.MaxValue,
 }
 
 public enum WatchMovingSolidType : byte
