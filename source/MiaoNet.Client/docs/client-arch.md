@@ -66,7 +66,7 @@ MiaoNet.Shared (包、数据结构、二进制序列化)
 | 连接线程内直接处理 | `HandleDirectPacket` | Ping 立即回复 Pong；可异步准备新玩家头像 |
 | 主线程内 | `pendingRequests` | 用 `RequestID` 分发 `PacketResponse` |
 
-普通收包在主线程每帧最多处理 64 个或约 1 ms，避免网络突发占满整帧；未处理的包保持原序留到下一帧。Debug 构建默认不执行逐包 JSON 追踪，需要诊断时显式设置 `EnablePacketTracing=true`。连续 Watch delta 会先合并到本帧待应用状态，不逐包写控制台。
+普通收包在主线程每帧最多处理 64 个或约 1 ms，避免网络突发占满整帧；未处理的包保持原序留到下一帧。Debug 构建默认启用逐包追踪，其中忽略帧状态等高频包，Watch 快照与增量只输出计数摘要并限制单条长度。
 
 ## 组件
 

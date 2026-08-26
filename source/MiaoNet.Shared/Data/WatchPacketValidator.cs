@@ -25,7 +25,11 @@ public static class WatchPacketValidator
             || !TryGetEntityStatesSerializedSize(snapshot.EntityStates, out int entityStatesSize))
             return false;
 
-        long packetSize = sizeof(int) + sizeof(byte)
+        // A successful snapshot is first returned in PacketWatchSnapshotResponse,
+        // then forwarded in the larger PacketWatchStartResponse envelope. Validate
+        // against the latter so a snapshot accepted from the Player is always safe
+        // to queue to the Watcher as well.
+        long packetSize = sizeof(int) * 2L + sizeof(byte)
             + GetLocationSerializedSize(snapshot.Location)
             + sizeof(int) + flagsSize + switchesSize + entityStatesSize;
         return packetSize <= Connection.MaxPayloadSize;

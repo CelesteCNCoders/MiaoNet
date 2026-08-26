@@ -634,4 +634,61 @@ public sealed class WatchPacketValidatorTests
             new WatchSceneSnapshot(Location, 0, [], [], largeEntityState)
         ));
     }
+
+    [TestMethod]
+    public void SnapshotBoundaryAccountsForWatchStartResponseEnvelope()
+    {
+        List<WatchEntityState> states = Enumerable.Range(0, 63)
+            .Select(index => new WatchEntityState(
+                new WatchEntityKey(WatchEntityKind.CrumblePlatform, index),
+                CreateCrumblePayload(WatchPacketValidator.MaxEntityPayloadBytes)
+            ))
+            .ToList();
+        WatchSceneSnapshot partial = new(Location, 0, [], [], states);
+        int remainingPayloadSize = Connection.MaxPayloadSize
+            - sizeof(int) * 2 - sizeof(byte)
+            - GetSerializedSize(partial)
+            - sizeof(ushort) * 3 - sizeof(int);
+        Assert.IsInRange(
+            4,
+            WatchPacketValidator.MaxEntityPayloadBytes,
+            remainingPayloadSize
+        );
+
+        states.Add(new(
+            new WatchEntityKey(WatchEntityKind.CrumblePlatform, states.Count),
+            CreateCrumblePayload(remainingPayloadSize)
+        ));
+        WatchSceneSnapshot boundary = new(Location, 0, [], [], states);
+        Assert.AreEqual(
+            Connection.MaxPayloadSize,
+            sizeof(int) * 2 + sizeof(byte) + GetSerializedSize(boundary)
+        );
+        Assert.IsTrue(WatchPacketValidator.IsValid(boundary));
+
+        states[^1] = new(
+            states[^1].Key,
+            CreateCrumblePayload(remainingPayloadSize + 1)
+        );
+        Assert.IsFalse(WatchPacketValidator.IsValid(
+            new WatchSceneSnapshot(Location, 0, [], [], states)
+        ));
+
+        static byte[] CreateCrumblePayload(int size)
+        {
+            byte[] payload = new byte[size];
+            int imageCount = (size - 4) * 8;
+            payload[2] = (byte)imageCount;
+            payload[3] = (byte)(imageCount >> 8);
+            return payload;
+        }
+
+        static int GetSerializedSize(WatchSceneSnapshot snapshot)
+        {
+            using MemoryStream stream = new();
+            RefBinaryWriter writer = new(stream);
+            writer.Write(snapshot);
+            return checked((int)stream.Length);
+        }
+    }
 }
