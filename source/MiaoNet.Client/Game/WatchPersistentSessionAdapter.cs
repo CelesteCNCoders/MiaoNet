@@ -142,15 +142,7 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
         bool isCompleteState
     )
     {
-        if (states.Count != 1)
-            return WatchEntityApplyResult.None;
-
-        WatchEntityState entityState = states.First();
-        if (entityState.Key != StateKey
-            || !WatchPersistentSceneState.TryFromPayload(
-                entityState.Payload.Span,
-                out WatchPersistentSceneState? state
-            ))
+        if (states.Count != 1 || !TryParseState(states.First(), out WatchPersistentSceneState? state))
         {
             Logger.Warn(LT.MiaoNetWatch, "Ignored an invalid persistent watch scene state.");
             return WatchEntityApplyResult.None;
@@ -202,15 +194,13 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
             || session.RespawnPoint != persistentState.RespawnPoint
             || summitStateChanged;
 
-        ReplaceRoomIDs(session.DoNotLoad, room, desiredDoNotLoad);
-        ReplaceRoomIDs(session.Strawberries, room, desiredStrawberries);
-        session.Cassette = desiredCassette;
-        session.HeartGem = desiredHeartGem;
-        session.HitCheckpoint = desiredHitCheckpoint;
-        session.RespawnPoint = persistentState.RespawnPoint;
-        session.SummitGems = Enumerable.Range(0, 6)
-            .Select(index => (persistentState.SummitGems & (1 << index)) != 0)
-            .ToArray();
+        ApplySessionState(
+            session,
+            room,
+            persistentState,
+            desiredDoNotLoad,
+            desiredStrawberries
+        );
 
         HashSet<EntityID> restoredStrawberries = RestoreStrawberries(
             level,
@@ -262,6 +252,52 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
         if (requiresReload)
             result |= WatchEntityApplyResult.RequiresRoomReload;
         return result;
+    }
+
+    internal static bool TryApplySessionState(Level level, WatchEntityState entityState)
+    {
+        if (!TryParseState(entityState, out WatchPersistentSceneState? state))
+            return false;
+
+        string room = level.Session.Level;
+        WatchPersistentSceneState persistentState = state!;
+        ApplySessionState(
+            level.Session,
+            room,
+            persistentState,
+            persistentState.DoNotLoadIDs.Select(id => new EntityID(room, id)).ToHashSet(),
+            persistentState.StrawberryIDs.Select(id => new EntityID(room, id)).ToHashSet()
+        );
+        return true;
+    }
+
+    private static bool TryParseState(
+        WatchEntityState entityState,
+        out WatchPersistentSceneState? state
+    )
+    {
+        state = null;
+        return entityState.Key == StateKey
+            && WatchPersistentSceneState.TryFromPayload(entityState.Payload.Span, out state);
+    }
+
+    private static void ApplySessionState(
+        Session session,
+        string room,
+        WatchPersistentSceneState state,
+        IReadOnlyCollection<EntityID> doNotLoad,
+        IReadOnlyCollection<EntityID> strawberries
+    )
+    {
+        ReplaceRoomIDs(session.DoNotLoad, room, doNotLoad);
+        ReplaceRoomIDs(session.Strawberries, room, strawberries);
+        session.Cassette = state.Flags.HasFlag(WatchPersistentSceneFlags.Cassette);
+        session.HeartGem = state.Flags.HasFlag(WatchPersistentSceneFlags.HeartGem);
+        session.HitCheckpoint = state.Flags.HasFlag(WatchPersistentSceneFlags.HitCheckpoint);
+        session.RespawnPoint = state.RespawnPoint;
+        session.SummitGems = Enumerable.Range(0, 6)
+            .Select(index => (state.SummitGems & (1 << index)) != 0)
+            .ToArray();
     }
 
 

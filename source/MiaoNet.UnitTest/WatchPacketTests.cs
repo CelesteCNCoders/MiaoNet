@@ -22,8 +22,11 @@ public sealed class WatchPacketTests
             Location,
             3,
             ["flag-a", "flag-b"],
-            [2, 9],
-            [new(new(WatchEntityKind.Spring, 12), [1, 2])]
+            [
+                new(new(WatchEntityKind.TouchSwitchAndSwitchGate, 0, 1),
+                    [.. BitConverter.GetBytes(2), .. BitConverter.GetBytes(9)]),
+                new(new(WatchEntityKind.Spring, 12), [1, 2]),
+            ]
         );
         PacketWatchStartResponse response = new(WatchStartResult.Success, 9, snapshot)
         {
@@ -45,7 +48,7 @@ public sealed class WatchPacketTests
     public async Task SnapshotExchangeRoundTripsSuccessAndFailure()
     {
         PacketWatchSnapshotRequest request = new(4, Location) { RequestID = 5 };
-        WatchSceneSnapshot snapshot = new(Location, 0, ["flag"], [4]);
+        WatchSceneSnapshot snapshot = new(Location, 0, ["flag"]);
         PacketWatchSnapshotResponse success = new(WatchSnapshotResult.Success, snapshot)
         {
             RequestID = 5,
@@ -78,8 +81,6 @@ public sealed class WatchPacketTests
             ["added"],
             ["removed"],
             true,
-            true,
-            [3, 7],
             WatchEntityStateMode.Replace,
             [new(key, [4, 5])],
             [new(key, 1, [6, 7])]
@@ -96,8 +97,6 @@ public sealed class WatchPacketTests
             [],
             [],
             false,
-            true,
-            [],
             WatchEntityStateMode.Replace,
             [],
             [],
@@ -119,7 +118,7 @@ public sealed class WatchPacketTests
             new PacketWatchResyncSnapshot(
                 1,
                 2,
-                new WatchSceneSnapshot(Location, 8, ["resynced"], [3])
+                new WatchSceneSnapshot(Location, 8, ["resynced"])
             )
         );
         PacketWatchStop readStop = await RoundTripAsync(new PacketWatchStop(1));
@@ -202,10 +201,6 @@ public sealed class WatchPacketTests
         Assert.AreEqual(expected.Location, actual.Location);
         Assert.AreEqual(expected.Sequence, actual.Sequence);
         CollectionAssert.AreEqual(expected.Flags.ToArray(), actual.Flags.ToArray());
-        CollectionAssert.AreEqual(
-            expected.ActiveTouchSwitchIDs.ToArray(),
-            actual.ActiveTouchSwitchIDs.ToArray()
-        );
         AssertEntityStates(expected.EntityStates, actual.EntityStates);
     }
 
@@ -218,11 +213,6 @@ public sealed class WatchPacketTests
         Assert.AreEqual(expected.RequiresRoomReload, actual.RequiresRoomReload);
         Assert.AreEqual(expected.IsDeathRespawn, actual.IsDeathRespawn);
         Assert.AreEqual(expected.RoomTransition, actual.RoomTransition);
-        Assert.AreEqual(expected.HasTouchSwitchState, actual.HasTouchSwitchState);
-        CollectionAssert.AreEqual(
-            expected.ActiveTouchSwitchIDs.ToArray(),
-            actual.ActiveTouchSwitchIDs.ToArray()
-        );
         Assert.AreEqual(expected.EntityStateMode, actual.EntityStateMode);
         AssertEntityStates(expected.EntityStates, actual.EntityStates);
         WatchEntityEvent[] expectedEvents = expected.EntityEvents.ToArray();

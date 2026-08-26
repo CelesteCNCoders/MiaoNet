@@ -1,3 +1,4 @@
+using System.Reflection;
 using MiaoNet.Shared;
 
 namespace MiaoNet.UnitTest;
@@ -5,6 +6,47 @@ namespace MiaoNet.UnitTest;
 [TestClass]
 public sealed class WatchProtocolCompatibilityTests
 {
+    [TestMethod]
+    public void RepurposedAndRetiredEntityKindsKeepTheirWireValues()
+    {
+        Assert.AreEqual(
+            (ushort)23,
+            (ushort)Enum.Parse<WatchEntityKind>(nameof(WatchEntityKind.TouchSwitchAndSwitchGate))
+        );
+        Assert.AreEqual(
+            (ushort)37,
+            (ushort)Enum.Parse<WatchEntityKind>(nameof(WatchEntityKind.Reserved37))
+        );
+    }
+
+    [TestMethod]
+    public void WatchPacketsAreAppendedAfterUpstreamPackets()
+    {
+        PacketRegistryAttribute registry = typeof(PacketRegistry).Assembly
+            .GetCustomAttribute<PacketRegistryAttribute>()!;
+        Type[] expectedWatchPackets =
+        [
+            typeof(PacketWatchStart),
+            typeof(PacketWatchStartResponse),
+            typeof(PacketWatchSnapshotRequest),
+            typeof(PacketWatchSnapshotResponse),
+            typeof(PacketWatchSceneDelta),
+            typeof(PacketWatchSceneDeltaNotification),
+            typeof(PacketWatchStop),
+            typeof(PacketWatchProducerStop),
+            typeof(PacketWatchEnded),
+            typeof(PacketWatchResyncRequest),
+            typeof(PacketWatchResyncSnapshot),
+        ];
+        int lastUpstreamPacket = Array.IndexOf(registry.Types, typeof(PacketChannelCreated));
+
+        Assert.IsGreaterThanOrEqualTo(0, lastUpstreamPacket);
+        CollectionAssert.AreEqual(
+            expectedWatchPackets,
+            registry.Types[(lastUpstreamPacket + 1)..]
+        );
+    }
+
     [TestMethod]
     public void PacketUpdateGlobalFlagPreservesUShortFlags()
     {

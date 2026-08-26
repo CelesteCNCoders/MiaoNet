@@ -8,31 +8,26 @@ public sealed class WatchSceneSnapshot : IRefBinarySerializable<WatchSceneSnapsh
 
     public IReadOnlyCollection<string> Flags { get; }
 
-    public IReadOnlyCollection<int> ActiveTouchSwitchIDs { get; }
-
     public IReadOnlyCollection<WatchEntityState> EntityStates { get; }
 
     public WatchSceneSnapshot(
         PlayerLocation location,
         int sequence,
         IReadOnlyCollection<string> flags,
-        IReadOnlyCollection<int> activeTouchSwitchIDs,
         IReadOnlyCollection<WatchEntityState> entityStates
     )
     {
         Location = location;
         Sequence = sequence;
         Flags = flags;
-        ActiveTouchSwitchIDs = activeTouchSwitchIDs;
         EntityStates = entityStates;
     }
 
     public WatchSceneSnapshot(
         PlayerLocation location,
         int sequence,
-        IReadOnlyCollection<string> flags,
-        IReadOnlyCollection<int> activeTouchSwitchIDs
-    ) : this(location, sequence, flags, activeTouchSwitchIDs, [])
+        IReadOnlyCollection<string> flags
+    ) : this(location, sequence, flags, [])
     {
     }
 
@@ -41,7 +36,6 @@ public sealed class WatchSceneSnapshot : IRefBinarySerializable<WatchSceneSnapsh
         writer.Write(Location);
         writer.Write(Sequence);
         writer.Write(Flags);
-        WriteIDs(ref writer, ActiveTouchSwitchIDs);
         writer.Write(EntityStates);
     }
 
@@ -50,28 +44,8 @@ public sealed class WatchSceneSnapshot : IRefBinarySerializable<WatchSceneSnapsh
             reader.Read<PlayerLocation>(),
             reader.ReadInt32(),
             reader.ReadStringArray(),
-            ReadIDs(ref reader),
             reader.ReadArray<WatchEntityState>()
         );
-
-    internal static void WriteIDs(ref RefBinaryWriter writer, IReadOnlyCollection<int> ids)
-    {
-        if (ids.Count > ushort.MaxValue)
-            throw new ArgumentOutOfRangeException(nameof(ids));
-
-        writer.Write((ushort)ids.Count);
-        foreach (int id in ids)
-            writer.Write(id);
-    }
-
-    internal static int[] ReadIDs(ref RefBinaryReader reader)
-    {
-        int count = reader.ReadUInt16();
-        int[] ids = new int[count];
-        for (int i = 0; i < count; i++)
-            ids[i] = reader.ReadInt32();
-        return ids;
-    }
 }
 
 public static class WatchSceneLifecyclePolicy
@@ -96,10 +70,6 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
 
     public WatchRoomTransition? RoomTransition { get; }
 
-    public bool HasTouchSwitchState { get; }
-
-    public IReadOnlyCollection<int> ActiveTouchSwitchIDs { get; }
-
     public WatchEntityStateMode EntityStateMode { get; }
 
     public IReadOnlyCollection<WatchEntityState> EntityStates { get; }
@@ -112,8 +82,6 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
         IReadOnlyCollection<string> addedFlags,
         IReadOnlyCollection<string> removedFlags,
         bool requiresRoomReload,
-        bool hasTouchSwitchState,
-        IReadOnlyCollection<int> activeTouchSwitchIDs,
         WatchEntityStateMode entityStateMode,
         IReadOnlyCollection<WatchEntityState> entityStates,
         IReadOnlyCollection<WatchEntityEvent> entityEvents,
@@ -128,8 +96,6 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
         RequiresRoomReload = requiresRoomReload;
         IsDeathRespawn = isDeathRespawn;
         RoomTransition = roomTransition;
-        HasTouchSwitchState = hasTouchSwitchState;
-        ActiveTouchSwitchIDs = activeTouchSwitchIDs;
         EntityStateMode = entityStateMode;
         EntityStates = entityStates;
         EntityEvents = entityEvents;
@@ -140,17 +106,13 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
         PlayerLocation location,
         IReadOnlyCollection<string> addedFlags,
         IReadOnlyCollection<string> removedFlags,
-        bool requiresRoomReload,
-        bool hasTouchSwitchState,
-        IReadOnlyCollection<int> activeTouchSwitchIDs
+        bool requiresRoomReload
     ) : this(
         sequence,
         location,
         addedFlags,
         removedFlags,
         requiresRoomReload,
-        hasTouchSwitchState,
-        activeTouchSwitchIDs,
         requiresRoomReload ? WatchEntityStateMode.Replace : WatchEntityStateMode.None,
         [],
         []
@@ -169,9 +131,6 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
         writer.Write(RoomTransition.HasValue);
         if (RoomTransition.HasValue)
             writer.Write(RoomTransition.Value);
-        writer.Write(HasTouchSwitchState);
-        if (HasTouchSwitchState)
-            WatchSceneSnapshot.WriteIDs(ref writer, ActiveTouchSwitchIDs);
         writer.Write((byte)EntityStateMode);
         writer.Write(EntityStates);
         writer.Write(EntityEvents);
@@ -188,10 +147,6 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
         WatchRoomTransition? roomTransition = reader.ReadBoolean()
             ? reader.Read<WatchRoomTransition>()
             : null;
-        bool hasTouchSwitchState = reader.ReadBoolean();
-        int[] activeTouchSwitchIDs = hasTouchSwitchState
-            ? WatchSceneSnapshot.ReadIDs(ref reader)
-            : [];
         WatchEntityStateMode entityStateMode = (WatchEntityStateMode)reader.ReadByte();
         WatchEntityState[] entityStates = reader.ReadArray<WatchEntityState>();
         WatchEntityEvent[] entityEvents = reader.ReadArray<WatchEntityEvent>();
@@ -201,8 +156,6 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
             addedFlags,
             removedFlags,
             requiresRoomReload,
-            hasTouchSwitchState,
-            activeTouchSwitchIDs,
             entityStateMode,
             entityStates,
             entityEvents,
@@ -216,21 +169,15 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
         PlayerLocation location,
         IReadOnlySet<string> previousFlags,
         IReadOnlySet<string> currentFlags,
-        IReadOnlySet<int> previousTouchSwitchIDs,
-        IReadOnlySet<int> currentTouchSwitchIDs,
-        bool forceTouchSwitchState,
         bool requiresRoomReload
     ) => Create(
         sequence,
         location,
         previousFlags,
         currentFlags,
-        previousTouchSwitchIDs,
-        currentTouchSwitchIDs,
         new Dictionary<WatchEntityKey, WatchEntityState>(),
         new Dictionary<WatchEntityKey, WatchEntityState>(),
         [],
-        forceTouchSwitchState,
         false,
         requiresRoomReload
     );
@@ -240,12 +187,9 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
         PlayerLocation location,
         IReadOnlySet<string> previousFlags,
         IReadOnlySet<string> currentFlags,
-        IReadOnlySet<int> previousTouchSwitchIDs,
-        IReadOnlySet<int> currentTouchSwitchIDs,
         IReadOnlyDictionary<WatchEntityKey, WatchEntityState> previousEntityStates,
         IReadOnlyDictionary<WatchEntityKey, WatchEntityState> currentEntityStates,
         IReadOnlyCollection<WatchEntityEvent> entityEvents,
-        bool forceTouchSwitchState,
         bool forceEntityState,
         bool requiresRoomReload,
         bool isDeathRespawn = false,
@@ -258,9 +202,6 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
         string[] removed = previousFlags.Except(currentFlags, StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
             .ToArray();
-        bool hasTouchSwitchState = requiresRoomReload
-            || forceTouchSwitchState
-            || !previousTouchSwitchIDs.SetEquals(currentTouchSwitchIDs);
         WatchEntityStateMode entityStateMode;
         WatchEntityState[] entityStates;
         if (requiresRoomReload
@@ -286,7 +227,6 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
             && !requiresRoomReload
             && !isDeathRespawn
             && !roomTransition.HasValue
-            && !hasTouchSwitchState
             && entityStateMode == WatchEntityStateMode.None
             && entityEvents.Count == 0
             ? null
@@ -296,10 +236,6 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
                 added,
                 removed,
                 requiresRoomReload,
-                hasTouchSwitchState,
-                hasTouchSwitchState
-                    ? currentTouchSwitchIDs.Order().ToArray()
-                    : [],
                 entityStateMode,
                 entityStates,
                 entityEvents.ToArray(),

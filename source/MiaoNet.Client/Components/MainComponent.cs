@@ -130,6 +130,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (level is null)
             return;
 
+
         if (UpdateWatchSceneRestore(level))
             return;
 
@@ -138,6 +139,12 @@ public sealed partial class MainComponent : MiaoNetComponent
         {
             SafeGuard.Assert(TryGetAndSendState(level, PlayerLocation.FetchFrom(level.Session)));
             pendingMapChanged = false;
+        }
+
+        if (player is null && IsWatchDeathRoomUnloaded)
+        {
+            UpdateWatchDeathTransition(level);
+            return;
         }
 
         if (player is null || player.Dead)

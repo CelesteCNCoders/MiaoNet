@@ -98,7 +98,6 @@ public sealed class MiaoNetModule : EverestModule
             On.Celeste.Level.Update += Level_Update_After;
             IL.Celeste.Level.Update += Level_Update;
             SpriteIDTracker.Load();
-            TouchSwitchIDTracker.Load();
             WatchPersistentSessionAdapter.Load();
             WatchCheckpointAdapter.Load();
             WatchWingedStrawberryAdapter.Load();
@@ -119,7 +118,6 @@ public sealed class MiaoNetModule : EverestModule
             WatchDashBlockAdapter.Load();
             WatchBounceBlockAdapter.Load();
             WatchPeriodicPlatformAdapter.Load();
-            WatchStaticSpinnerAdapter.Load();
             WatchTriggerSpikesAdapter.Load();
             WatchFireBallAdapter.Load();
             WatchLavaAdapter.Load();
@@ -159,7 +157,7 @@ public sealed class MiaoNetModule : EverestModule
             WatchWaveDashTutorialAdapter.Load();
             WatchPowerSourceNumberAdapter.Load();
             WatchCassetteBlockAdapter.Load();
-            WatchSwitchGateAdapter.Load();
+            WatchTouchSwitchAndSwitchGateAdapter.Load();
             WatchClutterSystemAdapter.Load();
             WatchDoorMechanismAdapter.Load();
             WatchKeyAdapter.Load();
@@ -225,7 +223,6 @@ public sealed class MiaoNetModule : EverestModule
         On.Celeste.Level.Update -= Level_Update_After;
         IL.Celeste.Level.Update -= Level_Update;
         SpriteIDTracker.Unload();
-        TouchSwitchIDTracker.Unload();
         WatchTempleBigEyeballAdapter.Unload();
         WatchTriggerFirewall.Unload();
         WatchRemotePresentationAdapter.Unload();
@@ -248,7 +245,7 @@ public sealed class MiaoNetModule : EverestModule
         WatchKeyAdapter.Unload();
         WatchDoorMechanismAdapter.Unload();
         WatchClutterSystemAdapter.Unload();
-        WatchSwitchGateAdapter.Unload();
+        WatchTouchSwitchAndSwitchGateAdapter.Unload();
         WatchCassetteBlockAdapter.Unload();
         WatchRidgeGateAdapter.Unload();
         WatchRoomEnvironmentAdapter.Unload();
@@ -288,7 +285,6 @@ public sealed class MiaoNetModule : EverestModule
         WatchLavaAdapter.Unload();
         WatchFireBallAdapter.Unload();
         WatchTriggerSpikesAdapter.Unload();
-        WatchStaticSpinnerAdapter.Unload();
         WatchPeriodicPlatformAdapter.Unload();
         WatchBounceBlockAdapter.Unload();
         WatchDashBlockAdapter.Unload();
@@ -577,6 +573,7 @@ public sealed class MiaoNetModule : EverestModule
             self.Camera.Position = cameraPosition;
         Instance.miaoNetContext?.MainComponent.ApplyWatchCameraAfterLevelUpdate(self);
     }
+
 
     private static void LevelLoader_OnLoadingThread(Level level)
     {

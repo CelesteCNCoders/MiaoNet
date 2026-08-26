@@ -21,7 +21,6 @@ public static class WatchPacketValidator
             || snapshot.Sequence < 0
             || !TryGetFlagsSerializedSize(snapshot.Flags, out int flagsSize)
             || flagsSize > MaxSnapshotFlagsSize
-            || !TryGetTouchSwitchesSerializedSize(snapshot.ActiveTouchSwitchIDs, out int switchesSize)
             || !TryGetEntityStatesSerializedSize(snapshot.EntityStates, out int entityStatesSize))
             return false;
 
@@ -31,12 +30,12 @@ public static class WatchPacketValidator
         // keeps the resync notification within the payload limit.
         long packetSize = sizeof(int) * 2L + sizeof(byte)
             + GetLocationSerializedSize(snapshot.Location)
-            + sizeof(int) + flagsSize + switchesSize + entityStatesSize;
+            + sizeof(int) + flagsSize + entityStatesSize;
         return packetSize <= Connection.MaxPayloadSize;
     }
     public static bool IsValid(WatchEntityState state)
         => IsValidEntityKey(state.Key)
-            && state.Payload.Length <= MaxEntityPayloadBytes
+            && state.Payload.Length <= GetMaxEntityPayloadBytes(state.Key)
             && IsValidEntityStatePayload(state);
 
     public static bool IsValid(WatchEntityEvent entityEvent)
@@ -53,26 +52,19 @@ public static class WatchPacketValidator
             || (delta.AddedFlags.Count == 0
                 && delta.RemovedFlags.Count == 0
                 && !delta.RequiresRoomReload
-                && !delta.HasTouchSwitchState
                 && delta.EntityStateMode == WatchEntityStateMode.None
                 && delta.EntityEvents.Count == 0)
             || (long)delta.AddedFlags.Count + delta.RemovedFlags.Count > MaxFlagCount
             || !TryGetFlagsSerializedSize(delta.AddedFlags, out int addedSize)
             || !TryGetFlagsSerializedSize(delta.RemovedFlags, out int removedSize)
-            || (delta.HasTouchSwitchState
-                && !TryGetTouchSwitchesSerializedSize(delta.ActiveTouchSwitchIDs, out _))
-            || (delta.RequiresRoomReload && !delta.HasTouchSwitchState)
             || (delta.IsDeathRespawn
                 && (delta.RequiresRoomReload
-                    || !delta.HasTouchSwitchState
                     || delta.EntityStateMode != WatchEntityStateMode.Replace
                     || delta.RoomTransition.HasValue))
             || (delta.RoomTransition.HasValue
-                && (!delta.HasTouchSwitchState
-                    || delta.EntityStateMode != WatchEntityStateMode.Replace
+                && (delta.EntityStateMode != WatchEntityStateMode.Replace
                     || delta.RequiresRoomReload
                     || !IsValidRoomTransition(delta.Location, delta.RoomTransition.Value)))
-            || (!delta.HasTouchSwitchState && delta.ActiveTouchSwitchIDs.Count != 0)
             || !TryGetEntityStatesSerializedSize(delta.EntityStates, out int entityStatesSize)
             || !TryGetEntityEventsSerializedSize(delta.EntityEvents, out int entityEventsSize)
             || !IsValidEntityStateMode(delta)
@@ -83,9 +75,6 @@ public static class WatchPacketValidator
         if (delta.RemovedFlags.Any(added.Contains))
             return false;
 
-        int switchesSize = delta.HasTouchSwitchState
-            ? sizeof(ushort) + sizeof(int) * delta.ActiveTouchSwitchIDs.Count
-            : 0;
         int roomTransitionSize = delta.RoomTransition.HasValue
             ? GetLocationSerializedSize(delta.RoomTransition.Value.SourceLocation)
                 + GetLocationSerializedSize(delta.RoomTransition.Value.TargetLocation)
@@ -94,7 +83,7 @@ public static class WatchPacketValidator
         long notificationSize = sizeof(int) * 3L
             + GetLocationSerializedSize(delta.Location)
             + addedSize + removedSize
-            + sizeof(bool) * 4L + roomTransitionSize + switchesSize
+            + sizeof(bool) * 3L + roomTransitionSize
             + sizeof(byte) + entityStatesSize + entityEventsSize;
         return notificationSize <= Connection.MaxPayloadSize;
     }
@@ -173,6 +162,11 @@ public static class WatchPacketValidator
             && key.Kind != WatchEntityKind.None
             && Enum.IsDefined(typeof(WatchEntityKind), key.Kind);
 
+    private static int GetMaxEntityPayloadBytes(WatchEntityKey key)
+        => key.Kind == WatchEntityKind.TouchSwitchAndSwitchGate && key.SubID == 1
+            ? sizeof(int) * MaxTouchSwitchCount
+            : MaxEntityPayloadBytes;
+
     private static bool HasStatePayload(WatchEntityState state, int length, ushort subID = 0)
         => state.Key.SubID == subID && state.Payload.Length == length;
 
@@ -244,8 +238,8 @@ public static class WatchPacketValidator
             WatchEntityKind.PeriodicPlatform => state.Key.SubID == 0
                 && IsValidPeriodicPlatformPayload(state.Payload.Span),
             WatchEntityKind.CassetteBlock => IsValidCassetteBlockPayload(state),
-            WatchEntityKind.SwitchGate => state.Key.SubID == 0
-                && IsValidSwitchGatePayload(state.Payload.Span),
+            WatchEntityKind.TouchSwitchAndSwitchGate =>
+                IsValidTouchSwitchAndSwitchGatePayload(state),
             WatchEntityKind.ClutterSystem => IsValidClutterSystemPayload(state),
             WatchEntityKind.DoorMechanism => IsValidDoorMechanismPayload(state),
             WatchEntityKind.Key => HasStatePayload(state, 12)
@@ -287,8 +281,6 @@ public static class WatchPacketValidator
             WatchEntityKind.TempleBigEyeball => HasStatePayload(state, 2)
                 && state.Payload.Span[0] <= 1
                 && state.Payload.Span[1] <= 1,
-            WatchEntityKind.StaticSpinner => HasStatePayload(state, 1)
-                && state.Payload.Span[0] == 1,
             WatchEntityKind.TriggerSpikes => IsValidTriggerSpikesPayload(state),
             WatchEntityKind.FireBall => IsValidFireBallPayload(state),
             WatchEntityKind.Lava => IsValidLavaPayload(state),
@@ -467,8 +459,6 @@ public static class WatchPacketValidator
             WatchEntityKind.TempleBigEyeball => entityEvent.Key.SubID == 0
                 && entityEvent.EventID is 1 or 2
                 && entityEvent.Payload.Length == 0,
-            WatchEntityKind.StaticSpinner => HasEventPayload(entityEvent, 1, 1)
-                && entityEvent.Payload.Span[0] <= 1,
             WatchEntityKind.FireBall => entityEvent.EventID == 1
                 && entityEvent.Payload.Length == 0,
             WatchEntityKind.TriggerSpikes => entityEvent.EventID == 1
@@ -1048,11 +1038,31 @@ public static class WatchPacketValidator
             && payload[16..].IndexOfAnyExcept((byte)0) < 0;
     }
 
-    private static bool IsValidSwitchGatePayload(ReadOnlySpan<byte> payload)
-        => payload.Length == 20
-            && (payload[0] & ~0b0000_0111) == 0
-            && payload[1] <= 3
-            && HasFiniteSingles(payload, 4, 8, 12, 16);
+    private static bool IsValidTouchSwitchAndSwitchGatePayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        if (state.Key.SubID == 0)
+            return payload.Length == 20
+                && (payload[0] & ~0b0000_0111) == 0
+                && payload[1] <= 3
+                && HasFiniteSingles(payload, 4, 8, 12, 16);
+
+        if (state.Key.EntityID != 0
+            || state.Key.SubID != 1
+            || payload.Length % sizeof(int) != 0
+            || payload.Length / sizeof(int) > MaxTouchSwitchCount)
+            return false;
+
+        int previousID = -1;
+        for (int offset = 0; offset < payload.Length; offset += sizeof(int))
+        {
+            int id = BinaryPrimitives.ReadInt32LittleEndian(payload[offset..]);
+            if (id <= previousID)
+                return false;
+            previousID = id;
+        }
+        return true;
+    }
 
     private static bool IsValidClutterSystemPayload(WatchEntityState state)
     {
@@ -1167,17 +1177,6 @@ public static class WatchPacketValidator
 
     private static int GetEntityKeySerializedSize()
         => sizeof(ushort) + sizeof(int) + sizeof(ushort);
-
-    private static bool TryGetTouchSwitchesSerializedSize(
-        IReadOnlyCollection<int> ids,
-        out int serializedSize
-    )
-    {
-        serializedSize = sizeof(ushort) + sizeof(int) * ids.Count;
-        return ids.Count <= MaxTouchSwitchCount
-            && ids.All(id => id >= 0)
-            && ids.Distinct().Count() == ids.Count;
-    }
 
     private static bool TryGetFlagsSerializedSize(
         IReadOnlyCollection<string> flags,

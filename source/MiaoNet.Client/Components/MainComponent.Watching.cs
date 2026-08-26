@@ -11,10 +11,6 @@ public sealed partial class MainComponent
     private int lastWatchSequence;
     private bool watchResyncPending;
     private WatchSceneSnapshot? pendingWatchResyncSnapshot;
-    private PlayerLocation watchTouchSwitchLocation;
-    private HashSet<int>? watchActiveTouchSwitchIDs;
-    private bool watchTouchSwitchStatePending;
-    private bool watchTouchSwitchStateApplied;
     private PlayerLocation watchEntityLocation;
     private Dictionary<WatchEntityKey, WatchEntityState>? watchEntityStates;
     private readonly HashSet<WatchEntityKey> watchPendingEntityStateKeys = new();
@@ -22,7 +18,6 @@ public sealed partial class MainComponent
     private WatchEntityStateMode watchPendingEntityStateMode;
     private bool watchEntityLifecycleResetPending;
     private readonly HashSet<WatchEntityKind> watchLifecycleIncompleteKinds = new();
-    private bool watchLifecycleTouchSwitchRepairIncomplete;
     private bool watchEntityStateApplied;
     private WatchPersistentSessionBaseline? watchPersistentSessionBaseline;
     private bool watchRoomReloadPending;
@@ -92,7 +87,6 @@ public sealed partial class MainComponent
                     // Level.TransitionTo owns the camera until its coroutine finishes.
                     // The target room is loaded near the beginning of that coroutine,
                     // so reconcile its scene while the camera is still moving into it.
-                    ApplyWatchTouchSwitchState(level, allowDuringTransition: true);
                     ApplyWatchEntityState(level, allowDuringTransition: true);
                     return;
                 }
@@ -106,14 +100,16 @@ public sealed partial class MainComponent
                 return;
             }
 
-            PlayerLocation selfLoc = PlayerLocation.FetchFrom(level.Session);
-            var otherLoc = playerWatching.Location;
-            if (selfLoc.Room != otherLoc.Room && !otherLoc.IsInDebugMap && level.transition is null)
+            PlayerLocation localPlayerLocation = PlayerLocation.FetchFrom(level.Session);
+            PlayerLocation watchedPlayerLocation = playerWatching.Location;
+            if (localPlayerLocation.Room != watchedPlayerLocation.Room
+                && !watchedPlayerLocation.IsInDebugMap
+                && level.transition is null)
             {
                 // Wait for the ordered room Replace. Player location packets can
                 // arrive before the scene delta carrying the authoritative vanilla
                 // transition direction and target-room entity snapshot.
-                if (watchEntityLocation != otherLoc
+                if (watchEntityLocation != watchedPlayerLocation
                     || watchPendingEntityStateMode != WatchEntityStateMode.Replace)
                     return;
                 BeginWatchRoomTransition(level);
@@ -123,7 +119,6 @@ public sealed partial class MainComponent
             if (UpdateWatchRoomReload(level))
                 return;
 
-            ApplyWatchTouchSwitchState(level);
             ApplyWatchEntityState(level);
             player.Visible = false;
             player.StateMachine.State = Player.StFrozen;
@@ -232,7 +227,6 @@ public sealed partial class MainComponent
             LT.MiaoNetWatch,
             $"Watch session {sessionID} started for player {player.ID}; " +
             $"snapshot flags={snapshot.Flags.Count}, " +
-            $"touchSwitches={snapshot.ActiveTouchSwitchIDs.Count}, " +
             $"entities={snapshot.EntityStates.Count}, sequence={snapshot.Sequence}."
         );
         return true;
@@ -243,11 +237,6 @@ public sealed partial class MainComponent
         ReplaceFlags(level.Session.Flags, snapshot.Flags);
         watchMap = snapshot.Location.Map;
         lastWatchSequence = snapshot.Sequence;
-        watchTouchSwitchLocation = snapshot.Location;
-        watchActiveTouchSwitchIDs = snapshot.ActiveTouchSwitchIDs.ToHashSet();
-        watchTouchSwitchStatePending = true;
-        if (!isResync)
-            watchTouchSwitchStateApplied = false;
         watchEntityLocation = snapshot.Location;
         watchEntityStates = snapshot.EntityStates.ToDictionary(state => state.Key);
         watchPendingEntityStateKeys.Clear();
@@ -256,7 +245,6 @@ public sealed partial class MainComponent
         watchPendingEntityStateMode = WatchEntityStateMode.Replace;
         watchEntityLifecycleResetPending = isResync;
         watchLifecycleIncompleteKinds.Clear();
-        watchLifecycleTouchSwitchRepairIncomplete = false;
         if (!isResync)
             watchEntityStateApplied = false;
         watchRoomReloadPending = false;
@@ -274,8 +262,10 @@ public sealed partial class MainComponent
     {
         OnlinePlayer? player = playerWatching;
         var level = Engine.Scene as Level ?? (Engine.Scene as AssetReloadHelper)?.OrigScene as Level;
+        bool loadUnloadedDeathRoom = IsWatchDeathRoomUnloaded;
         CancelWatchRoomTransition(level);
-        CancelWatchDeathTransition(level);
+        if (!loadUnloadedDeathRoom)
+            CancelWatchDeathTransition(level);
         if (player is not null && ghosts.TryGetValue(player.ID, out MiaoNetGhost? ghost))
             ghost.SetWatchFocus(false);
         playerWatching = null;
@@ -290,20 +280,14 @@ public sealed partial class MainComponent
             Logger.Info(LT.MiaoNetWatch, $"Watch session {sessionID} stopped; notifyServer={notifyServer}.");
         }
 
-        bool restoreScene = watchTouchSwitchStateApplied || watchEntityStateApplied;
-        PlayerLocation restoreLocation = watchEntityStateApplied
-            ? watchEntityLocation
-            : watchTouchSwitchLocation;
+        bool restoreScene = watchEntityStateApplied;
+        PlayerLocation restoreLocation = watchEntityLocation;
 
         watchSessionID = null;
         lastWatchSequence = 0;
         watchResyncPending = false;
         pendingWatchResyncSnapshot = null;
         watchMap = default;
-        watchTouchSwitchLocation = default;
-        watchActiveTouchSwitchIDs = null;
-        watchTouchSwitchStatePending = false;
-        watchTouchSwitchStateApplied = false;
         watchEntityLocation = default;
         watchEntityStates = null;
         watchPendingEntityStateKeys.Clear();
@@ -311,7 +295,6 @@ public sealed partial class MainComponent
         watchPendingEntityStateMode = WatchEntityStateMode.None;
         watchEntityLifecycleResetPending = false;
         watchLifecycleIncompleteKinds.Clear();
-        watchLifecycleTouchSwitchRepairIncomplete = false;
         watchEntityStateApplied = false;
         watchRoomReloadPending = false;
         watchRoomReloadLocation = default;
@@ -329,6 +312,8 @@ public sealed partial class MainComponent
             level.CoreMode = level.Session.CoreMode;
         }
         watchPersistentSessionBaseline = null;
+        if (loadUnloadedDeathRoom)
+            CancelWatchDeathTransition(level);
         if (level is not null)
             WatchRoomEnvironmentAdapter.RestoreBaseline(level);
         if (restoreScene && level is not null)
@@ -382,14 +367,6 @@ public sealed partial class MainComponent
             watchRoomReloadPending = false;
             watchRoomReloadLocation = default;
         }
-        if (packet.Delta.HasTouchSwitchState)
-        {
-            if (watchTouchSwitchLocation != packet.Delta.Location)
-                watchTouchSwitchStateApplied = false;
-            watchTouchSwitchLocation = packet.Delta.Location;
-            watchActiveTouchSwitchIDs = packet.Delta.ActiveTouchSwitchIDs.ToHashSet();
-            watchTouchSwitchStatePending = true;
-        }
         if (packet.Delta.EntityStateMode == WatchEntityStateMode.Replace)
         {
             watchEntityLocation = packet.Delta.Location;
@@ -404,16 +381,18 @@ public sealed partial class MainComponent
             // black-frame snapshot replaces the lifecycle; otherwise a
             // Snowball impact can be discarded without ever being rendered.
             if (packet.Delta.IsDeathRespawn)
-                ApplyPendingWatchEntityEvents(level);
+            {
+                if (IsWatchDeathRoomUnloaded)
+                    watchPendingEntityEvents.Clear();
+                else
+                    ApplyPendingWatchEntityEvents(level);
+            }
             else
                 watchPendingEntityEvents.Clear();
             watchPendingEntityStateMode = WatchEntityStateMode.Replace;
             watchEntityLifecycleResetPending = packet.Delta.IsDeathRespawn;
             if (packet.Delta.IsDeathRespawn)
-            {
                 watchLifecycleIncompleteKinds.Clear();
-                watchLifecycleTouchSwitchRepairIncomplete = false;
-            }
             watchRoomTransition = packet.Delta.RoomTransition;
         }
         else if (packet.Delta.EntityStateMode == WatchEntityStateMode.Patch)
@@ -518,135 +497,6 @@ public sealed partial class MainComponent
         destination.UnionWith(source);
     }
 
-    private void ApplyWatchTouchSwitchState(
-        Level level,
-        bool allowDuringTransition = false
-    )
-    {
-        if (!watchTouchSwitchStatePending
-            || watchActiveTouchSwitchIDs is null
-            || (!allowDuringTransition && level.transition is not null)
-            || PlayerLocation.FetchFrom(level.Session) != watchTouchSwitchLocation)
-            return;
-
-        HashSet<int> missingIDs = new(watchActiveTouchSwitchIDs);
-        int activatedCount = 0;
-        int resetCount = 0;
-        bool lifecycleReset = watchEntityLifecycleResetPending
-            && watchEntityLocation == watchTouchSwitchLocation;
-        bool suppressAudio = !MiaoNetModule.Settings.PlayerAudioSyncMode.HasReceive;
-        IDisposable? audioSuppression = suppressAudio ? WatchSceneAudioSuppression.Begin() : null;
-        try
-        {
-            if (lifecycleReset)
-            {
-                TouchSwitch[] current = level.Tracker.GetEntities<TouchSwitch>()
-                    .Cast<TouchSwitch>()
-                    .ToArray();
-                bool hasStaleActivation = current.Any(touchSwitch =>
-                    touchSwitch.Switch.Activated
-                    && TouchSwitchIDTracker.TryGetID(touchSwitch, level.Session.Level, out int id)
-                    && !watchActiveTouchSwitchIDs.Contains(id)
-                );
-                HashSet<int> mapIDs = level.Session.LevelData.Entities
-                    .Where(data => data.Name == "touchSwitch")
-                    .Select(data => data.ID)
-                    .ToHashSet();
-                HashSet<int> currentIDs = current
-                    .Select(touchSwitch => TouchSwitchIDTracker.TryGetID(
-                        touchSwitch,
-                        level.Session.Level,
-                        out int id
-                    ) ? id : -1)
-                    .Where(id => id >= 0)
-                    .ToHashSet();
-                bool missingMapInstance = !mapIDs.SetEquals(currentIDs);
-                if (hasStaleActivation || missingMapInstance)
-                {
-                    if (TryRecreateWatchTouchSwitches(level, current, mapIDs.Count, out resetCount))
-                        watchTouchSwitchStateApplied = true;
-                    else
-                    {
-                        watchLifecycleTouchSwitchRepairIncomplete = true;
-                        Logger.Warn(
-                            LT.MiaoNetWatch,
-                            $"Could not reconstruct the complete TouchSwitch set for " +
-                            $"{watchTouchSwitchLocation.Room}; kept the death respawn lightweight."
-                        );
-                    }
-                }
-            }
-
-            foreach (TouchSwitch touchSwitch in level.Tracker.GetEntities<TouchSwitch>().Cast<TouchSwitch>())
-            {
-                if (!TouchSwitchIDTracker.TryGetID(touchSwitch, level.Session.Level, out int id)
-                    || !watchActiveTouchSwitchIDs.Contains(id))
-                    continue;
-
-                missingIDs.Remove(id);
-                if (!touchSwitch.Switch.Activated)
-                {
-                    touchSwitch.TurnOn();
-                    activatedCount++;
-                }
-            }
-        }
-        finally
-        {
-            audioSuppression?.Dispose();
-        }
-
-        watchTouchSwitchStatePending = false;
-        watchTouchSwitchStateApplied |= activatedCount > 0;
-        if (missingIDs.Count > 0)
-        {
-            Logger.Warn(
-                LT.MiaoNetWatch,
-                $"Could not find {missingIDs.Count} TouchSwitch instance(s) while applying " +
-                $"watch state for room {watchTouchSwitchLocation.Room}."
-            );
-        }
-        Logger.Debug(
-            LT.MiaoNetWatch,
-            $"Applied TouchSwitch watch state for room {watchTouchSwitchLocation.Room}; " +
-            $"requested={watchActiveTouchSwitchIDs.Count}, activated={activatedCount}, " +
-            $"lifecycleReset={resetCount}, " +
-            $"audioSuppressed={suppressAudio}."
-        );
-    }
-
-    private static bool TryRecreateWatchTouchSwitches(
-        Level level,
-        IReadOnlyCollection<TouchSwitch> current,
-        int expectedCount,
-        out int recreatedCount
-    )
-    {
-        recreatedCount = 0;
-        LevelData levelData = level.Session.LevelData;
-        EntityData[] data = levelData.Entities
-            .Where(entity => entity.Name == "touchSwitch")
-            .ToArray();
-        if (data.Length != expectedCount)
-            return false;
-
-        foreach (TouchSwitch touchSwitch in current)
-        {
-            touchSwitch.Visible = false;
-            touchSwitch.RemoveSelf();
-        }
-        level.Entities.UpdateLists();
-
-        Vector2 offset = new(levelData.Bounds.Left, levelData.Bounds.Top);
-        foreach (EntityData entityData in data)
-        {
-            level.Add(new TouchSwitch(entityData, offset));
-            recreatedCount++;
-        }
-        level.Entities.UpdateLists();
-        return recreatedCount == expectedCount;
-    }
-
     private void ApplyWatchEntityState(
         Level level,
         bool allowDuringTransition = false
@@ -679,7 +529,7 @@ public sealed partial class MainComponent
                     watchLifecycleIncompleteKinds.UnionWith(summary.RoomReloadRequestedKinds);
                     Logger.Warn(
                         LT.MiaoNetWatch,
-                        $"Kept death respawn lightweight after incomplete entity reconciliation " +
+                        $"Completed death respawn after incomplete entity reconciliation " +
                         $"in {watchEntityLocation.Room}; kinds=" +
                         $"{string.Join(",", summary.RoomReloadRequestedKinds)}."
                     );
@@ -741,8 +591,6 @@ public sealed partial class MainComponent
 
         watchRoomReloadPending = false;
         watchRoomReloadLocation = default;
-        watchTouchSwitchStateApplied = true;
-        watchTouchSwitchStatePending = watchActiveTouchSwitchIDs is not null;
         if (watchEntityStates is not null)
         {
             watchPendingEntityStateKeys.Clear();
@@ -864,7 +712,6 @@ public sealed partial class MainComponent
         player.Visible = false;
         player.StateMachine.State = Player.StFrozen;
         NormalizeWatchRoomRendering(level);
-        ApplyWatchTouchSwitchState(level);
         ApplyWatchEntityState(level);
         TryCompleteWatchCrossRoomRespawn(level);
 

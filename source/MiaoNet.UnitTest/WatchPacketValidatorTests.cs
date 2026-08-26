@@ -20,7 +20,6 @@ public sealed class WatchPacketValidatorTests
             Location,
             0,
             ["flag-a", "flag-b"],
-            [3, 8],
             [new(key, [1])]
         );
         WatchSceneDelta delta = new(
@@ -29,8 +28,6 @@ public sealed class WatchPacketValidatorTests
             ["flag-c"],
             ["flag-a"],
             false,
-            true,
-            [3, 8],
             WatchEntityStateMode.Patch,
             [new(key, [0])],
             [new(key, 1, [])]
@@ -43,9 +40,9 @@ public sealed class WatchPacketValidatorTests
     [TestMethod]
     public void DuplicateOrOverlappingFlagsAreRejected()
     {
-        WatchSceneSnapshot duplicateSnapshot = new(Location, 0, ["flag", "flag"], []);
-        WatchSceneDelta duplicateDelta = new(1, Location, ["flag", "flag"], [], false, false, []);
-        WatchSceneDelta overlappingDelta = new(1, Location, ["flag"], ["flag"], false, false, []);
+        WatchSceneSnapshot duplicateSnapshot = new(Location, 0, ["flag", "flag"]);
+        WatchSceneDelta duplicateDelta = new(1, Location, ["flag", "flag"], [], false);
+        WatchSceneDelta overlappingDelta = new(1, Location, ["flag"], ["flag"], false);
 
         Assert.IsFalse(WatchPacketValidator.IsValid(duplicateSnapshot));
         Assert.IsFalse(WatchPacketValidator.IsValid(duplicateDelta));
@@ -60,8 +57,8 @@ public sealed class WatchPacketValidatorTests
             .ToArray();
         string[] tooMany = [.. boundary, "extra"];
 
-        Assert.IsTrue(WatchPacketValidator.IsValid(new WatchSceneDelta(1, Location, boundary, [], false, false, [])));
-        Assert.IsFalse(WatchPacketValidator.IsValid(new WatchSceneDelta(1, Location, tooMany, [], false, false, [])));
+        Assert.IsTrue(WatchPacketValidator.IsValid(new WatchSceneDelta(1, Location, boundary, [], false)));
+        Assert.IsFalse(WatchPacketValidator.IsValid(new WatchSceneDelta(1, Location, tooMany, [], false)));
     }
 
     [TestMethod]
@@ -70,27 +67,45 @@ public sealed class WatchPacketValidatorTests
         string boundary = new('a', WatchPacketValidator.MaxFlagUtf8Bytes);
         string tooLong = new('a', WatchPacketValidator.MaxFlagUtf8Bytes + 1);
 
-        Assert.IsTrue(WatchPacketValidator.IsValid(new WatchSceneSnapshot(Location, 0, [boundary], [])));
-        Assert.IsFalse(WatchPacketValidator.IsValid(new WatchSceneSnapshot(Location, 0, [tooLong], [])));
+        Assert.IsTrue(WatchPacketValidator.IsValid(new WatchSceneSnapshot(Location, 0, [boundary])));
+        Assert.IsFalse(WatchPacketValidator.IsValid(new WatchSceneSnapshot(Location, 0, [tooLong])));
     }
 
     [TestMethod]
-    public void TouchSwitchIDsMustBeUniqueAndNonNegative()
+    public void TouchSwitchAggregateIDsMustBeSortedUniqueAndNonNegative()
     {
-        Assert.IsTrue(WatchPacketValidator.IsValid(new WatchSceneSnapshot(Location, 0, [], [0, 7])));
-        Assert.IsFalse(WatchPacketValidator.IsValid(new WatchSceneSnapshot(Location, 0, [], [7, 7])));
-        Assert.IsFalse(WatchPacketValidator.IsValid(new WatchSceneDelta(1, Location, [], [], false, true, [-1])));
-        Assert.IsFalse(WatchPacketValidator.IsValid(new WatchSceneDelta(1, Location, [], [], false, false, [1])));
+        WatchEntityKey key = new(WatchEntityKind.TouchSwitchAndSwitchGate, 0, 1);
+
+        Assert.IsTrue(WatchPacketValidator.IsValid(new WatchEntityState(key, [])));
+        Assert.IsTrue(WatchPacketValidator.IsValid(new WatchEntityState(
+            key,
+            [.. BitConverter.GetBytes(0), .. BitConverter.GetBytes(7)]
+        )));
+        Assert.IsFalse(WatchPacketValidator.IsValid(new WatchEntityState(
+            key,
+            [.. BitConverter.GetBytes(7), .. BitConverter.GetBytes(7)]
+        )));
+        Assert.IsFalse(WatchPacketValidator.IsValid(new WatchEntityState(
+            key,
+            BitConverter.GetBytes(-1)
+        )));
+        Assert.IsFalse(WatchPacketValidator.IsValid(new WatchEntityState(
+            new(WatchEntityKind.TouchSwitchAndSwitchGate, 1, 1),
+            []
+        )));
     }
 
     [TestMethod]
-    public void RoomReloadRequiresCompleteTouchSwitchState()
+    public void RoomReloadRequiresCompleteEntityState()
     {
         Assert.IsTrue(WatchPacketValidator.IsValid(
-            new WatchSceneDelta(1, Location, [], [], true, true, [])
+            new WatchSceneDelta(1, Location, [], [], true)
         ));
         Assert.IsFalse(WatchPacketValidator.IsValid(
-            new WatchSceneDelta(1, Location, [], [], true, false, [])
+            new WatchSceneDelta(
+                1, Location, [], [], true,
+                WatchEntityStateMode.None, [], []
+            )
         ));
     }
 
@@ -107,25 +122,25 @@ public sealed class WatchPacketValidatorTests
 
         Assert.IsTrue(WatchPacketValidator.IsValid(
             new WatchSceneDelta(
-                1, Location, [], [], false, true, [],
+                1, Location, [], [], false,
                 WatchEntityStateMode.Replace, [], [], true
             )
         ));
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneDelta(
-                1, Location, [], [], false, false, [],
-                WatchEntityStateMode.Replace, [], [], true
+                1, Location, [], [], false,
+                WatchEntityStateMode.None, [], [], true
             )
         ));
         Assert.IsTrue(WatchPacketValidator.IsValid(
             new WatchSceneDelta(
-                1, Location, [], [], false, true, [],
+                1, Location, [], [], false,
                 WatchEntityStateMode.Replace, [], [], false, transition
             )
         ));
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneDelta(
-                1, Location, [], [], false, true, [],
+                1, Location, [], [], false,
                 WatchEntityStateMode.Replace, [], [], false,
                 new WatchRoomTransition(source, Location, Vector2.Zero, Vector2.Zero)
             )
@@ -142,28 +157,26 @@ public sealed class WatchPacketValidatorTests
         Assert.IsFalse(WatchPacketValidator.IsValid(new WatchEntityState(validKey, [])));
 
         Assert.IsTrue(WatchPacketValidator.IsValid(
-            new WatchSceneSnapshot(Location, 0, [], [], [validState])
+            new WatchSceneSnapshot(Location, 0, [], [validState])
         ));
         Assert.IsFalse(WatchPacketValidator.IsValid(
-            new WatchSceneSnapshot(Location, 0, [], [], [validState, validState])
+            new WatchSceneSnapshot(Location, 0, [], [validState, validState])
         ));
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
                 Location,
                 0,
-                [],
                 [],
                 [new(new((WatchEntityKind)ushort.MaxValue, 7), [])]
             )
         ));
         Assert.IsFalse(WatchPacketValidator.IsValid(
-            new WatchSceneSnapshot(Location, 0, [], [], [new(new(WatchEntityKind.Spring, -1), [])])
+            new WatchSceneSnapshot(Location, 0, [], [new(new(WatchEntityKind.Spring, -1), [])])
         ));
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
                 Location,
                 0,
-                [],
                 [],
                 [new(validKey, new byte[WatchPacketValidator.MaxEntityPayloadBytes + 1])]
             )
@@ -181,31 +194,31 @@ public sealed class WatchPacketValidatorTests
 
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneDelta(
-                1, Location, [], [], false, false, [],
+                1, Location, [], [], false,
                 WatchEntityStateMode.None, [state], []
             )
         ));
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneDelta(
-                1, Location, [], [], false, false, [],
+                1, Location, [], [], false,
                 WatchEntityStateMode.Patch, [], []
             )
         ));
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneDelta(
-                1, Location, [], [], true, true, [],
+                1, Location, [], [], true,
                 WatchEntityStateMode.Patch, [state], []
             )
         ));
         Assert.IsTrue(WatchPacketValidator.IsValid(
             new WatchSceneDelta(
-                1, Location, [], [], false, false, [],
+                1, Location, [], [], false,
                 WatchEntityStateMode.None, [], [new(key, 1, [])]
             )
         ));
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneDelta(
-                1, Location, [], [], false, false, [],
+                1, Location, [], [], false,
                 WatchEntityStateMode.None, [], [new(key, 0, [])]
             )
         ));
@@ -228,7 +241,6 @@ public sealed class WatchPacketValidatorTests
                 Location,
                 0,
                 [],
-                [],
                 [new(new(WatchEntityKind.PersistentSession, 0), persistent.ToPayload())]
             )
         ));
@@ -236,7 +248,6 @@ public sealed class WatchPacketValidatorTests
             new WatchSceneSnapshot(
                 Location,
                 0,
-                [],
                 [],
                 [new(new(WatchEntityKind.PersistentSession, 1), persistent.ToPayload())]
             )
@@ -246,7 +257,6 @@ public sealed class WatchPacketValidatorTests
                 Location,
                 0,
                 [],
-                [],
                 [new(new(WatchEntityKind.PersistentSession, 0), [0])]
             )
         ));
@@ -254,7 +264,6 @@ public sealed class WatchPacketValidatorTests
             new WatchSceneSnapshot(
                 Location,
                 0,
-                [],
                 [],
                 [new(new(WatchEntityKind.Checkpoint, 3), [1])]
             )
@@ -264,7 +273,6 @@ public sealed class WatchPacketValidatorTests
                 Location,
                 0,
                 [],
-                [],
                 [new(new(WatchEntityKind.SummitCheckpoint, 3), [2])]
             )
         ));
@@ -272,7 +280,6 @@ public sealed class WatchPacketValidatorTests
             new WatchSceneSnapshot(
                 Location,
                 0,
-                [],
                 [],
                 [new(
                     new(WatchEntityKind.WingedStrawberry, 4),
@@ -285,7 +292,6 @@ public sealed class WatchPacketValidatorTests
                 Location,
                 0,
                 [],
-                [],
                 [new(new(WatchEntityKind.WingedStrawberry, 4, 1), [0])]
             )
         ));
@@ -293,7 +299,6 @@ public sealed class WatchPacketValidatorTests
             new WatchSceneSnapshot(
                 Location,
                 0,
-                [],
                 [],
                 [new(new(WatchEntityKind.WingedStrawberry, 4), [3])]
             )
@@ -325,7 +330,7 @@ public sealed class WatchPacketValidatorTests
             new(new(WatchEntityKind.PeriodicPlatform, 16), new byte[24]),
             new(new(WatchEntityKind.CassetteBlock, 0), new byte[24]),
             new(new(WatchEntityKind.CassetteBlock, 17, 1), CassetteBlockPayload()),
-            new(new(WatchEntityKind.SwitchGate, 18), new byte[20]),
+            new(new(WatchEntityKind.TouchSwitchAndSwitchGate, 18), new byte[20]),
             new(new(WatchEntityKind.ClutterSystem, 1, 3), ClutterGroupPayload()),
             new(new(WatchEntityKind.ClutterSystem, 0x50000001, 4), ClutterContactPayload()),
             new(new(WatchEntityKind.DoorMechanism, 20, 2), OshiroDoorPayload()),
@@ -363,56 +368,56 @@ public sealed class WatchPacketValidatorTests
         }
 
         Assert.IsTrue(WatchPacketValidator.IsValid(
-            new WatchSceneSnapshot(Location, 0, [], [], valid)
+            new WatchSceneSnapshot(Location, 0, [], valid)
         ));
         byte[] activeClutterContact = ClutterContactPayload();
         activeClutterContact[1] = 1 << 2;
         Assert.IsTrue(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
-                Location, 0, [], [],
+                Location, 0, [],
                 [new(new(WatchEntityKind.ClutterSystem, 0x50000002, 4), activeClutterContact)]
             )
         ));
         activeClutterContact[1] = 1 << 3;
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
-                Location, 0, [], [],
+                Location, 0, [],
                 [new(new(WatchEntityKind.ClutterSystem, 0x50000002, 4), activeClutterContact)]
             )
         ));
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
-                Location, 0, [], [],
+                Location, 0, [],
                 [new(new(WatchEntityKind.Cloud, 6), new byte[9])]
             )
         ));
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
-                Location, 0, [], [],
+                Location, 0, [],
                 [new(new(WatchEntityKind.Booster, 4), [(byte)WatchEntityPhase.Active])]
             )
         ));
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
-                Location, 0, [], [],
+                Location, 0, [],
                 [new(new(WatchEntityKind.HeartGemDoor, 10), new byte[19])]
             )
         ));
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
-                Location, 0, [], [],
+                Location, 0, [],
                 [new(new(WatchEntityKind.CrumblePlatform, 9), [0, 1, 8, 0])]
             )
         ));
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
-                Location, 0, [], [],
+                Location, 0, [],
                 [new(new(WatchEntityKind.CoreMode, 1), [0])]
             )
         ));
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
-                Location, 0, [], [],
+                Location, 0, [],
                 [new(new(WatchEntityKind.MovingSolid, 12), new byte[23])]
             )
         ));
@@ -420,7 +425,7 @@ public sealed class WatchPacketValidatorTests
         invalidClutterGroup[2] = 2;
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
-                Location, 0, [], [],
+                Location, 0, [],
                 [new(new(WatchEntityKind.ClutterSystem, 1, 3), invalidClutterGroup)]
             )
         ));
@@ -428,7 +433,7 @@ public sealed class WatchPacketValidatorTests
         BitConverter.GetBytes(float.NaN).CopyTo(invalidClutterContact, 8);
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
-                Location, 0, [], [],
+                Location, 0, [],
                 [new(new(WatchEntityKind.ClutterSystem, 0x50000001, 4), invalidClutterContact)]
             )
         ));
@@ -436,7 +441,7 @@ public sealed class WatchPacketValidatorTests
         BitConverter.GetBytes(float.NaN).CopyTo(invalidCassettePosition, 4);
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
-                Location, 0, [], [],
+                Location, 0, [],
                 [new(new(WatchEntityKind.CassetteBlock, 17, 1), invalidCassettePosition)]
             )
         ));
@@ -444,7 +449,7 @@ public sealed class WatchPacketValidatorTests
         BitConverter.GetBytes(3).CopyTo(blockedCassetteHeight, 12);
         Assert.IsTrue(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
-                Location, 0, [], [],
+                Location, 0, [],
                 [new(new(WatchEntityKind.CassetteBlock, 17, 1), blockedCassetteHeight)]
             )
         ));
@@ -452,7 +457,7 @@ public sealed class WatchPacketValidatorTests
         BitConverter.GetBytes(65).CopyTo(invalidCassetteHeight, 12);
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
-                Location, 0, [], [],
+                Location, 0, [],
                 [new(new(WatchEntityKind.CassetteBlock, 17, 1), invalidCassetteHeight)]
             )
         ));
@@ -461,7 +466,7 @@ public sealed class WatchPacketValidatorTests
         invalidMovingState[2] = 5;
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
-                Location, 0, [], [],
+                Location, 0, [],
                 [new(new(WatchEntityKind.MovingSolid, 12), invalidMovingState)]
             )
         ));
@@ -470,14 +475,14 @@ public sealed class WatchPacketValidatorTests
         ghostSeedState[1] = 1 << 2;
         Assert.IsTrue(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
-                Location, 0, [], [],
+                Location, 0, [],
                 [new(new(WatchEntityKind.StrawberrySeed, 14, 1), ghostSeedState)]
             )
         ));
         ghostSeedState[1] = 1 << 3;
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(
-                Location, 0, [], [],
+                Location, 0, [],
                 [new(new(WatchEntityKind.StrawberrySeed, 14, 1), ghostSeedState)]
             )
         ));
@@ -524,8 +529,6 @@ public sealed class WatchPacketValidatorTests
                 [],
                 [],
                 false,
-                false,
-                [],
                 WatchEntityStateMode.None,
                 [],
                 [new(key, eventID, payload)]
@@ -555,7 +558,7 @@ public sealed class WatchPacketValidatorTests
             .ToArray();
 
         Assert.IsTrue(WatchPacketValidator.IsValid(
-            new WatchSceneSnapshot(Location, 0, [], [], valid)
+            new WatchSceneSnapshot(Location, 0, [], valid)
         ));
 
         byte[] retiredBouncePayload = new byte[24];
@@ -564,7 +567,6 @@ public sealed class WatchPacketValidatorTests
             new WatchSceneSnapshot(
                 Location,
                 0,
-                [],
                 [],
                 [new(new(WatchEntityKind.MovingSolid, 99), retiredBouncePayload)]
             )
@@ -586,7 +588,6 @@ public sealed class WatchPacketValidatorTests
                     Location,
                     0,
                     [],
-                    [],
                     [new(new(WatchEntityKind.MovingSolid, 1), payload)]
                 )
             ));
@@ -598,9 +599,9 @@ public sealed class WatchPacketValidatorTests
     {
         Assert.IsTrue(WatchPacketValidator.IsValid(new WatchSceneSnapshot(Location, 0, [], [])));
         Assert.IsFalse(WatchPacketValidator.IsValid(new WatchSceneSnapshot(Location, -1, [], [])));
-        Assert.IsTrue(WatchPacketValidator.IsValid(new WatchSceneDelta(1, Location, ["flag"], [], false, false, [])));
-        Assert.IsFalse(WatchPacketValidator.IsValid(new WatchSceneDelta(1, Location, [], [], false, false, [])));
-        Assert.IsFalse(WatchPacketValidator.IsValid(new WatchSceneDelta(0, Location, [], [], false, false, [])));
+        Assert.IsTrue(WatchPacketValidator.IsValid(new WatchSceneDelta(1, Location, ["flag"], [], false)));
+        Assert.IsFalse(WatchPacketValidator.IsValid(new WatchSceneDelta(1, Location, [], [], false)));
+        Assert.IsFalse(WatchPacketValidator.IsValid(new WatchSceneDelta(0, Location, [], [], false)));
     }
 
     [TestMethod]
@@ -608,7 +609,7 @@ public sealed class WatchPacketValidatorTests
     {
         Assert.IsFalse(WatchPacketValidator.IsValid(new WatchSceneSnapshot(PlayerLocation.Empty, 0, [], [])));
         Assert.IsFalse(WatchPacketValidator.IsValid(
-            new WatchSceneDelta(1, PlayerLocation.Empty, [], [], false, false, [])
+            new WatchSceneDelta(1, PlayerLocation.Empty, [], [], false)
         ));
     }
 
@@ -631,7 +632,7 @@ public sealed class WatchPacketValidatorTests
 
         Assert.IsFalse(WatchPacketValidator.IsValid(new WatchSceneSnapshot(Location, 0, largeState, [])));
         Assert.IsFalse(WatchPacketValidator.IsValid(
-            new WatchSceneSnapshot(Location, 0, [], [], largeEntityState)
+            new WatchSceneSnapshot(Location, 0, [], largeEntityState)
         ));
     }
 
@@ -644,7 +645,7 @@ public sealed class WatchPacketValidatorTests
                 CreateCrumblePayload(WatchPacketValidator.MaxEntityPayloadBytes)
             ))
             .ToList();
-        WatchSceneSnapshot partial = new(Location, 0, [], [], states);
+        WatchSceneSnapshot partial = new(Location, 0, [], states);
         int remainingPayloadSize = Connection.MaxPayloadSize
             - sizeof(int) * 2 - sizeof(byte)
             - GetSerializedSize(partial)
@@ -659,7 +660,7 @@ public sealed class WatchPacketValidatorTests
             new WatchEntityKey(WatchEntityKind.CrumblePlatform, states.Count),
             CreateCrumblePayload(remainingPayloadSize)
         ));
-        WatchSceneSnapshot boundary = new(Location, 0, [], [], states);
+        WatchSceneSnapshot boundary = new(Location, 0, [], states);
         Assert.AreEqual(
             Connection.MaxPayloadSize,
             sizeof(int) * 2 + sizeof(byte) + GetSerializedSize(boundary)
@@ -671,7 +672,7 @@ public sealed class WatchPacketValidatorTests
             CreateCrumblePayload(remainingPayloadSize + 1)
         );
         Assert.IsFalse(WatchPacketValidator.IsValid(
-            new WatchSceneSnapshot(Location, 0, [], [], states)
+            new WatchSceneSnapshot(Location, 0, [], states)
         ));
 
         static byte[] CreateCrumblePayload(int size)

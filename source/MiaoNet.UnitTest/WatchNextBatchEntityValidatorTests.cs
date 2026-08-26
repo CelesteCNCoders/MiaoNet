@@ -30,7 +30,7 @@ public sealed class WatchNextBatchEntityValidatorTests
         ];
 
         Assert.IsTrue(WatchPacketValidator.IsValid(
-            new WatchSceneSnapshot(Location, 0, [], [], states)
+            new WatchSceneSnapshot(Location, 0, [], states)
         ));
     }
 

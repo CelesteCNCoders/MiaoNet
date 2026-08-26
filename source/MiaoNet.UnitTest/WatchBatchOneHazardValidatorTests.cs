@@ -25,7 +25,6 @@ public sealed class WatchBatchOneHazardValidatorTests
             p[0] = 1;
             p[2] = 3;
         }))));
-        Assert.IsTrue(IsValid(State(WatchEntityKind.StaticSpinner, 3, 0, [1])));
         Assert.IsTrue(IsValid(State(WatchEntityKind.TriggerSpikes, 4, 17, Payload(16, p =>
         {
             p[0] = 1;
@@ -54,7 +53,7 @@ public sealed class WatchBatchOneHazardValidatorTests
             p[0] = 3;
             p[1] = 1 << 4;
         }))));
-        Assert.IsFalse(IsValid(State(WatchEntityKind.StaticSpinner, 3, 0, [0])));
+        Assert.IsFalse(IsValid(State(WatchEntityKind.Reserved37, 3, 0, [1])));
         Assert.IsFalse(IsValid(State(WatchEntityKind.TriggerSpikes, 4, 0, Payload(16, p => p[1] = 4))));
         Assert.IsFalse(IsValid(State(WatchEntityKind.FireBall, 5, 0, Payload(24, p => p[1] = 1))));
         Assert.IsFalse(IsValid(State(WatchEntityKind.Lava, 1, 0, new byte[40])));
@@ -71,13 +70,10 @@ public sealed class WatchBatchOneHazardValidatorTests
     }
 
     [TestMethod]
-    public void StaticSpinnerDestroyEventIsStrictlyValidated()
+    public void HazardEventsAreStrictlyValidated()
     {
-        WatchEntityKey key = new(WatchEntityKind.StaticSpinner, 9);
-        Assert.IsTrue(IsValid(new WatchEntityEvent(key, 1, [0])));
-        Assert.IsTrue(IsValid(new WatchEntityEvent(key, 1, [1])));
-        Assert.IsFalse(IsValid(new WatchEntityEvent(key, 2, [0])));
-        Assert.IsFalse(IsValid(new WatchEntityEvent(key, 1, [2])));
+        WatchEntityKey reserved = new(WatchEntityKind.Reserved37, 9);
+        Assert.IsFalse(IsValid(new WatchEntityEvent(reserved, 1, [0])));
 
         WatchEntityKey fireBall = new(WatchEntityKind.FireBall, 10, 4);
         Assert.IsTrue(IsValid(new WatchEntityEvent(fireBall, 1, [])));

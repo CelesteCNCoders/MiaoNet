@@ -5,7 +5,7 @@ namespace MiaoNet.UnitTest;
 internal static class WatchValidatorTestHelper
 {
     public static bool IsValidState(PlayerLocation location, WatchEntityState state)
-        => WatchPacketValidator.IsValid(new WatchSceneSnapshot(location, 0, [], [], [state]));
+        => WatchPacketValidator.IsValid(new WatchSceneSnapshot(location, 0, [], [state]));
 
     public static bool IsValidEvent(PlayerLocation location, WatchEntityEvent entityEvent)
         => WatchPacketValidator.IsValid(new WatchSceneDelta(
@@ -14,8 +14,6 @@ internal static class WatchValidatorTestHelper
             [],
             [],
             false,
-            false,
-            [],
             WatchEntityStateMode.None,
             [],
             [entityEvent]
