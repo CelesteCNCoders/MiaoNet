@@ -5,7 +5,7 @@ namespace Celeste.Mod.ChatInputBox;
 
 public sealed class ChatMessageListView
 {
-    private record struct ChatMessageViewState(float ShowTimer, float FadeOut = 1f, float CounterPopTimer = FoldCounter.PopDuration);
+    private record struct ChatMessageViewState(float ShowTimer, float FadeOut = 1f, float CounterPopTimer = 0f);
     private readonly Dictionary<ChatItem, ChatMessageViewState> viewStates = new();
 
 
@@ -50,7 +50,9 @@ public sealed class ChatMessageListView
         if (!viewStates.TryGetValue(key, out var viewState))
         {
             // a freshly folded line appears with its counter pop animation playing
-            viewState = key.RepeatCount > 1 ? new(ShowDuration, CounterPopTimer: 0f) : new(ShowDuration);
+            viewState = key.RepeatCount > 1
+                ? new(ShowDuration, CounterPopTimer: FoldCounter.PopDuration)
+                : new(ShowDuration);
         }
         return viewState;
     }
@@ -117,8 +119,8 @@ public sealed class ChatMessageListView
         {
             var item = fullChatLog[i];
             var state = getOrInitViewState(item);
-            if (state.CounterPopTimer < FoldCounter.PopDuration)
-                state.CounterPopTimer += Engine.RawDeltaTime;
+            if (state.CounterPopTimer > 0f)
+                state.CounterPopTimer -= Engine.RawDeltaTime;
             if (state.ShowTimer > 0f)
             {
                 // NoNewMessage now renders an empty list so no need to manually fade message out anymore.
@@ -221,7 +223,7 @@ public sealed class ChatMessageListView
         fade *= alpha;
         chatItem.render(x, curY, fade, BackgroundOpacity, TextOpacity, textRenderer,
             FancyFoldCounter, counterAnimClock,
-            state.CounterPopTimer / FoldCounter.PopDuration);
+            1f - state.CounterPopTimer / FoldCounter.PopDuration);
         return true;
 
     }
