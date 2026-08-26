@@ -39,7 +39,7 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
 
         // prepare effect if needed
         Effect? effect = null;
-        if (settings.DistanceBasedOpacity)
+        if (settings.DistanceBasedOpacity && !MiaoNetModule.Instance.MiaoNetContext.MainComponent.Watching)
         {
             Player? player = level.Tracker.GetEntity<Player>();
             if (player != null)

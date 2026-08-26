@@ -272,18 +272,27 @@ public sealed partial class MainComponent
 
         HashSet<int> missingIDs = new(watchActiveTouchSwitchIDs);
         int activatedCount = 0;
-        foreach (TouchSwitch touchSwitch in level.Tracker.GetEntities<TouchSwitch>().Cast<TouchSwitch>())
+        bool suppressAudio = !MiaoNetModule.Settings.PlayerAudioSyncMode.HasReceive;
+        IDisposable? audioSuppression = suppressAudio ? WatchSceneAudioSuppression.Begin() : null;
+        try
         {
-            if (!TouchSwitchIDTracker.TryGetID(touchSwitch, out int id)
-                || !watchActiveTouchSwitchIDs.Contains(id))
-                continue;
-
-            missingIDs.Remove(id);
-            if (!touchSwitch.Switch.Activated)
+            foreach (TouchSwitch touchSwitch in level.Tracker.GetEntities<TouchSwitch>().Cast<TouchSwitch>())
             {
-                touchSwitch.TurnOn();
-                activatedCount++;
+                if (!TouchSwitchIDTracker.TryGetID(touchSwitch, out int id)
+                    || !watchActiveTouchSwitchIDs.Contains(id))
+                    continue;
+
+                missingIDs.Remove(id);
+                if (!touchSwitch.Switch.Activated)
+                {
+                    touchSwitch.TurnOn();
+                    activatedCount++;
+                }
             }
+        }
+        finally
+        {
+            audioSuppression?.Dispose();
         }
 
         watchTouchSwitchStatePending = false;
@@ -299,7 +308,8 @@ public sealed partial class MainComponent
         Logger.Debug(
             LT.MiaoNetWatch,
             $"Applied TouchSwitch watch state for room {watchTouchSwitchLocation.Room}; " +
-            $"requested={watchActiveTouchSwitchIDs.Count}, activated={activatedCount}."
+            $"requested={watchActiveTouchSwitchIDs.Count}, activated={activatedCount}, " +
+            $"audioSuppressed={suppressAudio}."
         );
     }
 

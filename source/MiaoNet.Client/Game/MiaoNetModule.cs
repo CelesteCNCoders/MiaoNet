@@ -72,6 +72,7 @@ public sealed class MiaoNetModule : EverestModule
             IL.Celeste.Level.Update += Level_Update;
             SpriteIDTracker.Load();
             TouchSwitchIDTracker.Load();
+            WatchSceneAudioSuppression.Load();
             IL.Celeste.Leader.GainFollower += Leader_GainFollower;
             On.Celeste.Overworld.Begin += Overworld_Begin;
             On.Celeste.Player.Added += Player_Added;
@@ -112,6 +113,7 @@ public sealed class MiaoNetModule : EverestModule
         IL.Celeste.Level.Update -= Level_Update;
         SpriteIDTracker.Unload();
         TouchSwitchIDTracker.Unload();
+        WatchSceneAudioSuppression.Unload();
         IL.Celeste.Leader.GainFollower -= Leader_GainFollower;
         On.Celeste.Overworld.Begin -= Overworld_Begin;
         On.Celeste.Player.Added -= Player_Added;
