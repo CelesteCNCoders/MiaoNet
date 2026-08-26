@@ -349,7 +349,7 @@ partial class MiaoNetContext
                         var packet = packets.Current;
 
                         if (!HandleDirectPacket(operation, connection, packet))
-                            receiveQueue.Enqueue((operation.Generation, packet));
+                            EnqueueReceivedPacket(operation.Generation, packet);
 #if PACKET_TRACING
                         string typeName = packet.GetType().ToString();
                         if (

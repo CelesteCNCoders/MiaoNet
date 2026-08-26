@@ -2,15 +2,12 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.IO.Compression;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading.Channels;
-using System.Threading.Tasks.Sources;
 using MiaoNet.Shared;
 
 namespace MiaoNet.ClientShared;
@@ -25,8 +22,9 @@ public sealed partial class MiaoServerConnection : IDisposable
     // TODO we need to stop using this
     private readonly MemoryStream sendMemoryStream;
 
-    private readonly ConcurrentQueue<IContextualPacket> sendQueue;
+    private readonly ConcurrentPacketPriorityQueue<IContextualPacket> sendQueue;
     private readonly SemaphoreSlim sendSemaphore;
+
 
     private MiaoServerConnection(Socket socket, SslStream sslStream)
     {
@@ -210,7 +208,7 @@ public sealed partial class MiaoServerConnection : IDisposable
     {
         while (!token.IsCancellationRequested)
         {
-            while (sendQueue.TryDequeue(out IContextualPacket? packet))
+            while (sendQueue.TryDequeue(out IContextualPacket packet))
                 await SendPacketAsync(packet, context, token);
             if (token.IsCancellationRequested)
                 return;
@@ -244,17 +242,23 @@ public sealed partial class MiaoServerConnection : IDisposable
 
     public int QueuePacket(IContextualPacket packet)
     {
-        sendQueue.Enqueue(packet);
+        PacketPriority priority = PacketPriorityClassifier.Classify(packet);
+        sendQueue.Enqueue(priority, packet);
         int count = sendQueue.Count;
         sendSemaphore.Release();
         return count;
     }
 
-    private async Task SendPacketAsync(IContextualPacket packet, IPacketSerializationContext context, CancellationToken token)
+    private async Task SendPacketAsync(
+        IContextualPacket packet,
+        IPacketSerializationContext context,
+        CancellationToken token
+    )
     {
         sendMemoryStream.Position = 0;
         PacketFraming.WritePacket(sendMemoryStream, packet, context);
         int frameSize = checked((int)sendMemoryStream.Position);
         await sslStream.WriteAsync(sendMemoryStream.GetBuffer().AsMemory(0, frameSize), token);
     }
+
 }

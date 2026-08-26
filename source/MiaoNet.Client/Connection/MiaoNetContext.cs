@@ -20,7 +20,15 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     private readonly ConnectionLifecycleCoordinator connectionLifecycle;
     private ConnectionOperation? activeConnectionOperation;
-    private readonly ConcurrentQueue<(long Generation, IContextualPacket Packet)> receiveQueue;
+    private readonly ConcurrentPacketPriorityQueue<ReceivedPacket> receiveQueue;
+    private long currentReceivedPacketTimestamp;
+
+    private readonly record struct ReceivedPacket(
+        long Generation,
+        IContextualPacket Packet,
+        long EnqueuedAt
+    );
+
     private readonly ConcurrentQueue<Action> mainThreadQueue;
 
     private readonly List<MiaoNetComponent> components;
@@ -91,6 +99,11 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     public ServerFeatureFlags ServerFeatures { get; private set; }
 
     public MainComponent MainComponent { get; }
+
+    internal long CurrentReceivedPacketTimestamp
+        => currentReceivedPacketTimestamp != 0
+            ? currentReceivedPacketTimestamp
+            : Stopwatch.GetTimestamp();
 
     public EmoteComponent EmoteComponent { get; }
 
@@ -209,9 +222,13 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             new("cancel connection operation", operation.Cancel),
             new("drain receive queue", () =>
             {
-                while (receiveQueue.TryDequeue(out var received))
+                while (TryDequeueReceivedPacket(
+                    out long receivedGeneration,
+                    out IContextualPacket receivedPacket,
+                    out _
+                ))
                 {
-                    if (received.Generation == generation.Value && received.Packet is PacketDisconnected dc)
+                    if (receivedGeneration == generation.Value && receivedPacket is PacketDisconnected dc)
                         (terminalPackets ??= []).Add(dc);
                 }
             }),
@@ -267,10 +284,24 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             int packetsHandled = 0;
             long receiveQueueStartedAt = Stopwatch.GetTimestamp();
             while (packetsHandled < MaxPacketsPerUpdate
-                && receiveQueue.TryDequeue(out var received))
+                && TryDequeueReceivedPacket(
+                    out long receivedGeneration,
+                    out IContextualPacket receivedPacket,
+                    out long enqueuedAt
+                ))
             {
-                if (connectionLifecycle.IsCurrent(received.Generation))
-                    HandleQueuedPacket(received.Packet);
+                if (connectionLifecycle.IsCurrent(receivedGeneration))
+                {
+                    currentReceivedPacketTimestamp = enqueuedAt;
+                    try
+                    {
+                        HandleQueuedPacket(receivedPacket);
+                    }
+                    finally
+                    {
+                        currentReceivedPacketTimestamp = 0;
+                    }
+                }
                 packetsHandled++;
                 if (Stopwatch.GetTimestamp() - receiveQueueStartedAt >= ReceiveQueueBudgetTicks)
                     break;
@@ -475,6 +506,36 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         SafeGuard.Assert(HasConnection);
         connection.QueuePacket(packet);
     }
+
+    private void EnqueueReceivedPacket(long generation, IContextualPacket packet)
+    {
+        PacketPriority priority = PacketPriorityClassifier.Classify(packet);
+        receiveQueue.Enqueue(priority, new(generation, packet, Stopwatch.GetTimestamp()));
+    }
+
+    private bool TryDequeueReceivedPacket(
+        out long generation,
+        out IContextualPacket packet,
+        out long enqueuedAt,
+        bool includeWatchEntity = true
+    )
+    {
+        bool dequeued = includeWatchEntity
+            ? receiveQueue.TryDequeue(out ReceivedPacket received)
+            : receiveQueue.TryDequeueNonEntity(out received);
+        if (dequeued)
+        {
+            generation = received.Generation;
+            packet = received.Packet;
+            enqueuedAt = received.EnqueuedAt;
+            return true;
+        }
+        generation = 0;
+        packet = null!;
+        enqueuedAt = 0;
+        return false;
+    }
+
 
     public void Request<TResponse>(PacketRequest<TResponse> request, Action<TResponse> callback)
         where TResponse : PacketResponse
