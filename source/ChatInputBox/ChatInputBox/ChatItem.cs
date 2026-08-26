@@ -93,8 +93,8 @@ public class ChatItem
         {
             Vector2 shakeOffset = counterShakeAmplitude > 0f
                 ? new Vector2(
-                    Calc.Random.Range(-counterShakeAmplitude, counterShakeAmplitude),
-                    Calc.Random.Range(-counterShakeAmplitude, counterShakeAmplitude)
+                    (Random.Shared.NextSingle() * 2f - 1f) * counterShakeAmplitude,
+                    (Random.Shared.NextSingle() * 2f - 1f) * counterShakeAmplitude
                 )
                 : Vector2.Zero;
             // vertically centered so scaling grows symmetrically
