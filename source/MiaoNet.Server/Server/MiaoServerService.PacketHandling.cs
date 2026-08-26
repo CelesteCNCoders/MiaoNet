@@ -69,11 +69,56 @@ public sealed partial class MiaoServerService
             var state = player.State;
             state.ApplyDelta(delta);
         }
-        await BroadcastToScopeExceptAsync(
-            new PacketContextualPlayerNotification<PacketPlayerFrame>(connection.ID, packet),
-            u,
-            connection.ID
-        );
+        PacketContextualPlayerNotification<PacketPlayerFrame> notification = new(connection.ID, packet);
+        if (!delta.HasCameraPosition)
+        {
+            await BroadcastToScopeExceptAsync(notification, u, connection.ID);
+            return;
+        }
+
+        Task watcherTask;
+        Task otherPlayersTask = Task.CompletedTask;
+        using (stateLock.AcquireReadLock())
+        {
+            IReadOnlyCollection<WatchSession> targetSessions = watchSessions.GetByTarget(connection.ID);
+            watcherTask = BroadcastToScopeExceptAsync(
+                notification,
+                u,
+                connection.ID,
+                candidate => PlayerFrameRouting.IsActiveWatcher(
+                    targetSessions,
+                    candidate.ID,
+                    u.MapLocation
+                )
+            );
+
+            bool hasOtherPlayers = u.Players.Any(candidate =>
+                candidate.ID != connection.ID
+                && !PlayerFrameRouting.IsActiveWatcher(
+                    targetSessions,
+                    candidate.ID,
+                    u.MapLocation
+                )
+            );
+            if (hasOtherPlayers)
+            {
+                PacketPlayerFrame strippedFrame = PlayerFrameRouting.CreateWithoutCamera(packet);
+                PacketContextualPlayerNotification<PacketPlayerFrame> strippedNotification =
+                    new(connection.ID, strippedFrame);
+                otherPlayersTask = BroadcastToScopeExceptAsync(
+                    strippedNotification,
+                    u,
+                    connection.ID,
+                    candidate => !PlayerFrameRouting.IsActiveWatcher(
+                        targetSessions,
+                        candidate.ID,
+                        u.MapLocation
+                    )
+                );
+            }
+        }
+
+        await Task.WhenAll(watcherTask, otherPlayersTask);
     }
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerLocationChanged packet)
