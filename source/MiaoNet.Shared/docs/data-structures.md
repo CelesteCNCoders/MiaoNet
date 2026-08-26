@@ -4,7 +4,7 @@
 
 ## 玩家身份与在场状态
 
-`PlayerInfo` 在握手时确定，包含 `AuthID`、显示名、前缀、头像 URL 和颜色。`PlayerGlobalFlags` 是实时广播的位标志：`Paused`、`Typing`、`LiveMode`、`Interactions`、`TakingGolden`、`GroupPhotoMode` 和 `Watching`。
+`PlayerInfo` 在握手时确定，包含 `AuthID`、显示名、前缀、头像 URL 和颜色。`PlayerGlobalFlags` 是实时广播的位标志：`Paused`、`Typing`、`LiveMode`、`Interactions`、`TakingGolden`、`GroupPhotoMode`、`Watching` 和用于能力协商的 `WatchSceneSyncSupported`。
 
 `PlayerPresenceData` 将 `PlayerLocation` 与 `PlayerGlobalFlags` 打包；`PlayerPresenceDataWithID` 额外带玩家 ID，供频道切换和快照使用。
 
@@ -28,7 +28,7 @@ public readonly struct PlayerLocation
 
 ## 实时状态
 
-`PlayerState` 是可克隆的完整状态，包含位置、动画/帧、缩放、`PlayerStateFlags`、冲刺数、帧时间、精灵模式、Follower、风向、持有物和可选的最终 Camera 世界坐标。`PlayerStateDelta` 是每帧使用的增量，`FrameFlags` 控制是否携带冲刺、持有物、Follower 初始/增量、风向和 Camera；Camera 只在 Player 存在 Watcher 时附加到既有帧包，不增加独立高频包。服务端在 `ServerMap.StateLock` 下将增量应用到玩家状态，并拒绝非有限 Camera 坐标。Watcher 在非转场帧中不保留隐藏 Player、Camera Trigger 或房间演出实体产生的本地 Camera 位移，而是在 `Level.Update` 完成后应用远端样本；原版 `Level.TransitionTo` 运行期间则暂停远端应用并由转场独占 Camera。
+`PlayerState` 是可克隆的旧协议兼容完整状态，包含位置、动画/帧、缩放、`PlayerStateFlags`、冲刺数、帧时间、精灵模式、Follower、风向和持有物。`PlayerStateDelta` 是每帧使用的增量，`FrameFlags` 控制是否携带冲刺、持有物、Follower 初始/增量、风向和 Camera；Camera 只在三方能力协商成功且 Player 存在 Watcher 时附加到既有帧包，不改动完整状态的旧线格式。服务端在 `ServerMap.StateLock` 下将增量应用到玩家状态，并拒绝非有限 Camera 坐标。Watcher 在非转场帧中不保留隐藏 Player、Camera Trigger 或房间演出实体产生的本地 Camera 位移，而是在 `Level.Update` 完成后应用远端样本；原版 `Level.TransitionTo` 运行期间则暂停远端应用并由转场独占 Camera。
 
 附属结构包括：
 
@@ -53,7 +53,7 @@ public readonly struct PlayerLocation
 
 `WatchSceneSnapshot` 保存快照位置、序号、Session string flags、当前房间已激活 Touch Switch 的 Entity ID，以及已注册原版实体适配器提供的完整状态。`WatchEntityKey` 以实体类型、地图 `EntityData.ID` 和可选子实体编号作为稳定标识；状态和瞬时事件的紧凑 payload 由对应客户端适配器解释，服务端只负责通用边界校验与转发。
 
-`WatchSceneDelta` 保存产生变化时的位置、连续序号、flags 增删，并用 `HasTouchSwitchState` 区分“未更新此类状态”和“用空集合替换状态”。实体持续状态使用 `None`、`Patch`、`Replace` 三种模式；短暂动画、音效等按产生顺序放入 `WatchEntityEvent`。Touch Switch 与 `Replace` 实体集合均表示当前房间的完整状态，因此切房和重复进入房间可以丢弃旧缓存。`RoomTransition` 保存 Player 实际触发原版转场时的 source、target、出口位置与方向；`IsDeathRespawn` 标记普通死亡或 Retry 后的轻量完整状态。独立的 `DeathWipe` live-state 在 Player 实际调用原版死亡 WipeOut 前发出，Watcher 同时开始缩圈，将重生状态缓存到完全黑屏帧再原子应用；快照尚未到齐时保持全黑，应用完成后直接显示新状态，不额外播放 WipeIn。普通死亡保留当前 Level；Touch Switch、Temple Cracked Block、Final Boss Moving Block 及其地图 Spikes 等单向状态在黑屏帧由对应适配器定向重建。适配器无法原地逆转的局部状态只记录实体类型诊断，不得把 `IsDeathRespawn` 升级为整房重载。`RequiresRoomReload` 只表示生产端实际发生的 F5、读档或其他显式完整生命周期；只有携带完整状态的该类增量才能授权 Watcher 调用 `Level.Reload()`。死亡后直接进入其他房间的特殊生命周期（例如 PlayerSeeker 结尾）会把目标房间完整 `Replace` 标记为 `IsDeathRespawn`，保留死亡上下文并在目标房间就绪后无额外复活动画地恢复 Ghost。
+`WatchSceneDelta` 保存产生变化时的位置、连续序号、flags 增删，并用 `HasTouchSwitchState` 区分“未更新此类状态”和“用空集合替换状态”。实体持续状态使用 `None`、`Patch`、`Replace` 三种模式；短暂动画、音效等按产生顺序放入 `WatchEntityEvent`。Touch Switch 与 `Replace` 实体集合均表示当前房间的完整状态，因此切房和重复进入房间可以丢弃旧缓存。重复或陈旧序号可直接忽略；缺序会把对应 Watch Session 置为 `ResyncPending`，暂停增量应用并请求当前权威快照。Watcher 原子替换 flags、Touch Switch 和完整实体集合、清除旧瞬时事件后，以快照序号继续，不把单次缺序升级为停止观看。`RoomTransition` 保存 Player 实际触发原版转场时的 source、target、出口位置与方向；`IsDeathRespawn` 标记普通死亡或 Retry 后的轻量完整状态。独立的 `DeathWipe` live-state 在 Player 实际调用原版死亡 WipeOut 前发出，Watcher 同时开始缩圈，将重生状态缓存到完全黑屏帧再原子应用；快照尚未到齐时保持全黑，应用完成后直接显示新状态，不额外播放 WipeIn。普通死亡保留当前 Level；Touch Switch、Temple Cracked Block、Final Boss Moving Block 及其地图 Spikes 等单向状态在黑屏帧由对应适配器定向重建。适配器无法原地逆转的局部状态只记录实体类型诊断，不得把 `IsDeathRespawn` 升级为整房重载。`RequiresRoomReload` 只表示生产端实际发生的 F5、读档或其他显式完整生命周期；只有携带完整状态的该类增量才能授权 Watcher 调用 `Level.Reload()`。死亡后直接进入其他房间的特殊生命周期（例如 PlayerSeeker 结尾）会把目标房间完整 `Replace` 标记为 `IsDeathRespawn`，保留死亡上下文并在目标房间就绪后无额外复活动画地恢复 Ghost。
 
 实体状态采集以适配器类型为独立失败边界：生产端先严格校验每个适配器生成的单条状态；抛出异常或生成无效 payload 的类型会被隔离，同房间连续生产时沿用该类型最后一次有效状态，首次快照或切房无可用基线时只省略该类型。聚合增量仍不通过完整协议校验时，先丢弃瞬时事件并重建一次完整 `Replace`；如果仍然无效，只跳过这一次场景更新并保留当前 Watch 会话。服务端的 payload、位置和序号校验不放宽，实际收到畸形包时仍按无效包处理。
 

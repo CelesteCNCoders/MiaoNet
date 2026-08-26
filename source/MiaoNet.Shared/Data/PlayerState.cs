@@ -33,11 +33,6 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
 
     public required Vector2 WindDirection { get; set; }
 
-    /// <summary>
-    /// Latest final world-space camera position, when supplied by the client.
-    /// </summary>
-    public Vector2? CameraPosition { get; set; }
-
 
     // REMIND update Clone() if there're new deep-clone needed props
 
@@ -66,9 +61,6 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
 
         if (delta.HasHoldable)
             ApplyHoldableInfo(delta.HoldableInfo);
-
-        if (delta.HasCameraPosition)
-            CameraPosition = delta.CameraPosition;
     }
 
     public void ApplyFollowersInitials(FollowerInfo[] followerInitials)
@@ -125,9 +117,6 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
         writer.Write(HoldableInfo, pooledStringManager);
         if (StateFlags.HasFlag(PlayerStateFlags.Dashing))
             writer.Write(LastDashDirection);
-        writer.Write(CameraPosition is not null);
-        if (CameraPosition is { } cameraPosition)
-            writer.Write(cameraPosition);
     }
 
     public static PlayerState Deserialize(ref RefBinaryReader reader, PooledStringManager pooledStringManager)
@@ -148,8 +137,6 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
         };
         if (state.StateFlags.HasFlag(PlayerStateFlags.Dashing))
             state.LastDashDirection = reader.ReadSingle();
-        if (reader.ReadBoolean())
-            state.CameraPosition = reader.ReadVector2();
         return state;
     }
 

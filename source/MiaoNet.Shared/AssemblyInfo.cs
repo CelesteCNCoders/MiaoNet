@@ -61,5 +61,7 @@ using MiaoNet.Shared;
     typeof(PacketWatchSceneDeltaNotification),
     typeof(PacketWatchStop),
     typeof(PacketWatchProducerStop),
-    typeof(PacketWatchEnded)
+    typeof(PacketWatchEnded),
+    typeof(PacketWatchResyncRequest),
+    typeof(PacketWatchResyncSnapshot)
 ])]

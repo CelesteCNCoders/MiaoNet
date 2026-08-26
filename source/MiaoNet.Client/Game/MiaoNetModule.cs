@@ -26,7 +26,11 @@ public sealed class MiaoNetModule : EverestModule
 
     public MiaoNetContext MiaoNetContext => miaoNetContext ??= new();
 
-    internal static bool IsWatching => Instance.miaoNetContext?.MainComponent.Watching == true;
+    internal static bool IsWatching =>
+        Instance.miaoNetContext?.MainComponent.WatchSceneSyncActive == true;
+
+    internal static bool IsAnyWatching =>
+        Instance.miaoNetContext?.MainComponent.Watching == true;
 
     internal static bool IsWatchedPlayerPaused =>
         Instance.miaoNetContext?.MainComponent.WatchedPlayerPaused == true;
@@ -627,7 +631,7 @@ public sealed class MiaoNetModule : EverestModule
         // surrogate. Hazards and moving solids must never turn that surrogate
         // into a real PlayerDeadBody or it can respawn into the same hazard and
         // start an independent death loop on the Watcher.
-        if (IsWatching
+        if (IsAnyWatching
             && self.Scene is Level level
             && ReferenceEquals(level.Tracker.GetEntity<Player>(), self))
             return null;

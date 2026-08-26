@@ -26,9 +26,9 @@ public static class WatchPacketValidator
             return false;
 
         // A successful snapshot is first returned in PacketWatchSnapshotResponse,
-        // then forwarded in the larger PacketWatchStartResponse envelope. Validate
-        // against the latter so a snapshot accepted from the Player is always safe
-        // to queue to the Watcher as well.
+        // then forwarded in PacketWatchStartResponse or PacketWatchResyncSnapshot.
+        // The start response is the larger envelope, so validating against it also
+        // keeps the resync notification within the payload limit.
         long packetSize = sizeof(int) * 2L + sizeof(byte)
             + GetLocationSerializedSize(snapshot.Location)
             + sizeof(int) + flagsSize + switchesSize + entityStatesSize;

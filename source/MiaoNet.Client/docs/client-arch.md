@@ -44,7 +44,7 @@ MiaoNet.Shared (包、数据结构、二进制序列化)
 4. 将收到的包交给 `PacketDispatcher`，把响应包按 `RequestID` 回调给发起者。
 5. 在断线时清空接收队列、请求、状态、头像缓存状态并通知所有组件。
 
-连接线程会创建 `SingleThreadedSynchronizationContext` 与对应的 TaskScheduler，依次完成 TLS/TCP 建连、版本检查、认证握手，再等待首个 `PacketClientInitial`。初始化必须回到游戏主线程执行；之后连接线程持续收包和发包，任一管线结束都会触发断线清理。
+连接线程会创建 `SingleThreadedSynchronizationContext` 与对应的 TaskScheduler，依次完成 TLS/TCP 建连、版本检查、认证握手，再等待首个 `PacketClientInitial`。新服务端在该包尾部附加能力位，不存在尾部时按旧服务端处理。初始化必须回到游戏主线程执行；之后连接线程持续收包和发包，任一管线结束都会触发断线清理。
 
 ## 线程与队列
 
@@ -66,7 +66,7 @@ MiaoNet.Shared (包、数据结构、二进制序列化)
 | 连接线程内直接处理 | `HandleDirectPacket` | Ping 立即回复 Pong；可异步准备新玩家头像 |
 | 主线程内 | `pendingRequests` | 用 `RequestID` 分发 `PacketResponse` |
 
-普通收包在主线程每帧最多处理 64 个或约 1 ms，避免网络突发占满整帧；未处理的包保持原序留到下一帧。Debug 构建默认启用逐包追踪，其中忽略帧状态等高频包，Watch 快照与增量只输出计数摘要并限制单条长度。
+普通收包在主线程每帧最多处理 64 个或约 1 ms，避免网络突发占满整帧；未处理的包保持原序留到下一帧。Debug 构建默认启用逐包追踪，其中忽略帧状态等高频包，Watch 快照、重同步快照与增量只输出计数摘要并限制单条长度。Watcher 遇到缺序或无法安全应用的场景增量时暂停消费并请求新快照；完整快照在主线程原子替换缓存后恢复后续增量，不因一次缺序停止观看。
 
 ## 组件
 
@@ -97,7 +97,7 @@ MiaoNet.Shared (包、数据结构、二进制序列化)
 
 ## 同步与 Ghost
 
-`MainComponent` 构造 `PlayerStateDelta` 并通过 `PacketPlayerFrame` 发送位置、动画、缩放、冲刺、Follower、持有物和风向的变化。存在 Watcher 时，同一帧包额外携带 Player 的最终 Camera 世界坐标；Watcher 在非转场阶段以该坐标作为唯一镜头目标，转场仍由原版 `Level.TransitionTo` 独占 Camera。服务端转发为 `PacketContextualPlayerNotification<PacketPlayerFrame>`，客户端据此更新对应 `MiaoNetGhost`。
+`MainComponent` 构造 `PlayerStateDelta` 并通过 `PacketPlayerFrame` 发送位置、动画、缩放、冲刺、Follower、持有物和风向的变化。三方能力协商成功且存在 Watcher 时，同一帧包额外携带 Player 的最终 Camera 世界坐标；Watcher 在非转场阶段以该坐标作为唯一镜头目标，转场仍由原版 `Level.TransitionTo` 独占 Camera。服务端转发为 `PacketContextualPlayerNotification<PacketPlayerFrame>`，客户端据此更新对应 `MiaoNetGhost`。任一方不支持时，`/watch` 不发送 Watch 会话包，仅使用旧式 Ghost、切房和基于 Player 位置的本地镜头跟随。
 
 Ghost 由 `MiaoNetGhost` 和 `MiaoNetGhostEntity` 表示，并组合名称标签、表情、Follower、死亡体、头发和持有物渲染。地图切换或离开地图会创建/销毁 Ghost；`GroupPhotoPlatform`、`Fireworks`、`EmoteWheel` 等实体由对应组件按状态管理。
 

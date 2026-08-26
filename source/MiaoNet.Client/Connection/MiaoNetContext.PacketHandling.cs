@@ -27,6 +27,7 @@ partial class MiaoNetContext
     public event PacketPlayerNotificationHandler<PacketPlayerChannelMovedNotification>? PlayerChannelMoved;
     public event Action<PacketWatchSnapshotRequest>? WatchSnapshotRequested;
     public event Action<PacketWatchSceneDeltaNotification>? WatchSceneDeltaReceived;
+    public event Action<PacketWatchResyncSnapshot>? WatchResyncSnapshotReceived;
     public event Action<PacketWatchProducerStop>? WatchProducerStopped;
     public event Action<PacketWatchEnded>? WatchEnded;
 
@@ -54,6 +55,7 @@ partial class MiaoNetContext
         r.Register<PacketChannelCreated>(HandlePacket);
         r.Register<PacketWatchSnapshotRequest>(HandlePacket);
         r.Register<PacketWatchSceneDeltaNotification>(HandlePacket);
+        r.Register<PacketWatchResyncSnapshot>(HandlePacket);
         r.Register<PacketWatchProducerStop>(HandlePacket);
         r.Register<PacketWatchEnded>(HandlePacket);
     }
@@ -280,6 +282,12 @@ partial class MiaoNetContext
     {
         EnsureState();
         WatchSceneDeltaReceived?.Invoke(packet);
+    }
+
+    private void HandlePacket(PacketWatchResyncSnapshot packet)
+    {
+        EnsureState();
+        WatchResyncSnapshotReceived?.Invoke(packet);
     }
 
     private void HandlePacket(PacketWatchProducerStop packet)

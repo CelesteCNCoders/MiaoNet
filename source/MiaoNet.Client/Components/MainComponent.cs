@@ -25,6 +25,8 @@ public sealed partial class MainComponent : MiaoNetComponent
 
     public bool Watching => playerWatching is not null;
 
+    internal bool WatchSceneSyncActive => watchSessionID is not null;
+
     internal bool WatchedPlayerPaused => playerWatching?.IsPaused == true;
 
     internal PlayerState? WatchedPlayerState => playerWatching?.State;
@@ -52,6 +54,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         context.PlayerChannelMoved += Context_PlayerChannelMoved;
         context.WatchSnapshotRequested += Context_WatchSnapshotRequested;
         context.WatchSceneDeltaReceived += Context_WatchSceneDeltaReceived;
+        context.WatchResyncSnapshotReceived += Context_WatchResyncSnapshotReceived;
         context.WatchProducerStopped += Context_WatchProducerStopped;
         context.WatchEnded += Context_WatchEnded;
 
@@ -66,6 +69,9 @@ public sealed partial class MainComponent : MiaoNetComponent
 
     public override void OnConnected()
     {
+        ClientState.Self.GlobalFlags |= PlayerGlobalFlags.WatchSceneSyncSupported;
+        context.QueuePacket(new PacketUpdateGlobalFlag(ClientState.Self.GlobalFlags));
+
         if (Engine.Scene is Level level)
             MiaoNetModule_OnPlayerLocationChanged(PlayerLocation.FetchFrom(level.Session), true);
         else if (Engine.Scene is Editor.MapEditor debugMap)
@@ -110,6 +116,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.GroupPhotoMode, settings.GroupPhotoMode);
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Watching, playerWatching is not null);
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.TakingGolden, level?.Session.GrabbedGolden == true);
+            globalFlags |= PlayerGlobalFlags.WatchSceneSyncSupported;
             if (previousGlobalFlags != globalFlags)
             {
                 self.GlobalFlags = globalFlags;
@@ -334,10 +341,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (stateDelta.HasWindDirection)
             stateDelta.WindDirection = player.windDirection;
         if (stateDelta.HasCameraPosition)
-        {
             stateDelta.CameraPosition = level.Camera.Position;
-            selfState.CameraPosition = stateDelta.CameraPosition;
-        }
 
         context.QueuePacket(new PacketPlayerFrame(stateDelta));
     }
@@ -503,7 +507,6 @@ public sealed partial class MainComponent : MiaoNetComponent
             PlayerSpriteMode = player.Sprite.Mode,
             FollowerInfos = FetchFollowerInitials(player.Leader.Entity, player.Leader.Followers, MaxFollowersCount),
             WindDirection = player.windDirection,
-            CameraPosition = level.Camera.Position,
             HoldableInfo = player.Holding is not null ? FetchHoldableInfo(player.Holding, new()) : new(),
             StateFlags = stateFlags
         };
@@ -631,7 +634,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         var delta = packet.StateDelta;
 
         BufferWatchCameraSample(player, delta);
-        if (playerWatching?.ID == player.ID)
+        if (WatchSceneSyncActive && playerWatching?.ID == player.ID)
         {
             WatchBadelineOldsiteAdapter.RecordRemotePlayerFrame(delta);
             WatchAngryOshiroAdapter.RecordRemotePlayerFrame(delta);
@@ -746,7 +749,8 @@ public sealed partial class MainComponent : MiaoNetComponent
     {
         if (!HasState
             || ClientState.SelfState is not { } state
-            || !state.StateFlags.HasFlag(PlayerStateFlags.Dead))
+            || !state.StateFlags.HasFlag(PlayerStateFlags.Dead)
+            || watchProducerSessions.Count == 0)
             return;
 
         context.QueuePacket(new PacketPlayerLiveState(LiveStateType.DeathWipe, Vector2.Zero));
@@ -760,12 +764,16 @@ public sealed partial class MainComponent : MiaoNetComponent
             if (flag == LiveStateType.Die)
             {
                 ghost.OnDied(vector2);
-                if (playerWatching?.ID == player.ID && Engine.Scene is Level level)
+                if (WatchSceneSyncActive
+                    && playerWatching?.ID == player.ID
+                    && Engine.Scene is Level level)
                     BeginWatchDeathTransition(level);
             }
             else if (flag == LiveStateType.DeathWipe)
             {
-                if (playerWatching?.ID == player.ID && Engine.Scene is Level level)
+                if (WatchSceneSyncActive
+                    && playerWatching?.ID == player.ID
+                    && Engine.Scene is Level level)
                     SignalWatchDeathWipe(level);
             }
             else if (playerWatching?.ID == player.ID

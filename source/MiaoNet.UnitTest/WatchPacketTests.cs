@@ -112,6 +112,16 @@ public sealed class WatchPacketTests
         PacketWatchSceneDeltaNotification readNotification = await RoundTripAsync(
             new PacketWatchSceneDeltaNotification(1, 2, delta)
         );
+        PacketWatchResyncRequest readResyncRequest = await RoundTripAsync(
+            new PacketWatchResyncRequest(1, 7)
+        );
+        PacketWatchResyncSnapshot readResyncSnapshot = await RoundTripAsync(
+            new PacketWatchResyncSnapshot(
+                1,
+                2,
+                new WatchSceneSnapshot(Location, 8, ["resynced"], [3])
+            )
+        );
         PacketWatchStop readStop = await RoundTripAsync(new PacketWatchStop(1));
         PacketWatchProducerStop readProducerStop = await RoundTripAsync(new PacketWatchProducerStop(1));
         PacketWatchEnded readEnded = await RoundTripAsync(
@@ -123,6 +133,15 @@ public sealed class WatchPacketTests
         Assert.AreEqual(1, readNotification.SessionID);
         Assert.AreEqual(2, readNotification.TargetPlayerID);
         AssertDelta(delta, readNotification.Delta);
+        Assert.AreEqual(1, readResyncRequest.SessionID);
+        Assert.AreEqual(7, readResyncRequest.LastAppliedSequence);
+        Assert.AreEqual(1, readResyncSnapshot.SessionID);
+        Assert.AreEqual(2, readResyncSnapshot.TargetPlayerID);
+        Assert.AreEqual(8, readResyncSnapshot.Snapshot.Sequence);
+        CollectionAssert.AreEqual(
+            new[] { "resynced" },
+            readResyncSnapshot.Snapshot.Flags.ToArray()
+        );
         Assert.AreEqual(1, readStop.SessionID);
         Assert.AreEqual(1, readProducerStop.SessionID);
         Assert.AreEqual(1, readEnded.SessionID);
@@ -141,30 +160,8 @@ public sealed class WatchPacketTests
     }
 
     [TestMethod]
-    public async Task WatchedCameraPositionRoundTripsInInitialAndFrameState()
+    public async Task WatchedCameraPositionRoundTripsInFrameState()
     {
-        Vector2 initialCamera = new(123.5f, 456.25f);
-        PlayerState state = new()
-        {
-            Position = new Vector2(10f, 20f),
-            Animation = "idle",
-            AnimationFrame = 0,
-            Scale = Vector2.One,
-            StateFlags = PlayerStateFlags.None,
-            Dashes = 1,
-            DeltaTime = 1f / 60f,
-            PlayerSpriteMode = PlayerSpriteMode.Madeline,
-            HoldableInfo = default,
-            FollowerInfos = [],
-            WindDirection = Vector2.Zero,
-            CameraPosition = initialCamera,
-        };
-        PacketPlayerLocationChanged initial = new(Location, state);
-
-        PacketPlayerLocationChanged readInitial = await RoundTripAsync(initial);
-
-        Assert.AreEqual(initialCamera, readInitial.InitialState?.CameraPosition);
-
         Vector2 frameCamera = new(130f, 460f);
         PlayerStateDelta delta = new(
             new Vector2(11f, 21f),

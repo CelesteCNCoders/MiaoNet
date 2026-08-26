@@ -571,6 +571,18 @@ partial class MiaoNetCommand
 
         int targetPlayerID = player.ID;
         string targetPlayerName = player.Info.Name;
+        if (!context.MiaoNetContext.CanUseWatchSceneSync(player))
+        {
+            main.CompleteWatchRequest();
+            if (!main.StartLegacyWatching(player))
+                return Dialog.Get("miaonet_commands_watch_failed_invalid_state");
+            context.TipMessage(PFormat.Format(
+                Dialog.Get("miaonet_commands_watch_watching"),
+                targetPlayerName
+            ));
+            return null;
+        }
+
         context.TipMessage(PFormat.Format(Dialog.Get("miaonet_commands_watch_preparing"), targetPlayerName));
         context.Request(new PacketWatchStart(targetPlayerID), response =>
         {
@@ -583,6 +595,17 @@ partial class MiaoNetCommand
 
             if (!response.IsSuccess)
             {
+                if (response.Result == WatchStartResult.UnsupportedProtocol
+                    && context.MiaoNetContext.ClientState is { } fallbackState
+                    && fallbackState.TryGetPlayer(targetPlayerID, out OnlinePlayer? fallbackTarget)
+                    && main.StartLegacyWatching(fallbackTarget))
+                {
+                    context.TipMessage(PFormat.Format(
+                        Dialog.Get("miaonet_commands_watch_watching"),
+                        targetPlayerName
+                    ));
+                    return;
+                }
                 context.TipErrorMessage(Dialog.Get(GetWatchStartErrorKey(response.Result)));
                 return;
             }
@@ -615,7 +638,7 @@ partial class MiaoNetCommand
                     => "miaonet_commands_watch_failed_map",
                 WatchStartResult.TargetIsWatching
                     => "miaonet_commands_watch_failed_target_watching",
-                WatchStartResult.InvalidState
+                WatchStartResult.InvalidState or WatchStartResult.UnsupportedProtocol
                     => "miaonet_commands_watch_failed_invalid_state",
                 WatchStartResult.Success
                     => throw new InvalidOperationException("Successful watch response cannot be an error."),

@@ -82,13 +82,16 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
 
     public string JoinMessage { get; }
 
+    public ServerFeatureFlags ServerFeatures { get; }
+
     public PacketClientInitial(
         int channelID, int playerID,
         PlayerInfo selfPlayerInfo,
         IReadOnlyCollection<Channel> channels,
         IReadOnlyCollection<Player> players,
         PlayerPresenceMessage playerPresenceMessage,
-        string joinMessage
+        string joinMessage,
+        ServerFeatureFlags serverFeatures = ServerFeatureFlags.None
     )
     {
         ChannelID = channelID;
@@ -98,17 +101,32 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
         Players = players;
         PlayerPresenceMessage = playerPresenceMessage;
         JoinMessage = joinMessage;
+        ServerFeatures = serverFeatures;
     }
 
     public static PacketClientInitial Deserialize(ref RefBinaryReader reader)
-        => new PacketClientInitial(
-            reader.ReadInt32(), reader.ReadInt32(),
-            reader.Read<PlayerInfo>(),
-            reader.ReadArray<Channel>(),
-            reader.ReadArray<Player>(),
-            reader.Read<PlayerPresenceMessage>(),
-            reader.ReadString()
+    {
+        int channelID = reader.ReadInt32();
+        int playerID = reader.ReadInt32();
+        PlayerInfo selfPlayerInfo = reader.Read<PlayerInfo>();
+        Channel[] channels = reader.ReadArray<Channel>();
+        Player[] players = reader.ReadArray<Player>();
+        PlayerPresenceMessage playerPresenceMessage = reader.Read<PlayerPresenceMessage>();
+        string joinMessage = reader.ReadString();
+        ServerFeatureFlags serverFeatures = reader.BytesLeft >= sizeof(ushort)
+            ? (ServerFeatureFlags)reader.ReadUInt16()
+            : ServerFeatureFlags.None;
+        return new(
+            channelID,
+            playerID,
+            selfPlayerInfo,
+            channels,
+            players,
+            playerPresenceMessage,
+            joinMessage,
+            serverFeatures
         );
+    }
 
     public void Serialize(ref RefBinaryWriter writer)
     {
@@ -119,5 +137,6 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
         writer.Write(Players);
         writer.Write(PlayerPresenceMessage);
         writer.Write(JoinMessage);
+        writer.Write((ushort)ServerFeatures);
     }
 }

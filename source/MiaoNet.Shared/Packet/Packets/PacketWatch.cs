@@ -11,7 +11,8 @@ public enum WatchStartResult : byte
     DifferentMap,
     TargetIsWatching,
     InvalidState,
-    TargetUnavailable
+    TargetUnavailable,
+    UnsupportedProtocol,
 }
 
 public enum WatchSnapshotResult : byte
@@ -204,6 +205,60 @@ public sealed class PacketWatchSceneDeltaNotification : IContextlessPacket<Packe
 
     public static PacketWatchSceneDeltaNotification Deserialize(ref RefBinaryReader reader)
         => new(reader.ReadInt32(), reader.ReadInt32(), reader.Read<WatchSceneDelta>());
+}
+
+// client to server
+public sealed class PacketWatchResyncRequest : IContextlessPacket<PacketWatchResyncRequest>
+{
+    public int SessionID { get; }
+
+    public int LastAppliedSequence { get; }
+
+    public PacketWatchResyncRequest(int sessionID, int lastAppliedSequence)
+    {
+        SessionID = sessionID;
+        LastAppliedSequence = lastAppliedSequence;
+    }
+
+    public void Serialize(ref RefBinaryWriter writer)
+    {
+        writer.Write(SessionID);
+        writer.Write(LastAppliedSequence);
+    }
+
+    public static PacketWatchResyncRequest Deserialize(ref RefBinaryReader reader)
+        => new(reader.ReadInt32(), reader.ReadInt32());
+}
+
+// server to client
+public sealed class PacketWatchResyncSnapshot : IContextlessPacket<PacketWatchResyncSnapshot>
+{
+    public int SessionID { get; }
+
+    public int TargetPlayerID { get; }
+
+    public WatchSceneSnapshot Snapshot { get; }
+
+    public PacketWatchResyncSnapshot(
+        int sessionID,
+        int targetPlayerID,
+        WatchSceneSnapshot snapshot
+    )
+    {
+        SessionID = sessionID;
+        TargetPlayerID = targetPlayerID;
+        Snapshot = snapshot;
+    }
+
+    public void Serialize(ref RefBinaryWriter writer)
+    {
+        writer.Write(SessionID);
+        writer.Write(TargetPlayerID);
+        writer.Write(Snapshot);
+    }
+
+    public static PacketWatchResyncSnapshot Deserialize(ref RefBinaryReader reader)
+        => new(reader.ReadInt32(), reader.ReadInt32(), reader.Read<WatchSceneSnapshot>());
 }
 
 // client to server

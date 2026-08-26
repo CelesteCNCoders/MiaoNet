@@ -10,5 +10,6 @@ public enum PlayerGlobalFlags : ushort
     Interactions = 1 << 3,
     TakingGolden = 1 << 4,
     GroupPhotoMode = 1 << 5,
-    Watching = 1 << 6
+    Watching = 1 << 6,
+    WatchSceneSyncSupported = 1 << 7,
 }

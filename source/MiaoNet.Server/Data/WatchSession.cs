@@ -2,8 +2,20 @@ using MiaoNet.Shared;
 
 namespace MiaoNet.Server;
 
+public enum WatchSequenceResult
+{
+    Inactive,
+    Next,
+    Duplicate,
+    Gap,
+    ResyncPending,
+}
+
 public sealed class WatchSession
 {
+    private int lastWatcherResyncBaselineSequence = -1;
+    private TimeSpan nextWatcherResyncAllowedAt;
+
     public int ID { get; }
 
     public int WatcherID { get; }
@@ -17,6 +29,8 @@ public sealed class WatchSession
     public int LastSequence { get; private set; }
 
     public bool IsActive { get; private set; }
+
+    public bool IsResyncPending { get; private set; }
 
     public WatchSession(int id, int watcherID, int targetID, PlayerMapLocation map, int startRequestID)
     {
@@ -34,12 +48,50 @@ public sealed class WatchSession
         LastSequence = baselineSequence;
     }
 
-    public bool TryAdvanceSequence(int sequence)
+    public WatchSequenceResult AcceptSequence(int sequence)
     {
-        if (!IsActive || sequence != LastSequence + 1)
-            return false;
+        if (!IsActive)
+            return WatchSequenceResult.Inactive;
+        if (IsResyncPending)
+            return WatchSequenceResult.ResyncPending;
+        if (sequence <= LastSequence)
+            return WatchSequenceResult.Duplicate;
+        if (sequence != LastSequence + 1)
+        {
+            IsResyncPending = true;
+            return WatchSequenceResult.Gap;
+        }
 
         LastSequence = sequence;
+        return WatchSequenceResult.Next;
+    }
+
+    public bool TryBeginResync(
+        int lastAppliedSequence,
+        TimeSpan now,
+        TimeSpan cooldown
+    )
+    {
+        SafeGuard.Assert(cooldown >= TimeSpan.Zero);
+        if (!IsActive
+            || IsResyncPending
+            || lastAppliedSequence < 0
+            || lastAppliedSequence >= LastSequence
+            || LastSequence <= lastWatcherResyncBaselineSequence
+            || now < nextWatcherResyncAllowedAt)
+            return false;
+
+        IsResyncPending = true;
+        lastWatcherResyncBaselineSequence = LastSequence;
+        nextWatcherResyncAllowedAt = now + cooldown;
         return true;
+    }
+
+    public void CompleteResync(int baselineSequence)
+    {
+        SafeGuard.Assert(IsActive && IsResyncPending && baselineSequence >= LastSequence);
+        LastSequence = baselineSequence;
+        lastWatcherResyncBaselineSequence = baselineSequence;
+        IsResyncPending = false;
     }
 }

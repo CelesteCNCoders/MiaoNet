@@ -88,6 +88,8 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public ClientState? ClientState => clientState;
 
+    public ServerFeatureFlags ServerFeatures { get; private set; }
+
     public MainComponent MainComponent { get; }
 
     public EmoteComponent EmoteComponent { get; }
@@ -197,6 +199,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         connection = null;
         clientState = null;
         PlayerPresenceMessage = null;
+        ServerFeatures = ServerFeatureFlags.None;
         hasComponentFocus = false;
         PooledStringManager = null;
 
@@ -299,6 +302,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             Logger.Info(LT.MiaoNetConnection, "Server sent new auth data, accepted.");
         }
 #endif
+        ServerFeatures = packetClientInitial.ServerFeatures;
         clientState = new(packetClientInitial);
         PlayerPresenceMessage = packetClientInitial.PlayerPresenceMessage;
         PooledStringManager = operation.PooledStringManager;
@@ -309,6 +313,9 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             ChatComponent.AddLocalChat(MiaoNetChatText.CreateAnnouncement(line.ToString()));
         OnConnected();
     }
+
+    public bool CanUseWatchSceneSync(OnlinePlayer target)
+        => WatchProtocolCompatibility.SupportsWatchSceneSync(ServerFeatures, target.GlobalFlags);
 
     // warn: this is called on Connection Thread
     private bool HandleDirectPacket(ConnectionOperation operation, MiaoServerConnection connection, IContextualPacket packet)

@@ -19,6 +19,8 @@ namespace MiaoNet.Server;
 public sealed partial class MiaoServerService : BackgroundService, IMiaoServerService
 {
     private static readonly ArrayPool<byte> pool = ArrayPool<byte>.Shared;
+    private static readonly TimeSpan WatchResyncRequestTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan WatcherResyncCooldown = TimeSpan.FromSeconds(2);
 
     private readonly ILogger<MiaoServerService> logger;
     private readonly MiaoClientConnectionFactory connectionFactory;
@@ -36,6 +38,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
     private readonly ReaderWriterLockSlim stateLock;
     private readonly ServerState serverState;
     private readonly WatchSessionRegistry watchSessions;
+    private readonly WatchResyncCoordinator watchResyncCoordinator = new(3);
 
     public ServerState ServerState => serverState;
 
@@ -157,7 +160,8 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                     channels.ToList(),
                     playerInfos.ToList(),
                     new(strings.PlayerJoined, strings.PlayerLeft),
-                    strings.PlayerJoinMessage
+                    strings.PlayerJoinMessage,
+                    ServerFeatureFlags.WatchSceneSync
                 );
 
                 // then send

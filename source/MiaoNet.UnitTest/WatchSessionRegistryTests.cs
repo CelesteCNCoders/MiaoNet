@@ -54,14 +54,44 @@ public sealed class WatchSessionRegistryTests
     }
 
     [TestMethod]
-    public void SequenceOnlyAdvancesAfterActivationAndInOrder()
+    public void SequenceGapPausesUntilSnapshotEstablishesANewBaseline()
     {
         WatchSession session = new(1, 2, 3, Map, 4);
 
-        Assert.IsFalse(session.TryAdvanceSequence(1));
+        Assert.AreEqual(WatchSequenceResult.Inactive, session.AcceptSequence(1));
         session.Activate(5);
-        Assert.IsFalse(session.TryAdvanceSequence(7));
-        Assert.IsTrue(session.TryAdvanceSequence(6));
-        Assert.AreEqual(6, session.LastSequence);
+        Assert.AreEqual(WatchSequenceResult.Gap, session.AcceptSequence(7));
+        Assert.IsTrue(session.IsResyncPending);
+        Assert.AreEqual(5, session.LastSequence);
+        Assert.AreEqual(WatchSequenceResult.ResyncPending, session.AcceptSequence(6));
+
+        session.CompleteResync(8);
+
+        Assert.IsFalse(session.IsResyncPending);
+        Assert.AreEqual(WatchSequenceResult.Duplicate, session.AcceptSequence(8));
+        Assert.AreEqual(WatchSequenceResult.Next, session.AcceptSequence(9));
+        Assert.AreEqual(9, session.LastSequence);
+    }
+
+    [TestMethod]
+    public void WatcherCanRequestResyncOnlyWhenItIsBehindTheServer()
+    {
+        TimeSpan cooldown = TimeSpan.FromSeconds(2);
+        WatchSession session = new(1, 2, 3, Map, 4);
+        session.Activate(5);
+
+        Assert.IsFalse(session.TryBeginResync(5, TimeSpan.Zero, cooldown));
+        Assert.IsFalse(session.TryBeginResync(6, TimeSpan.Zero, cooldown));
+        Assert.IsTrue(session.TryBeginResync(4, TimeSpan.Zero, cooldown));
+        Assert.IsFalse(session.TryBeginResync(4, TimeSpan.Zero, cooldown));
+
+        session.CompleteResync(7);
+
+        Assert.AreEqual(7, session.LastSequence);
+        Assert.IsFalse(session.IsResyncPending);
+        Assert.IsFalse(session.TryBeginResync(4, cooldown, cooldown));
+        Assert.AreEqual(WatchSequenceResult.Next, session.AcceptSequence(8));
+        Assert.IsFalse(session.TryBeginResync(7, cooldown - TimeSpan.FromTicks(1), cooldown));
+        Assert.IsTrue(session.TryBeginResync(7, cooldown, cooldown));
     }
 }

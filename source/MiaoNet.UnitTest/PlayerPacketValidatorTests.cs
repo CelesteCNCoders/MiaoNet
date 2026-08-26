@@ -44,14 +44,6 @@ public sealed class PlayerPacketValidatorTests
     [TestMethod]
     public void CameraPosition_MustBeFinite_WhenPresent()
     {
-        PlayerState state = CreatePlayerState(0);
-        Assert.IsTrue(PlayerPacketValidator.HasValidCameraPosition(state));
-
-        state.CameraPosition = new Vector2(12f, 34f);
-        Assert.IsTrue(PlayerPacketValidator.HasValidCameraPosition(state));
-        state.CameraPosition = new Vector2(float.NaN, 34f);
-        Assert.IsFalse(PlayerPacketValidator.HasValidCameraPosition(state));
-
         PlayerStateDelta delta = CreateDelta(PlayerStateDelta.FrameFlags.None);
         delta.CameraPosition = new Vector2(float.NaN, 1f);
         Assert.IsTrue(PlayerPacketValidator.HasValidCameraPosition(delta));
