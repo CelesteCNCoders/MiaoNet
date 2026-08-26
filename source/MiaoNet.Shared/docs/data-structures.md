@@ -49,6 +49,10 @@ public readonly struct PlayerLocation
 
 `PlayerMovedInitialData` 包装完整 `PlayerState`；`PlayerMovedInitialDataWithID` 再附加玩家 ID。`PacketClientInitial`、频道切换响应和位置切换响应使用这些结构发送同地图玩家的初始状态，避免新建 Ghost 时等待下一帧。
 
+## 观战场景状态
+
+`WatchSceneSnapshot` 保存快照位置、序号、Session string flags，以及当前房间已激活 Touch Switch 的 Entity ID。`WatchSceneDelta` 保存产生变化时的位置、连续序号、flags 增删，并用 `HasTouchSwitchState` 区分“未更新此类状态”和“用空集合替换状态”。Touch Switch 集合始终表示该房间的完整激活状态，而不是单个触发事件，因此切房和重复进入房间可以丢弃旧缓存。`RequiresRoomReload` 表示生产端在相同位置重新建立了房间实例；该增量必须携带完整 Touch Switch 状态，观看端重载对应房间后再应用它。
+
 ## 约定
 
 - 高速路径中的动画字符串使用 `PooledStringManager`，不要在每帧协议中引入新的普通字符串字段。

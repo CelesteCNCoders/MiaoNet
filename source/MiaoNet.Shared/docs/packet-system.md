@@ -73,6 +73,12 @@ IContextualPacket
 
 `PacketTeleportRequest` / `PacketTeleportResponse`、`PacketBeTeleportedRequest` / `Response` 用于两种传送模式；`PacketPlayerGrabPlayer`、`PacketPlayerGrabJumpOut` 用于抓取互动；`PacketSendEmote` / `PacketEmote` 和 `PacketSendEmoteText` / `PacketEmoteText` 用于表情；`PacketPlayerPlayedAudio` 同步音效；`PacketCreateFireworks` 创建烟花。
 
+### 观战场景状态
+
+`PacketWatchStart` / `Response` 建立由服务端确认的观战会话。服务端通过 `PacketWatchSnapshotRequest` / `Response` 向被观看方取得场景快照，随后将 `PacketWatchSceneDelta` 定向转发给该玩家的观看方。同一地图内切换房间不会结束会话；每次进入房间都会发送一份可为空的完整 Touch Switch 状态，防止沿用上次进入该房间时的缓存。场景增量携带产生它的 `PlayerLocation`，服务端只转发与生产者当前位置一致且序号连续的数据。
+
+第一阶段的 `WatchSceneSnapshot` 包含 Session string flags 和当前房间已激活 Touch Switch 的 Entity ID；`WatchSceneDelta` 包含 flags 的增删，并可选择携带当前房间 Touch Switch 的完整替换状态。生产端因死亡重生、Retry 或读档在同一位置重新加载房间时，增量设置 `RequiresRoomReload` 并携带完整实体状态；观看端重载本地房间后再应用该状态，避免沿用上一房间实例的激活结果。实体状态只有在存在观看者时才采集和上传。`PacketWatchStop`、`PacketWatchProducerStop` 和 `PacketWatchEnded` 负责双方主动停止、生产端失败和服务端终止通知。所有场景状态包受协议 payload 上限约束。
+
 ## 修改协议
 
 1. 在 `Packet/Packets/` 新增类型并实现对应序列化接口。
