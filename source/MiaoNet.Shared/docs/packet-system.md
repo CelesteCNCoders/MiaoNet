@@ -54,7 +54,7 @@ IContextualPacket
 | `PacketPlayerLocationChanged` | C->S | 进入/离开地图或切换房间，进入地图时附带初始状态 |
 | `PacketPlayerLocationChangedNotification` | S->C | 位置 presence，或同地图带初始状态的通知 |
 | `PacketPlayerLocationChangedResponse` | S->C | 请求者进入地图/Debug Map 时的同地图初始状态 |
-| `PacketPlayerChannelMove` | C->S | 切换频道 |
+| `PacketPlayerChannelMove` | C->S | 按名称切换频道；不存在时由服务端创建 |
 | `PacketPlayerChannelMovedResponse` / `Notification` | S->C | 切频道快照和通知 |
 | `PacketPlayerLiveState` | C->S | 死亡、实际死亡 WipeOut 起点与复活 |
 | `PacketPlayerGraphicsUpdate` | C->S | 头发等图形信息 |
@@ -64,7 +64,6 @@ IContextualPacket
 
 | 包 | 方向 | 作用 |
 |---|---|---|
-| `PacketChannelCreateAndJoin` | C->S | 创建并加入频道 |
 | `PacketChannelCreated` | S->C | 频道创建通知 |
 | `PacketSendChatMessage` / `PacketChatMessage` | C->S / S->C | 全局、频道、地图聊天 |
 | `PacketSendPrivateChatMessage` / `Response` | C->S / S->C | 私聊请求和结果 |

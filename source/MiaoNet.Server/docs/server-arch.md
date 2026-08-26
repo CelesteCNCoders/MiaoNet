@@ -44,11 +44,11 @@ TCP accept
   -> 广播 PacketPlayerLeft
 ```
 
-`MiaoClientConnection` 使用独立的接收、处理和发送任务。接收任务从 TLS 流解析线格式包，处理任务调用 `PacketDispatcher`，发送任务从队列批量写出。请求响应使用 `RequestID`，心跳由 `MiaoServerService` 的 `PeriodicTimer` 定期发起，超时连接会被断开。
+`MiaoClientConnection` 使用独立的接收、处理和发送任务。接收任务从 TLS 流解析线格式包，处理任务调用 `PacketDispatcher`，发送任务从有界队列批量写出。请求响应使用 `RequestID`，每个连接最多保留 64 个待响应请求并通过配置的超时回调释放；心跳由 `MiaoServerService` 的 `PeriodicTimer` 定期发起，超时连接会被断开。
 
 ## 状态和广播作用域
 
-`ServerState` 持有所有连接和频道，使用 `ImmutableDictionary` 配合 `ImmutableInterlocked` 更新。服务端始终保留 ID 为 `0` 的 `main` 频道；玩家可通过 `PacketChannelCreateAndJoin` 创建新频道，空频道会被移除。
+`ServerState` 持有所有连接和频道，使用 `ImmutableDictionary` 配合 `ImmutableInterlocked` 更新。服务端始终保留 ID 为 `0` 的 `main` 频道；玩家通过 `PacketPlayerChannelMove` 提交频道名，服务端负责解析或创建目标频道，空频道会被移除。私有频道只向成员公开真实频道 ID，其他客户端将这些玩家归入本地虚拟私有频道。
 
 每个 `ServerChannel` 持有直接玩家集合和按 `PlayerMapLocation` 索引的 `ServerMap`。`ServerPlayer` 只保存一个当前 `Channel`，以及 `PlayerLocation`、`PlayerState`、图形信息和全局标志。玩家进入/离开地图时，频道负责同步对应 `ServerMap`；地图为空时不创建 `ServerMap`。
 
@@ -67,7 +67,7 @@ TCP accept
 `MiaoServerService.PacketHandling.cs` 注册并处理：
 
 - 帧同步：`PacketPlayerFrame`；
-- 位置与频道：`PacketPlayerLocationChanged`、`PacketPlayerChannelMove`、`PacketChannelCreateAndJoin`；
+- 位置与频道：`PacketPlayerLocationChanged`、`PacketPlayerChannelMove`；
 - 聊天：公开、频道、地图、私聊；
 - 表情、玩家音频、全局标志和生命状态；
 - 传送、抓取/跳出和烟花。

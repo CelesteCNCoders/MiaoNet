@@ -269,6 +269,8 @@ public sealed partial class MiaoServerService
         Task createdBroadcastTask = Task.CompletedTask;
         ValueTask createdTask = default;
         bool notifyChannelCreated = false;
+        List<(MiaoClientConnection Connection, IContextualPacket Packet)> watchNotifications = new();
+        int endedWatchSessions = 0;
 
         using (stateLock.AcquireWriteLock())
         {
@@ -297,6 +299,16 @@ public sealed partial class MiaoServerService
                 // channel is private, and the player is not in it
                 // tell the player they should create the channel locally
                 notifyChannelCreated = true;
+            }
+
+            if (targetChannel != player.Channel)
+            {
+                endedWatchSessions = RemoveWatchSessionsForPlayerLocked(
+                    connection,
+                    WatchEndReason.ChannelChanged,
+                    connectionClosing: false,
+                    watchNotifications
+                );
             }
 
             targetChannel.Maps.TryGetValue(player.Location.Map, out ServerMap? mapTo);
@@ -365,6 +377,13 @@ public sealed partial class MiaoServerService
             serverState.PlayerChannelMove(connection, player.Channel, targetChannel);
         }
 
+        await SendWatchSessionEndNotificationsAsync(
+            connection,
+            WatchEndReason.ChannelChanged,
+            connectionClosing: false,
+            endedWatchSessions,
+            watchNotifications
+        );
         if (notifyChannelCreated)
             await createdTask;
         await createdBroadcastTask;
@@ -701,11 +720,14 @@ public sealed partial class MiaoServerService
             target!.ID
         );
 
-        await target.RequestAsync(
+        bool accepted = await target.RequestAsync(
             new PacketWatchSnapshotRequest(session.ID, target.Player.Location),
             response => HandleWatchSnapshotResponseAsync(session.ID, response),
-            RequestTimeout
+            RequestTimeout,
+            () => FailPendingWatchStartAsync(session.ID, notifyTarget: true)
         );
+        if (!accepted)
+            await FailPendingWatchStartAsync(session.ID, notifyTarget: false);
     }
 
     private WatchStartResult ValidateWatchStart(
@@ -737,6 +759,45 @@ public sealed partial class MiaoServerService
         if (watchSessions.HasWatcher(watcher.ID) || watchSessions.HasTarget(watcher.ID))
             return WatchStartResult.InvalidState;
         return WatchStartResult.Success;
+    }
+
+    private async Task FailPendingWatchStartAsync(int sessionID, bool notifyTarget)
+    {
+        WatchSession? removedSession;
+        MiaoClientConnection? watcher = null;
+        MiaoClientConnection? target = null;
+
+        using (stateLock.AcquireWriteLock())
+        {
+            if (!watchSessions.TryGet(sessionID, out WatchSession? session)
+                || session is null
+                || session.IsActive
+                || !watchSessions.Remove(sessionID, out removedSession))
+                return;
+
+            serverState.Players.TryGetValue(removedSession!.WatcherID, out watcher);
+            if (notifyTarget)
+                serverState.Players.TryGetValue(removedSession.TargetID, out target);
+        }
+
+        logger.LogInformation(
+            AppEvents.Watch,
+            "Watch session {session} failed while waiting for its initial snapshot.",
+            sessionID
+        );
+        if (watcher is not null)
+        {
+            await watcher.QueuePacketAsync(new PacketWatchStartResponse(
+                WatchStartResult.TargetUnavailable,
+                0,
+                null
+            )
+            {
+                RequestID = removedSession!.StartRequestID
+            });
+        }
+        if (target is not null)
+            await target.QueuePacketAsync(new PacketWatchProducerStop(sessionID));
     }
 
     private async Task HandleWatchSnapshotResponseAsync(int sessionID, PacketWatchSnapshotResponse response)
@@ -1228,41 +1289,72 @@ public sealed partial class MiaoServerService
         bool connectionClosing
     )
     {
-        IReadOnlyCollection<WatchSession> sessions;
         List<(MiaoClientConnection Connection, IContextualPacket Packet)> notifications = new();
+        int removedCount;
 
         using (stateLock.AcquireWriteLock())
-        {
-            sessions = watchSessions.RemoveAllForPlayer(connection.ID);
-            foreach (WatchSession session in sessions)
-            {
-                if ((!connectionClosing || session.TargetID != connection.ID)
-                    && serverState.Players.TryGetValue(session.TargetID, out MiaoClientConnection? target))
-                    notifications.Add((target, new PacketWatchProducerStop(session.ID)));
+            removedCount = RemoveWatchSessionsForPlayerLocked(
+                connection,
+                reason,
+                connectionClosing,
+                notifications
+            );
 
-                if ((!connectionClosing || session.WatcherID != connection.ID)
-                    && serverState.Players.TryGetValue(session.WatcherID, out MiaoClientConnection? watcher))
-                {
-                    IContextualPacket packet = session.IsActive
-                        ? new PacketWatchEnded(session.ID, reason)
-                        : new PacketWatchStartResponse(WatchStartResult.TargetUnavailable, 0, null)
-                        {
-                            RequestID = session.StartRequestID
-                        };
-                    notifications.Add((watcher, packet));
-                }
+        await SendWatchSessionEndNotificationsAsync(
+            connection,
+            reason,
+            connectionClosing,
+            removedCount,
+            notifications
+        );
+    }
+
+    private int RemoveWatchSessionsForPlayerLocked(
+        MiaoClientConnection connection,
+        WatchEndReason reason,
+        bool connectionClosing,
+        List<(MiaoClientConnection Connection, IContextualPacket Packet)> notifications
+    )
+    {
+        IReadOnlyCollection<WatchSession> sessions = watchSessions.RemoveAllForPlayer(connection.ID);
+        foreach (WatchSession session in sessions)
+        {
+            if ((!connectionClosing || session.TargetID != connection.ID)
+                && serverState.Players.TryGetValue(session.TargetID, out MiaoClientConnection? target))
+                notifications.Add((target, new PacketWatchProducerStop(session.ID)));
+
+            if ((!connectionClosing || session.WatcherID != connection.ID)
+                && serverState.Players.TryGetValue(session.WatcherID, out MiaoClientConnection? watcher))
+            {
+                IContextualPacket packet = session.IsActive
+                    ? new PacketWatchEnded(session.ID, reason)
+                    : new PacketWatchStartResponse(WatchStartResult.TargetUnavailable, 0, null)
+                    {
+                        RequestID = session.StartRequestID
+                    };
+                notifications.Add((watcher, packet));
             }
         }
+        return sessions.Count;
+    }
 
-        foreach (var (recipient, packet) in notifications)
+    private async Task SendWatchSessionEndNotificationsAsync(
+        MiaoClientConnection connection,
+        WatchEndReason reason,
+        bool connectionClosing,
+        int removedCount,
+        List<(MiaoClientConnection Connection, IContextualPacket Packet)> notifications
+    )
+    {
+        foreach ((MiaoClientConnection recipient, IContextualPacket packet) in notifications)
             await recipient.QueuePacketAsync(packet);
 
-        if (sessions.Count > 0)
+        if (removedCount > 0)
         {
             logger.LogInformation(
                 AppEvents.Watch,
                 "Removed {count} watch session(s) for player {player}: {reason}, closing={closing}.",
-                sessions.Count,
+                removedCount,
                 connection.ID,
                 reason,
                 connectionClosing
