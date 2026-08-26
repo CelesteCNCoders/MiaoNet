@@ -309,15 +309,11 @@ internal sealed class WatchPufferAdapter : IWatchEntityAdapter
         payload[1] = state.Flags;
         payload[2] = state.Animation;
         payload[3] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.HitSpeed.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.HitSpeed.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Scale.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.Scale.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.HitSpeed);
+        WatchEntityPayloadCodec.WriteVector2(payload, 20, state.Scale);
         WatchEntityPayloadCodec.WriteSingle(payload, 28, state.GoneTimer);
-        WatchEntityPayloadCodec.WriteSingle(payload, 32, state.LastPlayerPosition.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 36, state.LastPlayerPosition.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 32, state.LastPlayerPosition);
         WatchEntityPayloadCodec.WriteSingle(payload, 40, state.PlayerAliveFade);
         WatchEntityPayloadCodec.WriteSingle(payload, 44, state.EyeSpin);
         return new(new WatchEntityKey(WatchEntityKind.Puffer, id), payload);
@@ -331,23 +327,11 @@ internal sealed class WatchPufferAdapter : IWatchEntityAdapter
             || payload.Length != PayloadSize || payload[0] > (byte)WatchPufferPhase.Gone
             || (payload[1] & ~0b0000_0111) != 0 || payload[2] >= animations.Length)
             return false;
-        Vector2 position = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 4),
-            WatchEntityPayloadCodec.ReadSingle(payload, 8)
-        );
-        Vector2 hitSpeed = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 12),
-            WatchEntityPayloadCodec.ReadSingle(payload, 16)
-        );
-        Vector2 scale = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 20),
-            WatchEntityPayloadCodec.ReadSingle(payload, 24)
-        );
+        Vector2 position = WatchEntityPayloadCodec.ReadVector2(payload, 4);
+        Vector2 hitSpeed = WatchEntityPayloadCodec.ReadVector2(payload, 12);
+        Vector2 scale = WatchEntityPayloadCodec.ReadVector2(payload, 20);
         float goneTimer = WatchEntityPayloadCodec.ReadSingle(payload, 28);
-        Vector2 lastPlayerPosition = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 32),
-            WatchEntityPayloadCodec.ReadSingle(payload, 36)
-        );
+        Vector2 lastPlayerPosition = WatchEntityPayloadCodec.ReadVector2(payload, 32);
         float playerAliveFade = WatchEntityPayloadCodec.ReadSingle(payload, 40);
         float eyeSpin = WatchEntityPayloadCodec.ReadSingle(payload, 44);
         if (!float.IsFinite(position.X) || !float.IsFinite(position.Y)
@@ -430,10 +414,7 @@ internal sealed class WatchPufferAdapter : IWatchEntityAdapter
     private static Puffer? Find(Level level, int id)
     {
         string room = level.Session.Level;
-        return level.Entities.OfType<Puffer>().FirstOrDefault(candidate =>
-            WatchEntityIDTable<Puffer>.TryGet(candidate, room, out int candidateID)
-            && candidateID == id
-        );
+        return WatchEntityIDTable<Puffer>.Find(level, room, id);
     }
 
     private static void PlayRemoteExplosion(Puffer puffer, Level level)

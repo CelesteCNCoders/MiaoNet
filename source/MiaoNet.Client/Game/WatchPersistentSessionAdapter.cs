@@ -264,9 +264,6 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
         return result;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static void ReplaceRoomIDs(
         HashSet<EntityID> destination,

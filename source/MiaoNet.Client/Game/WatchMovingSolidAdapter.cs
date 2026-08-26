@@ -171,12 +171,9 @@ internal sealed class WatchMovingSolidAdapter : IWatchEntityAdapter
     {
         if (entityEvent.Key.SubID != 0 || entityEvent.Payload.Length != 0)
             return;
-        FallingBlock? block = level.Entities.OfType<FallingBlock>().FirstOrDefault(candidate =>
-            WatchEntityIDTable<FallingBlock>.TryGet(
-                candidate,
-                level.Session.Level,
-                out int id
-            ) && id == entityEvent.Key.EntityID
+        FallingBlock? block = WatchEntityIDTable<FallingBlock>.Find(
+            level,
+            entityEvent.Key.EntityID
         );
         if (block is null)
             return;
@@ -461,8 +458,7 @@ internal sealed class WatchMovingSolidAdapter : IWatchEntityAdapter
         payload[0] = (byte)state.Type;
         payload[1] = state.Flags;
         payload[2] = state.State;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
         WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Value0);
         WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Value1);
         WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Value2);
@@ -487,10 +483,7 @@ internal sealed class WatchMovingSolidAdapter : IWatchEntityAdapter
             || type == WatchMovingSolidType.BounceBlock)
             return false;
 
-        Vector2 position = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 4),
-            WatchEntityPayloadCodec.ReadSingle(payload, 8)
-        );
+        Vector2 position = WatchEntityPayloadCodec.ReadVector2(payload, 4);
         float value0 = WatchEntityPayloadCodec.ReadSingle(payload, 12);
         float value1 = WatchEntityPayloadCodec.ReadSingle(payload, 16);
         float value2 = WatchEntityPayloadCodec.ReadSingle(payload, 20);

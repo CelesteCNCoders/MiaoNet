@@ -208,8 +208,7 @@ internal sealed class WatchSnowballAdapter : IWatchEntityAdapter
         payload[1] = state.Flags;
         payload[2] = state.Phase == WatchSnowballPhase.Broken ? (byte)1 : (byte)0;
         payload[3] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
         WatchEntityPayloadCodec.WriteSingle(payload, 12, state.AtY);
         WatchEntityPayloadCodec.WriteSingle(payload, 16, state.ResetTimer);
         WatchEntityPayloadCodec.WriteSingle(payload, 20, state.SineCounter);
@@ -225,10 +224,7 @@ internal sealed class WatchSnowballAdapter : IWatchEntityAdapter
             || (payload[1] & ~0b0000_0011) != 0 || payload[2] > 1
             || payload[2] != payload[0])
             return false;
-        Vector2 position = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 4),
-            WatchEntityPayloadCodec.ReadSingle(payload, 8)
-        );
+        Vector2 position = WatchEntityPayloadCodec.ReadVector2(payload, 4);
         float atY = WatchEntityPayloadCodec.ReadSingle(payload, 12);
         float resetTimer = WatchEntityPayloadCodec.ReadSingle(payload, 16);
         float sineCounter = WatchEntityPayloadCodec.ReadSingle(payload, 20);
@@ -309,10 +305,7 @@ internal sealed class WatchSnowballAdapter : IWatchEntityAdapter
     private static Snowball? Find(Level level, int id)
     {
         string room = level.Session.Level;
-        return level.Entities.OfType<Snowball>().FirstOrDefault(candidate =>
-            WatchEntityIDTable<Snowball>.TryGet(candidate, room, out int candidateID)
-            && candidateID == id
-        );
+        return WatchEntityIDTable<Snowball>.Find(level, room, id);
     }
 
     private static void WindAttackTrigger_ctor(

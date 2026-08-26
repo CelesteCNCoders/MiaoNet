@@ -66,9 +66,7 @@ internal sealed class WatchTorchAdapter : IWatchEntityAdapter
     {
         if (entityEvent.EventID != LightEvent || entityEvent.Payload.Length != 0)
             return;
-        Torch? torch = level.Entities.OfType<Torch>().FirstOrDefault(candidate =>
-            WatchEntityIDTable<Torch>.TryGet(candidate, level.Session.Level, out int id)
-            && id == entityEvent.Key.EntityID);
+        Torch? torch = WatchEntityIDTable<Torch>.Find(level, entityEvent.Key.EntityID);
         if (torch is not null && !torch.lit)
             torch.OnPlayer(null!);
     }
@@ -279,8 +277,7 @@ internal sealed class WatchTempleCrackedBlockAdapter : IWatchEntityAdapter
         if (!publish)
             return;
         byte[] payload = new byte[8];
-        WatchEntityPayloadCodec.WriteSingle(payload, 0, from.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, from.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 0, from);
         WatchEntitySyncRegistry.PublishEvent(level!,
             new WatchEntityEvent(new WatchEntityKey(WatchEntityKind.TempleCrackedBlock, id.ID), BreakEvent, payload));
     }

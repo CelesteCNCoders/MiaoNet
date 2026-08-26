@@ -103,22 +103,13 @@ internal sealed class WatchBumperAdapter : IWatchEntityAdapter
         if (entityEvent.EventID != HitEvent || entityEvent.Payload.Length != 16)
             return;
 
-        Bumper? bumper = level.Entities.OfType<Bumper>().FirstOrDefault(candidate =>
-            WatchEntityIDTable<Bumper>.TryGet(candidate, level.Session.Level, out int id)
-            && id == entityEvent.Key.EntityID
-        );
+        Bumper? bumper = WatchEntityIDTable<Bumper>.Find(level, entityEvent.Key.EntityID);
         if (bumper is null)
             return;
 
         ReadOnlySpan<byte> payload = entityEvent.Payload.Span;
-        bumper.hitDir = new Vector2(
-            WatchEntityPayloadCodec.ReadSingle(payload, 0),
-            WatchEntityPayloadCodec.ReadSingle(payload, 4)
-        );
-        bumper.Position = new Vector2(
-            WatchEntityPayloadCodec.ReadSingle(payload, 8),
-            WatchEntityPayloadCodec.ReadSingle(payload, 12)
-        );
+        bumper.hitDir = WatchEntityPayloadCodec.ReadVector2(payload, 0);
+        bumper.Position = WatchEntityPayloadCodec.ReadVector2(payload, 8);
         bumper.respawnTimer = Bumper.RespawnTime;
         bumper.hitWiggler.Start();
         bumper.sprite.Play("hit", true);
@@ -160,10 +151,8 @@ internal sealed class WatchBumperAdapter : IWatchEntityAdapter
             return;
 
         byte[] payload = new byte[16];
-        WatchEntityPayloadCodec.WriteSingle(payload, 0, self.hitDir.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, self.hitDir.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, self.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, self.Position.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 0, self.hitDir);
+        WatchEntityPayloadCodec.WriteVector2(payload, 8, self.Position);
         WatchEntitySyncRegistry.PublishEvent(
             level,
             new WatchEntityEvent(new WatchEntityKey(WatchEntityKind.Bumper, id), HitEvent, payload)
@@ -277,9 +266,6 @@ internal sealed class WatchCloudAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static WatchEntityPhase GetPhase(Cloud cloud)
     {

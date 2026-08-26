@@ -110,9 +110,6 @@ internal sealed class WatchRefillAdapter : IWatchEntityAdapter
         return WatchPickupAdapterHelpers.Result(changed, requiresReload);
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static void HideRefill(Refill refill, bool gone)
     {
@@ -261,10 +258,7 @@ internal sealed class WatchFlyFeatherAdapter : IWatchEntityAdapter
         switch (entityEvent.EventID)
         {
             case CollectEvent when payload.Length == 9:
-                Vector2 speed = new(
-                    WatchEntityPayloadCodec.ReadSingle(payload, 0),
-                    WatchEntityPayloadCodec.ReadSingle(payload, 4)
-                );
+                Vector2 speed = WatchEntityPayloadCodec.ReadVector2(payload, 0);
                 if (!float.IsFinite(speed.X) || !float.IsFinite(speed.Y) || payload[8] > 1)
                     return;
 
@@ -295,10 +289,7 @@ internal sealed class WatchFlyFeatherAdapter : IWatchEntityAdapter
                 break;
 
             case ShieldBounceEvent when payload.Length == 8:
-                Vector2 direction = new(
-                    WatchEntityPayloadCodec.ReadSingle(payload, 0),
-                    WatchEntityPayloadCodec.ReadSingle(payload, 4)
-                );
+                Vector2 direction = WatchEntityPayloadCodec.ReadVector2(payload, 0);
                 if (!float.IsFinite(direction.X) || !float.IsFinite(direction.Y))
                     return;
 
@@ -336,10 +327,7 @@ internal sealed class WatchFlyFeatherAdapter : IWatchEntityAdapter
     private static FlyFeather? FindFeather(Level level, int id)
     {
         string room = level.Session.Level;
-        return level.Entities.OfType<FlyFeather>().FirstOrDefault(feather =>
-            WatchEntityIDTable<FlyFeather>.TryGet(feather, room, out int candidateID)
-            && candidateID == id
-        );
+        return WatchEntityIDTable<FlyFeather>.Find(level, room, id);
     }
 
     private static void FlyFeather_OnPlayer(
@@ -361,15 +349,13 @@ internal sealed class WatchFlyFeatherAdapter : IWatchEntityAdapter
         if (shieldBounce)
         {
             byte[] payload = new byte[8];
-            WatchEntityPayloadCodec.WriteSingle(payload, 0, direction.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 4, direction.Y);
+            WatchEntityPayloadCodec.WriteVector2(payload, 0, direction);
             PublishFeatherEvent(self, ShieldBounceEvent, payload);
         }
         else if (!self.Collidable)
         {
             byte[] payload = new byte[9];
-            WatchEntityPayloadCodec.WriteSingle(payload, 0, speed.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 4, speed.Y);
+            WatchEntityPayloadCodec.WriteVector2(payload, 0, speed);
             payload[8] = renewal ? (byte)1 : (byte)0;
             PublishFeatherEvent(self, CollectEvent, payload);
         }
@@ -465,8 +451,7 @@ internal sealed class WatchBoosterAdapter : IWatchEntityAdapter
 
             byte[] payload = new byte[16];
             payload[0] = (byte)info.Phase;
-            WatchEntityPayloadCodec.WriteSingle(payload, 1, booster.sprite.RenderPosition.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 5, booster.sprite.RenderPosition.Y);
+            WatchEntityPayloadCodec.WriteVector2(payload, 1, booster.sprite.RenderPosition);
             payload[9] = booster.sprite.Visible ? (byte)1 : (byte)0;
             payload[10] = booster.outline.Visible ? (byte)1 : (byte)0;
             payload[11] = booster.sprite.FlipX ? (byte)1 : (byte)0;
@@ -510,10 +495,7 @@ internal sealed class WatchBoosterAdapter : IWatchEntityAdapter
 
             ReadOnlySpan<byte> payload = state.Payload.Span;
             WatchEntityPhase phase = (WatchEntityPhase)payload[0];
-            Vector2 renderPosition = new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 1),
-                WatchEntityPayloadCodec.ReadSingle(payload, 5)
-            );
+            Vector2 renderPosition = WatchEntityPayloadCodec.ReadVector2(payload, 1);
             bool spriteVisible = payload[9] != 0;
             bool outlineVisible = payload[10] != 0;
             bool flipX = payload[11] != 0;
@@ -606,9 +588,6 @@ internal sealed class WatchBoosterAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static void Booster_ctor(
         On.Celeste.Booster.orig_ctor_EntityData_Vector2 orig,

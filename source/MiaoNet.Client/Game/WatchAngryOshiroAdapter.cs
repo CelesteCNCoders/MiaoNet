@@ -301,13 +301,11 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
         payload[1] = state.Flags;
         payload[2] = state.Animation;
         payload[3] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
         WatchEntityPayloadCodec.WriteSingle(payload, 12, state.CameraXOffset);
         WatchEntityPayloadCodec.WriteSingle(payload, 16, state.AttackSpeed);
         WatchEntityPayloadCodec.WriteSingle(payload, 20, state.YApproachSpeed);
-        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.Scale.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 28, state.Scale.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 24, state.Scale);
         BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(32), state.Depth);
         payload[36] = state.LightningFrame;
         WatchEntityPayloadCodec.WriteSingle(payload, 40, state.TimeRate);
@@ -330,17 +328,11 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
             || payload[37] != 0 || payload[38] != 0 || payload[39] != 0)
             return false;
 
-        Vector2 position = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 4),
-            WatchEntityPayloadCodec.ReadSingle(payload, 8)
-        );
+        Vector2 position = WatchEntityPayloadCodec.ReadVector2(payload, 4);
         float cameraXOffset = WatchEntityPayloadCodec.ReadSingle(payload, 12);
         float attackSpeed = WatchEntityPayloadCodec.ReadSingle(payload, 16);
         float yApproachSpeed = WatchEntityPayloadCodec.ReadSingle(payload, 20);
-        Vector2 scale = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 24),
-            WatchEntityPayloadCodec.ReadSingle(payload, 28)
-        );
+        Vector2 scale = WatchEntityPayloadCodec.ReadVector2(payload, 24);
         if (!float.IsFinite(position.X) || !float.IsFinite(position.Y)
             || !float.IsFinite(cameraXOffset) || !float.IsFinite(attackSpeed)
             || !float.IsFinite(yApproachSpeed)
@@ -617,8 +609,7 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
             if (self.Scene is Level level)
             {
                 byte[] payload = new byte[8];
-                WatchEntityPayloadCodec.WriteSingle(payload, 0, self.Position.X);
-                WatchEntityPayloadCodec.WriteSingle(payload, 4, self.Position.Y);
+                WatchEntityPayloadCodec.WriteVector2(payload, 0, self.Position);
                 WatchEntitySyncRegistry.PublishEvent(level, new(
                     new(WatchEntityKind.AngryOshiro, 0), BounceEvent, payload));
             }

@@ -88,8 +88,7 @@ internal sealed class WatchDreamMirrorAdapter : IWatchEntityAdapter
             p[2] = (byte)Math.Max(0, mirror.breakingGlass?.CurrentAnimationFrame ?? 0);
             WatchEntityPayloadCodec.WriteSingle(p, 4, mirror.shineAlpha);
             WatchEntityPayloadCodec.WriteSingle(p, 8, mirror.reflectionAlpha);
-            WatchEntityPayloadCodec.WriteSingle(p, 12, mirror.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(p, 16, mirror.Position.Y);
+            WatchEntityPayloadCodec.WriteVector2(p, 12, mirror.Position);
             WatchEntityPayloadCodec.WriteSingle(p, 20, mirror.breakingGlass?.Rate ?? 0f);
             yield return new(new(Kind, id), p);
         }
@@ -119,7 +118,7 @@ internal sealed class WatchDreamMirrorAdapter : IWatchEntityAdapter
                 mirror.reflection.Visible = (p[0] & 64) != 0;
             mirror.shineAlpha = WatchEntityPayloadCodec.ReadSingle(p, 4);
             mirror.reflectionAlpha = WatchEntityPayloadCodec.ReadSingle(p, 8);
-            mirror.Position = new(WatchEntityPayloadCodec.ReadSingle(p, 12), WatchEntityPayloadCodec.ReadSingle(p, 16));
+            mirror.Position = WatchEntityPayloadCodec.ReadVector2(p, 12);
             if (mirror.breakingGlass is not null)
                 mirror.breakingGlass.Rate = WatchEntityPayloadCodec.ReadSingle(p, 20);
             WatchChapterAnimation.Apply(mirror.breakingGlass, p[1], p[2]);
@@ -129,7 +128,6 @@ internal sealed class WatchDreamMirrorAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent) { }
 
     private static void Update(On.Celeste.DreamMirror.orig_Update orig, DreamMirror self)
     {
@@ -174,8 +172,7 @@ internal sealed class WatchResortMirrorAdapter : IWatchEntityAdapter
             p[2] = (byte)Math.Max(0, mirror.breakingGlass?.CurrentAnimationFrame ?? 0);
             WatchEntityPayloadCodec.WriteSingle(p, 4, mirror.shineAlpha);
             WatchEntityPayloadCodec.WriteSingle(p, 8, mirror.mirrorAlpha);
-            WatchEntityPayloadCodec.WriteSingle(p, 12, mirror.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(p, 16, mirror.Position.Y);
+            WatchEntityPayloadCodec.WriteVector2(p, 12, mirror.Position);
             WatchEntityPayloadCodec.WriteSingle(p, 20, mirror.breakingGlass?.Rate ?? 0f);
             yield return new(new(Kind, id), p);
         }
@@ -187,7 +184,7 @@ internal sealed class WatchResortMirrorAdapter : IWatchEntityAdapter
         {
             ReadOnlySpan<byte> p = state.Payload.Span;
             if (state.Key.SubID != 0 || p.Length != PayloadSize) continue;
-            ResortMirror? mirror = level.Entities.OfType<ResortMirror>().FirstOrDefault(candidate => WatchEntityIDTable<ResortMirror>.TryGet(candidate, level.Session.Level, out int id) && id == state.Key.EntityID);
+            ResortMirror? mirror = WatchEntityIDTable<ResortMirror>.Find(level, state.Key.EntityID);
             if (mirror is null) continue;
             mirror.Visible = (p[0] & 1) != 0;
             mirror.smashed = (p[0] & 2) != 0;
@@ -197,7 +194,7 @@ internal sealed class WatchResortMirrorAdapter : IWatchEntityAdapter
             if (mirror.evil is not null) mirror.evil.Visible = (p[0] & 16) != 0;
             mirror.shineAlpha = WatchEntityPayloadCodec.ReadSingle(p, 4);
             mirror.mirrorAlpha = WatchEntityPayloadCodec.ReadSingle(p, 8);
-            mirror.Position = new(WatchEntityPayloadCodec.ReadSingle(p, 12), WatchEntityPayloadCodec.ReadSingle(p, 16));
+            mirror.Position = WatchEntityPayloadCodec.ReadVector2(p, 12);
             if (mirror.breakingGlass is not null)
                 mirror.breakingGlass.Rate = WatchEntityPayloadCodec.ReadSingle(p, 20);
             WatchChapterAnimation.Apply(mirror.breakingGlass, p[1], p[2]);
@@ -206,7 +203,6 @@ internal sealed class WatchResortMirrorAdapter : IWatchEntityAdapter
         }
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent) { }
     private static void Ctor(On.Celeste.ResortMirror.orig_ctor orig, ResortMirror self, EntityData data, Vector2 offset)
     { orig(self, data, offset); WatchEntityIDTable<ResortMirror>.Set(self, data.Level.Name, data.ID); }
 }
@@ -252,8 +248,7 @@ internal sealed class WatchTempleMirrorPortalAdapter : IWatchEntityAdapter
             WatchEntityPayloadCodec.WriteSingle(p, 8, portal.DistortionFade);
             WatchEntityPayloadCodec.WriteSingle(p, 12, portal.bufferAlpha);
             WatchEntityPayloadCodec.WriteSingle(p, 16, portal.bufferTimer);
-            WatchEntityPayloadCodec.WriteSingle(p, 20, portal.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(p, 24, portal.Position.Y);
+            WatchEntityPayloadCodec.WriteVector2(p, 20, portal.Position);
             yield return new(new(Kind, id), p);
         }
     }
@@ -264,7 +259,7 @@ internal sealed class WatchTempleMirrorPortalAdapter : IWatchEntityAdapter
         {
             ReadOnlySpan<byte> p = state.Payload.Span;
             if (state.Key.SubID != 0 || p.Length != PayloadSize) continue;
-            TempleMirrorPortal? portal = level.Entities.OfType<TempleMirrorPortal>().FirstOrDefault(candidate => WatchEntityIDTable<TempleMirrorPortal>.TryGet(candidate, level.Session.Level, out int id) && id == state.Key.EntityID)
+            TempleMirrorPortal? portal = WatchEntityIDTable<TempleMirrorPortal>.Find(level, state.Key.EntityID)
                 ?? Recreate(level, state.Key.EntityID);
             if (portal is null) continue;
             bool presentationActive = (p[3] & 1) != 0;
@@ -276,7 +271,7 @@ internal sealed class WatchTempleMirrorPortalAdapter : IWatchEntityAdapter
             portal.DistortionFade = WatchEntityPayloadCodec.ReadSingle(p, 8);
             portal.bufferAlpha = WatchEntityPayloadCodec.ReadSingle(p, 12);
             portal.bufferTimer = WatchEntityPayloadCodec.ReadSingle(p, 16);
-            portal.Position = new(WatchEntityPayloadCodec.ReadSingle(p, 20), WatchEntityPayloadCodec.ReadSingle(p, 24));
+            portal.Position = WatchEntityPayloadCodec.ReadVector2(p, 20);
             if (portal.curtain is not null)
             {
                 portal.curtain.Visible = (p[0] & 4) != 0;
@@ -302,7 +297,6 @@ internal sealed class WatchTempleMirrorPortalAdapter : IWatchEntityAdapter
         }
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent) { }
     private static void Ctor(On.Celeste.TempleMirrorPortal.orig_ctor_EntityData_Vector2 orig, TempleMirrorPortal self, EntityData data, Vector2 offset)
     { orig(self, data, offset); WatchEntityIDTable<TempleMirrorPortal>.Set(self, data.Level.Name, data.ID); }
     private static TempleMirrorPortal? Recreate(Level level, int id)
@@ -361,11 +355,9 @@ internal sealed class WatchGondolaAdapter : IWatchEntityAdapter
             p[2] = (byte)Math.Max(0, gondola.front.CurrentAnimationFrame);
             p[3] = WatchChapterAnimation.Encode(gondola.Lever.CurrentAnimationID);
             p[4] = (byte)Math.Max(0, gondola.Lever.CurrentAnimationFrame);
-            WatchEntityPayloadCodec.WriteSingle(p, 8, gondola.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(p, 12, gondola.Position.Y);
+            WatchEntityPayloadCodec.WriteVector2(p, 8, gondola.Position);
             WatchEntityPayloadCodec.WriteSingle(p, 16, gondola.Rotation);
-            WatchEntityPayloadCodec.WriteSingle(p, 20, gondola.Speed.X);
-            WatchEntityPayloadCodec.WriteSingle(p, 24, gondola.Speed.Y);
+            WatchEntityPayloadCodec.WriteVector2(p, 20, gondola.Speed);
             WatchEntityPayloadCodec.WriteSingle(p, 28, gondola.RotationSpeed);
             WatchEntityPayloadCodec.WriteSingle(p, 32, gondola.front.Rate);
             WatchEntityPayloadCodec.WriteSingle(p, 36, gondola.Lever.Rate);
@@ -379,7 +371,7 @@ internal sealed class WatchGondolaAdapter : IWatchEntityAdapter
         {
             ReadOnlySpan<byte> p = state.Payload.Span;
             if (state.Key.SubID != 0 || p.Length != PayloadSize) continue;
-            Gondola? gondola = level.Entities.OfType<Gondola>().FirstOrDefault(candidate => WatchEntityIDTable<Gondola>.TryGet(candidate, level.Session.Level, out int id) && id == state.Key.EntityID);
+            Gondola? gondola = WatchEntityIDTable<Gondola>.Find(level, state.Key.EntityID);
             if (gondola is null) continue;
             gondola.Visible = (p[0] & 1) != 0;
             gondola.Collidable = false;
@@ -387,9 +379,9 @@ internal sealed class WatchGondolaAdapter : IWatchEntityAdapter
             gondola.inCliffside = (p[0] & 8) != 0;
             gondola.front.Visible = (p[0] & 16) != 0;
             gondola.Lever.Visible = (p[0] & 32) != 0;
-            gondola.Position = new(WatchEntityPayloadCodec.ReadSingle(p, 8), WatchEntityPayloadCodec.ReadSingle(p, 12));
+            gondola.Position = WatchEntityPayloadCodec.ReadVector2(p, 8);
             gondola.Rotation = WatchEntityPayloadCodec.ReadSingle(p, 16);
-            gondola.Speed = new(WatchEntityPayloadCodec.ReadSingle(p, 20), WatchEntityPayloadCodec.ReadSingle(p, 24));
+            gondola.Speed = WatchEntityPayloadCodec.ReadVector2(p, 20);
             gondola.RotationSpeed = WatchEntityPayloadCodec.ReadSingle(p, 28);
             gondola.front.Rate = WatchEntityPayloadCodec.ReadSingle(p, 32);
             gondola.Lever.Rate = WatchEntityPayloadCodec.ReadSingle(p, 36);
@@ -400,7 +392,6 @@ internal sealed class WatchGondolaAdapter : IWatchEntityAdapter
         }
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent) { }
     private static void Ctor(On.Celeste.Gondola.orig_ctor orig, Gondola self, EntityData data, Vector2 offset)
     { orig(self, data, offset); WatchEntityIDTable<Gondola>.Set(self, data.Level.Name, data.ID); }
     private static void Update(On.Celeste.Gondola.orig_Update orig, Gondola self)
@@ -450,8 +441,7 @@ internal sealed class WatchWaveDashTutorialAdapter : IWatchEntityAdapter
             p[4] = (byte)Math.Max(0, machine.neon.CurrentAnimationFrame);
             WatchEntityPayloadCodec.WriteSingle(p, 8, machine.insideEase);
             WatchEntityPayloadCodec.WriteSingle(p, 12, machine.cameraEase);
-            WatchEntityPayloadCodec.WriteSingle(p, 16, machine.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(p, 20, machine.Position.Y);
+            WatchEntityPayloadCodec.WriteVector2(p, 16, machine.Position);
             WatchEntityPayloadCodec.WriteSingle(p, 24, machine.presentation?.ease ?? 0f);
             BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(28), machine.presentation?.pageIndex ?? 0);
             WatchEntityPayloadCodec.WriteSingle(p, 32, machine.presentation?.pageEase ?? 0f);
@@ -465,14 +455,14 @@ internal sealed class WatchWaveDashTutorialAdapter : IWatchEntityAdapter
         {
             ReadOnlySpan<byte> p = state.Payload.Span;
             if (state.Key.SubID != 0 || p.Length != PayloadSize) continue;
-            WaveDashTutorialMachine? machine = level.Entities.OfType<WaveDashTutorialMachine>().FirstOrDefault(candidate => WatchEntityIDTable<WaveDashTutorialMachine>.TryGet(candidate, level.Session.Level, out int id) && id == state.Key.EntityID);
+            WaveDashTutorialMachine? machine = WatchEntityIDTable<WaveDashTutorialMachine>.Find(level, state.Key.EntityID);
             if (machine is null) continue;
             machine.Visible = (p[0] & 1) != 0;
             machine.playerInside = (p[0] & 2) != 0;
             machine.inCutscene = false;
             machine.insideEase = WatchEntityPayloadCodec.ReadSingle(p, 8);
             machine.cameraEase = 0f;
-            machine.Position = new(WatchEntityPayloadCodec.ReadSingle(p, 16), WatchEntityPayloadCodec.ReadSingle(p, 20));
+            machine.Position = WatchEntityPayloadCodec.ReadVector2(p, 16);
             if (machine.frontEntity is not null) machine.frontEntity.Visible = (p[0] & 8) != 0;
             if (machine.presentation is not null)
             {
@@ -492,7 +482,6 @@ internal sealed class WatchWaveDashTutorialAdapter : IWatchEntityAdapter
         }
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent) { }
     private static void Ctor(On.Celeste.WaveDashTutorialMachine.orig_ctor_EntityData_Vector2 orig, WaveDashTutorialMachine self, EntityData data, Vector2 offset)
     { orig(self, data, offset); WatchEntityIDTable<WaveDashTutorialMachine>.Set(self, data.Level.Name, data.ID); }
     private static void Update(On.Celeste.WaveDashTutorialMachine.orig_Update orig, WaveDashTutorialMachine self)
@@ -539,8 +528,7 @@ internal sealed class WatchPowerSourceNumberAdapter : IWatchEntityAdapter
             if (number.glow.Visible) p[0] |= 8;
             WatchEntityPayloadCodec.WriteSingle(p, 4, number.ease);
             WatchEntityPayloadCodec.WriteSingle(p, 8, number.timer);
-            WatchEntityPayloadCodec.WriteSingle(p, 12, number.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(p, 16, number.Position.Y);
+            WatchEntityPayloadCodec.WriteVector2(p, 12, number.Position);
             yield return new(new(Kind, id), p);
         }
     }
@@ -559,12 +547,11 @@ internal sealed class WatchPowerSourceNumberAdapter : IWatchEntityAdapter
             number.glow.Visible = (p[0] & 8) != 0;
             number.ease = WatchEntityPayloadCodec.ReadSingle(p, 4);
             number.timer = WatchEntityPayloadCodec.ReadSingle(p, 8);
-            number.Position = new(WatchEntityPayloadCodec.ReadSingle(p, 12), WatchEntityPayloadCodec.ReadSingle(p, 16));
+            number.Position = WatchEntityPayloadCodec.ReadVector2(p, 12);
             changed = true;
         }
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent) { }
     private static void Update(On.Celeste.PowerSourceNumber.orig_Update orig, PowerSourceNumber self)
     {
         if (!MiaoNetModule.IsWatching) { orig(self); return; }

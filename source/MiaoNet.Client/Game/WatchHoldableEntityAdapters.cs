@@ -28,10 +28,8 @@ internal static class WatchHoldableEntityPayload
         payload[0] = (byte)phase;
         payload[1] = flags;
         payload[2] = animation;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, position.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, speed.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, speed.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 4, position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 12, speed);
         WatchEntityPayloadCodec.WriteSingle(payload, 20, rotation);
         return new(new WatchEntityKey(kind, id), payload);
     }
@@ -64,14 +62,8 @@ internal static class WatchHoldableEntityPayload
         phase = (WatchHoldablePhase)payload[0];
         flags = payload[1];
         animation = payload[2];
-        position = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 4),
-            WatchEntityPayloadCodec.ReadSingle(payload, 8)
-        );
-        speed = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 12),
-            WatchEntityPayloadCodec.ReadSingle(payload, 16)
-        );
+        position = WatchEntityPayloadCodec.ReadVector2(payload, 4);
+        speed = WatchEntityPayloadCodec.ReadVector2(payload, 12);
         rotation = WatchEntityPayloadCodec.ReadSingle(payload, 20);
         return float.IsFinite(position.X) && float.IsFinite(position.Y)
             && float.IsFinite(speed.X) && float.IsFinite(speed.Y)
@@ -81,10 +73,8 @@ internal static class WatchHoldableEntityPayload
     public static byte[] EncodeRelease(Vector2 position, Vector2 force)
     {
         byte[] payload = new byte[16];
-        WatchEntityPayloadCodec.WriteSingle(payload, 0, position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, position.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, force.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, force.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 0, position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 8, force);
         return payload;
     }
 
@@ -920,7 +910,6 @@ internal sealed class WatchTheoCrystalPedestalAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent) { }
 
     private static void Pedestal_ctor(
         On.Celeste.TheoCrystalPedestal.orig_ctor orig,

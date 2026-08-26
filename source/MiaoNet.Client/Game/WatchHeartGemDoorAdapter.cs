@@ -135,9 +135,6 @@ internal sealed class WatchHeartGemDoorAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static void HeartGemDoor_ctor(
         On.Celeste.HeartGemDoor.orig_ctor orig,

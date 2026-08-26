@@ -125,9 +125,6 @@ internal sealed class WatchBadelineDummyAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static byte[] Encode(BadelineDummy dummy)
     {
@@ -140,10 +137,8 @@ internal sealed class WatchBadelineDummyAdapter : IWatchEntityAdapter
         payload[1] = (byte)Math.Clamp(dummy.Sprite.CurrentAnimationFrame, 0, byte.MaxValue);
         WatchEntityPayloadCodec.WriteUInt16(payload, 2, WatchSpriteState.EncodeAnimation(dummy.Sprite));
         BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(4), dummy.Depth);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, dummy.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, dummy.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, dummy.Sprite.Scale.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, dummy.Sprite.Scale.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 8, dummy.Position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 16, dummy.Sprite.Scale);
         WatchEntityPayloadCodec.WriteSingle(payload, 24, dummy.Sprite.Rotation);
         WatchEntityPayloadCodec.WriteSingle(payload, 28, dummy.Sprite.Rate);
         WatchEntityPayloadCodec.WriteSingle(payload, 32, Math.Clamp(dummy.Hair.Alpha, 0f, 1f));
@@ -161,10 +156,7 @@ internal sealed class WatchBadelineDummyAdapter : IWatchEntityAdapter
         dummy.Light.Visible = (payload[0] & LightVisibleFlag) != 0;
         dummy.Hair.Facing = (payload[0] & FacingLeftFlag) != 0 ? Facings.Left : Facings.Right;
         dummy.Depth = BinaryPrimitives.ReadInt32LittleEndian(payload[4..]);
-        dummy.Sprite.Scale = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 16),
-            WatchEntityPayloadCodec.ReadSingle(payload, 20)
-        );
+        dummy.Sprite.Scale = WatchEntityPayloadCodec.ReadVector2(payload, 16);
         dummy.Sprite.Rotation = WatchEntityPayloadCodec.ReadSingle(payload, 24);
         dummy.Sprite.Rate = WatchEntityPayloadCodec.ReadSingle(payload, 28);
         dummy.Hair.Alpha = Math.Clamp(WatchEntityPayloadCodec.ReadSingle(payload, 32), 0f, 1f);
@@ -195,10 +187,7 @@ internal sealed class WatchBadelineDummyAdapter : IWatchEntityAdapter
     }
 
     private static Vector2 ReadPosition(ReadOnlySpan<byte> payload)
-        => new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 8),
-            WatchEntityPayloadCodec.ReadSingle(payload, 12)
-        );
+        => WatchEntityPayloadCodec.ReadVector2(payload, 8);
 
     private static void RemoveRemote(int id, BadelineDummy dummy)
     {

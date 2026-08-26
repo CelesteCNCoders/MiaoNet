@@ -44,7 +44,4 @@ internal sealed class WatchCoreModeAdapter : IWatchEntityAdapter
         return WatchEntityApplyResult.SceneChanged;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 }

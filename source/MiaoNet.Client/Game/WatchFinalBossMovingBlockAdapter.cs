@@ -221,10 +221,8 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
         payload[0] = state.Flags;
         BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(4), state.BossNodeIndex);
         BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(8), state.NodeIndex);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Position.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.MovementCounter.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.MovementCounter.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 20, state.MovementCounter);
         WatchEntityPayloadCodec.WriteSingle(payload, 28, state.StartDelay);
         WatchEntityPayloadCodec.WriteSingle(payload, 32, state.HighlightAlpha);
         return new(new WatchEntityKey(WatchEntityKind.FinalBossMovingBlock, id), payload);
@@ -238,14 +236,8 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
             || p.Length != PayloadSize || (p[0] & ~0b0000_1111) != 0
             || p[1] != 0 || p[2] != 0 || p[3] != 0)
             return false;
-        Vector2 position = new(
-            WatchEntityPayloadCodec.ReadSingle(p, 12),
-            WatchEntityPayloadCodec.ReadSingle(p, 16)
-        );
-        Vector2 movement = new(
-            WatchEntityPayloadCodec.ReadSingle(p, 20),
-            WatchEntityPayloadCodec.ReadSingle(p, 24)
-        );
+        Vector2 position = WatchEntityPayloadCodec.ReadVector2(p, 12);
+        Vector2 movement = WatchEntityPayloadCodec.ReadVector2(p, 20);
         float delay = WatchEntityPayloadCodec.ReadSingle(p, 28);
         float highlightAlpha = WatchEntityPayloadCodec.ReadSingle(p, 32);
         if (!float.IsFinite(position.X) || !float.IsFinite(position.Y)
@@ -393,13 +385,7 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
     }
 
     private static FinalBossMovingBlock? Find(Level level, int id)
-        => level.Entities.OfType<FinalBossMovingBlock>().FirstOrDefault(block =>
-            WatchEntityIDTable<FinalBossMovingBlock>.TryGet(
-                block,
-                level.Session.Level,
-                out int candidate
-            ) && candidate == id
-        );
+        => WatchEntityIDTable<FinalBossMovingBlock>.Find(level, id);
 
     private static void Block_ctor(
         On.Celeste.FinalBossMovingBlock.orig_ctor_EntityData_Vector2 orig,

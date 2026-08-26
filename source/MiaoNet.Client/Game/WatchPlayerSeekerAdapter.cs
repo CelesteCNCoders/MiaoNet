@@ -333,22 +333,17 @@ internal sealed class WatchPlayerSeekerAdapter : IWatchEntityAdapter
         payload[0] = state.Flags;
         payload[1] = state.Animation;
         payload[2] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Speed.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Speed.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Speed);
         WatchEntityPayloadCodec.WriteSingle(payload, 20, state.DashTimer);
-        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.DashDirection.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 28, state.DashDirection.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 24, state.DashDirection);
         WatchEntityPayloadCodec.WriteSingle(payload, 32, state.TrailTimerA);
         WatchEntityPayloadCodec.WriteSingle(payload, 36, state.TrailTimerB);
-        WatchEntityPayloadCodec.WriteSingle(payload, 40, state.Scale.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 44, state.Scale.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 40, state.Scale);
         WatchEntityPayloadCodec.WriteSingle(payload, 48, state.TimeRate);
         WatchEntityPayloadCodec.WriteSingle(payload, 52, state.Glitch);
         WatchEntityPayloadCodec.WriteSingle(payload, 56, state.Anxiety);
-        WatchEntityPayloadCodec.WriteSingle(payload, 60, state.AnxietyOrigin.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 64, state.AnxietyOrigin.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 60, state.AnxietyOrigin);
         BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(68), state.Depth);
         return new(new WatchEntityKey(WatchEntityKind.PlayerSeeker, id), payload);
     }
@@ -365,32 +360,17 @@ internal sealed class WatchPlayerSeekerAdapter : IWatchEntityAdapter
             || payload[3] != 0)
             return false;
 
-        Vector2 position = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 4),
-            WatchEntityPayloadCodec.ReadSingle(payload, 8)
-        );
-        Vector2 speed = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 12),
-            WatchEntityPayloadCodec.ReadSingle(payload, 16)
-        );
+        Vector2 position = WatchEntityPayloadCodec.ReadVector2(payload, 4);
+        Vector2 speed = WatchEntityPayloadCodec.ReadVector2(payload, 12);
         float dashTimer = WatchEntityPayloadCodec.ReadSingle(payload, 20);
-        Vector2 dashDirection = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 24),
-            WatchEntityPayloadCodec.ReadSingle(payload, 28)
-        );
+        Vector2 dashDirection = WatchEntityPayloadCodec.ReadVector2(payload, 24);
         float trailTimerA = WatchEntityPayloadCodec.ReadSingle(payload, 32);
         float trailTimerB = WatchEntityPayloadCodec.ReadSingle(payload, 36);
-        Vector2 scale = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 40),
-            WatchEntityPayloadCodec.ReadSingle(payload, 44)
-        );
+        Vector2 scale = WatchEntityPayloadCodec.ReadVector2(payload, 40);
         float timeRate = WatchEntityPayloadCodec.ReadSingle(payload, 48);
         float glitch = WatchEntityPayloadCodec.ReadSingle(payload, 52);
         float anxiety = WatchEntityPayloadCodec.ReadSingle(payload, 56);
-        Vector2 anxietyOrigin = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 60),
-            WatchEntityPayloadCodec.ReadSingle(payload, 64)
-        );
+        Vector2 anxietyOrigin = WatchEntityPayloadCodec.ReadVector2(payload, 60);
         if (!IsFinite(position) || !IsFinite(speed) || !float.IsFinite(dashTimer)
             || !IsFinite(dashDirection) || !float.IsFinite(trailTimerA)
             || !float.IsFinite(trailTimerB) || !IsFinite(scale)
@@ -648,8 +628,7 @@ internal sealed class WatchPlayerSeekerAdapter : IWatchEntityAdapter
             return;
         orig(self, direction);
         byte[] payload = new byte[8];
-        WatchEntityPayloadCodec.WriteSingle(payload, 0, self.dashDirection.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, self.dashDirection.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 0, self.dashDirection);
         Publish(self, DashEvent, payload);
     }
 
@@ -792,13 +771,7 @@ internal sealed class WatchPlayerSeekerAdapter : IWatchEntityAdapter
     }
 
     private static PlayerSeeker? Find(Level level, int id)
-        => level.Entities.OfType<PlayerSeeker>().FirstOrDefault(seeker =>
-            WatchEntityIDTable<PlayerSeeker>.TryGet(
-                seeker,
-                level.Session.Level,
-                out int candidate
-            ) && candidate == id
-        );
+        => WatchEntityIDTable<PlayerSeeker>.Find(level, id);
 
     private static byte GetAnimation(string? animation)
     {

@@ -199,8 +199,7 @@ internal sealed class WatchFireBallAdapter : IWatchEntityAdapter
     {
         byte[] payload = new byte[PayloadSize];
         payload[0] = state.Flags;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
         WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Percent);
         WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Speed);
         WatchEntityPayloadCodec.WriteSingle(payload, 20, state.SpeedMultiplier);
@@ -216,10 +215,7 @@ internal sealed class WatchFireBallAdapter : IWatchEntityAdapter
             || (payload[0] & ~(VisibleFlag | CollidableFlag | IceModeFlag | BrokenFlag | NotCoreModeFlag)) != 0
             || payload[1] != 0 || payload[2] != 0 || payload[3] != 0)
             return false;
-        Vector2 position = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 4),
-            WatchEntityPayloadCodec.ReadSingle(payload, 8)
-        );
+        Vector2 position = WatchEntityPayloadCodec.ReadVector2(payload, 4);
         float percent = WatchEntityPayloadCodec.ReadSingle(payload, 12);
         float speed = WatchEntityPayloadCodec.ReadSingle(payload, 16);
         float speedMultiplier = WatchEntityPayloadCodec.ReadSingle(payload, 20);

@@ -134,18 +134,12 @@ internal sealed class WatchBounceBlockAdapter : IWatchEntityAdapter
             || entityEvent.Payload.Length != BreakPayloadSize)
             return;
 
-        BounceBlock? block = level.Entities.OfType<BounceBlock>().FirstOrDefault(candidate =>
-            WatchEntityIDTable<BounceBlock>.TryGet(candidate, level.Session.Level, out int id)
-            && id == entityEvent.Key.EntityID
-        );
+        BounceBlock? block = WatchEntityIDTable<BounceBlock>.Find(level, entityEvent.Key.EntityID);
         if (block is null)
             return;
 
         ReadOnlySpan<byte> payload = entityEvent.Payload.Span;
-        Vector2 debrisDirection = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 0),
-            WatchEntityPayloadCodec.ReadSingle(payload, 4)
-        );
+        Vector2 debrisDirection = WatchEntityPayloadCodec.ReadVector2(payload, 0);
         bool iceMode = payload[8] != 0;
         bool modeChanged = block.iceMode != iceMode;
         block.iceMode = iceMode;
@@ -232,14 +226,10 @@ internal sealed class WatchBounceBlockAdapter : IWatchEntityAdapter
         byte[] payload = new byte[PayloadSize];
         payload[0] = state.Flags;
         payload[1] = state.State;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.BounceDirection.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.BounceDirection.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.DebrisDirection.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.DebrisDirection.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 28, state.BounceLift.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 32, state.BounceLift.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.BounceDirection);
+        WatchEntityPayloadCodec.WriteVector2(payload, 20, state.DebrisDirection);
+        WatchEntityPayloadCodec.WriteVector2(payload, 28, state.BounceLift);
         WatchEntityPayloadCodec.WriteSingle(payload, 36, state.MoveSpeed);
         WatchEntityPayloadCodec.WriteSingle(payload, 40, state.WindUpStartTimer);
         WatchEntityPayloadCodec.WriteSingle(payload, 44, state.WindUpProgress);
@@ -330,8 +320,7 @@ internal sealed class WatchBounceBlockAdapter : IWatchEntityAdapter
             return;
 
         byte[] payload = new byte[BreakPayloadSize];
-        WatchEntityPayloadCodec.WriteSingle(payload, 0, debrisDirection.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, debrisDirection.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 0, debrisDirection);
         payload[8] = iceMode ? (byte)1 : (byte)0;
         WatchEntitySyncRegistry.PublishEvent(
             level!,

@@ -153,8 +153,7 @@ internal sealed class WatchBirdNPCAdapter : IWatchEntityAdapter
             WriteTransform(payload, bird.Position, bird.Sprite);
             WatchEntityPayloadCodec.WriteSingle(payload, 28, bird.Light.Alpha);
             WatchEntityPayloadCodec.WriteSingle(payload, 32, bird.Sprite.Rate);
-            WatchEntityPayloadCodec.WriteSingle(payload, 36, bird.Sprite.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 40, bird.Sprite.Position.Y);
+            WatchEntityPayloadCodec.WriteVector2(payload, 36, bird.Sprite.Position);
             yield return syncInfo.GetValue(bird, static _ => new()).Capture(
                 new(Kind, id), payload, 4, level.TimeActive,
                 WatchEntitySyncRegistry.IsCapturingCurrentState
@@ -187,25 +186,16 @@ internal sealed class WatchBirdNPCAdapter : IWatchEntityAdapter
             WatchAmbientAnimation.Apply(bird.Sprite, p[3], p[4]);
             bird.Light.Alpha = WatchEntityPayloadCodec.ReadSingle(p, 28);
             bird.Sprite.Rate = WatchEntityPayloadCodec.ReadSingle(p, 32);
-            bird.Sprite.Position = new(
-                WatchEntityPayloadCodec.ReadSingle(p, 36),
-                WatchEntityPayloadCodec.ReadSingle(p, 40)
-            );
+            bird.Sprite.Position = WatchEntityPayloadCodec.ReadVector2(p, 36);
             bird.Collidable = false;
             changed = true;
         }
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static BirdNPC? Find(Level level, int id)
-        => level.Entities.OfType<BirdNPC>().FirstOrDefault(bird =>
-            WatchEntityIDTable<BirdNPC>.TryGet(bird, level.Session.Level, out int candidate)
-            && candidate == id
-        );
+        => WatchEntityIDTable<BirdNPC>.Find(level, id);
 
     private static void BirdNPC_ctor(
         On.Celeste.BirdNPC.orig_ctor_EntityData_Vector2 orig,
@@ -237,25 +227,17 @@ internal sealed class WatchBirdNPCAdapter : IWatchEntityAdapter
 
     internal static void WriteTransform(byte[] payload, Vector2 position, Sprite sprite)
     {
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, position.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, sprite.Scale.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, sprite.Scale.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 8, position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 16, sprite.Scale);
         WatchEntityPayloadCodec.WriteSingle(payload, 24, sprite.Rotation);
     }
 
     internal static Vector2 ReadPosition(ReadOnlySpan<byte> payload)
-        => new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 8),
-            WatchEntityPayloadCodec.ReadSingle(payload, 12)
-        );
+        => WatchEntityPayloadCodec.ReadVector2(payload, 8);
 
     internal static void ApplyTransform(ReadOnlySpan<byte> payload, Sprite sprite)
     {
-        sprite.Scale = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 16),
-            WatchEntityPayloadCodec.ReadSingle(payload, 20)
-        );
+        sprite.Scale = WatchEntityPayloadCodec.ReadVector2(payload, 16);
         sprite.Rotation = WatchEntityPayloadCodec.ReadSingle(payload, 24);
     }
 }
@@ -297,10 +279,8 @@ internal sealed class WatchFlutterBirdAdapter : IWatchEntityAdapter
             if (bird.flyingAway) p[0] |= 2;
             p[1] = WatchAmbientAnimation.Encode(bird.sprite.CurrentAnimationID);
             p[2] = (byte)Math.Max(0, bird.sprite.CurrentAnimationFrame);
-            WatchEntityPayloadCodec.WriteSingle(p, 4, bird.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(p, 8, bird.Position.Y);
-            WatchEntityPayloadCodec.WriteSingle(p, 12, bird.sprite.Scale.X);
-            WatchEntityPayloadCodec.WriteSingle(p, 16, bird.sprite.Scale.Y);
+            WatchEntityPayloadCodec.WriteVector2(p, 4, bird.Position);
+            WatchEntityPayloadCodec.WriteVector2(p, 12, bird.sprite.Scale);
             WatchEntityPayloadCodec.WriteSingle(p, 20, bird.sprite.Rotation);
             WatchEntityPayloadCodec.WriteSingle(p, 24, bird.sprite.Rate);
             yield return syncInfo.GetValue(bird, static _ => new()).Capture(
@@ -322,22 +302,13 @@ internal sealed class WatchFlutterBirdAdapter : IWatchEntityAdapter
             ReadOnlySpan<byte> p = state.Payload.Span;
             if (state.Key.SubID != 0 || p.Length != PayloadSize)
                 continue;
-            FlutterBird? bird = level.Entities.OfType<FlutterBird>().FirstOrDefault(candidate =>
-                WatchEntityIDTable<FlutterBird>.TryGet(candidate, level.Session.Level, out int id)
-                && id == state.Key.EntityID
-            );
+            FlutterBird? bird = WatchEntityIDTable<FlutterBird>.Find(level, state.Key.EntityID);
             if (bird is null)
                 continue;
-            remoteInfo.GetValue(bird, static _ => new()).Apply(bird, new(
-                WatchEntityPayloadCodec.ReadSingle(p, 4),
-                WatchEntityPayloadCodec.ReadSingle(p, 8)
-            ));
+            remoteInfo.GetValue(bird, static _ => new()).Apply(bird, WatchEntityPayloadCodec.ReadVector2(p, 4));
             bird.Visible = (p[0] & 1) != 0;
             bird.flyingAway = (p[0] & 2) != 0;
-            bird.sprite.Scale = new(
-                WatchEntityPayloadCodec.ReadSingle(p, 12),
-                WatchEntityPayloadCodec.ReadSingle(p, 16)
-            );
+            bird.sprite.Scale = WatchEntityPayloadCodec.ReadVector2(p, 12);
             bird.sprite.Rotation = WatchEntityPayloadCodec.ReadSingle(p, 20);
             bird.sprite.Rate = WatchEntityPayloadCodec.ReadSingle(p, 24);
             WatchAmbientAnimation.Apply(bird.sprite, p[1], p[2]);
@@ -347,9 +318,6 @@ internal sealed class WatchFlutterBirdAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static void FlutterBird_ctor(
         On.Celeste.FlutterBird.orig_ctor orig,
@@ -423,12 +391,12 @@ internal sealed class WatchMoonCreatureAdapter : IWatchEntityAdapter
             p[1] = (byte)Math.Clamp(creature.spawn, 0, byte.MaxValue);
             p[2] = WatchAmbientAnimation.Encode(creature.Sprite.CurrentAnimationID);
             p[3] = (byte)Math.Max(0, creature.Sprite.CurrentAnimationFrame);
-            WriteVector(p, 4, creature.Position);
-            WriteVector(p, 12, creature.speed);
-            WriteVector(p, 20, creature.target);
-            WriteVector(p, 28, creature.bump);
+            WatchEntityPayloadCodec.WriteVector2(p, 4, creature.Position);
+            WatchEntityPayloadCodec.WriteVector2(p, 12, creature.speed);
+            WatchEntityPayloadCodec.WriteVector2(p, 20, creature.target);
+            WatchEntityPayloadCodec.WriteVector2(p, 28, creature.bump);
             WatchEntityPayloadCodec.WriteSingle(p, 36, creature.followingTime);
-            WriteVector(p, 40, creature.followingOffset);
+            WatchEntityPayloadCodec.WriteVector2(p, 40, creature.followingOffset);
             yield return syncInfo.GetValue(creature, static _ => new()).Capture(
                 new(Kind, id), p, 4, level.TimeActive,
                 WatchEntitySyncRegistry.IsCapturingCurrentState
@@ -448,20 +416,20 @@ internal sealed class WatchMoonCreatureAdapter : IWatchEntityAdapter
             ReadOnlySpan<byte> p = state.Payload.Span;
             if (state.Key.SubID != 0 || p.Length != PayloadSize)
                 continue;
-            MoonCreature? creature = level.Entities.OfType<MoonCreature>().FirstOrDefault(candidate =>
-                WatchEntityIDTable<MoonCreature>.TryGet(candidate, level.Session.Level, out int id)
-                && id == state.Key.EntityID
-            );
+            MoonCreature? creature = WatchEntityIDTable<MoonCreature>.Find(level, state.Key.EntityID);
             if (creature is null)
                 continue;
-            remoteInfo.GetValue(creature, static _ => new()).Apply(creature, ReadVector(p, 4));
+            remoteInfo.GetValue(creature, static _ => new()).Apply(
+                creature,
+                WatchEntityPayloadCodec.ReadVector2(p, 4)
+            );
             creature.Visible = (p[0] & 1) != 0;
             creature.following = null;
-            creature.speed = ReadVector(p, 12);
-            creature.target = ReadVector(p, 20);
-            creature.bump = ReadVector(p, 28);
+            creature.speed = WatchEntityPayloadCodec.ReadVector2(p, 12);
+            creature.target = WatchEntityPayloadCodec.ReadVector2(p, 20);
+            creature.bump = WatchEntityPayloadCodec.ReadVector2(p, 28);
             creature.followingTime = WatchEntityPayloadCodec.ReadSingle(p, 36);
-            creature.followingOffset = ReadVector(p, 40);
+            creature.followingOffset = WatchEntityPayloadCodec.ReadVector2(p, 40);
             WatchAmbientAnimation.Apply(creature.Sprite, p[2], p[3]);
             creature.Collidable = false;
             changed = true;
@@ -469,9 +437,6 @@ internal sealed class WatchMoonCreatureAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static void MoonCreature_ctor(
         On.Celeste.MoonCreature.orig_ctor_EntityData_Vector2 orig,
@@ -512,17 +477,6 @@ internal sealed class WatchMoonCreatureAdapter : IWatchEntityAdapter
         self.Collidable = false;
     }
 
-    private static void WriteVector(byte[] payload, int offset, Vector2 value)
-    {
-        WatchEntityPayloadCodec.WriteSingle(payload, offset, value.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, offset + 4, value.Y);
-    }
-
-    private static Vector2 ReadVector(ReadOnlySpan<byte> payload, int offset)
-        => new(
-            WatchEntityPayloadCodec.ReadSingle(payload, offset),
-            WatchEntityPayloadCodec.ReadSingle(payload, offset + 4)
-        );
 }
 
 internal sealed class WatchFlingBirdIntroAdapter : IWatchEntityAdapter
@@ -567,13 +521,10 @@ internal sealed class WatchFlingBirdIntroAdapter : IWatchEntityAdapter
             if (bird.inCutscene) p[0] |= 16;
             p[1] = WatchAmbientAnimation.Encode(bird.Sprite.CurrentAnimationID);
             p[2] = (byte)Math.Max(0, bird.Sprite.CurrentAnimationFrame);
-            WatchEntityPayloadCodec.WriteSingle(p, 4, bird.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(p, 8, bird.Position.Y);
-            WatchEntityPayloadCodec.WriteSingle(p, 12, bird.Sprite.Scale.X);
-            WatchEntityPayloadCodec.WriteSingle(p, 16, bird.Sprite.Scale.Y);
+            WatchEntityPayloadCodec.WriteVector2(p, 4, bird.Position);
+            WatchEntityPayloadCodec.WriteVector2(p, 12, bird.Sprite.Scale);
             WatchEntityPayloadCodec.WriteSingle(p, 20, bird.Sprite.Rotation);
-            WatchEntityPayloadCodec.WriteSingle(p, 24, bird.BirdEndPosition.X);
-            WatchEntityPayloadCodec.WriteSingle(p, 28, bird.BirdEndPosition.Y);
+            WatchEntityPayloadCodec.WriteVector2(p, 24, bird.BirdEndPosition);
             WatchEntityPayloadCodec.WriteSingle(p, 32, bird.Sprite.Rate);
             yield return syncInfo.GetValue(bird, static _ => new()).Capture(
                 new(Kind, id), p, 3, level.TimeActive,
@@ -594,29 +545,17 @@ internal sealed class WatchFlingBirdIntroAdapter : IWatchEntityAdapter
             ReadOnlySpan<byte> p = state.Payload.Span;
             if (state.Key.SubID != 0 || p.Length != PayloadSize)
                 continue;
-            FlingBirdIntro? bird = level.Entities.OfType<FlingBirdIntro>().FirstOrDefault(candidate =>
-                WatchEntityIDTable<FlingBirdIntro>.TryGet(candidate, level.Session.Level, out int id)
-                && id == state.Key.EntityID
-            );
+            FlingBirdIntro? bird = WatchEntityIDTable<FlingBirdIntro>.Find(level, state.Key.EntityID);
             if (bird is null)
                 continue;
-            remoteInfo.GetValue(bird, static _ => new()).Apply(bird, new(
-                WatchEntityPayloadCodec.ReadSingle(p, 4),
-                WatchEntityPayloadCodec.ReadSingle(p, 8)
-            ));
+            remoteInfo.GetValue(bird, static _ => new()).Apply(bird, WatchEntityPayloadCodec.ReadVector2(p, 4));
             bird.Visible = (p[0] & 1) != 0;
             bird.startedRoutine = (p[0] & 2) != 0;
             bird.emitParticles = (p[0] & 8) != 0;
             bird.inCutscene = false;
-            bird.Sprite.Scale = new(
-                WatchEntityPayloadCodec.ReadSingle(p, 12),
-                WatchEntityPayloadCodec.ReadSingle(p, 16)
-            );
+            bird.Sprite.Scale = WatchEntityPayloadCodec.ReadVector2(p, 12);
             bird.Sprite.Rotation = WatchEntityPayloadCodec.ReadSingle(p, 20);
-            bird.BirdEndPosition = new(
-                WatchEntityPayloadCodec.ReadSingle(p, 24),
-                WatchEntityPayloadCodec.ReadSingle(p, 28)
-            );
+            bird.BirdEndPosition = WatchEntityPayloadCodec.ReadVector2(p, 24);
             bird.Sprite.Rate = WatchEntityPayloadCodec.ReadSingle(p, 32);
             WatchAmbientAnimation.Apply(bird.Sprite, p[1], p[2]);
             if (bird.fakeRightWall is not null)
@@ -627,9 +566,6 @@ internal sealed class WatchFlingBirdIntroAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static void FlingBirdIntro_ctor(
         On.Celeste.FlingBirdIntro.orig_ctor_EntityData_Vector2 orig,

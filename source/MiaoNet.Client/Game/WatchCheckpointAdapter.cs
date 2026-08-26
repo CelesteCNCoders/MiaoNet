@@ -138,9 +138,6 @@ internal sealed class WatchCheckpointAdapter : IWatchEntityAdapter
             : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static void ResetCheckpoint(Checkpoint checkpoint)
     {

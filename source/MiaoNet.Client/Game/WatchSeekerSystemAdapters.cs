@@ -335,14 +335,8 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
                 if (FindSeeker(level, id) is { } wallHit)
                 {
                     ReadOnlySpan<byte> payload = entityEvent.Payload.Span;
-                    wallHit.Position = new(
-                        WatchEntityPayloadCodec.ReadSingle(payload, 1),
-                        WatchEntityPayloadCodec.ReadSingle(payload, 5)
-                    );
-                    wallHit.Speed = new(
-                        WatchEntityPayloadCodec.ReadSingle(payload, 9),
-                        WatchEntityPayloadCodec.ReadSingle(payload, 13)
-                    );
+                    wallHit.Position = WatchEntityPayloadCodec.ReadVector2(payload, 1);
+                    wallHit.Speed = WatchEntityPayloadCodec.ReadVector2(payload, 9);
                     if (remoteInfo.TryGetValue(wallHit, out RemoteInfo? wallInfo))
                     {
                         wallInfo.PositionError = Vector2.Zero;
@@ -433,12 +427,9 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
         payload[4] = state.AnimationFrame;
         payload[5] = state.Facing < 0 ? (byte)0 : (byte)1;
         payload[6] = state.SpriteFacing < 0 ? (byte)0 : (byte)1;
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Position.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Speed.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Speed.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.Scale.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 28, state.Scale.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 8, state.Position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 16, state.Speed);
+        WatchEntityPayloadCodec.WriteVector2(payload, 24, state.Scale);
         WatchEntityPayloadCodec.WriteSingle(payload, 32, state.LightAlpha);
         WatchEntityPayloadCodec.WriteSingle(payload, 36, state.AttackSpeed);
         BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(40), state.Depth);
@@ -460,9 +451,9 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
             || (payload[0] != (byte)WatchSeekerForm.Seeker && payload[1] != 0))
             return false;
 
-        Vector2 position = ReadVector(payload, 8);
-        Vector2 speed = ReadVector(payload, 16);
-        Vector2 scale = ReadVector(payload, 24);
+        Vector2 position = WatchEntityPayloadCodec.ReadVector2(payload, 8);
+        Vector2 speed = WatchEntityPayloadCodec.ReadVector2(payload, 16);
+        Vector2 scale = WatchEntityPayloadCodec.ReadVector2(payload, 24);
         float lightAlpha = WatchEntityPayloadCodec.ReadSingle(payload, 32);
         float attackSpeed = WatchEntityPayloadCodec.ReadSingle(payload, 36);
         if (!IsFinite(position) || !IsFinite(speed) || !IsFinite(scale)
@@ -797,10 +788,8 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
         orig(self, data);
         byte[] payload = new byte[17];
         payload[0] = direction;
-        WatchEntityPayloadCodec.WriteSingle(payload, 1, self.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 5, self.Position.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 9, self.Speed.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 13, self.Speed.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 1, self.Position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 9, self.Speed);
         Publish(self, WallHitEvent, payload);
     }
 
@@ -926,25 +915,10 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
         };
 
     private static Seeker? FindSeeker(Level level, int id)
-        => level.Entities.OfType<Seeker>().FirstOrDefault(entity =>
-            WatchEntityIDTable<Seeker>.TryGet(entity, level.Session.Level, out int candidate)
-            && candidate == id
-        );
+        => WatchEntityIDTable<Seeker>.Find(level, id);
 
     private static SeekerStatue? FindStatue(Level level, int id)
-        => level.Entities.OfType<SeekerStatue>().FirstOrDefault(entity =>
-            WatchEntityIDTable<SeekerStatue>.TryGet(
-                entity,
-                level.Session.Level,
-                out int candidate
-            ) && candidate == id
-        );
-
-    private static Vector2 ReadVector(ReadOnlySpan<byte> payload, int offset)
-        => new(
-            WatchEntityPayloadCodec.ReadSingle(payload, offset),
-            WatchEntityPayloadCodec.ReadSingle(payload, offset + 4)
-        );
+        => WatchEntityIDTable<SeekerStatue>.Find(level, id);
 
     private static bool IsFinite(Vector2 value)
         => float.IsFinite(value.X) && float.IsFinite(value.Y);
@@ -1166,11 +1140,5 @@ internal sealed class WatchSeekerBarrierAdapter : IWatchEntityAdapter
     }
 
     private static SeekerBarrier? Find(Level level, int id)
-        => level.Entities.OfType<SeekerBarrier>().FirstOrDefault(entity =>
-            WatchEntityIDTable<SeekerBarrier>.TryGet(
-                entity,
-                level.Session.Level,
-                out int candidate
-            ) && candidate == id
-        );
+        => WatchEntityIDTable<SeekerBarrier>.Find(level, id);
 }

@@ -61,8 +61,7 @@ internal sealed class WatchCassetteBlockAdapter : IWatchEntityAdapter
                 | (block.Collidable ? 4 : 0));
             payload[2] = (byte)block.Mode;
             payload[3] = (byte)block.Index;
-            WatchEntityPayloadCodec.WriteSingle(payload, 4, block.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 8, block.Position.Y);
+            WatchEntityPayloadCodec.WriteVector2(payload, 4, block.Position);
             BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(12), block.blockHeight);
             yield return new WatchEntityState(new WatchEntityKey(Kind, id, 1), payload);
         }
@@ -105,9 +104,6 @@ internal sealed class WatchCassetteBlockAdapter : IWatchEntityAdapter
         return result;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static bool ApplyRemote(Level level)
     {
@@ -130,10 +126,7 @@ internal sealed class WatchCassetteBlockAdapter : IWatchEntityAdapter
             bool visible = (payload[1] & 2) != 0;
             bool collidable = (payload[1] & 4) != 0;
             CassetteBlock.Modes mode = (CassetteBlock.Modes)payload[2];
-            Vector2 position = new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 4),
-                WatchEntityPayloadCodec.ReadSingle(payload, 8)
-            );
+            Vector2 position = WatchEntityPayloadCodec.ReadVector2(payload, 4);
             int blockHeight = BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan(12));
             bool collidableChanged = block.Collidable != collidable;
             changed |= block.Activated != activated
@@ -295,8 +288,7 @@ internal sealed class WatchSwitchGateAdapter : IWatchEntityAdapter
                 | (gate.persistent ? 4 : 0));
             payload[1] = EncodeAnimation(gate.icon.CurrentAnimationID);
             WatchEntityPayloadCodec.WriteUInt16(payload, 2, (ushort)Math.Max(0, gate.icon.CurrentAnimationFrame));
-            WatchEntityPayloadCodec.WriteSingle(payload, 4, gate.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 8, gate.Position.Y);
+            WatchEntityPayloadCodec.WriteVector2(payload, 4, gate.Position);
             WatchEntityPayloadCodec.WriteSingle(payload, 12, gate.wiggler.Value);
             WatchEntityPayloadCodec.WriteSingle(payload, 16, gate.icon.Rotation);
             yield return new WatchEntityState(new WatchEntityKey(Kind, id), payload);
@@ -328,9 +320,6 @@ internal sealed class WatchSwitchGateAdapter : IWatchEntityAdapter
             | (reload ? WatchEntityApplyResult.RequiresRoomReload : WatchEntityApplyResult.None);
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static bool ApplyRemote(Level level)
     {
@@ -343,10 +332,7 @@ internal sealed class WatchSwitchGateAdapter : IWatchEntityAdapter
                 continue;
             bool visible = (payload[0] & 1) != 0;
             bool collidable = (payload[0] & 2) != 0;
-            Vector2 position = new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 4),
-                WatchEntityPayloadCodec.ReadSingle(payload, 8)
-            );
+            Vector2 position = WatchEntityPayloadCodec.ReadVector2(payload, 4);
             byte animation = payload[1];
             int frame = WatchEntityPayloadCodec.ReadUInt16(payload, 2);
             changed |= gate.Visible != visible || gate.Collidable != collidable || gate.Position != position;

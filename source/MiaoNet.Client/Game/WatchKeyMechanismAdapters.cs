@@ -127,10 +127,7 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
 
             ReadOnlySpan<byte> payload = state.Payload.Span;
             WatchEntityPhase phase = (WatchEntityPhase)payload[0];
-            Vector2 position = new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 4),
-                WatchEntityPayloadCodec.ReadSingle(payload, 8)
-            );
+            Vector2 position = WatchEntityPayloadCodec.ReadVector2(payload, 4);
             bool visible = (payload[1] & 1) != 0;
             bool collidable = (payload[1] & 2) != 0;
             bool turning = (payload[1] & 4) != 0;
@@ -230,10 +227,7 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
                 if (IsRemoteUsing(key))
                     return;
                 ReadOnlySpan<byte> payload = entityEvent.Payload.Span;
-                Vector2 target = new(
-                    WatchEntityPayloadCodec.ReadSingle(payload, 4),
-                    WatchEntityPayloadCodec.ReadSingle(payload, 8)
-                );
+                Vector2 target = WatchEntityPayloadCodec.ReadVector2(payload, 4);
                 key.Visible = true;
                 key.sprite.Visible = true;
                 key.Collidable = false;
@@ -419,8 +413,7 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
                 payload[1] |= 2;
             if (key.Turning)
                 payload[1] |= 4;
-            WatchEntityPayloadCodec.WriteSingle(payload, 4, key.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 8, key.Position.Y);
+            WatchEntityPayloadCodec.WriteVector2(payload, 4, key.Position);
         }
         return new(new WatchEntityKey(WatchEntityKind.Key, id), payload);
     }
@@ -513,8 +506,7 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
         {
             byte[] payload = new byte[PayloadSize];
             BinaryPrimitives.WriteInt32LittleEndian(payload, 0);
-            WatchEntityPayloadCodec.WriteSingle(payload, 4, target.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 8, target.Y);
+            WatchEntityPayloadCodec.WriteVector2(payload, 4, target);
             Publish(self, UseEvent, payload);
         }
         return orig(self, target);

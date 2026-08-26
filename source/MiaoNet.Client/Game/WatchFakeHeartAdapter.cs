@@ -110,10 +110,7 @@ internal sealed class WatchFakeHeartAdapter : IWatchEntityAdapter
                 break;
 
             case BounceEvent when payload.Length == 8:
-                Vector2 direction = new(
-                    WatchEntityPayloadCodec.ReadSingle(payload, 0),
-                    WatchEntityPayloadCodec.ReadSingle(payload, 4)
-                );
+                Vector2 direction = WatchEntityPayloadCodec.ReadVector2(payload, 0);
                 if (!float.IsFinite(direction.X) || !float.IsFinite(direction.Y))
                     return;
 
@@ -135,10 +132,7 @@ internal sealed class WatchFakeHeartAdapter : IWatchEntityAdapter
     private static FakeHeart? FindHeart(Level level, int id)
     {
         string room = level.Session.Level;
-        return level.Entities.OfType<FakeHeart>().FirstOrDefault(heart =>
-            WatchEntityIDTable<FakeHeart>.TryGet(heart, room, out int candidateID)
-            && candidateID == id
-        );
+        return WatchEntityIDTable<FakeHeart>.Find(level, room, id);
     }
 
     private static void FakeHeart_ctor(
@@ -168,8 +162,7 @@ internal sealed class WatchFakeHeartAdapter : IWatchEntityAdapter
             return;
 
         byte[] payload = new byte[8];
-        WatchEntityPayloadCodec.WriteSingle(payload, 0, direction.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, direction.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 0, direction);
         PublishEvent(self, BounceEvent, payload);
     }
 

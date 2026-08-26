@@ -167,14 +167,8 @@ internal sealed class WatchDashBlockAdapter : IWatchEntityAdapter
             return;
 
         ReadOnlySpan<byte> payload = entityEvent.Payload.Span;
-        Vector2 from = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 0),
-            WatchEntityPayloadCodec.ReadSingle(payload, 4)
-        );
-        Vector2 direction = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 8),
-            WatchEntityPayloadCodec.ReadSingle(payload, 12)
-        );
+        Vector2 from = WatchEntityPayloadCodec.ReadVector2(payload, 0);
+        Vector2 direction = WatchEntityPayloadCodec.ReadVector2(payload, 8);
         bool playSound = payload[16] != 0;
         bool playDebrisSound = payload[17] != 0;
         DashBlock? block = level.Entities.OfType<DashBlock>().FirstOrDefault(candidate =>
@@ -228,10 +222,8 @@ internal sealed class WatchDashBlockAdapter : IWatchEntityAdapter
         brokenIDs.Add(id.ID);
 
         byte[] payload = new byte[BreakPayloadSize];
-        WatchEntityPayloadCodec.WriteSingle(payload, 0, from.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, from.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, direction.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, direction.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 0, from);
+        WatchEntityPayloadCodec.WriteVector2(payload, 8, direction);
         payload[16] = playSound ? (byte)1 : (byte)0;
         payload[17] = playDebrisSound ? (byte)1 : (byte)0;
         WatchEntitySyncRegistry.PublishEvent(

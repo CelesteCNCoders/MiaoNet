@@ -199,12 +199,9 @@ internal sealed class WatchBirdPathAdapter : IWatchEntityAdapter
         payload[0] = state.Flags;
         payload[1] = state.Animation;
         payload[2] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Speed.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Speed.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Target.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.Target.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Speed);
+        WatchEntityPayloadCodec.WriteVector2(payload, 20, state.Target);
         WatchEntityPayloadCodec.WriteSingle(payload, 28, state.Rotation);
         return new(new WatchEntityKey(WatchEntityKind.BirdPath, id), payload);
     }
@@ -284,10 +281,7 @@ internal sealed class WatchBirdPathAdapter : IWatchEntityAdapter
     }
 
     private static BirdPath? Find(Level level, int id)
-        => level.Entities.OfType<BirdPath>().FirstOrDefault(bird =>
-            WatchEntityIDTable<BirdPath>.TryGet(bird, level.Session.Level, out int candidate)
-            && candidate == id
-        );
+        => WatchEntityIDTable<BirdPath>.Find(level, id);
 
     private static BirdPath? Recreate(Level level, int id)
     {
@@ -522,10 +516,7 @@ internal sealed class WatchWhiteBlockAdapter : IWatchEntityAdapter
     {
         if (entityEvent.EventID != ActivateEvent || entityEvent.Payload.Length != 0)
             return;
-        WhiteBlock? block = level.Entities.OfType<WhiteBlock>().FirstOrDefault(candidate =>
-            WatchEntityIDTable<WhiteBlock>.TryGet(candidate, level.Session.Level, out int id)
-            && id == entityEvent.Key.EntityID
-        );
+        WhiteBlock? block = WatchEntityIDTable<WhiteBlock>.Find(level, entityEvent.Key.EntityID);
         if (block is null || block.activated)
             return;
         Player? player = level.Tracker.GetEntity<Player>();
@@ -659,8 +650,7 @@ internal sealed class WatchRidgeGateAdapter : IWatchEntityAdapter
             if (gate.Visible) payload[0] |= VisibleFlag;
             if (gate.Collidable) payload[0] |= CollidableFlag;
             if (gate.node.HasValue) payload[0] |= NodeFlag;
-            WatchEntityPayloadCodec.WriteSingle(payload, 4, gate.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 8, gate.Position.Y);
+            WatchEntityPayloadCodec.WriteVector2(payload, 4, gate.Position);
             WatchEntityPayloadCodec.WriteSingle(payload, 12, gate.node?.X ?? 0f);
             WatchEntityPayloadCodec.WriteSingle(payload, 16, gate.node?.Y ?? 0f);
             BitConverter.TryWriteBytes(payload.AsSpan(20), gate.Depth);
@@ -713,10 +703,7 @@ internal sealed class WatchRidgeGateAdapter : IWatchEntityAdapter
     {
         if (entityEvent.EventID == EnterEvent && entityEvent.Payload.Length == 0)
         {
-            RidgeGate? gate = level.Entities.OfType<RidgeGate>().FirstOrDefault(candidate =>
-                WatchEntityIDTable<RidgeGate>.TryGet(candidate, level.Session.Level, out int id)
-                && id == entityEvent.Key.EntityID
-            );
+            RidgeGate? gate = WatchEntityIDTable<RidgeGate>.Find(level, entityEvent.Key.EntityID);
             if (gate is not null)
                 Audio.Play("event:/game/04_cliffside/stone_blockade", gate.Position);
         }
@@ -737,15 +724,9 @@ internal sealed class WatchRidgeGateAdapter : IWatchEntityAdapter
 
     private static void Apply(RidgeGate gate, ReadOnlySpan<byte> payload)
     {
-        gate.Position = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 4),
-            WatchEntityPayloadCodec.ReadSingle(payload, 8)
-        );
+        gate.Position = WatchEntityPayloadCodec.ReadVector2(payload, 4);
         gate.node = (payload[0] & NodeFlag) != 0
-            ? new Vector2(
-                WatchEntityPayloadCodec.ReadSingle(payload, 12),
-                WatchEntityPayloadCodec.ReadSingle(payload, 16)
-            )
+            ? WatchEntityPayloadCodec.ReadVector2(payload, 12)
             : null;
         gate.Visible = (payload[0] & VisibleFlag) != 0;
         gate.Collidable = false;

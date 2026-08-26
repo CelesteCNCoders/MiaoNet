@@ -84,9 +84,6 @@ internal sealed class WatchStrawberrySeedAdapter : IWatchEntityAdapter
         return ApplyRemoteStates(level, requireCompleteCoverage: isCompleteState);
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static WatchEntityApplyResult ApplyRemoteStates(Level level, bool requireCompleteCoverage)
     {
@@ -154,10 +151,7 @@ internal sealed class WatchStrawberrySeedAdapter : IWatchEntityAdapter
             ReadOnlySpan<byte> payload = seedState.Payload.Span;
             WatchStrawberrySeedPhase phase = (WatchStrawberrySeedPhase)payload[0];
             byte flags = payload[1];
-            Vector2 position = new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 2),
-                WatchEntityPayloadCodec.ReadSingle(payload, 6)
-            );
+            Vector2 position = WatchEntityPayloadCodec.ReadVector2(payload, 2);
             bool seedVisible = phase != WatchStrawberrySeedPhase.Following
                 && (flags & SeedVisibleFlag) != 0;
             bool seedCollidable = phase == WatchStrawberrySeedPhase.Ready
@@ -242,8 +236,7 @@ internal sealed class WatchStrawberrySeedAdapter : IWatchEntityAdapter
         byte[] payload = new byte[SeedPayloadSize];
         payload[0] = (byte)phase;
         payload[1] = flags;
-        WatchEntityPayloadCodec.WriteSingle(payload, 2, seed.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 6, seed.Position.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 2, seed.Position);
         return new(
             new WatchEntityKey(KindValue, strawberryID, checked((ushort)(seed.index + 1))),
             payload

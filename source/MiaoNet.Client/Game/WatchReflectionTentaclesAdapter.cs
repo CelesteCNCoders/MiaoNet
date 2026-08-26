@@ -250,13 +250,10 @@ internal sealed class WatchReflectionTentaclesAdapter : IWatchEntityAdapter
         BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(4), state.Index);
         BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(8), state.SlideUntilIndex);
         BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(12), state.Layer);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Outwards.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Outwards.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.LastOutwards.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 28, state.LastOutwards.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 16, state.Outwards);
+        WatchEntityPayloadCodec.WriteVector2(payload, 24, state.LastOutwards);
         WatchEntityPayloadCodec.WriteSingle(payload, 32, state.Ease);
-        WatchEntityPayloadCodec.WriteSingle(payload, 36, state.PlayerProjection.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 40, state.PlayerProjection.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 36, state.PlayerProjection);
         WatchEntityPayloadCodec.WriteSingle(payload, 44, state.FearDistance);
         WatchEntityPayloadCodec.WriteSingle(payload, 48, state.Offset);
         return new(

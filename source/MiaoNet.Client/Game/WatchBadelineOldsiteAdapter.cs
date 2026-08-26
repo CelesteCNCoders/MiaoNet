@@ -315,9 +315,6 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static WatchEntityState[] EncodeProducerHistory(Player? player)
     {
@@ -483,8 +480,7 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
         payload[1] = state.Animation;
         payload[2] = state.AnimationFrame;
         payload[3] = state.Index;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
         WatchEntityPayloadCodec.WriteSingle(payload, 12, state.FollowBehindTime);
         WatchEntityPayloadCodec.WriteSingle(payload, 16, state.FollowBehindIndexDelay);
         WatchEntityPayloadCodec.WriteSingle(payload, 20, state.HoveringTimer);
@@ -503,10 +499,7 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
             || payload[1] >= lifecycleAnimations.Length)
             return false;
 
-        Vector2 position = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 4),
-            WatchEntityPayloadCodec.ReadSingle(payload, 8)
-        );
+        Vector2 position = WatchEntityPayloadCodec.ReadVector2(payload, 4);
         float followBehindTime = WatchEntityPayloadCodec.ReadSingle(payload, 12);
         float followBehindIndexDelay = WatchEntityPayloadCodec.ReadSingle(payload, 16);
         float hoveringTimer = WatchEntityPayloadCodec.ReadSingle(payload, 20);

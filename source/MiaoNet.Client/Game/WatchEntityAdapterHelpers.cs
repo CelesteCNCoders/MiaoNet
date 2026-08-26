@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
+using Microsoft.Xna.Framework;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -35,6 +36,20 @@ internal static class WatchEntityIDTable<TEntity> where TEntity : class
         id = default;
         return false;
     }
+
+    public static TEntity? Find(IEnumerable<TEntity> entities, string level, int id)
+    {
+        foreach (TEntity entity in entities)
+            if (TryGet(entity, level, out int candidateID) && candidateID == id)
+                return entity;
+        return null;
+    }
+
+    public static TEntity? Find(Level level, int id)
+        => Find(level.Entities.OfType<TEntity>(), level.Session.Level, id);
+
+    public static TEntity? Find(Level level, string room, int id)
+        => Find(level.Entities.OfType<TEntity>(), room, id);
 
     public static void Clear()
         => ids.Clear();
@@ -73,6 +88,15 @@ internal static class WatchEntityPayloadCodec
 
     public static float ReadSingle(ReadOnlySpan<byte> payload, int offset)
         => BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(payload[offset..]));
+
+    public static void WriteVector2(Span<byte> payload, int offset, Vector2 value)
+    {
+        WriteSingle(payload, offset, value.X);
+        WriteSingle(payload, offset + sizeof(float), value.Y);
+    }
+
+    public static Vector2 ReadVector2(ReadOnlySpan<byte> payload, int offset)
+        => new(ReadSingle(payload, offset), ReadSingle(payload, offset + sizeof(float)));
 
     public static void WriteUInt16(Span<byte> payload, int offset, ushort value)
         => BinaryPrimitives.WriteUInt16LittleEndian(payload[offset..], value);

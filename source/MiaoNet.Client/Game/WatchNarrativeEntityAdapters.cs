@@ -185,9 +185,7 @@ internal sealed class WatchNarrativeNPCAdapter : IWatchEntityAdapter
         ReadOnlySpan<byte> p,
         WatchRemotePosition? position = null)
     {
-        Vector2 target = new(
-            WatchEntityPayloadCodec.ReadSingle(p, 8),
-            WatchEntityPayloadCodec.ReadSingle(p, 12));
+        Vector2 target = WatchEntityPayloadCodec.ReadVector2(p, 8);
         if (position is null)
             entity.Position = target;
         else
@@ -200,9 +198,7 @@ internal sealed class WatchNarrativeNPCAdapter : IWatchEntityAdapter
             light.Alpha = Math.Clamp(WatchEntityPayloadCodec.ReadSingle(p, 24), 0f, 1f);
         }
         entity.Collidable = false;
-        sprite.Scale = new(
-            WatchEntityPayloadCodec.ReadSingle(p, 16),
-            WatchEntityPayloadCodec.ReadSingle(p, 20));
+        sprite.Scale = WatchEntityPayloadCodec.ReadVector2(p, 16);
         sprite.Rotation = WatchEntityPayloadCodec.ReadSingle(p, 32);
         entity.Depth = BinaryPrimitives.ReadInt32LittleEndian(p[28..]);
         WatchSpriteState.ApplyAnimation(sprite, WatchEntityPayloadCodec.ReadUInt16(p, 2), p[1]);
@@ -228,10 +224,8 @@ internal sealed class WatchNarrativeNPCAdapter : IWatchEntityAdapter
             p[1] = (byte)Math.Max(0, npc.Sprite.CurrentAnimationFrame);
             WatchEntityPayloadCodec.WriteUInt16(p, 2, WatchSpriteState.EncodeAnimation(npc.Sprite));
             p[4] = (byte)GetVisualKind(npc);
-            WatchEntityPayloadCodec.WriteSingle(p, 8, npc.X);
-            WatchEntityPayloadCodec.WriteSingle(p, 12, npc.Y);
-            WatchEntityPayloadCodec.WriteSingle(p, 16, npc.Sprite.Scale.X);
-            WatchEntityPayloadCodec.WriteSingle(p, 20, npc.Sprite.Scale.Y);
+            WatchEntityPayloadCodec.WriteVector2(p, 8, npc.Position);
+            WatchEntityPayloadCodec.WriteVector2(p, 16, npc.Sprite.Scale);
             WatchEntityPayloadCodec.WriteSingle(p, 24, npc.Light?.Alpha ?? 0f);
             BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(28), npc.Depth);
             WatchEntityPayloadCodec.WriteSingle(p, 32, npc.Sprite.Rotation);
@@ -274,9 +268,11 @@ internal sealed class WatchNarrativeNPCAdapter : IWatchEntityAdapter
             ReadOnlySpan<byte> p = state.Payload.Span;
             if (state.Key.SubID != 0 || p.Length != PayloadSize)
                 continue;
-            NPC? npc = npcs.FirstOrDefault(candidate =>
-                WatchEntityIDTable<NPC>.TryGet(candidate, level.Session.Level, out int id)
-                && id == state.Key.EntityID);
+            NPC? npc = WatchEntityIDTable<NPC>.Find(
+                npcs,
+                level.Session.Level,
+                state.Key.EntityID
+            );
             WatchNarrativeNpcProxy? proxy = proxies.FirstOrDefault(candidate =>
                 candidate.WatchEntityID == state.Key.EntityID);
             if (npc?.Sprite is not null)
@@ -309,7 +305,7 @@ internal sealed class WatchNarrativeNPCAdapter : IWatchEntityAdapter
                 if (proxy is not null)
                     proxies.Remove(proxy);
                 proxy = new WatchNarrativeNpcProxy(state.Key.EntityID, visual,
-                    new(WatchEntityPayloadCodec.ReadSingle(p, 8), WatchEntityPayloadCodec.ReadSingle(p, 12)));
+                    WatchEntityPayloadCodec.ReadVector2(p, 8));
                 proxies.Add(proxy);
                 level.Add(proxy);
             }
@@ -319,7 +315,6 @@ internal sealed class WatchNarrativeNPCAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent) { }
 }
 
 internal sealed class WatchAscendManagerAdapter : IWatchEntityAdapter
@@ -430,8 +425,11 @@ internal sealed class WatchAscendManagerAdapter : IWatchEntityAdapter
                 continue;
             }
 
-            AscendManager? manager = managers.FirstOrDefault(candidate =>
-                WatchEntityIDTable<AscendManager>.TryGet(candidate, level.Session.Level, out int id) && id == state.Key.EntityID);
+            AscendManager? manager = WatchEntityIDTable<AscendManager>.Find(
+                managers,
+                level.Session.Level,
+                state.Key.EntityID
+            );
             if (manager is null || state.Key.SubID != 0 || p.Length != ManagerPayloadSize) continue;
             // Dark and Ch9Ending are immutable map configuration. The same
             // vanilla map exists on both clients, so only runtime state follows.
@@ -469,7 +467,6 @@ internal sealed class WatchAscendManagerAdapter : IWatchEntityAdapter
         }
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent) { }
 
     private static void EnsureBackgroundPresentation(Level level, AscendManager manager)
     {
@@ -604,8 +601,7 @@ internal sealed class WatchIntroCarAdapter : IWatchEntityAdapter
             if (car.Visible) p[0] |= 1;
             if (car.Collidable) p[0] |= 2;
             if (car.didHaveRider) p[0] |= 4;
-            WatchEntityPayloadCodec.WriteSingle(p, 4, car.X);
-            WatchEntityPayloadCodec.WriteSingle(p, 8, car.Y);
+            WatchEntityPayloadCodec.WriteVector2(p, 4, car.Position);
             WatchEntityPayloadCodec.WriteSingle(p, 12, car.startY);
             BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(16), car.Depth);
             yield return sync.GetValue(car, static _ => new()).Capture(new(Kind, id), p, 1,
@@ -619,9 +615,13 @@ internal sealed class WatchIntroCarAdapter : IWatchEntityAdapter
         foreach (WatchEntityState state in states)
         {
             ReadOnlySpan<byte> p = state.Payload.Span;
-            IntroCar? car = cars.FirstOrDefault(candidate => WatchEntityIDTable<IntroCar>.TryGet(candidate, level.Session.Level, out int id) && id == state.Key.EntityID);
+            IntroCar? car = WatchEntityIDTable<IntroCar>.Find(
+                cars,
+                level.Session.Level,
+                state.Key.EntityID
+            );
             if (car is null || state.Key.SubID != 0 || p.Length != PayloadSize) continue;
-            remote.GetValue(car, static _ => new()).Apply(car, new(WatchEntityPayloadCodec.ReadSingle(p, 4), WatchEntityPayloadCodec.ReadSingle(p, 8)));
+            remote.GetValue(car, static _ => new()).Apply(car, WatchEntityPayloadCodec.ReadVector2(p, 4));
             car.Visible = (p[0] & 1) != 0;
             car.Collidable = false;
             car.didHaveRider = (p[0] & 4) != 0;
@@ -630,7 +630,6 @@ internal sealed class WatchIntroCarAdapter : IWatchEntityAdapter
         }
         return states.Count > 0 ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent) { }
 }
 
 internal sealed class WatchChapterPropAdapter : IWatchEntityAdapter
@@ -681,7 +680,11 @@ internal sealed class WatchChapterPropAdapter : IWatchEntityAdapter
             if (p.Length != PayloadSize) continue;
             if (state.Key.SubID == 1)
             {
-                Bonfire? fire = fires.FirstOrDefault(candidate => WatchEntityIDTable<Bonfire>.TryGet(candidate, level.Session.Level, out int id) && id == state.Key.EntityID);
+                Bonfire? fire = WatchEntityIDTable<Bonfire>.Find(
+                    fires,
+                    level.Session.Level,
+                    state.Key.EntityID
+                );
                 if (fire is null) continue;
                 ApplyBase(fire, fire.sprite, fire.light, fire.bloom, p);
                 fire.Activated = p[3] != 0;
@@ -693,7 +696,11 @@ internal sealed class WatchChapterPropAdapter : IWatchEntityAdapter
             }
             else if (state.Key.SubID == 2)
             {
-                Payphone? phone = phones.FirstOrDefault(candidate => WatchEntityIDTable<Payphone>.TryGet(candidate, level.Session.Level, out int id) && id == state.Key.EntityID);
+                Payphone? phone = WatchEntityIDTable<Payphone>.Find(
+                    phones,
+                    level.Session.Level,
+                    state.Key.EntityID
+                );
                 if (phone is null) continue;
                 ApplyBase(phone, phone.Sprite, phone.light, phone.bloom, p);
                 phone.Broken = p[1] != 0; phone.lightFlickerFor = WatchEntityPayloadCodec.ReadSingle(p, 20);
@@ -702,7 +709,6 @@ internal sealed class WatchChapterPropAdapter : IWatchEntityAdapter
         }
         return states.Count > 0 ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent) { }
     private static byte[] CreateBase(Entity entity, Sprite sprite, VertexLight light, BloomPoint bloom)
     {
         byte[] p = new byte[PayloadSize]; if (entity.Visible) p[0] |= 1; if (sprite.Visible) p[0] |= 2; if (light.Visible) p[0] |= 4;
@@ -711,7 +717,7 @@ internal sealed class WatchChapterPropAdapter : IWatchEntityAdapter
     }
     private static void ApplyBase(Entity entity, Sprite sprite, VertexLight light, BloomPoint bloom, ReadOnlySpan<byte> p)
     {
-        entity.Position = new(WatchEntityPayloadCodec.ReadSingle(p, 4), WatchEntityPayloadCodec.ReadSingle(p, 8));
+        entity.Position = WatchEntityPayloadCodec.ReadVector2(p, 4);
         entity.Visible = (p[0] & 1) != 0; sprite.Visible = (p[0] & 2) != 0; light.Visible = (p[0] & 4) != 0;
         light.Alpha = Math.Clamp(WatchEntityPayloadCodec.ReadSingle(p, 12), 0f, 1f); bloom.Alpha = Math.Clamp(WatchEntityPayloadCodec.ReadSingle(p, 16), 0f, 1f);
     }
@@ -742,15 +748,19 @@ internal sealed class WatchLookoutAdapter : IWatchEntityAdapter
         List<Lookout> lookouts = level.Entities.OfType<Lookout>().ToList(); WatchMapEntityMatcher.AssignIDs(level, lookouts, "towerviewer");
         foreach (WatchEntityState state in states)
         {
-            ReadOnlySpan<byte> p = state.Payload.Span; Lookout? lookout = lookouts.FirstOrDefault(candidate => WatchEntityIDTable<Lookout>.TryGet(candidate, level.Session.Level, out int id) && id == state.Key.EntityID);
+            ReadOnlySpan<byte> p = state.Payload.Span;
+            Lookout? lookout = WatchEntityIDTable<Lookout>.Find(
+                lookouts,
+                level.Session.Level,
+                state.Key.EntityID
+            );
             if (lookout is null || state.Key.SubID != 0 || p.Length != PayloadSize) continue;
-            lookout.Position = new(WatchEntityPayloadCodec.ReadSingle(p, 4), WatchEntityPayloadCodec.ReadSingle(p, 8)); lookout.Visible = (p[0] & 1) != 0;
+            lookout.Position = WatchEntityPayloadCodec.ReadVector2(p, 4); lookout.Visible = (p[0] & 1) != 0;
             lookout.interacting = (p[0] & 2) != 0; lookout.talk.Enabled = false; lookout.node = BinaryPrimitives.ReadInt32LittleEndian(p[12..]); lookout.nodePercent = WatchEntityPayloadCodec.ReadSingle(p, 16);
             WatchSpriteState.ApplyAnimation(lookout.sprite, WatchEntityPayloadCodec.ReadUInt16(p, 2), p[1]);
         }
         return states.Count > 0 ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent) { }
     private static void Interact(On.Celeste.Lookout.orig_Interact orig, Lookout self, Player player) { if (!MiaoNetModule.IsWatching) orig(self, player); }
 }
 

@@ -61,8 +61,7 @@ internal sealed class WatchBadelineBoostAdapter : IWatchEntityAdapter
             if (boost.sprite.Visible) payload[1] |= SpriteVisibleFlag;
             if (boost.stretch.Visible) payload[1] |= StretchVisibleFlag;
             WatchEntityPayloadCodec.WriteUInt16(payload, 2, checked((ushort)Math.Clamp(boost.nodeIndex, 0, ushort.MaxValue)));
-            WatchEntityPayloadCodec.WriteSingle(payload, 4, boost.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 8, boost.Position.Y);
+            WatchEntityPayloadCodec.WriteVector2(payload, 4, boost.Position);
             WatchEntityPayloadCodec.WriteSingle(payload, 12, GetStretchProgress(boost));
             yield return new(new WatchEntityKey(Kind, info.ID), payload);
         }
@@ -96,9 +95,7 @@ internal sealed class WatchBadelineBoostAdapter : IWatchEntityAdapter
                 WatchEntityPayloadCodec.ReadUInt16(payload, 2),
                 Math.Max(0, boost.nodes.Length - 1)
             );
-            boost.Position = new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 4),
-                WatchEntityPayloadCodec.ReadSingle(payload, 8));
+            boost.Position = WatchEntityPayloadCodec.ReadVector2(payload, 4);
             boost.travelling = (payload[1] & TravellingFlag) != 0;
             boost.holding = null;
             boost.Visible = phase != WatchEntityPhase.Gone
@@ -428,17 +425,12 @@ internal sealed class WatchFlingBirdAdapter : IWatchEntityAdapter
         WatchEntityPayloadCodec.WriteUInt16(payload, 2, state.SegmentIndex);
         payload[4] = state.Animation;
         payload[5] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Position.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.FlingSpeed.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.FlingSpeed.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.FlingTargetSpeed.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 28, state.FlingTargetSpeed.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 8, state.Position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 16, state.FlingSpeed);
+        WatchEntityPayloadCodec.WriteVector2(payload, 24, state.FlingTargetSpeed);
         WatchEntityPayloadCodec.WriteSingle(payload, 32, state.FlingAccel);
-        WatchEntityPayloadCodec.WriteSingle(payload, 36, state.SpritePosition.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 40, state.SpritePosition.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 44, state.SpriteScale.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 48, state.SpriteScale.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 36, state.SpritePosition);
+        WatchEntityPayloadCodec.WriteVector2(payload, 44, state.SpriteScale);
         WatchEntityPayloadCodec.WriteSingle(payload, 52, state.SpriteRotation);
         return new(new WatchEntityKey(WatchEntityKind.FlingBird, id), payload);
     }
@@ -452,27 +444,12 @@ internal sealed class WatchFlingBirdAdapter : IWatchEntityAdapter
             WatchEntityPayloadCodec.ReadUInt16(payload, 2),
             payload[4],
             payload[5],
-            new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 8),
-                WatchEntityPayloadCodec.ReadSingle(payload, 12)
-            ),
-            new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 16),
-                WatchEntityPayloadCodec.ReadSingle(payload, 20)
-            ),
-            new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 24),
-                WatchEntityPayloadCodec.ReadSingle(payload, 28)
-            ),
+            WatchEntityPayloadCodec.ReadVector2(payload, 8),
+            WatchEntityPayloadCodec.ReadVector2(payload, 16),
+            WatchEntityPayloadCodec.ReadVector2(payload, 24),
             WatchEntityPayloadCodec.ReadSingle(payload, 32),
-            new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 36),
-                WatchEntityPayloadCodec.ReadSingle(payload, 40)
-            ),
-            new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 44),
-                WatchEntityPayloadCodec.ReadSingle(payload, 48)
-            ),
+            WatchEntityPayloadCodec.ReadVector2(payload, 36),
+            WatchEntityPayloadCodec.ReadVector2(payload, 44),
             WatchEntityPayloadCodec.ReadSingle(payload, 52)
         );
     }
@@ -708,7 +685,6 @@ internal sealed class WatchWallBoosterAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent) { }
 
     private static void WallBooster_ctor(
         On.Celeste.WallBooster.orig_ctor_EntityData_Vector2 orig,

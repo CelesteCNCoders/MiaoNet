@@ -317,12 +317,10 @@ internal sealed class WatchBridgeAdapter : IWatchEntityAdapter
                     continue;
                 byte[] payload = new byte[TilePayloadSize];
                 if (tile.Fallen) payload[0] |= 1;
-                WatchEntityPayloadCodec.WriteSingle(payload, 4, tile.Position.X);
-                WatchEntityPayloadCodec.WriteSingle(payload, 8, tile.Position.Y);
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, tile.Position);
                 WatchEntityPayloadCodec.WriteSingle(payload, 12, tile.speedY);
                 WatchEntityPayloadCodec.WriteSingle(payload, 16, tile.colorLerp);
-                WatchEntityPayloadCodec.WriteSingle(payload, 20, tile.shakeOffset.X);
-                WatchEntityPayloadCodec.WriteSingle(payload, 24, tile.shakeOffset.Y);
+                WatchEntityPayloadCodec.WriteVector2(payload, 20, tile.shakeOffset);
                 WatchEntityPayloadCodec.WriteSingle(payload, 28, tile.shakeTimer);
                 yield return tileSync.GetValue(tile, static _ => new()).Capture(
                     new(Kind, id, checked((ushort)(index + 1))), payload, 1,
@@ -376,16 +374,10 @@ internal sealed class WatchBridgeAdapter : IWatchEntityAdapter
                         tile.Fall(Math.Max(0f, shakeTimer));
                     else
                         tile.Fallen = fallen;
-                    remoteTiles.GetValue(tile, static _ => new()).Apply(tile, new(
-                        WatchEntityPayloadCodec.ReadSingle(payload, 4),
-                        WatchEntityPayloadCodec.ReadSingle(payload, 8)
-                    ));
+                    remoteTiles.GetValue(tile, static _ => new()).Apply(tile, WatchEntityPayloadCodec.ReadVector2(payload, 4));
                     tile.speedY = WatchEntityPayloadCodec.ReadSingle(payload, 12);
                     tile.colorLerp = WatchEntityPayloadCodec.ReadSingle(payload, 16);
-                    tile.shakeOffset = new(
-                        WatchEntityPayloadCodec.ReadSingle(payload, 20),
-                        WatchEntityPayloadCodec.ReadSingle(payload, 24)
-                    );
+                    tile.shakeOffset = WatchEntityPayloadCodec.ReadVector2(payload, 20);
                     tile.shakeTimer = shakeTimer;
                     changed = true;
                 }
@@ -547,12 +539,9 @@ internal sealed class WatchIntroCrusherAdapter : IWatchEntityAdapter
             if (crusher.Visible) payload[0] |= 1;
             if (crusher.Collidable) payload[0] |= 2;
             if (crusher.Active) payload[0] |= 4;
-            WatchEntityPayloadCodec.WriteSingle(payload, 4, crusher.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 8, crusher.Position.Y);
-            WatchEntityPayloadCodec.WriteSingle(payload, 12, crusher.shake.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 16, crusher.shake.Y);
-            WatchEntityPayloadCodec.WriteSingle(payload, 20, crusher.start.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 24, crusher.start.Y);
+            WatchEntityPayloadCodec.WriteVector2(payload, 4, crusher.Position);
+            WatchEntityPayloadCodec.WriteVector2(payload, 12, crusher.shake);
+            WatchEntityPayloadCodec.WriteVector2(payload, 20, crusher.start);
             yield return new(new(Kind, id), payload);
         }
     }
@@ -569,24 +558,15 @@ internal sealed class WatchIntroCrusherAdapter : IWatchEntityAdapter
             ReadOnlySpan<byte> payload = state.Payload.Span;
             if (state.Key.SubID != 0 || payload.Length != PayloadSize)
                 continue;
-            IntroCrusher? crusher = level.Entities.OfType<IntroCrusher>().FirstOrDefault(candidate =>
-                WatchEntityIDTable<IntroCrusher>.TryGet(candidate, level.Session.Level, out int id)
-                && id == state.Key.EntityID
-            );
+            IntroCrusher? crusher = WatchEntityIDTable<IntroCrusher>.Find(level, state.Key.EntityID);
             if (crusher is null)
                 continue;
-            Vector2 target = new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 4),
-                WatchEntityPayloadCodec.ReadSingle(payload, 8)
-            );
+            Vector2 target = WatchEntityPayloadCodec.ReadVector2(payload, 4);
             Vector2 movement = target - crusher.Position;
             crusher.Position = target;
             if (movement != Vector2.Zero)
                 crusher.MoveStaticMovers(movement);
-            crusher.shake = new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 12),
-                WatchEntityPayloadCodec.ReadSingle(payload, 16)
-            );
+            crusher.shake = WatchEntityPayloadCodec.ReadVector2(payload, 12);
             crusher.Visible = (payload[0] & 1) != 0;
             crusher.Collidable = false;
             crusher.Active = (payload[0] & 4) != 0;
@@ -595,9 +575,6 @@ internal sealed class WatchIntroCrusherAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static void IntroCrusher_ctor(
         On.Celeste.IntroCrusher.orig_ctor_EntityData_Vector2 orig,
@@ -662,11 +639,9 @@ internal sealed class WatchResortRoofEndingAdapter : IWatchEntityAdapter
                 Image image = roof.images[index];
                 byte[] payload = new byte[ImagePayloadSize];
                 if (image.Visible) payload[0] |= 1;
-                WatchEntityPayloadCodec.WriteSingle(payload, 4, image.Position.X);
-                WatchEntityPayloadCodec.WriteSingle(payload, 8, image.Position.Y);
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, image.Position);
                 WatchEntityPayloadCodec.WriteSingle(payload, 12, image.Rotation);
-                WatchEntityPayloadCodec.WriteSingle(payload, 16, image.Scale.X);
-                WatchEntityPayloadCodec.WriteSingle(payload, 20, image.Scale.Y);
+                WatchEntityPayloadCodec.WriteVector2(payload, 16, image.Scale);
                 WatchEntityPayloadCodec.WriteSingle(payload, 24, image.Color.A / 255f);
                 yield return new(new(Kind, id, checked((ushort)(index + 1))), payload);
             }
@@ -682,12 +657,7 @@ internal sealed class WatchResortRoofEndingAdapter : IWatchEntityAdapter
         bool changed = false;
         foreach (IGrouping<int, WatchEntityState> group in states.GroupBy(state => state.Key.EntityID))
         {
-            ResortRoofEnding? roof = level.Entities.OfType<ResortRoofEnding>()
-                .FirstOrDefault(candidate =>
-                    WatchEntityIDTable<ResortRoofEnding>.TryGet(
-                        candidate, level.Session.Level, out int id
-                    ) && id == group.Key
-                );
+            ResortRoofEnding? roof = WatchEntityIDTable<ResortRoofEnding>.Find(level, group.Key);
             if (roof is null)
                 continue;
             foreach (WatchEntityState state in group)
@@ -703,15 +673,9 @@ internal sealed class WatchResortRoofEndingAdapter : IWatchEntityAdapter
                 {
                     Image image = roof.images[state.Key.SubID - 1];
                     image.Visible = (payload[0] & 1) != 0;
-                    image.Position = new(
-                        WatchEntityPayloadCodec.ReadSingle(payload, 4),
-                        WatchEntityPayloadCodec.ReadSingle(payload, 8)
-                    );
+                    image.Position = WatchEntityPayloadCodec.ReadVector2(payload, 4);
                     image.Rotation = WatchEntityPayloadCodec.ReadSingle(payload, 12);
-                    image.Scale = new(
-                        WatchEntityPayloadCodec.ReadSingle(payload, 16),
-                        WatchEntityPayloadCodec.ReadSingle(payload, 20)
-                    );
+                    image.Scale = WatchEntityPayloadCodec.ReadVector2(payload, 16);
                     image.Color = Color.White * Calc.Clamp(
                         WatchEntityPayloadCodec.ReadSingle(payload, 24), 0f, 1f
                     );
@@ -722,9 +686,6 @@ internal sealed class WatchResortRoofEndingAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static void ResortRoofEnding_ctor(
         On.Celeste.ResortRoofEnding.orig_ctor orig,

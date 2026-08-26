@@ -115,9 +115,6 @@ internal sealed class WatchWingedStrawberryAdapter : IWatchEntityAdapter
         return result;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static IEnumerable<EntityData> GetWingedStrawberryData(Level level)
         => level.Session.LevelData.Entities.Where(data =>

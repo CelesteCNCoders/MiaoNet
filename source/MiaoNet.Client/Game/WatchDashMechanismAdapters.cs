@@ -24,8 +24,7 @@ internal sealed class WatchDashSwitchAdapter : IWatchEntityAdapter
 
             byte[] payload = new byte[9];
             payload[0] = dashSwitch.pressed ? (byte)1 : (byte)0;
-            WatchEntityPayloadCodec.WriteSingle(payload, 1, dashSwitch.Position.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 5, dashSwitch.Position.Y);
+            WatchEntityPayloadCodec.WriteVector2(payload, 1, dashSwitch.Position);
             yield return new WatchEntityState(
                 new WatchEntityKey(Kind, dashSwitch.id.ID),
                 payload
@@ -59,10 +58,7 @@ internal sealed class WatchDashSwitchAdapter : IWatchEntityAdapter
 
             ReadOnlySpan<byte> payload = state.Payload.Span;
             bool pressed = payload[0] != 0;
-            Vector2 position = new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 1),
-                WatchEntityPayloadCodec.ReadSingle(payload, 5)
-            );
+            Vector2 position = WatchEntityPayloadCodec.ReadVector2(payload, 1);
             bool differs = dashSwitch.pressed != pressed || dashSwitch.Position != position;
             if (!differs)
                 continue;
@@ -83,9 +79,6 @@ internal sealed class WatchDashSwitchAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 }
 
 internal sealed class WatchTempleGateAdapter : IWatchEntityAdapter
@@ -194,9 +187,6 @@ internal sealed class WatchTempleGateAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static bool TempleGate_TheoIsNearby(
         On.Celeste.TempleGate.orig_TheoIsNearby orig,

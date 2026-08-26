@@ -187,9 +187,6 @@ internal sealed class WatchFinalBossShotAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static ShotState Capture(FinalBossShot shot)
     {
@@ -217,14 +214,10 @@ internal sealed class WatchFinalBossShotAdapter : IWatchEntityAdapter
         byte[] payload = new byte[PayloadSize];
         payload[0] = state.Flags;
         payload[1] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Speed.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Speed.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Anchor.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.Anchor.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 28, state.Perpendicular.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 32, state.Perpendicular.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Speed);
+        WatchEntityPayloadCodec.WriteVector2(payload, 20, state.Anchor);
+        WatchEntityPayloadCodec.WriteVector2(payload, 28, state.Perpendicular);
         WatchEntityPayloadCodec.WriteSingle(payload, 36, state.AngleOffset);
         WatchEntityPayloadCodec.WriteSingle(payload, 40, state.CantKillTimer);
         WatchEntityPayloadCodec.WriteSingle(payload, 44, state.AppearTimer);
@@ -325,10 +318,7 @@ internal sealed class WatchFinalBossShotAdapter : IWatchEntityAdapter
     }
 
     private static FinalBoss? FindBoss(Level level, int bossID)
-        => level.Entities.OfType<FinalBoss>().FirstOrDefault(boss =>
-            WatchEntityIDTable<FinalBoss>.TryGet(boss, level.Session.Level, out int candidate)
-            && candidate == bossID
-        );
+        => WatchEntityIDTable<FinalBoss>.Find(level, bossID);
 
     private static FinalBossShot FinalBossShot_InitPlayer(
         On.Celeste.FinalBossShot.orig_Init_FinalBoss_Player_float orig,
@@ -753,10 +743,7 @@ internal sealed class WatchFinalBossBeamAdapter : IWatchEntityAdapter
     }
 
     private static FinalBoss? FindBoss(Level level, int bossID)
-        => level.Entities.OfType<FinalBoss>().FirstOrDefault(boss =>
-            WatchEntityIDTable<FinalBoss>.TryGet(boss, level.Session.Level, out int candidate)
-            && candidate == bossID
-        );
+        => WatchEntityIDTable<FinalBoss>.Find(level, bossID);
 
     private static FinalBossBeam FinalBossBeam_Init(
         On.Celeste.FinalBossBeam.orig_Init orig,

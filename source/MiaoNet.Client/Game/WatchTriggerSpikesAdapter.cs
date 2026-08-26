@@ -120,9 +120,10 @@ internal sealed class WatchTriggerSpikesAdapter : IWatchEntityAdapter
             return;
 
         string room = level.Session.Level;
-        TriggerSpikes? parent = level.Entities.OfType<TriggerSpikes>().FirstOrDefault(candidate =>
-            WatchEntityIDTable<TriggerSpikes>.TryGet(candidate, room, out int id)
-            && id == entityEvent.Key.EntityID
+        TriggerSpikes? parent = WatchEntityIDTable<TriggerSpikes>.Find(
+            level,
+            room,
+            entityEvent.Key.EntityID
         );
         if (parent is null || entityEvent.Key.SubID >= parent.spikes.Length)
             return;

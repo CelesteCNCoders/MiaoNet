@@ -23,7 +23,8 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
     {
         Level level = SceneAs<Level>();
 
-        if (level.Tracker.GetEntities<MiaoNetGhostEntity>().Count == 0)
+        List<Entity> entities = level.Tracker.GetEntities<MiaoNetGhostEntity>();
+        if (entities.Count == 0)
             return;
 
         var gd = Engine.Instance.GraphicsDevice;
@@ -31,12 +32,7 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
 
         GameplayRenderer.End();
 
-        List<MiaoNetGhostEntity> entities = level.Tracker.GetEntities<MiaoNetGhostEntity>()
-            .Cast<MiaoNetGhostEntity>()
-            .Where(entity => entity.RenderBand == band && entity.Visible)
-            .ToList();
-
-        DrawGhostPass(gd, entities.Where(static entity => !entity.WatchPresentationFocus));
+        bool hasFocusedEntity = DrawGhostPass(gd, entities, drawFocused: false);
 
         // prepare effect if needed
         Effect? effect = null;
@@ -71,9 +67,9 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
         // The explicitly watched subject is a viewing target, not an ordinary
         // background multiplayer ghost. Composite it at full opacity without
         // changing the user's opacity setting for everyone else.
-        if (entities.Any(static entity => entity.WatchPresentationFocus))
+        if (hasFocusedEntity)
         {
-            DrawGhostPass(gd, entities.Where(static entity => entity.WatchPresentationFocus));
+            DrawGhostPass(gd, entities, drawFocused: true);
             gd.SetRenderTarget(GameplayBuffers.Gameplay);
             Draw.SpriteBatch.Begin(
                 SpriteSortMode.Deferred,
@@ -91,16 +87,28 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
         GameplayRenderer.Begin();
     }
 
-    private static void DrawGhostPass(
+    private bool DrawGhostPass(
         GraphicsDevice graphicsDevice,
-        IEnumerable<MiaoNetGhostEntity> entities
+        List<Entity> entities,
+        bool drawFocused
     )
     {
+        bool hasFocusedEntity = false;
         graphicsDevice.SetRenderTarget(GameplayBuffers.TempA);
         graphicsDevice.Clear(Color.Transparent);
         GameplayRenderer.Begin();
-        foreach (MiaoNetGhostEntity entity in entities)
+        foreach (Entity trackedEntity in entities)
+        {
+            MiaoNetGhostEntity entity = (MiaoNetGhostEntity)trackedEntity;
+            if (entity.RenderBand != band || !entity.Visible)
+                continue;
+            if (entity.WatchPresentationFocus)
+                hasFocusedEntity = true;
+            if (entity.WatchPresentationFocus != drawFocused)
+                continue;
             entity.GhostRender();
+        }
         GameplayRenderer.End();
+        return hasFocusedEntity;
     }
 }

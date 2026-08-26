@@ -127,11 +127,11 @@ internal sealed class WatchStaticSpinnerAdapter : IWatchEntityAdapter
             return;
 
         string room = level.Session.Level;
-        CrystalStaticSpinner? spinner = level.Entities.OfType<CrystalStaticSpinner>()
-            .FirstOrDefault(candidate =>
-                WatchEntityIDTable<CrystalStaticSpinner>.TryGet(candidate, room, out int id)
-                && id == entityEvent.Key.EntityID
-            );
+        CrystalStaticSpinner? spinner = WatchEntityIDTable<CrystalStaticSpinner>.Find(
+            level,
+            room,
+            entityEvent.Key.EntityID
+        );
         if (spinner is null)
             return;
 

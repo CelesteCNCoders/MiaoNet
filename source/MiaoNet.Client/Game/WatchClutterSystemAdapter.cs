@@ -277,10 +277,7 @@ internal sealed class WatchClutterSystemAdapter : IWatchEntityAdapter
             bool visible = (payload[1] & VisibleFlag) != 0;
             bool collidable = (payload[1] & CollidableFlag) != 0;
             bool boolValue = (payload[1] & BoolFlag) != 0;
-            Vector2 position = new(
-                WatchEntityPayloadCodec.ReadSingle(payload, 8),
-                WatchEntityPayloadCodec.ReadSingle(payload, 12)
-            );
+            Vector2 position = WatchEntityPayloadCodec.ReadVector2(payload, 8);
             changed |= entity.Visible != visible || entity.Collidable != collidable || entity.Position != position;
             entity.Visible = visible;
             entity.Collidable = collidable;
@@ -395,8 +392,7 @@ internal sealed class WatchClutterSystemAdapter : IWatchEntityAdapter
         payload[2] = color;
         payload[3] = animation;
         WatchEntityPayloadCodec.WriteUInt16(payload, 4, (ushort)Math.Max(0, frame));
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, position.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 8, position);
         WatchEntityPayloadCodec.WriteSingle(payload, 16, value0);
         WatchEntityPayloadCodec.WriteSingle(payload, 20, value1);
         return new WatchEntityState(key, payload);

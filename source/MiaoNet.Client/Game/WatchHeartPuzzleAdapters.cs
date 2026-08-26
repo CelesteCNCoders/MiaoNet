@@ -193,8 +193,7 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
             controller[1] = (byte)acceptedInputs.Length;
             acceptedInputs.CopyTo(controller, 2);
             Vector2 heartPosition = heart?.Position ?? satellite.gemSpawnPosition;
-            WatchEntityPayloadCodec.WriteSingle(controller, 8, heartPosition.X);
-            WatchEntityPayloadCodec.WriteSingle(controller, 12, heartPosition.Y);
+            WatchEntityPayloadCodec.WriteVector2(controller, 8, heartPosition);
             BitConverter.TryWriteBytes(
                 controller.AsSpan(16),
                 satellite.pulse?.Color.PackedValue ?? Color.White.PackedValue
@@ -354,10 +353,7 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
         if (inputs.Take(payload[1]).Any(input => input is 0 or > 5)
             || inputs.Skip(payload[1]).Any(input => input != 0))
             return false;
-        Vector2 heartPosition = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 8),
-            WatchEntityPayloadCodec.ReadSingle(payload, 12)
-        );
+        Vector2 heartPosition = WatchEntityPayloadCodec.ReadVector2(payload, 8);
         if (!float.IsFinite(heartPosition.X) || !float.IsFinite(heartPosition.Y))
             return false;
         float pulseBloomAlpha = WatchEntityPayloadCodec.ReadSingle(payload, 24);
@@ -439,16 +435,12 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
         payload[0] = state.Flags;
         payload[1] = state.Animation;
         payload[2] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Speed.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Speed.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Speed);
         WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Timer);
-        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.Scale.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 28, state.Scale.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 24, state.Scale);
         WatchEntityPayloadCodec.WriteSingle(payload, 32, state.Rotation);
-        WatchEntityPayloadCodec.WriteSingle(payload, 36, state.HeartScale.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 40, state.HeartScale.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 36, state.HeartScale);
         BitConverter.TryWriteBytes(payload.AsSpan(44), state.SpriteColor);
         return new(new WatchEntityKey(WatchEntityKind.ForsakenCitySatellite, id, subID), payload);
     }
@@ -579,13 +571,7 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
     );
 
     private static ForsakenCitySatellite? Find(Level level, int id)
-        => level.Entities.OfType<ForsakenCitySatellite>().FirstOrDefault(satellite =>
-            WatchEntityIDTable<ForsakenCitySatellite>.TryGet(
-                satellite,
-                level.Session.Level,
-                out int candidate
-            ) && candidate == id
-        );
+        => WatchEntityIDTable<ForsakenCitySatellite>.Find(level, id);
 
     private static ForsakenCitySatellite? Recreate(Level level, int id)
     {
@@ -1034,13 +1020,7 @@ internal sealed class WatchReflectionHeartStatueAdapter : IWatchEntityAdapter
         );
 
     private static ReflectionHeartStatue? Find(Level level, int id)
-        => level.Entities.OfType<ReflectionHeartStatue>().FirstOrDefault(statue =>
-            WatchEntityIDTable<ReflectionHeartStatue>.TryGet(
-                statue,
-                level.Session.Level,
-                out int candidate
-            ) && candidate == id
-        );
+        => WatchEntityIDTable<ReflectionHeartStatue>.Find(level, id);
 
     private static ReflectionHeartStatue? Recreate(Level level, int id)
     {

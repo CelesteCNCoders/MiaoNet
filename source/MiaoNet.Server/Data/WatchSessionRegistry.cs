@@ -1,14 +1,25 @@
 using MiaoNet.Shared;
+using System.Collections.ObjectModel;
 
 namespace MiaoNet.Server;
 
 public sealed class WatchSessionRegistry
 {
+    private sealed class TargetSessions
+    {
+        public HashSet<WatchSession> Mutable { get; } = [];
+
+        public ReadOnlySet<WatchSession> View { get; }
+
+        public TargetSessions()
+            => View = new(Mutable);
+    }
+
     private int nextSessionID;
 
     private readonly Dictionary<int, WatchSession> sessions;
     private readonly Dictionary<int, int> sessionsByWatcher;
-    private readonly Dictionary<int, HashSet<int>> sessionsByTarget;
+    private readonly Dictionary<int, TargetSessions> sessionsByTarget;
 
     public int Count => sessions.Count;
 
@@ -33,12 +44,12 @@ public sealed class WatchSessionRegistry
         sessions.Add(sessionID, session);
         sessionsByWatcher.Add(watcherID, sessionID);
 
-        if (!sessionsByTarget.TryGetValue(targetID, out HashSet<int>? targetSessions))
+        if (!sessionsByTarget.TryGetValue(targetID, out TargetSessions? targetSessions))
         {
             targetSessions = new();
             sessionsByTarget.Add(targetID, targetSessions);
         }
-        targetSessions.Add(sessionID);
+        targetSessions.Mutable.Add(session);
 
         return session;
     }
@@ -57,10 +68,10 @@ public sealed class WatchSessionRegistry
 
     public IReadOnlyCollection<WatchSession> GetByTarget(int targetID)
     {
-        if (!sessionsByTarget.TryGetValue(targetID, out HashSet<int>? sessionIDs))
+        if (!sessionsByTarget.TryGetValue(targetID, out TargetSessions? targetSessions))
             return [];
 
-        return sessionIDs.Select(id => sessions[id]).ToArray();
+        return targetSessions.View;
     }
 
     public bool HasWatcher(int watcherID)
@@ -77,10 +88,10 @@ public sealed class WatchSessionRegistry
         bool watcherRemoved = sessionsByWatcher.Remove(session.WatcherID);
         SafeGuard.Assert(watcherRemoved);
 
-        HashSet<int> targetSessions = sessionsByTarget[session.TargetID];
-        bool targetRemoved = targetSessions.Remove(sessionID);
+        TargetSessions targetSessions = sessionsByTarget[session.TargetID];
+        bool targetRemoved = targetSessions.Mutable.Remove(session);
         SafeGuard.Assert(targetRemoved);
-        if (targetSessions.Count == 0)
+        if (targetSessions.Mutable.Count == 0)
             sessionsByTarget.Remove(session.TargetID);
 
         return true;
@@ -91,8 +102,9 @@ public sealed class WatchSessionRegistry
         HashSet<int> sessionIDs = new();
         if (sessionsByWatcher.TryGetValue(playerID, out int watchedSessionID))
             sessionIDs.Add(watchedSessionID);
-        if (sessionsByTarget.TryGetValue(playerID, out HashSet<int>? producedSessionIDs))
-            sessionIDs.UnionWith(producedSessionIDs);
+        if (sessionsByTarget.TryGetValue(playerID, out TargetSessions? producedSessions))
+            foreach (WatchSession session in producedSessions.View)
+                sessionIDs.Add(session.ID);
 
         WatchSession[] removed = new WatchSession[sessionIDs.Count];
         int index = 0;

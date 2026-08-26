@@ -115,9 +115,6 @@ internal sealed class WatchLavaAdapter : IWatchEntityAdapter
         return result;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static LavaState Capture(RisingLava lava)
     {
@@ -171,12 +168,9 @@ internal sealed class WatchLavaAdapter : IWatchEntityAdapter
     {
         byte[] payload = new byte[PayloadSize];
         payload[0] = state.Flags;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.EntityPosition.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.EntityPosition.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.BottomPosition.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.BottomPosition.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.TopPosition.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.TopPosition.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.EntityPosition);
+        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.BottomPosition);
+        WatchEntityPayloadCodec.WriteVector2(payload, 20, state.TopPosition);
         WatchEntityPayloadCodec.WriteSingle(payload, 28, state.Lerp);
         WatchEntityPayloadCodec.WriteSingle(payload, 32, state.Delay);
         WatchEntityPayloadCodec.WriteSingle(payload, 36, state.TransitionStartY);
@@ -194,18 +188,9 @@ internal sealed class WatchLavaAdapter : IWatchEntityAdapter
             || (payload[0] & ~(VisibleFlag | CollidableFlag | IceModeFlag | WaitingFlag | LeavingFlag | SpecialFlag)) != 0
             || payload[1] != 0 || payload[2] != 0 || payload[3] != 0)
             return false;
-        Vector2 entityPosition = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 4),
-            WatchEntityPayloadCodec.ReadSingle(payload, 8)
-        );
-        Vector2 bottom = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 12),
-            WatchEntityPayloadCodec.ReadSingle(payload, 16)
-        );
-        Vector2 top = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 20),
-            WatchEntityPayloadCodec.ReadSingle(payload, 24)
-        );
+        Vector2 entityPosition = WatchEntityPayloadCodec.ReadVector2(payload, 4);
+        Vector2 bottom = WatchEntityPayloadCodec.ReadVector2(payload, 12);
+        Vector2 top = WatchEntityPayloadCodec.ReadVector2(payload, 20);
         float lerp = WatchEntityPayloadCodec.ReadSingle(payload, 28);
         float delay = WatchEntityPayloadCodec.ReadSingle(payload, 32);
         float transitionStartY = WatchEntityPayloadCodec.ReadSingle(payload, 36);

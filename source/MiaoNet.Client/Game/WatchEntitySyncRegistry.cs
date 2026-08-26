@@ -27,12 +27,14 @@ internal interface IWatchEntityAdapter
         bool isCompleteState
     );
 
-    void ApplyEvent(Level level, WatchEntityEvent entityEvent);
+    void ApplyEvent(Level level, WatchEntityEvent entityEvent)
+    {
+    }
 }
 
 internal static class WatchEntitySyncRegistry
 {
-    private static readonly Dictionary<WatchEntityKind, IWatchEntityAdapter> adapters = new();
+    private static readonly SortedDictionary<WatchEntityKind, IWatchEntityAdapter> adapters = new();
     private static int remoteApplyDepth;
     private static int forceCurrentCaptureDepth;
     private static int lifecycleResetApplyDepth;
@@ -70,9 +72,9 @@ internal static class WatchEntitySyncRegistry
             forceCurrentCaptureDepth++;
         try
         {
-            foreach (IWatchEntityAdapter adapter in adapters.Values.OrderBy(adapter => adapter.Kind))
+            foreach (IWatchEntityAdapter adapter in adapters.Values)
             {
-                Dictionary<WatchEntityKey, WatchEntityState> adapterStates = new();
+                Dictionary<WatchEntityKey, WatchEntityState>? adapterStates = null;
                 try
                 {
                     foreach (WatchEntityState state in adapter.CaptureStates(level))
@@ -91,6 +93,7 @@ internal static class WatchEntitySyncRegistry
                             );
                         }
 
+                        adapterStates ??= new();
                         if (!adapterStates.TryAdd(state.Key, state))
                         {
                             adapterStates[state.Key] = state;
@@ -102,8 +105,9 @@ internal static class WatchEntitySyncRegistry
                         }
                     }
 
-                    foreach ((WatchEntityKey key, WatchEntityState state) in adapterStates)
-                        states.Add(key, state);
+                    if (adapterStates is not null)
+                        foreach ((WatchEntityKey key, WatchEntityState state) in adapterStates)
+                            states.Add(key, state);
                 }
                 catch (Exception exception)
                 {

@@ -152,9 +152,6 @@ internal sealed class WatchRoomEnvironmentAdapter : IWatchEntityAdapter
         return WatchEntityApplyResult.SceneChanged;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static EnvironmentState Capture(Level level)
     {
@@ -264,8 +261,7 @@ internal sealed class WatchRoomEnvironmentAdapter : IWatchEntityAdapter
         WatchEntityPayloadCodec.WriteSingle(payload, 24, state.Glitch);
         WatchEntityPayloadCodec.WriteSingle(payload, 28, state.BlackholeAlpha);
         WatchEntityPayloadCodec.WriteSingle(payload, 32, state.BlackholeStrengthMultiplier);
-        WatchEntityPayloadCodec.WriteSingle(payload, 36, state.Wind.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 40, state.Wind.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 36, state.Wind);
         WatchEntityPayloadCodec.WriteSingle(payload, 44, state.MusicFade);
         WatchEntityPayloadCodec.WriteSingle(payload, 48, state.MusicEscape);
         WatchEntityPayloadCodec.WriteSingle(payload, 52, state.MusicInSpace);

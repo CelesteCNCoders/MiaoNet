@@ -221,9 +221,6 @@ internal sealed class WatchPeriodicPlatformAdapter : IWatchEntityAdapter
         return result;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
-    {
-    }
 
     private static PlatformState Capture(Entity entity, byte type)
     {
@@ -550,8 +547,7 @@ internal sealed class WatchPeriodicPlatformAdapter : IWatchEntityAdapter
         payload[0] = state.Type;
         payload[1] = state.Flags;
         payload[2] = state.Aux;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
         WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Value0);
         WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Value1);
         WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Value2);

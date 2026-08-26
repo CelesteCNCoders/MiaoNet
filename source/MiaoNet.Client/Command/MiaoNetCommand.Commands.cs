@@ -566,22 +566,21 @@ partial class MiaoNetCommand
         }
 
         MainComponent main = context.MiaoNetContext.MainComponent;
-        if (!main.TryBeginWatchRequest())
+        if (!main.CanStartWatching)
             return Dialog.Get("miaonet_commands_watch_request_pending");
 
         int targetPlayerID = player.ID;
         string targetPlayerName = player.Info.Name;
         if (!context.MiaoNetContext.CanUseWatchSceneSync(player))
         {
-            main.CompleteWatchRequest();
             if (!main.StartLegacyWatching(player))
                 return Dialog.Get("miaonet_commands_watch_failed_invalid_state");
-            context.TipMessage(PFormat.Format(
-                Dialog.Get("miaonet_commands_watch_watching"),
-                targetPlayerName
-            ));
+            ShowWatchingTip();
             return null;
         }
+
+        if (!main.TryBeginWatchRequest())
+            return Dialog.Get("miaonet_commands_watch_request_pending");
 
         context.TipMessage(PFormat.Format(Dialog.Get("miaonet_commands_watch_preparing"), targetPlayerName));
         context.Request(new PacketWatchStart(targetPlayerID), response =>
@@ -600,10 +599,7 @@ partial class MiaoNetCommand
                     && fallbackState.TryGetPlayer(targetPlayerID, out OnlinePlayer? fallbackTarget)
                     && main.StartLegacyWatching(fallbackTarget))
                 {
-                    context.TipMessage(PFormat.Format(
-                        Dialog.Get("miaonet_commands_watch_watching"),
-                        targetPlayerName
-                    ));
+                    ShowWatchingTip();
                     return;
                 }
                 context.TipErrorMessage(Dialog.Get(GetWatchStartErrorKey(response.Result)));
@@ -620,10 +616,16 @@ partial class MiaoNetCommand
                 return;
             }
 
-            context.TipMessage(PFormat.Format(Dialog.Get("miaonet_commands_watch_watching"), targetPlayerName));
+            ShowWatchingTip();
         });
 
         return null;
+
+        void ShowWatchingTip()
+            => context.TipMessage(PFormat.Format(
+                Dialog.Get("miaonet_commands_watch_watching"),
+                targetPlayerName
+            ));
 
         static string GetWatchStartErrorKey(WatchStartResult result)
             => result switch

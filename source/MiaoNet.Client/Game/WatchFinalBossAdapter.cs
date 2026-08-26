@@ -248,10 +248,8 @@ internal sealed class WatchFinalBossAdapter : IWatchEntityAdapter
         BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(4), state.NodeIndex);
         BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(8), state.PatternIndex);
         BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(12), state.Depth);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Position.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.Scale.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 28, state.Scale.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 16, state.Position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 24, state.Scale);
         WatchEntityPayloadCodec.WriteSingle(payload, 32, state.LightAlpha);
         return new(new WatchEntityKey(WatchEntityKind.FinalBoss, id), payload);
     }
@@ -264,14 +262,8 @@ internal sealed class WatchFinalBossAdapter : IWatchEntityAdapter
             || payload.Length != PayloadSize || (payload[0] & ~0b0001_1111) != 0
             || !IsValidAnimation(payload[1]) || payload[3] > 1)
             return false;
-        Vector2 position = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 16),
-            WatchEntityPayloadCodec.ReadSingle(payload, 20)
-        );
-        Vector2 scale = new(
-            WatchEntityPayloadCodec.ReadSingle(payload, 24),
-            WatchEntityPayloadCodec.ReadSingle(payload, 28)
-        );
+        Vector2 position = WatchEntityPayloadCodec.ReadVector2(payload, 16);
+        Vector2 scale = WatchEntityPayloadCodec.ReadVector2(payload, 24);
         float lightAlpha = WatchEntityPayloadCodec.ReadSingle(payload, 32);
         if (!float.IsFinite(position.X) || !float.IsFinite(position.Y)
             || !float.IsFinite(scale.X) || !float.IsFinite(scale.Y)
@@ -374,10 +366,7 @@ internal sealed class WatchFinalBossAdapter : IWatchEntityAdapter
     }
 
     private static FinalBoss? Find(Level level, int id)
-        => level.Entities.OfType<FinalBoss>().FirstOrDefault(boss =>
-            WatchEntityIDTable<FinalBoss>.TryGet(boss, level.Session.Level, out int candidate)
-            && candidate == id
-        );
+        => WatchEntityIDTable<FinalBoss>.Find(level, id);
 
     private static Sprite? ActiveSprite(FinalBoss boss)
         => boss.Sprite ?? boss.NormalSprite;

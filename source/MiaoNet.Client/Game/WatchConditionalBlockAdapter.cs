@@ -125,7 +125,6 @@ internal sealed class WatchConditionalBlockAdapter : IWatchEntityAdapter
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
 
-    public void ApplyEvent(Level level, WatchEntityEvent entityEvent) { }
 
     private static void Apply(FakeWall wall, ReadOnlySpan<byte> payload, bool snap)
     {

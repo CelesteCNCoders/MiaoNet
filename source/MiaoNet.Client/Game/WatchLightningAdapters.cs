@@ -217,10 +217,8 @@ internal sealed class WatchLightningBreakerBoxAdapter : IWatchEntityAdapter
         payload[1] = state.Health;
         payload[2] = state.Animation;
         payload[3] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.Y);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Scale.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Scale.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Scale);
         WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Rotation);
         return new(new WatchEntityKey(WatchEntityKind.LightningBreakerBox, id), payload);
     }
@@ -299,10 +297,7 @@ internal sealed class WatchLightningBreakerBoxAdapter : IWatchEntityAdapter
     }
 
     private static LightningBreakerBox? Find(Level level, int id)
-        => level.Entities.OfType<LightningBreakerBox>().FirstOrDefault(box =>
-            WatchEntityIDTable<LightningBreakerBox>.TryGet(box, level.Session.Level, out int candidate)
-            && candidate == id
-        );
+        => WatchEntityIDTable<LightningBreakerBox>.Find(level, id);
 
     private static LightningBreakerBox? Recreate(Level level, int id)
     {
@@ -350,8 +345,7 @@ internal sealed class WatchLightningBreakerBoxAdapter : IWatchEntityAdapter
             ))
         {
             byte[] payload = new byte[8];
-            WatchEntityPayloadCodec.WriteSingle(payload, 0, direction.X);
-            WatchEntityPayloadCodec.WriteSingle(payload, 4, direction.Y);
+            WatchEntityPayloadCodec.WriteVector2(payload, 0, direction);
             WatchEntitySyncRegistry.PublishEvent(level, new(
                 new WatchEntityKey(WatchEntityKind.LightningBreakerBox, id),
                 self.health <= 0 ? BreakEvent : HitEvent,
@@ -612,8 +606,7 @@ internal sealed class WatchLightningAdapter : IWatchEntityAdapter
     {
         byte[] payload = new byte[PayloadSize];
         payload[0] = state.Flags;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.Position.X);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Position.Y);
+        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
         WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Fade);
         WatchEntityPayloadCodec.WriteSingle(payload, 16, state.RendererFade);
         WatchEntityPayloadCodec.WriteSingle(payload, 20, state.MotionPhase);
@@ -807,10 +800,7 @@ internal sealed class WatchLightningAdapter : IWatchEntityAdapter
     }
 
     private static Lightning? Find(Level level, int id)
-        => level.Entities.OfType<Lightning>().FirstOrDefault(lightning =>
-            WatchEntityIDTable<Lightning>.TryGet(lightning, level.Session.Level, out int candidate)
-            && candidate == id
-        );
+        => WatchEntityIDTable<Lightning>.Find(level, id);
 
     private static Lightning? Recreate(Level level, int id)
     {

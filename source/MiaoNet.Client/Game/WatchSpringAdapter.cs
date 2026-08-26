@@ -84,10 +84,7 @@ internal sealed class WatchSpringAdapter : IWatchEntityAdapter
         if (entityEvent.EventID != BounceEvent || entityEvent.Payload.Length != 0)
             return;
 
-        Spring? spring = level.Entities.OfType<Spring>().FirstOrDefault(candidate =>
-            WatchEntityIDTable<Spring>.TryGet(candidate, level.Session.Level, out int id)
-            && id == entityEvent.Key.EntityID
-        );
+        Spring? spring = WatchEntityIDTable<Spring>.Find(level, entityEvent.Key.EntityID);
         spring?.BounceAnimate();
     }
 

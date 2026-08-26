@@ -38,6 +38,9 @@ public sealed partial class MainComponent
 
     public bool WatchRequestPending { get; private set; }
 
+    public bool CanStartWatching
+        => !WatchRequestPending && !Watching && !watchSceneRestorePending;
+
     private void CleanUpWatching()
     {
         WatchRequestPending = false;
@@ -158,11 +161,7 @@ public sealed partial class MainComponent
         if (level.InCutscene && !level.SkippingCutscene)
             level.SkipCutscene();
 
-        const int width = Celeste.GameWidth;
-        const int height = Celeste.GameHeight;
-        Vector2 cameraTarget = playerWatching.State!.Position - new Vector2(width, height) / 2f;
-        cameraTarget.X = MathHelper.Clamp(cameraTarget.X, level.Bounds.Left, level.Bounds.Right - width);
-        cameraTarget.Y = MathHelper.Clamp(cameraTarget.Y, level.Bounds.Top, level.Bounds.Bottom - height);
+        Vector2 cameraTarget = GetWatchCameraTarget(level, playerWatching.State!.Position);
         level.Camera.Position = Calc.Approach(
             level.Camera.Position,
             cameraTarget,
@@ -172,7 +171,7 @@ public sealed partial class MainComponent
 
     public bool TryBeginWatchRequest()
     {
-        if (WatchRequestPending || Watching || watchSceneRestorePending)
+        if (!CanStartWatching)
             return false;
 
         WatchRequestPending = true;
@@ -195,9 +194,7 @@ public sealed partial class MainComponent
 
     public bool StartLegacyWatching(OnlinePlayer player)
     {
-        if (WatchRequestPending
-            || Watching
-            || watchSceneRestorePending
+        if (!CanStartWatching
             || Engine.Scene is not Level level
             || player.State is null
             || player.Channel != ClientState.Self.Channel
@@ -899,21 +896,24 @@ public sealed partial class MainComponent
     }
 
     private static void SnapWatchCamera(Level level, Vector2 targetPosition)
+        => level.Camera.Position = GetWatchCameraTarget(level, targetPosition);
+
+    private static Vector2 GetWatchCameraTarget(Level level, Vector2 targetPosition)
     {
-        const int W = Celeste.GameWidth;
-        const int H = Celeste.GameHeight;
-        Vector2 cameraTarget = targetPosition - new Vector2(W, H) / 2f;
-        cameraTarget.X = MathHelper.Clamp(
-            cameraTarget.X,
+        const int width = Celeste.GameWidth;
+        const int height = Celeste.GameHeight;
+        Vector2 target = targetPosition - new Vector2(width, height) / 2f;
+        target.X = MathHelper.Clamp(
+            target.X,
             level.Bounds.Left,
-            level.Bounds.Right - W
+            level.Bounds.Right - width
         );
-        cameraTarget.Y = MathHelper.Clamp(
-            cameraTarget.Y,
+        target.Y = MathHelper.Clamp(
+            target.Y,
             level.Bounds.Top,
-            level.Bounds.Bottom - H
+            level.Bounds.Bottom - height
         );
-        level.Camera.Position = cameraTarget;
+        return target;
     }
 
     private void UpdateWatchCamera(Level level)
@@ -936,11 +936,7 @@ public sealed partial class MainComponent
         if (watchCameraAwaitingFreshSample)
             return;
 
-        const int W = Celeste.GameWidth;
-        const int H = Celeste.GameHeight;
-        Vector2 target = state.Position - new Vector2(W, H) / 2f;
-        target.X = MathHelper.Clamp(target.X, level.Bounds.Left, level.Bounds.Right - W);
-        target.Y = MathHelper.Clamp(target.Y, level.Bounds.Top, level.Bounds.Bottom - H);
+        Vector2 target = GetWatchCameraTarget(level, state.Position);
         level.Camera.Position = Calc.Approach(
             level.Camera.Position,
             target,
