@@ -142,6 +142,14 @@ public sealed class ChatMessageListView
             }
             viewStates[item] = state;
         }
+
+        // folding replaces the old ChatItem, so sweep its stale view state instead
+        // of letting replaced items pile up until the next CleanUp
+        if (viewStates.Count > fullChatLog.Count)
+        {
+            foreach (var stale in viewStates.Keys.Where(k => !fullChatLog.Contains(k)).ToArray())
+                viewStates.Remove(stale);
+        }
     }
 
     public void Render()
