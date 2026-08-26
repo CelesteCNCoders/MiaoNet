@@ -41,6 +41,10 @@ public sealed partial class MainComponent : MiaoNetComponent
         context.PlayerGrabJumpOut += Context_PlayerGrabJumpOut;
         context.SelfChannelMoved += Context_SelfChannelMoved;
         context.PlayerChannelMoved += Context_PlayerChannelMoved;
+        context.WatchSnapshotRequested += Context_WatchSnapshotRequested;
+        context.WatchSceneDeltaReceived += Context_WatchSceneDeltaReceived;
+        context.WatchProducerStopped += Context_WatchProducerStopped;
+        context.WatchEnded += Context_WatchEnded;
 
         MiaoNetModule.PlayerLocationChanged += MiaoNetModule_OnPlayerLocationChanged;
         MiaoNetModule.PlayerSoundPlayed += MiaoNetModule_PlayerSoundPlayed;
@@ -106,6 +110,11 @@ public sealed partial class MainComponent : MiaoNetComponent
 
         if (level is null)
             return;
+
+        if (UpdateWatchSceneRestore(level))
+            return;
+
+        UpdateWatchSceneProducer(level);
 
         // location update
         if (pendingMapChanged)
@@ -455,6 +464,7 @@ public sealed partial class MainComponent : MiaoNetComponent
     {
         if (!HasState)
             return;
+        MarkWatchProducerRoomReload(location);
         var changeResult = ClientState.OnPlayerLocationChanged(location);
         bool fullSync = forceFullChange || changeResult is PlayerLocation.ChangeResult.FullSync;
         if (changeResult is PlayerLocation.ChangeResult.None && !fullSync)

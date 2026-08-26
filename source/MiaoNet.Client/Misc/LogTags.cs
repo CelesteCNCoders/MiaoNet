@@ -12,4 +12,5 @@ internal class LogTags
     public const string MiaoNetEmoteComponent = "MiaoNet/Emote";
     public const string MiaoNetPacketReading = "MiaoNet/PacketReading";
     public const string MiaoNetRC = "MiaoNet/RC";
+    public const string MiaoNetWatch = "MiaoNet/Watch";
 }
