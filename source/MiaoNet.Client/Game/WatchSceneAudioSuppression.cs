@@ -8,6 +8,11 @@ internal static class WatchSceneAudioSuppression
 
     public static void Load()
     {
+        On.Celeste.Audio.Play_string += Audio_Play;
+        On.Celeste.Audio.Play_string_string_float += Audio_Play;
+        On.Celeste.Audio.Play_string_Vector2 += Audio_Play;
+        On.Celeste.Audio.Play_string_Vector2_string_float += Audio_Play;
+        On.Celeste.Audio.Play_string_Vector2_string_float_string_float += Audio_Play;
         On.Celeste.SoundSource.Play += SoundSource_Play;
         On.Celeste.SoundEmitter.Play_string += SoundEmitter_Play;
     }
@@ -16,6 +21,11 @@ internal static class WatchSceneAudioSuppression
     {
         On.Celeste.SoundSource.Play -= SoundSource_Play;
         On.Celeste.SoundEmitter.Play_string -= SoundEmitter_Play;
+        On.Celeste.Audio.Play_string_Vector2_string_float_string_float -= Audio_Play;
+        On.Celeste.Audio.Play_string_Vector2_string_float -= Audio_Play;
+        On.Celeste.Audio.Play_string_Vector2 -= Audio_Play;
+        On.Celeste.Audio.Play_string_string_float -= Audio_Play;
+        On.Celeste.Audio.Play_string -= Audio_Play;
         suppressionDepth = 0;
     }
 
@@ -24,6 +34,42 @@ internal static class WatchSceneAudioSuppression
         suppressionDepth++;
         return new Scope();
     }
+
+    private static FMOD.Studio.EventInstance Audio_Play(
+        On.Celeste.Audio.orig_Play_string orig,
+        string path
+    ) => suppressionDepth > 0 ? null! : orig(path);
+
+    private static FMOD.Studio.EventInstance Audio_Play(
+        On.Celeste.Audio.orig_Play_string_string_float orig,
+        string path,
+        string param,
+        float value
+    ) => suppressionDepth > 0 ? null! : orig(path, param, value);
+
+    private static FMOD.Studio.EventInstance Audio_Play(
+        On.Celeste.Audio.orig_Play_string_Vector2 orig,
+        string path,
+        Vector2 position
+    ) => suppressionDepth > 0 ? null! : orig(path, position);
+
+    private static FMOD.Studio.EventInstance Audio_Play(
+        On.Celeste.Audio.orig_Play_string_Vector2_string_float orig,
+        string path,
+        Vector2 position,
+        string param,
+        float value
+    ) => suppressionDepth > 0 ? null! : orig(path, position, param, value);
+
+    private static FMOD.Studio.EventInstance Audio_Play(
+        On.Celeste.Audio.orig_Play_string_Vector2_string_float_string_float orig,
+        string path,
+        Vector2 position,
+        string param,
+        float value,
+        string param2,
+        float value2
+    ) => suppressionDepth > 0 ? null! : orig(path, position, param, value, param2, value2);
 
     private static SoundSource SoundSource_Play(
         On.Celeste.SoundSource.orig_Play orig,
