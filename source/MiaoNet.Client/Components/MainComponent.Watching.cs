@@ -5,10 +5,33 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed partial class MainComponent
 {
+    private const int WatchPlaybackQueueCapacity = 512;
+    private static readonly long WatchPlaybackDelayTicks =
+        WatchPlaybackTiming.GetDelayTicks(System.Diagnostics.Stopwatch.Frequency);
+
+    private readonly record struct WatchPlayerFrameSample(
+        PlayerLocation Location,
+        PlayerStateDelta Delta
+    );
+
+    private enum WatchPlayerPresentationEventKind
+    {
+        PauseChanged,
+        LiveState,
+    }
+
+    private readonly record struct WatchPlayerPresentationEvent(
+        WatchPlayerPresentationEventKind Kind,
+        bool Paused,
+        LiveStateType LiveState,
+        Vector2 Value
+    );
+
     private int? watchSessionID;
     private HashSet<string>? watchBaselineFlags;
     private PlayerMapLocation watchMap;
     private int lastWatchSequence;
+    private int lastWatchReceivedSequence;
     private bool watchResyncPending;
     private WatchSceneSnapshot? pendingWatchResyncSnapshot;
     private PlayerLocation watchEntityLocation;
@@ -30,6 +53,17 @@ public sealed partial class MainComponent
     private Vector2? watchCameraTarget;
     private bool watchCameraAwaitingFreshSample;
     private bool watchCameraApplyAfterLevelUpdate;
+    private readonly WatchPlaybackQueue<WatchPlayerFrameSample> watchPlayerFrameBuffer =
+        new(WatchPlaybackQueueCapacity);
+    private WatchPlaybackEntry<WatchPlayerFrameSample>? watchCurrentPlayerFrame;
+    private PlayerState? watchPlaybackPlayerState;
+    private PlayerLocation watchPlaybackLocation;
+    private bool watchPlaybackPaused;
+    private readonly WatchPlaybackQueue<WatchSceneDelta> watchSceneDeltaBuffer =
+        new(WatchPlaybackQueueCapacity);
+    private readonly WatchPlaybackQueue<WatchPlayerPresentationEvent> watchPlayerEventBuffer =
+        new(WatchPlaybackQueueCapacity);
+    private PlayerLocation watchReceivedEntityLocation;
 
     public bool WatchRequestPending { get; private set; }
 
@@ -80,6 +114,10 @@ public sealed partial class MainComponent
             if (watchResyncPending)
                 return;
 
+            AdvanceWatchPlayback(level);
+            if (watchResyncPending)
+                return;
+
             if (watchRoomTransitionPending)
             {
                 if (level.transition is not null)
@@ -101,7 +139,7 @@ public sealed partial class MainComponent
             }
 
             PlayerLocation localPlayerLocation = PlayerLocation.FetchFrom(level.Session);
-            PlayerLocation watchedPlayerLocation = playerWatching.Location;
+            PlayerLocation watchedPlayerLocation = watchPlaybackLocation;
             if (localPlayerLocation.Room != watchedPlayerLocation.Room
                 && !watchedPlayerLocation.IsInDebugMap
                 && level.transition is null)
@@ -237,7 +275,13 @@ public sealed partial class MainComponent
         ReplaceFlags(level.Session.Flags, snapshot.Flags);
         watchMap = snapshot.Location.Map;
         lastWatchSequence = snapshot.Sequence;
+        lastWatchReceivedSequence = snapshot.Sequence;
         watchEntityLocation = snapshot.Location;
+        watchReceivedEntityLocation = snapshot.Location;
+        watchSceneDeltaBuffer.Clear();
+        watchPlayerEventBuffer.Clear();
+        if (playerWatching is { } watchedPlayer)
+            ResetWatchPlayerPlayback(watchedPlayer, snapshot.Location);
         watchEntityStates = snapshot.EntityStates.ToDictionary(state => state.Key);
         watchPendingEntityStateKeys.Clear();
         watchPendingEntityStateKeys.UnionWith(watchEntityStates.Keys);
@@ -285,10 +329,14 @@ public sealed partial class MainComponent
 
         watchSessionID = null;
         lastWatchSequence = 0;
+        lastWatchReceivedSequence = 0;
         watchResyncPending = false;
         pendingWatchResyncSnapshot = null;
         watchMap = default;
         watchEntityLocation = default;
+        watchReceivedEntityLocation = default;
+        watchSceneDeltaBuffer.Clear();
+        watchPlayerEventBuffer.Clear();
         watchEntityStates = null;
         watchPendingEntityStateKeys.Clear();
         watchPendingEntityEvents.Clear();
@@ -302,6 +350,7 @@ public sealed partial class MainComponent
         watchCameraLocation = default;
         watchCameraTarget = null;
         watchCameraAwaitingFreshSample = false;
+        ClearWatchPlayerPlayback();
 
         if (level is not null && watchBaselineFlags is not null)
             ReplaceFlags(level.Session.Flags, watchBaselineFlags);
@@ -333,6 +382,7 @@ public sealed partial class MainComponent
             }
         }
 
+        ReleaseWatchRoomEntityIndexIfUnused();
         return player;
     }
 
@@ -342,10 +392,10 @@ public sealed partial class MainComponent
             || playerWatching?.ID != packet.TargetPlayerID)
             return;
 
-        if (packet.Delta.Sequence <= lastWatchSequence || watchResyncPending)
+        if (packet.Delta.Sequence <= lastWatchReceivedSequence || watchResyncPending)
             return;
 
-        if (packet.Delta.Sequence != lastWatchSequence + 1)
+        if (packet.Delta.Sequence != lastWatchReceivedSequence + 1)
         {
             BeginWatchResync(packet.Delta.Sequence, "sequence gap");
             return;
@@ -355,24 +405,41 @@ public sealed partial class MainComponent
             || PlayerLocation.FetchFrom(level.Session).Map != watchMap
             || packet.Delta.Location.Map != watchMap
             || (packet.Delta.EntityStateMode == WatchEntityStateMode.Patch
-                && watchEntityLocation != packet.Delta.Location))
+                && watchReceivedEntityLocation != packet.Delta.Location))
         {
             BeginWatchResync(packet.Delta.Sequence, "scene mismatch");
             return;
         }
 
-        packet.Delta.ApplyTo(level.Session.Flags);
-        if (watchRoomReloadPending && watchRoomReloadLocation != packet.Delta.Location)
+        WatchPlaybackEnqueueResult enqueueResult = watchSceneDeltaBuffer.Enqueue(
+            context.CurrentReceivedPacketTimestamp,
+            packet.Delta
+        );
+        if (enqueueResult != WatchPlaybackEnqueueResult.Success)
+        {
+            BeginWatchResync(packet.Delta.Sequence, $"scene playback buffer {enqueueResult}");
+            return;
+        }
+
+        lastWatchReceivedSequence = packet.Delta.Sequence;
+        if (packet.Delta.EntityStateMode == WatchEntityStateMode.Replace)
+            watchReceivedEntityLocation = packet.Delta.Location;
+    }
+
+    private void ApplyBufferedWatchSceneDelta(Level level, WatchSceneDelta delta)
+    {
+        delta.ApplyTo(level.Session.Flags);
+        if (watchRoomReloadPending && watchRoomReloadLocation != delta.Location)
         {
             watchRoomReloadPending = false;
             watchRoomReloadLocation = default;
         }
-        if (packet.Delta.EntityStateMode == WatchEntityStateMode.Replace)
+        if (delta.EntityStateMode == WatchEntityStateMode.Replace)
         {
-            watchEntityLocation = packet.Delta.Location;
+            watchEntityLocation = delta.Location;
             watchEntityStates ??= new();
             watchEntityStates.Clear();
-            foreach (WatchEntityState state in packet.Delta.EntityStates)
+            foreach (WatchEntityState state in delta.EntityStates)
                 watchEntityStates.Add(state.Key, state);
             watchPendingEntityStateKeys.Clear();
             watchPendingEntityStateKeys.UnionWith(watchEntityStates.Keys);
@@ -380,7 +447,7 @@ public sealed partial class MainComponent
             // death. Consume that event against the still-live room before the
             // black-frame snapshot replaces the lifecycle; otherwise a
             // Snowball impact can be discarded without ever being rendered.
-            if (packet.Delta.IsDeathRespawn)
+            if (delta.IsDeathRespawn)
             {
                 if (IsWatchDeathRoomUnloaded)
                     watchPendingEntityEvents.Clear();
@@ -390,15 +457,15 @@ public sealed partial class MainComponent
             else
                 watchPendingEntityEvents.Clear();
             watchPendingEntityStateMode = WatchEntityStateMode.Replace;
-            watchEntityLifecycleResetPending = packet.Delta.IsDeathRespawn;
-            if (packet.Delta.IsDeathRespawn)
+            watchEntityLifecycleResetPending = delta.IsDeathRespawn;
+            if (delta.IsDeathRespawn)
                 watchLifecycleIncompleteKinds.Clear();
-            watchRoomTransition = packet.Delta.RoomTransition;
+            watchRoomTransition = delta.RoomTransition;
         }
-        else if (packet.Delta.EntityStateMode == WatchEntityStateMode.Patch)
+        else if (delta.EntityStateMode == WatchEntityStateMode.Patch)
         {
             watchEntityStates ??= new();
-            foreach (WatchEntityState state in packet.Delta.EntityStates)
+            foreach (WatchEntityState state in delta.EntityStates)
             {
                 watchEntityStates[state.Key] = state;
                 watchPendingEntityStateKeys.Add(state.Key);
@@ -406,15 +473,16 @@ public sealed partial class MainComponent
             if (watchPendingEntityStateMode == WatchEntityStateMode.None)
                 watchPendingEntityStateMode = WatchEntityStateMode.Patch;
         }
-        watchPendingEntityEvents.AddRange(packet.Delta.EntityEvents);
-        if (WatchSceneLifecyclePolicy.AuthorizesRoomReload(packet.Delta))
+        watchPendingEntityEvents.AddRange(delta.EntityEvents);
+        if (WatchSceneLifecyclePolicy.AuthorizesRoomReload(delta))
         {
             watchRoomReloadPending = true;
-            watchRoomReloadLocation = packet.Delta.Location;
+            watchRoomReloadLocation = delta.Location;
         }
-        if (packet.Delta.IsDeathRespawn)
-            MarkWatchDeathRespawnStateReady(packet.Delta.Location);
-        lastWatchSequence = packet.Delta.Sequence;
+        if (delta.IsDeathRespawn)
+            MarkWatchDeathRespawnStateReady(delta.Location);
+        watchPlaybackLocation = delta.Location;
+        lastWatchSequence = delta.Sequence;
     }
 
     private void BeginWatchResync(int receivedSequence, string reason)
@@ -424,6 +492,10 @@ public sealed partial class MainComponent
 
         watchResyncPending = true;
         pendingWatchResyncSnapshot = null;
+        watchSceneDeltaBuffer.Clear();
+        watchPlayerEventBuffer.Clear();
+        watchPlayerFrameBuffer.Clear();
+        watchCurrentPlayerFrame = null;
         context.QueuePacket(new PacketWatchResyncRequest(sessionID, lastWatchSequence));
         Logger.Warn(
             LT.MiaoNetWatch,
@@ -616,10 +688,10 @@ public sealed partial class MainComponent
     private void BeginWatchRoomTransition(Level level)
     {
         if (watchRoomTransitionPending
-            || playerWatching?.State is null)
+            || watchPlaybackPlayerState is null)
             return;
 
-        PlayerLocation targetLocation = playerWatching.Location;
+        PlayerLocation targetLocation = watchPlaybackLocation;
         PlayerLocation currentLocation = PlayerLocation.FetchFrom(level.Session);
         if (targetLocation.IsInDebugMap
             || targetLocation.Map != currentLocation.Map
@@ -630,7 +702,17 @@ public sealed partial class MainComponent
         if (player is null)
             return;
 
-        Vector2 targetPosition = playerWatching.State.Position;
+        Vector2 targetPosition;
+        if (watchRoomTransition is { } bufferedTransition
+            && bufferedTransition.SourceLocation == currentLocation
+            && bufferedTransition.TargetLocation == targetLocation)
+            targetPosition = bufferedTransition.PlayerPosition;
+        else if (watchCurrentPlayerFrame is { } currentFrame
+            && currentFrame.Value.Location == targetLocation
+            && watchPlaybackPlayerState is { } playbackState)
+            targetPosition = playbackState.Position;
+        else
+            return;
         LevelData data = level.Session.MapData.Get(targetLocation.Room);
         player.Visible = false;
         player.StateMachine.State = Player.StFrozen;
@@ -766,18 +848,12 @@ public sealed partial class MainComponent
 
     private void UpdateWatchCamera(Level level)
     {
-        if (playerWatching?.State is not { } state)
+        if (WatchedPlayerState is not { } state)
             return;
 
         if (TryGetBufferedWatchCamera(level, out Vector2 authoritativeTarget))
         {
-            const float CameraResponse = 30f;
-            float amount = 1f - MathF.Exp(-CameraResponse * Engine.RawDeltaTime);
-            level.Camera.Position = Vector2.Lerp(
-                level.Camera.Position,
-                authoritativeTarget,
-                amount
-            );
+            level.Camera.Position = authoritativeTarget;
             return;
         }
 
@@ -798,7 +874,7 @@ public sealed partial class MainComponent
             return;
 
         watchCameraApplyAfterLevelUpdate = false;
-        if (playerWatching?.State is null || level.transition is not null)
+        if (WatchedPlayerState is null || level.transition is not null)
             return;
 
         UpdateWatchCamera(level);
@@ -806,16 +882,241 @@ public sealed partial class MainComponent
         WatchRoomEnvironmentAdapter.ApplyFrame(level);
     }
 
-    private void BufferWatchCameraSample(OnlinePlayer player, PlayerStateDelta delta)
+    private void BufferWatchPlayerFrame(OnlinePlayer player, PlayerStateDelta delta)
     {
-        if (!WatchSceneSyncActive
-            || playerWatching?.ID != player.ID
-            || !delta.HasCameraPosition)
+        if (!WatchSceneSyncActive || watchResyncPending || playerWatching?.ID != player.ID)
             return;
 
-        watchCameraLocation = player.Location;
-        watchCameraTarget = delta.CameraPosition;
-        watchCameraAwaitingFreshSample = false;
+        WatchPlaybackEnqueueResult result = watchPlayerFrameBuffer.Enqueue(
+            context.CurrentReceivedPacketTimestamp,
+            new(player.Location, delta)
+        );
+        if (result != WatchPlaybackEnqueueResult.Success)
+            BeginWatchResync(lastWatchSequence, $"player playback buffer {result}");
+    }
+
+    private void BufferWatchPlayerPause(bool paused)
+    {
+        if (!WatchSceneSyncActive || watchResyncPending)
+            return;
+
+        WatchPlaybackEnqueueResult result = watchPlayerEventBuffer.Enqueue(
+            context.CurrentReceivedPacketTimestamp,
+            new(
+                WatchPlayerPresentationEventKind.PauseChanged,
+                paused,
+                default,
+                Vector2.Zero
+            )
+        );
+        if (result != WatchPlaybackEnqueueResult.Success)
+            BeginWatchResync(lastWatchSequence, $"player event playback buffer {result}");
+    }
+
+    private void BufferWatchPlayerLiveState(LiveStateType liveState, Vector2 value)
+    {
+        if (!WatchSceneSyncActive || watchResyncPending)
+            return;
+
+        WatchPlaybackEnqueueResult result = watchPlayerEventBuffer.Enqueue(
+            context.CurrentReceivedPacketTimestamp,
+            new(
+                WatchPlayerPresentationEventKind.LiveState,
+                false,
+                liveState,
+                value
+            )
+        );
+        if (result != WatchPlaybackEnqueueResult.Success)
+            BeginWatchResync(lastWatchSequence, $"player event playback buffer {result}");
+    }
+
+    private void AdvanceWatchPlayback(Level level)
+    {
+        if (!WatchSceneSyncActive || playerWatching is not { } player)
+            return;
+
+        long playbackTime = System.Diagnostics.Stopwatch.GetTimestamp() - WatchPlaybackDelayTicks;
+        while (TryGetNextWatchPlaybackKind(playbackTime, out WatchPlaybackKind kind))
+        {
+            if (kind == WatchPlaybackKind.PlayerFrame)
+            {
+                watchPlayerFrameBuffer.TryDequeueDue(
+                    playbackTime,
+                    out WatchPlaybackEntry<WatchPlayerFrameSample> entry
+                );
+                ApplyBufferedWatchPlayerFrame(level, player, entry);
+            }
+            else if (kind == WatchPlaybackKind.SceneDelta)
+            {
+                watchSceneDeltaBuffer.TryDequeueDue(
+                    playbackTime,
+                    out WatchPlaybackEntry<WatchSceneDelta> entry
+                );
+                if (entry.Value.Sequence != lastWatchSequence + 1)
+                {
+                    BeginWatchResync(entry.Value.Sequence, "playback sequence gap");
+                    return;
+                }
+                ApplyBufferedWatchSceneDelta(level, entry.Value);
+            }
+            else
+            {
+                watchPlayerEventBuffer.TryDequeueDue(
+                    playbackTime,
+                    out WatchPlaybackEntry<WatchPlayerPresentationEvent> entry
+                );
+                ApplyBufferedWatchPlayerEvent(level, player, entry.Value);
+            }
+
+            if (watchResyncPending)
+                return;
+        }
+
+        InterpolateWatchPlayerFrame(level, player, playbackTime);
+    }
+
+    private enum WatchPlaybackKind
+    {
+        PlayerFrame,
+        SceneDelta,
+        PlayerEvent,
+    }
+
+    private bool TryGetNextWatchPlaybackKind(long playbackTime, out WatchPlaybackKind kind)
+    {
+        kind = default;
+        long earliest = long.MaxValue;
+        bool found = false;
+
+        if (watchPlayerFrameBuffer.TryPeek(out WatchPlaybackEntry<WatchPlayerFrameSample> frame)
+            && frame.ReceivedAt <= playbackTime)
+        {
+            earliest = frame.ReceivedAt;
+            kind = WatchPlaybackKind.PlayerFrame;
+            found = true;
+        }
+        if (watchSceneDeltaBuffer.TryPeek(out WatchPlaybackEntry<WatchSceneDelta> scene)
+            && scene.ReceivedAt <= playbackTime
+            && scene.ReceivedAt < earliest)
+        {
+            earliest = scene.ReceivedAt;
+            kind = WatchPlaybackKind.SceneDelta;
+            found = true;
+        }
+        if (watchPlayerEventBuffer.TryPeek(
+            out WatchPlaybackEntry<WatchPlayerPresentationEvent> playerEvent
+        )
+            && playerEvent.ReceivedAt <= playbackTime
+            && playerEvent.ReceivedAt < earliest)
+        {
+            kind = WatchPlaybackKind.PlayerEvent;
+            found = true;
+        }
+
+        return found;
+    }
+
+    private void ApplyBufferedWatchPlayerFrame(
+        Level level,
+        OnlinePlayer player,
+        WatchPlaybackEntry<WatchPlayerFrameSample> entry
+    )
+    {
+        watchCurrentPlayerFrame = entry;
+        PlayerStateDelta delta = entry.Value.Delta;
+        watchPlaybackPlayerState ??= player.State?.Clone();
+        watchPlaybackPlayerState?.ApplyDelta(delta);
+
+        PlayerLocation localLocation = PlayerLocation.FetchFrom(level.Session);
+        if (entry.Value.Location == watchPlaybackLocation
+            && entry.Value.Location == localLocation)
+        {
+            WatchBadelineOldsiteAdapter.RecordRemotePlayerFrame(delta);
+            WatchAngryOshiroAdapter.RecordRemotePlayerFrame(delta);
+            ApplyPlayerFrame(level, player, delta, delta.Position);
+        }
+    }
+
+    private void ApplyBufferedWatchPlayerEvent(
+        Level level,
+        OnlinePlayer player,
+        WatchPlayerPresentationEvent playerEvent
+    )
+    {
+        if (playerEvent.Kind == WatchPlayerPresentationEventKind.PauseChanged)
+        {
+            watchPlaybackPaused = playerEvent.Paused;
+            if (ghosts.TryGetValue(player.ID, out MiaoNetGhost? ghost))
+                ghost.OnUpdatePaused(playerEvent.Paused);
+            return;
+        }
+
+        ApplyPlayerLiveState(level, player, playerEvent.LiveState, playerEvent.Value);
+    }
+
+    private void InterpolateWatchPlayerFrame(
+        Level level,
+        OnlinePlayer player,
+        long playbackTime
+    )
+    {
+        if (watchCurrentPlayerFrame is not { } current)
+            return;
+
+        Vector2 position = current.Value.Delta.Position;
+        Vector2? camera = current.Value.Delta.HasCameraPosition
+            ? current.Value.Delta.CameraPosition
+            : null;
+        bool hasNextFrame = watchPlayerFrameBuffer.TryPeek(
+            out WatchPlaybackEntry<WatchPlayerFrameSample> next
+        ) && next.Value.Location == current.Value.Location;
+        if (hasNextFrame)
+        {
+            float amount = WatchPlaybackTiming.GetInterpolationAmount(
+                current.ReceivedAt,
+                next.ReceivedAt,
+                playbackTime
+            );
+            position = Vector2.Lerp(position, next.Value.Delta.Position, amount);
+            if (camera.HasValue && next.Value.Delta.HasCameraPosition)
+                camera = Vector2.Lerp(camera.Value, next.Value.Delta.CameraPosition, amount);
+        }
+
+        if (watchPlaybackPlayerState is not null)
+            watchPlaybackPlayerState.Position = position;
+        if (ghosts.TryGetValue(player.ID, out MiaoNetGhost? ghost)
+            && !ghost.BeingHeldLocally
+            && current.Value.Location == watchPlaybackLocation)
+            ghost.Position = position;
+        if (camera.HasValue && current.Value.Location == watchPlaybackLocation)
+        {
+            watchCameraLocation = current.Value.Location;
+            watchCameraTarget = camera.Value;
+            watchCameraAwaitingFreshSample = false;
+        }
+    }
+
+    private void ResetWatchPlayerPlayback(OnlinePlayer player, PlayerLocation location)
+    {
+        watchPlayerFrameBuffer.Clear();
+        watchPlayerEventBuffer.Clear();
+        watchCurrentPlayerFrame = null;
+        watchPlaybackPlayerState = player.State?.Clone();
+        watchPlaybackLocation = location;
+        watchPlaybackPaused = player.IsPaused;
+        if (ghosts.TryGetValue(player.ID, out MiaoNetGhost? ghost))
+            ghost.OnUpdatePaused(watchPlaybackPaused);
+    }
+
+    private void ClearWatchPlayerPlayback()
+    {
+        watchPlayerFrameBuffer.Clear();
+        watchPlayerEventBuffer.Clear();
+        watchCurrentPlayerFrame = null;
+        watchPlaybackPlayerState = null;
+        watchPlaybackLocation = default;
+        watchPlaybackPaused = false;
     }
 
     private bool TryGetBufferedWatchCamera(Level level, out Vector2 target)

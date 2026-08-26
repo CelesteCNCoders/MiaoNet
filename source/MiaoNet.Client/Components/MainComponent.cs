@@ -27,9 +27,13 @@ public sealed partial class MainComponent : MiaoNetComponent
 
     internal bool WatchSceneSyncActive => watchSessionID is not null;
 
-    internal bool WatchedPlayerPaused => playerWatching?.IsPaused == true;
+    internal bool WatchedPlayerPaused => WatchSceneSyncActive
+        ? watchPlaybackPaused
+        : playerWatching?.IsPaused == true;
 
-    internal PlayerState? WatchedPlayerState => playerWatching?.State;
+    internal PlayerState? WatchedPlayerState => WatchSceneSyncActive
+        ? watchPlaybackPlayerState
+        : playerWatching?.State;
 
     internal MiaoNetGhost? WatchedGhost => playerWatching is not null
         && ghosts.TryGetValue(playerWatching.ID, out MiaoNetGhost? ghost)
@@ -640,17 +644,26 @@ public sealed partial class MainComponent : MiaoNetComponent
 
         var delta = packet.StateDelta;
 
-        BufferWatchCameraSample(player, delta);
         if (WatchSceneSyncActive && playerWatching?.ID == player.ID)
         {
-            WatchBadelineOldsiteAdapter.RecordRemotePlayerFrame(delta);
-            WatchAngryOshiroAdapter.RecordRemotePlayerFrame(delta);
+            BufferWatchPlayerFrame(player, delta);
+            return;
         }
 
+        ApplyPlayerFrame(level, player, delta, delta.Position);
+    }
+
+    private void ApplyPlayerFrame(
+        Level level,
+        OnlinePlayer player,
+        PlayerStateDelta delta,
+        Vector2 position
+    )
+    {
         if (ghosts.TryGetValue(player.ID, out var ghost))
         {
             if (!ghost.BeingHeldLocally)
-                ghost.Position = delta.Position;
+                ghost.Position = position;
 
             // hmmm can we avoid these tons of updates?
 
@@ -766,6 +779,22 @@ public sealed partial class MainComponent : MiaoNetComponent
 
     private void Context_PlayerLiveStateNotification(OnlinePlayer player, LiveStateType flag, Vector2 vector2)
     {
+        if (WatchSceneSyncActive && playerWatching?.ID == player.ID)
+        {
+            BufferWatchPlayerLiveState(flag, vector2);
+            return;
+        }
+
+        ApplyPlayerLiveState(Engine.Scene as Level, player, flag, vector2);
+    }
+
+    private void ApplyPlayerLiveState(
+        Level? level,
+        OnlinePlayer player,
+        LiveStateType flag,
+        Vector2 vector2
+    )
+    {
         if (ghosts.TryGetValue(player.ID, out var ghost))
         {
             if (flag == LiveStateType.Die)
@@ -773,14 +802,14 @@ public sealed partial class MainComponent : MiaoNetComponent
                 ghost.OnDied(vector2);
                 if (WatchSceneSyncActive
                     && playerWatching?.ID == player.ID
-                    && Engine.Scene is Level level)
+                    && level is not null)
                     BeginWatchDeathTransition(level);
             }
             else if (flag == LiveStateType.DeathWipe)
             {
                 if (WatchSceneSyncActive
                     && playerWatching?.ID == player.ID
-                    && Engine.Scene is Level level)
+                    && level is not null)
                     SignalWatchDeathWipe(level);
             }
             else if (playerWatching?.ID == player.ID
@@ -802,9 +831,16 @@ public sealed partial class MainComponent : MiaoNetComponent
 
     private void Context_PlayerGlobalFlagsChanged(OnlinePlayer player, PlayerGlobalFlags previousFlag)
     {
+        bool paused = player.GlobalFlags.HasFlag(PlayerGlobalFlags.Paused);
+        bool pauseChanged = paused != previousFlag.HasFlag(PlayerGlobalFlags.Paused);
+        bool bufferPresentation = WatchSceneSyncActive && playerWatching?.ID == player.ID;
+        if (bufferPresentation && pauseChanged)
+            BufferWatchPlayerPause(paused);
+
         if (!ghosts.TryGetValue(player.ID, out var ghost))
             return;
-        ghost.OnUpdatePaused(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Paused));
+        if (!bufferPresentation && pauseChanged)
+            ghost.OnUpdatePaused(paused);
         ghost.OnUpdateWatching(player.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching));
     }
 

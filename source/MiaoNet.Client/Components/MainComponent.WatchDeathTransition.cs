@@ -62,7 +62,7 @@ public sealed partial class MainComponent
     {
         if (watchDeathTransitionPhase == WatchDeathTransitionPhase.None
             || playerWatching is null
-            || playerWatching.Location.Map != location.Map)
+            || watchPlaybackLocation.Map != location.Map)
             return;
 
         watchDeathRespawnLocation = location;
@@ -75,12 +75,12 @@ public sealed partial class MainComponent
             return false;
 
         PlayerLocation current = PlayerLocation.FetchFrom(level.Session);
-        if (playerWatching is null || playerWatching.Location.Map != current.Map)
+        if (playerWatching is null || watchPlaybackLocation.Map != current.Map)
         {
             CancelWatchDeathTransition(level);
             return false;
         }
-        if (playerWatching.Location != current)
+        if (watchPlaybackLocation != current)
         {
             // A PlayerSeeker Void ending is a death followed by a direct room
             // load. Preserve the death state while the normal watch room
@@ -255,6 +255,7 @@ public sealed partial class MainComponent
             return;
         }
 
+        WatchEntityState[] states = watchEntityStates.Values.ToArray();
         WatchEntityKey persistentSessionKey = new(WatchEntityKind.PersistentSession, 0);
         bool sessionPrepared = watchEntityStates.TryGetValue(
             persistentSessionKey,

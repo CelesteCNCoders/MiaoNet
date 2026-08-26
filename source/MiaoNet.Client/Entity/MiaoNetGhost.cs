@@ -86,6 +86,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
     private static bool ReceiveFollowers => MiaoNetModule.Settings.FollowersSyncMode.HasReceive;
 
+    internal bool PresentationPaused => watchFocus
+        ? MiaoNetModule.IsWatchedPlayerPaused
+        : OnlinePlayer.IsPaused;
+
     [AllowNull]
     public PlayerGraphicsInfo GraphicsInfo
     {
@@ -206,7 +210,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         }
 
 
-        if (OnlinePlayer.IsPaused)
+        if (PresentationPaused)
             return;
 
         base.Update();
@@ -369,6 +373,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     public void SetWatchFocus(bool focused)
     {
         watchFocus = focused;
+        OnUpdatePaused(PresentationPaused);
         UpdateLightSettings(MiaoNetModule.Settings.PlayerLight || watchFocus);
     }
 
@@ -778,7 +783,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
     private void UpdateCollidable()
     {
-        Collidable = Interactions && MiaoNetModule.Settings.PlayerInteractions && !OnlinePlayer.IsPaused;
+        Collidable = Interactions && MiaoNetModule.Settings.PlayerInteractions && !PresentationPaused;
     }
 
     private void PrepareHoldableSprite(HoldableType type)
@@ -889,7 +894,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         if (dead)
             return;
 
-        if (OnlinePlayer.IsPaused)
+        if (PresentationPaused)
         {
             // only keep the position
             // yes this is kinda hacky
