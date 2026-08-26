@@ -26,7 +26,7 @@ public sealed class ChatMessageFactory
     public ReceivedChatMessage CreateReceived(OnlinePlayer? sender, PacketChatMessage packet)
     {
         if (packet.Type is ChatMessageType.Server or ChatMessageType.ServerChat)
-            return new ReceivedChatMessage(MiaoNetChatText.CreateAnnouncement(packet.Content), false);
+            return new ReceivedChatMessage(MiaoNetChatText.CreateAnnouncement(packet.Content), false, []);
 
         string? selfName = context.ClientState?.Self.Info.Name;
         var (segments, mentionsSelf) = ParseContent(packet.Content, ContentColor(packet.Type), selfName);
@@ -40,7 +40,7 @@ public sealed class ChatMessageFactory
             _ => null
         };
 
-        return new ReceivedChatMessage(text, mentionsSelf);
+        return new ReceivedChatMessage(text, mentionsSelf, segments);
     }
 
     public ChatText CreateSentPrivateMessage(OnlinePlayer other, string text)
@@ -52,25 +52,22 @@ public sealed class ChatMessageFactory
     // The key and the line to show once folded, for player messages only.
     // Public chats drop the sender name since messages from different senders fold together,
     // while private messages fold per sender so their prefix and name stay accurate.
-    public (string? Key, ChatText? FoldedText) CreateFoldInfo(OnlinePlayer? sender, PacketChatMessage packet)
+    public (string? Key, ChatText? FoldedText) CreateFoldInfo(OnlinePlayer? sender, PacketChatMessage packet, ImmutableArray<ChatTextSegment> content)
     {
-        string? selfName = context.ClientState?.Self.Info.Name;
-        var (segments, _) = ParseContent(packet.Content, ContentColor(packet.Type), selfName);
-
         return packet.Type switch
         {
             ChatMessageType.Chat => (
                 $"chat:{packet.Content}",
-                new ChatText(segments)),
+                new ChatText(content)),
             ChatMessageType.ChannelChat => (
                 $"channel:{packet.Content}",
-                CreateFoldedTypedChat(ColorChannelChat, "miaonet_chat_channel_chat", segments)),
+                CreateFoldedTypedChat(ColorChannelChat, "miaonet_chat_channel_chat", content)),
             ChatMessageType.MapChat => (
                 $"map:{packet.Content}",
-                CreateFoldedTypedChat(ColorMapChat, "miaonet_chat_map_chat", segments)),
+                CreateFoldedTypedChat(ColorMapChat, "miaonet_chat_map_chat", content)),
             ChatMessageType.PrivateMessage => (
                 $"pm:{packet.SourcePlayer}:{packet.Content}",
-                CreatePrivateChat(sender!, segments)),
+                CreatePrivateChat(sender!, content)),
             _ => (null, null),
         };
     }
@@ -234,9 +231,13 @@ public readonly struct ReceivedChatMessage
 
     public bool MentionsSelf { get; }
 
-    public ReceivedChatMessage(ChatText? text, bool mentionsSelf)
+    // parsed content segments, handed to fold info so the content is parsed only once
+    public ImmutableArray<ChatTextSegment> Content { get; }
+
+    public ReceivedChatMessage(ChatText? text, bool mentionsSelf, ImmutableArray<ChatTextSegment> content)
     {
         Text = text;
         MentionsSelf = mentionsSelf;
+        Content = content;
     }
 }

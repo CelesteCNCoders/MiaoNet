@@ -134,7 +134,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
             string? foldKey = null;
             ChatText? foldedText = null;
             if (MiaoNetModule.Settings.MessageFolding)
-                (foldKey, foldedText) = chatMessageFactory.CreateFoldInfo(player, packet);
+                (foldKey, foldedText) = chatMessageFactory.CreateFoldInfo(player, packet, received.Content);
 
             chatMessageBox.AddChatMessage(packet.DateTime, received.Text, tabName, foldKey, foldedText);
         }
