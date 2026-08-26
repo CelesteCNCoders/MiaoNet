@@ -30,6 +30,17 @@ public static class WatchPacketValidator
             + sizeof(int) + flagsSize + switchesSize + entityStatesSize;
         return packetSize <= Connection.MaxPayloadSize;
     }
+    public static bool IsValid(WatchEntityState state)
+        => IsValidEntityKey(state.Key)
+            && state.Payload.Length <= MaxEntityPayloadBytes
+            && IsValidEntityStatePayload(state);
+
+    public static bool IsValid(WatchEntityEvent entityEvent)
+        => IsValidEntityKey(entityEvent.Key)
+            && entityEvent.EventID != 0
+            && entityEvent.Payload.Length <= MaxEntityPayloadBytes
+            && IsValidEntityEventPayload(entityEvent);
+
 
     public static bool IsValid(WatchSceneDelta delta)
     {
@@ -123,9 +134,7 @@ public static class WatchPacketValidator
         HashSet<WatchEntityKey> keys = new();
         foreach (WatchEntityState state in states)
         {
-            if (!IsValidEntityKey(state.Key)
-                || state.Payload.Length > MaxEntityPayloadBytes
-                || !IsValidEntityStatePayload(state)
+            if (!IsValid(state)
                 || !keys.Add(state.Key))
                 return false;
 
@@ -146,10 +155,7 @@ public static class WatchPacketValidator
 
         foreach (WatchEntityEvent entityEvent in events)
         {
-            if (!IsValidEntityKey(entityEvent.Key)
-                || entityEvent.EventID == 0
-                || entityEvent.Payload.Length > MaxEntityPayloadBytes
-                || !IsValidEntityEventPayload(entityEvent))
+            if (!IsValid(entityEvent))
                 return false;
 
             serializedSize += GetEntityKeySerializedSize()
@@ -311,6 +317,72 @@ public static class WatchPacketValidator
             WatchEntityKind.ForsakenCitySatellite => IsValidSatellitePayload(state),
             WatchEntityKind.ReflectionHeartStatue => IsValidReflectionHeartStatuePayload(state),
             WatchEntityKind.RidgeGate => IsValidRidgeGatePayload(state),
+            WatchEntityKind.RoomEnvironment => IsValidRoomEnvironmentPayload(state),
+            WatchEntityKind.RumbleTrigger => IsValidRumbleTriggerPayload(state),
+            WatchEntityKind.RumbleWall => state.Key.SubID == 0 && state.Payload.Length == 0,
+            WatchEntityKind.Bridge => IsValidBridgePayload(state),
+            WatchEntityKind.IntroCrusher => IsValidFixedStatePayload(state, 28, 0b0000_0111, 4, 8, 12, 16, 20, 24)
+                && HasZeroBytes(state.Payload.Span, 1, 2, 3),
+            WatchEntityKind.ResortRoofEnding => IsValidResortRoofPayload(state),
+            WatchEntityKind.BirdNPC => IsValidFixedStatePayload(state, 44, 0b0000_0111, 8, 12, 16, 20, 24, 28, 32, 36, 40)
+                && state.Payload.Span[2] <= 1 && IsValidOptionalAnimation(state.Payload.Span[3])
+                && HasZeroBytes(state.Payload.Span, 5, 6, 7)
+                && ReadSingle(state.Payload.Span, 28) is >= 0f and <= 1f,
+            WatchEntityKind.FlutterBird => IsValidFixedStatePayload(state, 28, 0b0000_0011, 4, 8, 12, 16, 20, 24)
+                && IsValidOptionalAnimation(state.Payload.Span[1]) && state.Payload.Span[3] == 0,
+            WatchEntityKind.MoonCreature => IsValidFixedStatePayload(state, 48, 0b0000_0011, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44)
+                && IsValidOptionalAnimation(state.Payload.Span[2]),
+            WatchEntityKind.FlingBirdIntro => IsValidFixedStatePayload(state, 36, 0b0001_1111, 4, 8, 12, 16, 20, 24, 28, 32)
+                && IsValidOptionalAnimation(state.Payload.Span[1]) && state.Payload.Span[3] == 0,
+            WatchEntityKind.DreamMirror => IsValidFixedStatePayload(state, 24, 0b0111_1111, 4, 8, 12, 16, 20)
+                && IsValidOptionalChapterAnimation(state.Payload.Span[1]) && state.Payload.Span[3] == 0,
+            WatchEntityKind.ResortMirror => IsValidFixedStatePayload(state, 24, 0b0001_1111, 4, 8, 12, 16, 20)
+                && IsValidOptionalChapterAnimation(state.Payload.Span[1]) && state.Payload.Span[3] == 0,
+            WatchEntityKind.TempleMirrorPortal => IsValidFixedStatePayload(state, 28, 0b0001_1111, 8, 12, 16, 20, 24)
+                && IsValidOptionalTemplePortalAnimation(state.Payload.Span[1])
+                && (state.Payload.Span[3] & ~0b0000_1111) == 0
+                && BinaryPrimitives.ReadInt32LittleEndian(state.Payload.Span[4..]) is >= 0 and <= 1024,
+            WatchEntityKind.Gondola => IsValidFixedStatePayload(state, 40, 0b0011_1111, 8, 12, 16, 20, 24, 28, 32, 36)
+                && IsValidOptionalChapterAnimation(state.Payload.Span[1])
+                && IsValidOptionalChapterAnimation(state.Payload.Span[3])
+                && HasZeroBytes(state.Payload.Span, 5, 6, 7),
+            WatchEntityKind.WaveDashTutorial => IsValidFixedStatePayload(state, 36, 0b0001_1111, 8, 12, 16, 20, 24, 32)
+                && IsValidOptionalChapterAnimation(state.Payload.Span[1])
+                && IsValidOptionalChapterAnimation(state.Payload.Span[3])
+                && HasZeroBytes(state.Payload.Span, 5, 6, 7)
+                && BinaryPrimitives.ReadInt32LittleEndian(state.Payload.Span[28..]) is >= 0 and <= 64,
+            WatchEntityKind.PowerSourceNumber => IsValidFixedStatePayload(state, 20, 0b0000_1111, 4, 8, 12, 16)
+                && HasZeroBytes(state.Payload.Span, 1, 2, 3),
+            WatchEntityKind.NarrativeNPC => IsValidFixedStatePayload(state, 36, 0b0011_1111, 8, 12, 16, 20, 24, 32)
+                && state.Payload.Span[4] <= (byte)WatchNarrativeNPCVisual.BadelineBoss
+                && HasZeroBytes(state.Payload.Span, 5, 6, 7)
+                && ReadSingle(state.Payload.Span, 24) is >= 0f and <= 1f,
+            WatchEntityKind.AscendManager => IsValidAscendManagerPayload(state),
+            WatchEntityKind.IntroCar => IsValidFixedStatePayload(state, 20, 0b0000_0111, 4, 8, 12)
+                && HasZeroBytes(state.Payload.Span, 1, 2, 3),
+            WatchEntityKind.ChapterProp => state.Key.SubID is 1 or 2
+                && state.Payload.Length == 28
+                && (state.Payload.Span[0] & ~0b0000_0111) == 0
+                && HasFiniteSingles(state.Payload.Span, 4, 8, 12, 16, 20)
+                && ReadSingle(state.Payload.Span, 12) is >= 0f and <= 1f
+                && ReadSingle(state.Payload.Span, 16) is >= 0f and <= 1f
+                && HasZeroBytes(state.Payload.Span, 26, 27),
+            WatchEntityKind.Lookout => IsValidFixedStatePayload(state, 20, 0b0000_0011, 4, 8, 16)
+                && BinaryPrimitives.ReadInt32LittleEndian(state.Payload.Span[12..]) >= 0,
+            WatchEntityKind.ConditionalBlock => state.Key.SubID is 1 or 2
+                && state.Payload.Length == 16
+                && (state.Payload.Span[0] & ~0b0000_0111) == 0
+                && HasFiniteSingles(state.Payload.Span, 4, 8, 12)
+                && state.Payload.Span[1] == state.Key.SubID - 1
+                && state.Payload.Span[2] <= 1
+                && state.Payload.Span[3] == 0
+                && ReadSingle(state.Payload.Span, 4) is >= 0f and <= 1f
+                && ReadSingle(state.Payload.Span, 8) is >= 0f and <= 1f
+                && ReadSingle(state.Payload.Span, 12) is >= 0f and <= 1f,
+            WatchEntityKind.BadelineDummy => IsValidFixedStatePayload(
+                    state, 40, 0b0001_1111, 8, 12, 16, 20, 24, 28, 32, 36)
+                && ReadSingle(state.Payload.Span, 32) is >= 0f and <= 1f
+                && ReadSingle(state.Payload.Span, 36) is >= 0f and <= 1f,
             _ => false,
         };
 
@@ -436,12 +508,18 @@ public static class WatchPacketValidator
             WatchEntityKind.Puffer => entityEvent.Key.SubID == 0
                 && entityEvent.EventID == 1
                 && entityEvent.Payload.Length == 0,
+            WatchEntityKind.AngryOshiro => entityEvent.Key.EntityID == 0
+                && entityEvent.Key.SubID == 0
+                && entityEvent.EventID == 1
+                && entityEvent.Payload.Length == 8
+                && HasFiniteSingles(entityEvent.Payload.Span, 0, 4),
             WatchEntityKind.SeekerSystem => entityEvent.Key.SubID == 0
                 && entityEvent.EventID switch
                 {
                     1 or 2 or 4 or 5 or 6 => entityEvent.Payload.Length == 0,
-                    3 => entityEvent.Payload.Length == 1
-                        && entityEvent.Payload.Span[0] <= 3,
+                    3 => entityEvent.Payload.Length == 17
+                        && entityEvent.Payload.Span[0] <= 3
+                        && HasFiniteSingles(entityEvent.Payload.Span, 1, 5, 9, 13),
                     _ => false,
                 },
             WatchEntityKind.SeekerBarrier => entityEvent.Key.SubID == 0
@@ -480,11 +558,21 @@ public static class WatchPacketValidator
             WatchEntityKind.BirdPath => entityEvent.Key.SubID == 0
                 && entityEvent.EventID is >= 1 and <= 2
                 && entityEvent.Payload.Length == 0,
-            WatchEntityKind.WhiteBlock or WatchEntityKind.ForsakenCitySatellite
-                or WatchEntityKind.RidgeGate =>
+            WatchEntityKind.WhiteBlock or WatchEntityKind.RidgeGate =>
                 entityEvent.Key.SubID == 0
                 && entityEvent.EventID == 1
                 && entityEvent.Payload.Length == 0,
+            WatchEntityKind.ForsakenCitySatellite => entityEvent.EventID switch
+            {
+                1 => entityEvent.Key.SubID == 0 && entityEvent.Payload.Length == 0,
+                2 => entityEvent.Key.SubID is >= 1 and <= 5
+                    && entityEvent.Payload.Length == 0,
+                3 => entityEvent.Key.SubID is >= 1 and <= 5
+                    && entityEvent.Payload.Length == 4
+                    && HasFiniteSingles(entityEvent.Payload.Span, 0)
+                    && ReadSingle(entityEvent.Payload.Span, 0) is >= 0f and <= 3f,
+                _ => false,
+            },
             WatchEntityKind.ReflectionHeartStatue => entityEvent.Payload.Length == 0
                 && (entityEvent.EventID switch
                 {
@@ -492,8 +580,132 @@ public static class WatchPacketValidator
                     2 => entityEvent.Key.SubID == 0,
                     _ => false,
                 }),
+            WatchEntityKind.RumbleTrigger => entityEvent.Key.SubID == 0
+                && entityEvent.EventID == 1
+                && entityEvent.Payload.Length == 4
+                && HasFiniteSingles(entityEvent.Payload.Span, 0),
+            WatchEntityKind.RumbleWall => entityEvent.Key.SubID == 0
+                && entityEvent.EventID == 1
+                && entityEvent.Payload.Length == 0,
+            WatchEntityKind.Bridge => entityEvent.Key.SubID != 0
+                && entityEvent.EventID == 1
+                && entityEvent.Payload.Length == 4
+                && HasFiniteSingles(entityEvent.Payload.Span, 0)
+                && ReadSingle(entityEvent.Payload.Span, 0) is >= 0f and <= 1f,
+            WatchEntityKind.MovingSolid => entityEvent.Key.SubID == 0
+                && entityEvent.EventID is >= 1 and <= 3
+                && entityEvent.Payload.Length == 0,
             _ => false,
         };
+
+    private static bool IsValidRoomEnvironmentPayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        if (state.Key.EntityID != 0 || state.Key.SubID != 0
+            || payload.Length < 72 || payload.Length > 328
+            || (payload[0] & ~0b0000_0111) != 0
+            || payload[1] > 3 || payload[2] > 14 || payload[3] != 0
+            || !HasFiniteSingles(payload, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60))
+            return false;
+        int length = BinaryPrimitives.ReadUInt16LittleEndian(payload[64..]);
+        int colorGradeLength = BinaryPrimitives.ReadUInt16LittleEndian(payload[66..]);
+        if (length > 192 || colorGradeLength > 64
+            || payload.Length != 72 + length + colorGradeLength)
+            return false;
+        try
+        {
+            UTF8Encoding utf8 = new(false, true);
+            _ = utf8.GetString(payload.Slice(72, length));
+            _ = utf8.GetString(payload.Slice(72 + length, colorGradeLength));
+            return true;
+        }
+        catch (DecoderFallbackException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsValidRumbleTriggerPayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        return state.Key.SubID == 0 && payload.Length == 16
+            && (payload[0] & ~0b0000_0111) == 0
+            && payload[1] == 0 && payload[2] == 0 && payload[3] == 0
+            && HasFiniteSingles(payload, 4, 8, 12);
+    }
+
+    private static bool IsValidBridgePayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        if (state.Key.SubID == 0)
+            return payload.Length == 16 && (payload[0] & ~0b0000_1111) == 0
+                && payload[1] == 0 && payload[2] == 0 && payload[3] == 0
+                && HasFiniteSingles(payload, 4, 8, 12);
+        return payload.Length == 32 && (payload[0] & ~0b0000_0001) == 0
+            && payload[1] == 0 && payload[2] == 0 && payload[3] == 0
+            && HasFiniteSingles(payload, 4, 8, 12, 16, 20, 24, 28)
+            && ReadSingle(payload, 16) is >= 0f and <= 1f
+            && ReadSingle(payload, 28) is >= -0.1f and <= 1f;
+    }
+
+    private static bool IsValidResortRoofPayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        if (state.Key.SubID == 0)
+            return payload.Length == 1 && payload[0] <= 1;
+        return payload.Length == 28 && (payload[0] & ~0b0000_0001) == 0
+            && payload[1] == 0 && payload[2] == 0 && payload[3] == 0
+            && HasFiniteSingles(payload, 4, 8, 12, 16, 20, 24)
+            && ReadSingle(payload, 24) is >= 0f and <= 1f;
+    }
+
+    private static bool IsValidFixedStatePayload(
+        WatchEntityState state,
+        int length,
+        byte allowedFlags,
+        params int[] floatOffsets
+    )
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        return state.Key.SubID == 0 && payload.Length == length
+            && (payload[0] & ~allowedFlags) == 0
+            && HasFiniteSingles(payload, floatOffsets);
+    }
+
+    private static bool IsValidAscendManagerPayload(WatchEntityState state)
+    {
+        ReadOnlySpan<byte> payload = state.Payload.Span;
+        if (state.Key.SubID == 0)
+            return payload.Length == 20
+                && (payload[0] & ~0b0000_1111) == 0
+                && HasZeroBytes(payload, 1, 2, 3)
+                && HasFiniteSingles(payload, 8, 12)
+                && ReadSingle(payload, 8) is >= 0f and <= 1f;
+        return state.Key.SubID == 1
+            && payload.Length == 20
+            && (payload[0] & ~0b0000_0001) == 0
+            && HasZeroBytes(payload, 1, 2, 3)
+            && BinaryPrimitives.ReadInt32LittleEndian(payload[4..]) == state.Key.EntityID
+            && HasFiniteSingles(payload, 8, 12, 16)
+            && ReadSingle(payload, 8) is >= 0f and <= 1f;
+    }
+
+    private static bool IsValidOptionalAnimation(byte value)
+        => value <= 6 || value == byte.MaxValue;
+
+    private static bool IsValidOptionalChapterAnimation(byte value)
+        => value <= 13 || value == byte.MaxValue;
+
+    private static bool IsValidOptionalTemplePortalAnimation(byte value)
+        => value <= 14 || value == byte.MaxValue;
+
+    private static bool HasZeroBytes(ReadOnlySpan<byte> payload, params int[] offsets)
+    {
+        foreach (int offset in offsets)
+            if (offset < 0 || offset >= payload.Length || payload[offset] != 0)
+                return false;
+        return true;
+    }
 
     private static bool IsValidLightningBreakerBoxPayload(WatchEntityState state)
     {
@@ -547,11 +759,12 @@ public static class WatchPacketValidator
     {
         ReadOnlySpan<byte> payload = state.Payload.Span;
         if (state.Key.SubID == 0)
-            return payload.Length == 16
-                && (payload[0] & ~0b0001_1111) == 0
+            return payload.Length == 32
                 && payload[1] <= 6
                 && HasValidDirections(payload, 2, payload[1], 6)
-                && HasFiniteSingles(payload, 8, 12);
+                && HasFiniteSingles(payload, 8, 12, 24, 28)
+                && ReadSingle(payload, 24) is >= 0f and <= 2f
+                && ReadSingle(payload, 28) is >= 0f and <= 2f;
         return state.Key.SubID <= 5
             && payload.Length == 48
             && (payload[0] & ~0b0001_1111) == 0
@@ -642,12 +855,13 @@ public static class WatchPacketValidator
     {
         ReadOnlySpan<byte> payload = state.Payload.Span;
         return state.Key.SubID == 0
-            && payload.Length == 32
+            && payload.Length == 36
             && (payload[0] & ~0b0000_1111) == 0
             && payload[2] == 0 && payload[3] == 0
             && BinaryPrimitives.ReadInt32LittleEndian(payload[4..]) is >= 0 and <= 1024
             && BinaryPrimitives.ReadInt32LittleEndian(payload[8..]) is >= 0 and <= 1024
-            && HasFiniteSingles(payload, 12, 16, 20, 24, 28);
+            && HasFiniteSingles(payload, 12, 16, 20, 24, 28, 32)
+            && ReadSingle(payload, 32) is >= 0f and <= 1f;
     }
 
     private static bool IsValidReflectionTentaclesPayload(WatchEntityState state)
@@ -803,13 +1017,15 @@ public static class WatchPacketValidator
         ReadOnlySpan<byte> payload = state.Payload.Span;
         return state.Key.EntityID == 0
             && state.Key.SubID == 0
-            && payload.Length == 40
+            && payload.Length == 48
             && payload[0] <= (byte)WatchAngryOshiroPhase.Hurt
             && (payload[1] & ~0b0011_1111) == 0
             && payload[2] <= 8
             && payload[36] <= 6
             && payload[37] == 0 && payload[38] == 0 && payload[39] == 0
-            && HasFiniteSingles(payload, 4, 8, 12, 16, 20, 24, 28);
+            && HasFiniteSingles(payload, 4, 8, 12, 16, 20, 24, 28, 40, 44)
+            && ReadSingle(payload, 40) is >= 0.05f and <= 2f
+            && ReadSingle(payload, 44) is >= 0f and <= 1f;
     }
 
     private static bool IsValidSeekerSystemPayload(WatchEntityState state)

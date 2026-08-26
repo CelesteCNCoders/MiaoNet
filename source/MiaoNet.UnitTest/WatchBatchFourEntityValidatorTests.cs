@@ -30,7 +30,7 @@ public sealed class WatchBatchFourEntityValidatorTests
             p[0] = (byte)WatchFinalBossBeamPhase.Dissipating;
             p[1] = 2;
         }))));
-        Assert.IsTrue(IsValid(State(WatchEntityKind.FinalBossMovingBlock, 20, 0, Payload(32, p =>
+        Assert.IsTrue(IsValid(State(WatchEntityKind.FinalBossMovingBlock, 20, 0, Payload(36, p =>
         {
             p[0] = 0b0000_1111;
             WriteInt32(p, 4, 12);
@@ -51,7 +51,7 @@ public sealed class WatchBatchFourEntityValidatorTests
         Assert.IsFalse(IsValid(State(WatchEntityKind.FinalBossShot, 10, 0, new byte[56])));
         Assert.IsFalse(IsValid(State(WatchEntityKind.FinalBossBeam, 10, 1, Payload(28, p =>
             p[0] = 3))));
-        Assert.IsFalse(IsValid(State(WatchEntityKind.FinalBossMovingBlock, 20, 1, new byte[32])));
+        Assert.IsFalse(IsValid(State(WatchEntityKind.FinalBossMovingBlock, 20, 1, new byte[36])));
         Assert.IsFalse(IsValid(State(WatchEntityKind.ReflectionTentacles, 30, 4, new byte[52])));
         Assert.IsFalse(IsValid(State(WatchEntityKind.ReflectionTentacles, 30, 2, Payload(52, p =>
             WriteInt32(p, 12, 1)))));
@@ -65,7 +65,7 @@ public sealed class WatchBatchFourEntityValidatorTests
             (WatchEntityKind.FinalBoss, (ushort)0, 36, 16),
             (WatchEntityKind.FinalBossShot, (ushort)1, 56, 4),
             (WatchEntityKind.FinalBossBeam, (ushort)1, 28, 4),
-            (WatchEntityKind.FinalBossMovingBlock, (ushort)0, 32, 12),
+            (WatchEntityKind.FinalBossMovingBlock, (ushort)0, 36, 12),
             (WatchEntityKind.ReflectionTentacles, (ushort)0, 52, 16),
         })
         {
@@ -73,6 +73,11 @@ public sealed class WatchBatchFourEntityValidatorTests
             WriteSingle(payload, offset, float.NaN);
             Assert.IsFalse(IsValid(State(kind, (int)kind, subID, payload)), kind.ToString());
         }
+
+        byte[] invalidHighlight = new byte[36];
+        WriteSingle(invalidHighlight, 32, 1.01f);
+        Assert.IsFalse(IsValid(State(
+            WatchEntityKind.FinalBossMovingBlock, 20, 0, invalidHighlight)));
     }
 
     [TestMethod]

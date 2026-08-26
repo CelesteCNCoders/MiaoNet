@@ -20,6 +20,7 @@ public sealed partial class MainComponent
     private PlayerLocation watchDeathSourceLocation;
     private PlayerLocation watchDeathRespawnLocation;
     private ScreenWipe? watchDeathWipe;
+    private float watchDeathFreshCameraWait;
 
     private void BeginWatchDeathTransition(Level level)
     {
@@ -90,7 +91,13 @@ public sealed partial class MainComponent
         if (watchDeathTransitionPhase == WatchDeathTransitionPhase.WipingOut
             && watchDeathWipe is { Completed: false, Percent: >= 1f } wipe)
         {
-            if (watchDeathRespawnStateReady && watchDeathRespawnNotificationReady)
+            if (watchDeathRespawnStateReady && watchDeathRespawnNotificationReady
+                && watchCameraAwaitingFreshSample)
+                watchDeathFreshCameraWait += Engine.RawDeltaTime;
+
+            bool cameraReady = !watchCameraAwaitingFreshSample
+                || watchDeathFreshCameraWait >= 0.75f;
+            if (watchDeathRespawnStateReady && watchDeathRespawnNotificationReady && cameraReady)
                 wipe.EndTimer = 0f;
             else
                 // ScreenWipe deliberately spends one update at Percent=1 before
@@ -135,7 +142,7 @@ public sealed partial class MainComponent
         ResetWatchDeathTransitionState();
         Logger.Debug(
             LT.MiaoNetWatch,
-            "Applied post-respawn scene state at the fully black frame and revealed it directly."
+            "Applied post-respawn scene state and camera at the fully black frame before reveal."
         );
     }
 
@@ -175,46 +182,20 @@ public sealed partial class MainComponent
     {
         ApplyWatchTouchSwitchState(level, allowDuringTransition: true);
         ApplyWatchEntityState(level, allowDuringTransition: true);
-        if (!watchLifecycleRoomReloadRequired)
-            return;
-
-        // Some one-way vanilla entities cannot be reconstructed by their
-        // adapter. The screen is fully black here, so rebuild exactly once and
-        // atomically reapply the authoritative Replace before revealing it.
-        watchLifecycleRoomReloadRequired = false;
-        watchTouchSwitchStateApplied = true;
-        watchTouchSwitchStatePending = watchActiveTouchSwitchIDs is not null;
-        watchEntityStateApplied = true;
-        if (watchEntityStates is not null)
-        {
-            watchPendingEntityStateKeys.Clear();
-            watchPendingEntityStateKeys.UnionWith(watchEntityStates.Keys);
-            watchPendingEntityStateMode = WatchEntityStateMode.Replace;
-            watchEntityLifecycleResetPending = true;
-        }
-
-        level.Reload();
-        NormalizeWatchRoomRendering(level);
-        if (level.Tracker.GetEntity<Player>() is { } localPlayer)
-        {
-            localPlayer.Visible = false;
-            localPlayer.StateMachine.State = Player.StFrozen;
-        }
-        ApplyWatchTouchSwitchState(level, allowDuringTransition: true);
-        ApplyWatchEntityState(level, allowDuringTransition: true);
-        if (watchLifecycleRoomReloadRequired)
-        {
-            Logger.Error(
+        if (watchLifecycleTouchSwitchRepairIncomplete || watchLifecycleIncompleteKinds.Count > 0)
+            Logger.Warn(
                 LT.MiaoNetWatch,
-                $"A watch entity still required room reload after the black-frame " +
-                $"lifecycle rebuild for {watchEntityLocation.Room}; ignored the repeated request."
+                $"Completed lightweight watched death respawn with localized reconciliation " +
+                $"gaps in {watchEntityLocation.Room}; touchSwitches=" +
+                $"{watchLifecycleTouchSwitchRepairIncomplete}, kinds=" +
+                $"{string.Join(",", watchLifecycleIncompleteKinds.Order())}."
             );
-            watchLifecycleRoomReloadRequired = false;
-        }
-        Logger.Info(
-            LT.MiaoNetWatch,
-            "Rebuilt the watched room once at the fully black death frame to restore one-way entities."
-        );
+
+        // Only a producer delta carrying RequiresRoomReload may authorize
+        // UpdateWatchRoomReload to call Level.Reload. Adapter mismatches during
+        // death remain localized and can never promote a lightweight respawn.
+        watchLifecycleIncompleteKinds.Clear();
+        watchLifecycleTouchSwitchRepairIncomplete = false;
     }
 
     private void CancelWatchDeathTransition(Level? level)
@@ -237,5 +218,6 @@ public sealed partial class MainComponent
         watchDeathSourceLocation = default;
         watchDeathRespawnLocation = default;
         watchDeathWipe = null;
+        watchDeathFreshCameraWait = 0f;
     }
 }

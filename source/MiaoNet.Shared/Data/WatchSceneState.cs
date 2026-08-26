@@ -74,6 +74,12 @@ public sealed class WatchSceneSnapshot : IRefBinarySerializable<WatchSceneSnapsh
     }
 }
 
+public static class WatchSceneLifecyclePolicy
+{
+    public static bool AuthorizesRoomReload(WatchSceneDelta delta)
+        => delta.RequiresRoomReload && !delta.IsDeathRespawn;
+}
+
 public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
 {
     public int Sequence { get; }

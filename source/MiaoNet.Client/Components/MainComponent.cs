@@ -27,6 +27,13 @@ public sealed partial class MainComponent : MiaoNetComponent
 
     internal bool WatchedPlayerPaused => playerWatching?.IsPaused == true;
 
+    internal PlayerState? WatchedPlayerState => playerWatching?.State;
+
+    internal MiaoNetGhost? WatchedGhost => playerWatching is not null
+        && ghosts.TryGetValue(playerWatching.ID, out MiaoNetGhost? ghost)
+            ? ghost
+            : null;
+
     public MainComponent(MiaoNetContext context) : base(context)
     {
         ghosts = new();
@@ -119,8 +126,6 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (UpdateWatchSceneRestore(level))
             return;
 
-        UpdateWatchSceneProducer(level);
-
         // location update
         if (pendingMapChanged)
         {
@@ -129,7 +134,10 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
 
         if (player is null || player.Dead)
+        {
+            UpdateWatchSceneProducer(level);
             return;
+        }
 
         // show or remove own name
         if (settings.ShowOwnName && !Watching)
@@ -160,17 +168,28 @@ public sealed partial class MainComponent : MiaoNetComponent
 
         // do not send frames when paused or in freeze frames
         if (level.Paused || Engine.FreezeTimer > 0f)
+        {
+            UpdateWatchSceneProducer(level);
             return;
+        }
 
         PlayerState? selfState = self.State;
         if (selfState is null)
+        {
+            UpdateWatchSceneProducer(level);
             return;
+        }
 
         // player frame
         if (watchProducerSessions.Count > 0
             || !settings.GroupPhotoMode
             || level.OnInterval(1f / 2f))
             SendPlayerFrame(level, player, selfState, settings.FollowersSyncMode.HasSend);
+
+        // Scene capture can enumerate hundreds of entities. Keep the watched
+        // Player frame ahead of that work so a busy room cannot add a full
+        // capture pass of latency to the primary projection stream.
+        UpdateWatchSceneProducer(level);
 
         // fireworks
         if (settings.Fireworks)

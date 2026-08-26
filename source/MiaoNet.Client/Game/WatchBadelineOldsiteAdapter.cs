@@ -21,6 +21,8 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
     private const int MaxHistorySamplesPerChunk = 112;
     private const float SpawnVisualDuration = 0.5f;
     private const float SpawnMoveDurationOffset = 0.1f;
+    private const float PositionAnchorInterval = 0.1f;
+    private const float PositionCorrectionResponse = 24f;
     private const byte HistoryAnimationMask = 0b0011_1111;
     private const byte HistoryFacingLeftFlag = 1 << 6;
     private const byte UnknownHistoryAnimation = HistoryAnimationMask;
@@ -117,15 +119,19 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
         private bool hasState;
         private LifecycleSignature signature;
         private WatchEntityState state;
+        private float nextPositionAnchor;
 
-        public WatchEntityState Capture(int id, BadelineState current, bool forceCurrent)
+        public WatchEntityState Capture(int id, BadelineState current, bool forceCurrent, float sceneTime)
         {
             LifecycleSignature currentSignature = GetSignature(current);
-            if (forceCurrent || !hasState || currentSignature != signature)
+            bool movingAnchor = (current.Flags & (VisibleFlag | FollowingFlag))
+                == (VisibleFlag | FollowingFlag) && sceneTime >= nextPositionAnchor;
+            if (forceCurrent || !hasState || currentSignature != signature || movingAnchor)
             {
                 state = Encode(id, current);
                 signature = currentSignature;
                 hasState = true;
+                nextPositionAnchor = sceneTime + PositionAnchorInterval;
             }
             return state;
         }
@@ -143,6 +149,7 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
         public float SpawnMoveDuration { get; set; }
         public Vector2 SpawnFrom { get; set; }
         public Vector2 SpawnTo { get; set; }
+        public Vector2 PositionError { get; set; }
     }
 
     private static readonly WatchBadelineOldsiteAdapter instance = new();
@@ -240,7 +247,8 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
             yield return syncInfo.GetValue(badeline, static _ => new()).Capture(
                 id,
                 current,
-                WatchEntitySyncRegistry.IsCapturingCurrentState
+                WatchEntitySyncRegistry.IsCapturingCurrentState,
+                level.TimeActive
             );
         }
     }
@@ -533,12 +541,22 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
         bool visible = (state.Flags & VisibleFlag) != 0;
         bool wasVisible = applied.HasState && (applied.State.Flags & VisibleFlag) != 0;
         bool beginSpawn = replayTransitions && applied.HasState && !wasVisible && visible;
+        bool lifecycleChanged = !applied.HasState
+            || GetSignature(applied.State) != GetSignature(state);
         bool changed = !applied.HasState || applied.State != state
             || badeline.Position != state.Position
             || badeline.Visible != visible
             || badeline.Collidable;
 
-        badeline.Position = state.Position;
+        if (lifecycleChanged || WatchEntitySyncRegistry.IsApplyingLifecycleReset)
+        {
+            badeline.Position = state.Position;
+            applied.PositionError = Vector2.Zero;
+        }
+        else
+        {
+            applied.PositionError = state.Position - badeline.Position;
+        }
         badeline.Visible = visible;
         badeline.Collidable = false;
         badeline.player = null;
@@ -551,7 +569,7 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
         badeline.Hair.Visible = (state.Flags & HairVisibleFlag) != 0;
         badeline.Depth = state.Depth;
         EnsureOcclude(badeline, (state.Flags & HasOccludeFlag) != 0);
-        ApplyLifecycleAnimation(badeline, state);
+        ApplyLifecycleAnimation(badeline, state, lifecycleChanged);
 
         if (beginSpawn)
         {
@@ -580,6 +598,7 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
         badeline.following = false;
         FinishRemoteSpawn(badeline, applied);
         applied.HasState = false;
+        applied.PositionError = Vector2.Zero;
     }
 
     private static void BeginRemoteSpawn(
@@ -702,12 +721,16 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
             badeline.occlude.Visible = enabled;
     }
 
-    private static void ApplyLifecycleAnimation(BadelineOldsite badeline, BadelineState state)
+    private static void ApplyLifecycleAnimation(
+        BadelineOldsite badeline,
+        BadelineState state,
+        bool alignFrame
+    )
     {
         string animation = lifecycleAnimations[state.Animation];
         if (badeline.Sprite.CurrentAnimationID != animation)
             badeline.Sprite.Play(animation, restart: true);
-        if (badeline.Sprite.CurrentAnimationTotalFrames > 0)
+        if (alignFrame && badeline.Sprite.CurrentAnimationTotalFrames > 0)
         {
             badeline.Sprite.SetAnimationFrame(Math.Min(
                 state.AnimationFrame,
@@ -799,6 +822,10 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
             self.Depth = chaseState.Depth;
             self.Trail();
         }
+
+        float correction = 1f - MathF.Exp(-PositionCorrectionResponse * deltaTime);
+        self.Position += applied.PositionError * correction;
+        applied.PositionError *= 1f - correction;
 
         if (self.Sprite.Scale.X != 0f)
             self.Hair.Facing = (Facings)Math.Sign(self.Sprite.Scale.X);

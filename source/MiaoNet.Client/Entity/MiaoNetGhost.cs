@@ -26,6 +26,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     private VertexLight? vertexLight;
     private VertexLight? theoHoldableLight;
     private bool watchFocus;
+    private GhostRenderBand renderBand = GhostRenderBand.Normal;
 
     private Facings facing;
     private int dashes;
@@ -74,6 +75,12 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     public Facings Facing => facing;
 
     public bool Dead => dead;
+
+    public bool WatchFocus => watchFocus;
+
+    public override bool WatchPresentationFocus => watchFocus;
+
+    public override GhostRenderBand RenderBand => renderBand;
 
     public Vector2 LastReleaseForce { get; private set; }
 
@@ -277,7 +284,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         {
             if (dashing)
             {
-                float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
+                float alpha = EffectiveOpacity;
                 // TODO apply graphics info
                 ParticleType type;
                 if (lastDashedDashes == 0)
@@ -346,10 +353,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         if (enabled)
         {
             if (vertexLight is null)
-            {
                 vertexLight = new VertexLight(GetLightOffset(ducking), Color.White, 0.96f, 32, 64);
+
+            if (!ReferenceEquals(vertexLight.Entity, this))
                 Add(vertexLight);
-            }
             vertexLight.Visible = true;
         }
         else
@@ -417,7 +424,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             {
                 if (!level.Paused)
                 {
-                    float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
+                    float alpha = EffectiveOpacity;
                     level.Displacement.AddBurst(Center, 0.4f, 8f, 64f, 0.5f * alpha, Ease.QuadOut);
                 }
                 AddTrail(this.dashes);
@@ -471,7 +478,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
     private void AddTrail(int dashes)
     {
-        float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
+        float alpha = EffectiveOpacity;
         var snap = TrailManager.Add(
             Position,
             playerSprite, playerHair,
@@ -493,10 +500,19 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             Remove(playerSprite);
             if (vertexLight is not null)
                 Remove(vertexLight);
-            GhostDeadBody body = new(Position, facing, playerHair, playerSprite, vertexLight, direction);
+            GhostDeadBody body = new(
+                Position,
+                facing,
+                playerHair,
+                playerSprite,
+                vertexLight,
+                direction,
+                watchFocus
+            );
             lastBody = body;
             level.Add(body);
         }
+        renderBand = GhostRenderBand.High;
         Depth = Depths.Top;
     }
 
@@ -504,6 +520,15 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     public void OnRespawning(Vector2 position, bool fromSL)
     {
         Position = position;
+
+        // The watched subject is revealed by the authoritative black-frame
+        // lifecycle. Playing the ordinary multiplayer ghost revive effect on
+        // top of it creates a second, false respawn animation.
+        if (watchFocus)
+        {
+            RestoreAfterRespawn();
+            return;
+        }
 
         if (!fromSL)
         {
@@ -518,34 +543,35 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                 },
                 t =>
                 {
-                    respawning = false;
-                    dead = false;
-                    UpdateVisible();
-                    Depth = Depths.Player + 1;
-                    Add(playerHair);
-                    Add(playerSprite);
-                    if (vertexLight is not null)
-                        Add(vertexLight);
-                    Scene.OnEndOfFrame += new(ResetHair);
-                    lastBody = null;
+                    RestoreAfterRespawn();
                 }
             );
             tween.UseRawDeltaTime = true;
         }
         else
         {
-            UpdateCollidable();
-            respawning = false;
-            dead = false;
-            UpdateVisible();
-            Depth = Depths.Player + 1;
-            Add(playerHair);
-            Add(playerSprite);
-            if (vertexLight is not null)
-                Add(vertexLight);
-            Scene.OnEndOfFrame += new(ResetHair);
-            lastBody?.RemoveSelf();
+            RestoreAfterRespawn();
         }
+    }
+
+    private void RestoreAfterRespawn()
+    {
+        UpdateCollidable();
+        respawning = false;
+        dead = false;
+        UpdateVisible();
+        renderBand = GhostRenderBand.Normal;
+        Depth = Depths.Player + 1;
+        if (!ReferenceEquals(playerHair.Entity, this))
+            Add(playerHair);
+        if (!ReferenceEquals(playerSprite.Entity, this))
+            Add(playerSprite);
+        if (vertexLight is not null && !ReferenceEquals(vertexLight.Entity, this))
+            Add(vertexLight);
+        if (Scene is not null)
+            Scene.OnEndOfFrame += new(ResetHair);
+        lastBody?.RemoveSelf();
+        lastBody = null;
     }
 
     // TODO start star flying sync?
@@ -569,9 +595,15 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         }
     }
 
-    public void UpdateSprite(string animID, ushort animFrame, bool facingLeft, Vector2 scale)
+    public void UpdateSprite(string? animID, ushort animFrame, bool facingLeft, Vector2 scale)
     {
-        if (animID != string.Empty && playerSprite.Has(animID))
+        // The constructor applies its initial sprite before selfHoldable is
+        // created. Treat that initialization window as "not being held".
+        if (!dead && !respawning && selfHoldable?.Holder is null)
+            renderBand = animID?.StartsWith("dreamDash", StringComparison.OrdinalIgnoreCase) == true
+                ? GhostRenderBand.DreamDash
+                : GhostRenderBand.Normal;
+        if (!string.IsNullOrEmpty(animID) && playerSprite.Has(animID))
         {
             playerSprite.Play(animID);
             playerSprite.SetAnimationFrame(animFrame);

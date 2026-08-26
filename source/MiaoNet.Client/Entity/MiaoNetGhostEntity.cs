@@ -3,15 +3,33 @@ using FMOD.Studio;
 
 namespace Celeste.Mod.MiaoNet;
 
+public enum GhostRenderBand
+{
+    Normal,
+    DreamDash,
+    High,
+}
+
 [Tracked(inherited: true)]
 public abstract class MiaoNetGhostEntity : MiaoNetEntity
 {
+    public virtual GhostRenderBand RenderBand
+        => Depth <= Depths.Top ? GhostRenderBand.High : GhostRenderBand.Normal;
+
+    public virtual bool WatchPresentationFocus => false;
+
+    protected float EffectiveOpacity => WatchPresentationFocus
+        ? 1f
+        : MiaoNetModule.Settings.PlayerOpacityValue;
+
     protected MiaoNetGhostEntity()
     {
+        Add(new MirrorReflection());
     }
 
     protected MiaoNetGhostEntity(Vector2 position) : base(position)
     {
+        Add(new MirrorReflection());
     }
 
     public void OnPlayAudio(string @event)
@@ -56,10 +74,12 @@ public abstract class MiaoNetGhostEntity : MiaoNetEntity
 
     public sealed override void Render() 
     {
-        // do nothing as if it's invisible
-        // but do not set Visible to false
-        // or its component will skip rendering
-        // see GhostRenderLayerEntity
+        // Ordinary ghost rendering is composited by GhostRenderLayerEntity. The
+        // vanilla mirror renderer deliberately calls Entity.Render while its
+        // MirrorReflection is active, so allow that one render path through.
+        if (MiaoNetModule.IsWatching
+            && Get<MirrorReflection>() is { IsRendering: true })
+            GhostRender();
     }
 
     public abstract void GhostRender();

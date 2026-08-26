@@ -5,14 +5,18 @@ namespace Celeste.Mod.MiaoNet;
 [Tracked]
 public sealed class GhostFollower : MiaoNetGhostEntity
 {
+    private readonly MiaoNetGhost owner;
     private readonly bool spriteFallbacked;
     private readonly Sprite sprite;
     private readonly BloomPoint? bloomPoint;
     private readonly VertexLight? vertexLight;
 
+    public override bool WatchPresentationFocus => owner.WatchFocus;
+
     public GhostFollower(MiaoNetGhost ghost, Vector2 offset, FollowerType type, string spriteID)
         : base(ghost.Position + offset)
     {
+        owner = ghost;
         Tag |= ghost.Tag;
         Depth = Depths.Player + 1;
 
@@ -45,7 +49,7 @@ public sealed class GhostFollower : MiaoNetGhostEntity
     public override void Update()
     {
         base.Update();
-        float v = MiaoNetModule.Settings.PlayerOpacityValue;
+        float v = EffectiveOpacity;
         bloomPoint?.Alpha = v;
         vertexLight?.Alpha = v;
     }

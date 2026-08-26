@@ -4,6 +4,11 @@ using System.Runtime.CompilerServices;
 
 namespace Celeste.Mod.MiaoNet;
 
+// Vanilla AngryOshiro owns Engine.TimeRate during its near-player hit-stop.
+// The watcher mirrors that authoritative presentation and restores its entry
+// baseline on every lifecycle exit.
+#pragma warning disable CS0618
+
 /// <summary>
 /// Keeps Angry Oshiro's original renderer and locally advances its deterministic
 /// phase motion while the watched client remains authoritative for phase changes.
@@ -12,11 +17,12 @@ namespace Celeste.Mod.MiaoNet;
 /// </summary>
 internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
 {
-    private const int PayloadSize = 40;
+    private const int PayloadSize = 48;
     private const float AnchorInterval = 0.1f;
     private const float HardReanchorDistance = 96f;
     private const float CorrectionResponse = 18f;
     private const float PlayerCenterYOffset = -5.5f;
+    private const byte BounceEvent = 1;
 
     private const byte VisibleFlag = 1 << 0;
     private const byte LightningVisibleFlag = 1 << 1;
@@ -52,7 +58,9 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
         float YApproachSpeed,
         Vector2 Scale,
         int Depth,
-        byte LightningFrame
+        byte LightningFrame,
+        float TimeRate,
+        float Anxiety
     );
 
     private readonly record struct SyncSignature(
@@ -92,6 +100,7 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
         public float AttackSpeedError { get; set; }
         public float YApproachSpeedError { get; set; }
         public Vector2 ScaleError { get; set; }
+        public float HurtCorrectionHold { get; set; }
 
         public void ResetErrors()
         {
@@ -108,6 +117,9 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
     private static readonly ConditionalWeakTable<AngryOshiro, RemoteInfo> remoteInfo = new();
     private static Vector2 remotePlayerPosition;
     private static bool hasRemotePlayerPosition;
+    private static bool hasPresentationBaseline;
+    private static float presentationTimeRate;
+    private static float presentationAnxiety;
 
     public WatchEntityKind Kind => WatchEntityKind.AngryOshiro;
 
@@ -144,6 +156,7 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
     {
         remotePlayerPosition = Vector2.Zero;
         hasRemotePlayerPosition = false;
+        RestorePresentationBaseline();
     }
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
@@ -188,6 +201,7 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
                 oshiro.RemoveSelf();
                 removed = true;
             }
+            RestorePresentationBaseline();
             return removed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
         }
 
@@ -230,6 +244,19 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
 
     public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
     {
+        if (entityEvent.EventID != BounceEvent || entityEvent.Payload.Length != 8
+            || level.Entities.OfType<AngryOshiro>().FirstOrDefault() is not { } oshiro)
+            return;
+        oshiro.Position = new(
+            WatchEntityPayloadCodec.ReadSingle(entityEvent.Payload.Span, 0),
+            WatchEntityPayloadCodec.ReadSingle(entityEvent.Payload.Span, 4)
+        );
+        oshiro.Sprite.Play("hurt", restart: true);
+        oshiro.Sprite.Scale = new Vector2(1.35f, 0.65f);
+        oshiro.shaker.ShakeFor(0.25f, removeOnFinish: false);
+        RemoteInfo info = remoteInfo.GetValue(oshiro, static _ => new());
+        info.PositionError = Vector2.Zero;
+        info.HurtCorrectionHold = 0.25f;
     }
 
     private static OshiroState Capture(AngryOshiro oshiro)
@@ -261,7 +288,9 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
             oshiro.yApproachSpeed,
             oshiro.Sprite.Scale,
             oshiro.Depth,
-            (byte)Math.Clamp(oshiro.lightning.CurrentAnimationFrame, 0, 6)
+            (byte)Math.Clamp(oshiro.lightning.CurrentAnimationFrame, 0, 6),
+            Engine.TimeRate,
+            Distort.Anxiety
         );
     }
 
@@ -281,6 +310,8 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
         WatchEntityPayloadCodec.WriteSingle(payload, 28, state.Scale.Y);
         BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(32), state.Depth);
         payload[36] = state.LightningFrame;
+        WatchEntityPayloadCodec.WriteSingle(payload, 40, state.TimeRate);
+        WatchEntityPayloadCodec.WriteSingle(payload, 44, state.Anxiety);
         return new(new WatchEntityKey(WatchEntityKind.AngryOshiro, 0), payload);
     }
 
@@ -313,7 +344,9 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
         if (!float.IsFinite(position.X) || !float.IsFinite(position.Y)
             || !float.IsFinite(cameraXOffset) || !float.IsFinite(attackSpeed)
             || !float.IsFinite(yApproachSpeed)
-            || !float.IsFinite(scale.X) || !float.IsFinite(scale.Y))
+            || !float.IsFinite(scale.X) || !float.IsFinite(scale.Y)
+            || !float.IsFinite(WatchEntityPayloadCodec.ReadSingle(payload, 40))
+            || !float.IsFinite(WatchEntityPayloadCodec.ReadSingle(payload, 44)))
             return false;
 
         value = new(
@@ -327,7 +360,9 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
             yApproachSpeed,
             scale,
             BinaryPrimitives.ReadInt32LittleEndian(payload[32..]),
-            payload[36]
+            payload[36],
+            WatchEntityPayloadCodec.ReadSingle(payload, 40),
+            WatchEntityPayloadCodec.ReadSingle(payload, 44)
         );
         return true;
     }
@@ -353,6 +388,9 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
         oshiro.fromCutscene = (state.Flags & FromCutsceneFlag) != 0;
         oshiro.easeBackFromRightEdge = (state.Flags & EaseBackFlag) != 0;
         oshiro.Depth = state.Depth;
+        CapturePresentationBaseline();
+        Engine.TimeRate = Math.Clamp(state.TimeRate, 0.1f, 1f);
+        Distort.Anxiety = Math.Clamp(state.Anxiety, 0f, 1f);
 
         if (hard)
         {
@@ -520,6 +558,11 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
         }
 
         float correction = 1f - MathF.Exp(-CorrectionResponse * deltaTime);
+        if (applied.HurtCorrectionHold > 0f)
+        {
+            applied.HurtCorrectionHold = Math.Max(0f, applied.HurtCorrectionHold - deltaTime);
+            correction = 0f;
+        }
         self.cameraXOffset += applied.CameraOffsetError * correction;
         applied.CameraOffsetError *= 1f - correction;
         self.attackSpeed += applied.AttackSpeedError * correction;
@@ -569,6 +612,33 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
     )
     {
         if (!MiaoNetModule.IsWatching)
+        {
             orig(self, player);
+            if (self.Scene is Level level)
+            {
+                byte[] payload = new byte[8];
+                WatchEntityPayloadCodec.WriteSingle(payload, 0, self.Position.X);
+                WatchEntityPayloadCodec.WriteSingle(payload, 4, self.Position.Y);
+                WatchEntitySyncRegistry.PublishEvent(level, new(
+                    new(WatchEntityKind.AngryOshiro, 0), BounceEvent, payload));
+            }
+        }
+    }
+
+    private static void CapturePresentationBaseline()
+    {
+        if (hasPresentationBaseline) return;
+        hasPresentationBaseline = true;
+        presentationTimeRate = Engine.TimeRate;
+        presentationAnxiety = Distort.Anxiety;
+    }
+
+    private static void RestorePresentationBaseline()
+    {
+        if (!hasPresentationBaseline) return;
+        Engine.TimeRate = presentationTimeRate;
+        Distort.Anxiety = presentationAnxiety;
+        hasPresentationBaseline = false;
     }
 }
+#pragma warning restore CS0618

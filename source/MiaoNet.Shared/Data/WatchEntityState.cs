@@ -62,6 +62,38 @@ public enum WatchEntityKind : ushort
     ForsakenCitySatellite = 57,
     ReflectionHeartStatue = 58,
     RidgeGate = 59,
+    RoomEnvironment = 60,
+    RumbleTrigger = 61,
+    RumbleWall = 62,
+    Bridge = 63,
+    IntroCrusher = 64,
+    ResortRoofEnding = 65,
+    BirdNPC = 66,
+    FlutterBird = 67,
+    MoonCreature = 68,
+    FlingBirdIntro = 69,
+    DreamMirror = 70,
+    ResortMirror = 71,
+    TempleMirrorPortal = 72,
+    Gondola = 73,
+    WaveDashTutorial = 74,
+    PowerSourceNumber = 75,
+    NarrativeNPC = 76,
+    AscendManager = 77,
+    IntroCar = 78,
+    ChapterProp = 79,
+    Lookout = 80,
+    ConditionalBlock = 81,
+    BadelineDummy = 82,
+}
+
+public enum WatchNarrativeNPCVisual : byte
+{
+    Unknown = 0,
+    Granny = 1,
+    Theo = 2,
+    Oshiro = 3,
+    BadelineBoss = 4,
 }
 
 public enum WatchFinalBossBeamPhase : byte

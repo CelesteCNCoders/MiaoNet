@@ -10,6 +10,11 @@ internal enum WatchEntityApplyResult
     RequiresRoomReload = 1 << 1,
 }
 
+internal readonly record struct WatchEntityApplySummary(
+    WatchEntityApplyResult Result,
+    IReadOnlyCollection<WatchEntityKind> RoomReloadRequestedKinds
+);
+
 internal interface IWatchEntityAdapter
 {
     WatchEntityKind Kind { get; }
@@ -53,39 +58,65 @@ internal static class WatchEntitySyncRegistry
             adapters.Remove(adapter.Kind);
     }
 
-    public static Dictionary<WatchEntityKey, WatchEntityState> CaptureStates(
+    public static HashSet<WatchEntityKind> CaptureStates(
         Level level,
+        out Dictionary<WatchEntityKey, WatchEntityState> states,
         bool forceCurrent = false
     )
     {
+        states = new();
+        HashSet<WatchEntityKind> unavailableKinds = new();
         if (forceCurrent)
             forceCurrentCaptureDepth++;
         try
         {
-            Dictionary<WatchEntityKey, WatchEntityState> states = new();
             foreach (IWatchEntityAdapter adapter in adapters.Values.OrderBy(adapter => adapter.Kind))
             {
-                foreach (WatchEntityState state in adapter.CaptureStates(level))
+                Dictionary<WatchEntityKey, WatchEntityState> adapterStates = new();
+                try
                 {
-                    if (state.Key.Kind != adapter.Kind)
+                    foreach (WatchEntityState state in adapter.CaptureStates(level))
                     {
-                        throw new InvalidOperationException(
-                            $"Watch entity adapter {adapter.Kind} produced an invalid key."
-                        );
+                        if (state.Key.Kind != adapter.Kind)
+                        {
+                            throw new InvalidOperationException(
+                                $"Watch entity adapter {adapter.Kind} produced an invalid key."
+                            );
+                        }
+                        if (!WatchPacketValidator.IsValid(state))
+                        {
+                            throw new InvalidOperationException(
+                                $"Watch entity adapter {adapter.Kind} produced an invalid state for " +
+                                $"#{state.Key.EntityID}:{state.Key.SubID} ({state.Payload.Length} bytes)."
+                            );
+                        }
+
+                        if (!adapterStates.TryAdd(state.Key, state))
+                        {
+                            adapterStates[state.Key] = state;
+                            Logger.Warn(
+                                LT.MiaoNetWatch,
+                                $"Collapsed a duplicate transient watch entity key: {state.Key.Kind} " +
+                                $"#{state.Key.EntityID}:{state.Key.SubID}."
+                            );
+                        }
                     }
 
-                    if (!states.TryAdd(state.Key, state))
-                    {
-                        states[state.Key] = state;
-                        Logger.Warn(
-                            LT.MiaoNetWatch,
-                            $"Collapsed a duplicate transient watch entity key: {state.Key.Kind} " +
-                            $"#{state.Key.EntityID}:{state.Key.SubID}."
-                        );
-                    }
+                    foreach ((WatchEntityKey key, WatchEntityState state) in adapterStates)
+                        states.Add(key, state);
+                }
+                catch (Exception exception)
+                {
+                    unavailableKinds.Add(adapter.Kind);
+                    Logger.Error(
+                        LT.MiaoNetWatch,
+                        $"Quarantined an invalid local watch update for {adapter.Kind}; " +
+                        "the watch session will continue with its last known state when available."
+                    );
+                    Logger.LogDetailed(exception, LT.MiaoNetWatch);
                 }
             }
-            return states;
+            return unavailableKinds;
         }
         finally
         {
@@ -94,7 +125,7 @@ internal static class WatchEntitySyncRegistry
         }
     }
 
-    public static WatchEntityApplyResult ApplyStates(
+    public static WatchEntityApplySummary ApplyStates(
         Level level,
         IReadOnlyCollection<WatchEntityState> states,
         bool isCompleteState,
@@ -110,6 +141,7 @@ internal static class WatchEntitySyncRegistry
         try
         {
             WatchEntityApplyResult result = WatchEntityApplyResult.None;
+            HashSet<WatchEntityKind> roomReloadRequestedKinds = new();
             Dictionary<WatchEntityKind, List<WatchEntityState>> statesByKind = new();
             foreach (WatchEntityState state in states)
             {
@@ -129,14 +161,18 @@ internal static class WatchEntitySyncRegistry
             {
                 try
                 {
-                    result |= adapter.ApplyStates(
+                    WatchEntityApplyResult adapterResult = adapter.ApplyStates(
                         level,
                         statesByKind.GetValueOrDefault(adapter.Kind) ?? [],
                         isCompleteState
                     );
+                    result |= adapterResult;
+                    if (adapterResult.HasFlag(WatchEntityApplyResult.RequiresRoomReload))
+                        roomReloadRequestedKinds.Add(adapter.Kind);
                 }
                 catch (Exception exception)
                 {
+                    roomReloadRequestedKinds.Add(adapter.Kind);
                     Logger.Error(
                         LT.MiaoNetWatch,
                         $"Failed to apply remote watch state for {adapter.Kind}; ignored this adapter update."
@@ -144,7 +180,10 @@ internal static class WatchEntitySyncRegistry
                     Logger.LogDetailed(exception, LT.MiaoNetWatch);
                 }
             }
-            return result;
+            return new(
+                result,
+                roomReloadRequestedKinds.Order().ToArray()
+            );
         }
         finally
         {

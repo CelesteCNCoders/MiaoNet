@@ -29,7 +29,7 @@ public sealed class WatchBatchFiveEntityValidatorTests
         Assert.IsTrue(IsValid(State(WatchEntityKind.WhiteBlock, 4, 0,
             Payload(12, p => { p[0] = 0b0001_1111; WriteSingle(p, 4, 1f); }))));
         Assert.IsTrue(IsValid(State(WatchEntityKind.ForsakenCitySatellite, 5, 0,
-            Payload(16, p => { p[0] = 0b0001_1111; p[1] = 2; p[2] = 1; p[3] = 2; }))));
+            Payload(32, p => { p[0] = byte.MaxValue; p[1] = 2; p[2] = 1; p[3] = 2; }))));
         Assert.IsTrue(IsValid(State(WatchEntityKind.ForsakenCitySatellite, 5, 5,
             Payload(48, p => { p[0] = 0b0001_1111; p[1] = 5; }))));
         Assert.IsTrue(IsValid(State(WatchEntityKind.ReflectionHeartStatue, 6, 0,
@@ -62,7 +62,7 @@ public sealed class WatchBatchFiveEntityValidatorTests
         Assert.IsFalse(IsValid(State(WatchEntityKind.WhiteBlock, 4, 0,
             Payload(12, p => WriteSingle(p, 4, 11f)))));
         Assert.IsFalse(IsValid(State(WatchEntityKind.ForsakenCitySatellite, 5, 0,
-            Payload(16, p => { p[1] = 1; p[2] = 6; }))));
+            Payload(32, p => { p[1] = 1; p[2] = 6; }))));
         Assert.IsFalse(IsValid(State(WatchEntityKind.ForsakenCitySatellite, 5, 6,
             new byte[48])));
         Assert.IsFalse(IsValid(State(WatchEntityKind.ReflectionHeartStatue, 6, 0,
@@ -78,7 +78,7 @@ public sealed class WatchBatchFiveEntityValidatorTests
             (WatchEntityKind.LightningBreakerBox, (ushort)0, 24, 4),
             (WatchEntityKind.Lightning, (ushort)0, 24, 20),
             (WatchEntityKind.BirdPath, (ushort)0, 32, 20),
-            (WatchEntityKind.ForsakenCitySatellite, (ushort)0, 16, 8),
+            (WatchEntityKind.ForsakenCitySatellite, (ushort)0, 32, 24),
             (WatchEntityKind.ForsakenCitySatellite, (ushort)1, 48, 36),
             (WatchEntityKind.RidgeGate, (ushort)0, 24, 16),
         })
@@ -99,6 +99,9 @@ public sealed class WatchBatchFiveEntityValidatorTests
         Assert.IsTrue(IsValidEvent(WatchEntityKind.BirdPath, 0, 2));
         Assert.IsTrue(IsValidEvent(WatchEntityKind.WhiteBlock, 0, 1));
         Assert.IsTrue(IsValidEvent(WatchEntityKind.ForsakenCitySatellite, 0, 1));
+        Assert.IsTrue(IsValidEvent(WatchEntityKind.ForsakenCitySatellite, 3, 2));
+        Assert.IsTrue(IsValidEvent(WatchEntityKind.ForsakenCitySatellite, 5, 3,
+            Payload(4, p => WriteSingle(p, 0, 3f))));
         Assert.IsTrue(IsValidEvent(WatchEntityKind.ReflectionHeartStatue, 4, 1));
         Assert.IsTrue(IsValidEvent(WatchEntityKind.ReflectionHeartStatue, 0, 2));
         Assert.IsTrue(IsValidEvent(WatchEntityKind.RidgeGate, 0, 1));
@@ -107,6 +110,11 @@ public sealed class WatchBatchFiveEntityValidatorTests
         Assert.IsFalse(IsValidEvent(WatchEntityKind.Lightning, 0, 2));
         Assert.IsFalse(IsValidEvent(WatchEntityKind.BirdPath, 0, 3));
         Assert.IsFalse(IsValidEvent(WatchEntityKind.ForsakenCitySatellite, 1, 1));
+        Assert.IsFalse(IsValidEvent(WatchEntityKind.ForsakenCitySatellite, 0, 2));
+        Assert.IsFalse(IsValidEvent(WatchEntityKind.ForsakenCitySatellite, 5, 3,
+            Payload(4, p => WriteSingle(p, 0, MathF.BitIncrement(3f)))));
+        Assert.IsFalse(IsValidEvent(WatchEntityKind.ForsakenCitySatellite, 5, 3,
+            Payload(4, p => WriteSingle(p, 0, -0.01f))));
         Assert.IsFalse(IsValidEvent(WatchEntityKind.ReflectionHeartStatue, 5, 1));
         Assert.IsFalse(IsValidEvent(WatchEntityKind.ReflectionHeartStatue, 1, 2));
     }

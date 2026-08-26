@@ -11,6 +11,9 @@ internal sealed class WatchMovingSolidAdapter : IWatchEntityAdapter
     private const byte Bool1Flag = 1 << 3;
     private const byte Bool2Flag = 1 << 4;
     private const byte KnownFlags = VisibleFlag | CollidableFlag | Bool0Flag | Bool1Flag | Bool2Flag;
+    private const byte FallingShakeEvent = 1;
+    private const byte FallingImpactEvent = 2;
+    private const byte FallingLandParticlesEvent = 3;
 
     private readonly record struct MovingSolidState(
         WatchMovingSolidType Type,
@@ -43,6 +46,9 @@ internal sealed class WatchMovingSolidAdapter : IWatchEntityAdapter
         On.Celeste.MoveBlock.ctor_EntityData_Vector2 += MoveBlock_ctor;
         On.Celeste.FallingBlock.ctor_EntityData_Vector2 += FallingBlock_ctor;
         On.Celeste.FallingBlock.CreateFinalBossBlock += FallingBlock_CreateFinalBossBlock;
+        On.Celeste.FallingBlock.ShakeSfx += FallingBlock_ShakeSfx;
+        On.Celeste.FallingBlock.ImpactSfx += FallingBlock_ImpactSfx;
+        On.Celeste.FallingBlock.LandParticles += FallingBlock_LandParticles;
         On.Celeste.CrushBlock.ctor_EntityData_Vector2 += CrushBlock_ctor;
         On.Celeste.SinkingPlatform.ctor_EntityData_Vector2 += SinkingPlatform_ctor;
         On.Celeste.FloatySpaceBlock.ctor_EntityData_Vector2 += FloatySpaceBlock_ctor;
@@ -63,6 +69,9 @@ internal sealed class WatchMovingSolidAdapter : IWatchEntityAdapter
         On.Celeste.FloatySpaceBlock.ctor_EntityData_Vector2 -= FloatySpaceBlock_ctor;
         On.Celeste.SinkingPlatform.ctor_EntityData_Vector2 -= SinkingPlatform_ctor;
         On.Celeste.CrushBlock.ctor_EntityData_Vector2 -= CrushBlock_ctor;
+        On.Celeste.FallingBlock.LandParticles -= FallingBlock_LandParticles;
+        On.Celeste.FallingBlock.ImpactSfx -= FallingBlock_ImpactSfx;
+        On.Celeste.FallingBlock.ShakeSfx -= FallingBlock_ShakeSfx;
         On.Celeste.FallingBlock.CreateFinalBossBlock -= FallingBlock_CreateFinalBossBlock;
         On.Celeste.FallingBlock.ctor_EntityData_Vector2 -= FallingBlock_ctor;
         On.Celeste.MoveBlock.ctor_EntityData_Vector2 -= MoveBlock_ctor;
@@ -160,6 +169,29 @@ internal sealed class WatchMovingSolidAdapter : IWatchEntityAdapter
 
     public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
     {
+        if (entityEvent.Key.SubID != 0 || entityEvent.Payload.Length != 0)
+            return;
+        FallingBlock? block = level.Entities.OfType<FallingBlock>().FirstOrDefault(candidate =>
+            WatchEntityIDTable<FallingBlock>.TryGet(
+                candidate,
+                level.Session.Level,
+                out int id
+            ) && id == entityEvent.Key.EntityID
+        );
+        if (block is null)
+            return;
+        switch (entityEvent.EventID)
+        {
+            case FallingShakeEvent:
+                block.ShakeSfx();
+                break;
+            case FallingImpactEvent:
+                block.ImpactSfx();
+                break;
+            case FallingLandParticlesEvent:
+                block.LandParticles();
+                break;
+        }
     }
 
     private static MovingSolidState Capture(Entity entity, WatchMovingSolidType type)
@@ -310,7 +342,10 @@ internal sealed class WatchMovingSolidAdapter : IWatchEntityAdapter
                 block.UpdateColors();
                 break;
             case FallingBlock block:
+                if (replayTransitions && !current.Bool0 && desired.Bool0)
+                    block.StartShaking(0.5f);
                 block.Triggered = desired.Bool0;
+                block.HasStartedFalling = desired.Bool1;
                 block.FallDelay = desired.Value0;
                 break;
             case CrushBlock block:
@@ -531,6 +566,45 @@ internal sealed class WatchMovingSolidAdapter : IWatchEntityAdapter
 
     private static void Track<TEntity>(TEntity entity, EntityData data) where TEntity : class
         => WatchEntityIDTable<TEntity>.Set(entity, data.Level.Name, data.ID);
+
+    private static void FallingBlock_ShakeSfx(
+        On.Celeste.FallingBlock.orig_ShakeSfx orig,
+        FallingBlock self
+    ) => ReplayFallingVisual(self, FallingShakeEvent, () => orig(self));
+
+    private static void FallingBlock_ImpactSfx(
+        On.Celeste.FallingBlock.orig_ImpactSfx orig,
+        FallingBlock self
+    ) => ReplayFallingVisual(self, FallingImpactEvent, () => orig(self));
+
+    private static void FallingBlock_LandParticles(
+        On.Celeste.FallingBlock.orig_LandParticles orig,
+        FallingBlock self
+    ) => ReplayFallingVisual(self, FallingLandParticlesEvent, () => orig(self));
+
+    private static void ReplayFallingVisual(
+        FallingBlock self,
+        byte eventID,
+        Action orig
+    )
+    {
+        if (MiaoNetModule.IsWatching && !WatchEntitySyncRegistry.IsApplyingRemoteState)
+            return;
+        if (!MiaoNetModule.IsWatching && self.Scene is Level level
+            && WatchEntityIDTable<FallingBlock>.TryGet(
+                self,
+                level.Session.Level,
+                out int id
+            ))
+        {
+            WatchEntitySyncRegistry.PublishEvent(level, new(
+                new WatchEntityKey(WatchEntityKind.MovingSolid, id),
+                eventID,
+                []
+            ));
+        }
+        orig();
+    }
 
     private static void Level_Update(On.Celeste.Level.orig_Update orig, Level self)
     {

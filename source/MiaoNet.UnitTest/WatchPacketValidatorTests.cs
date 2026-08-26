@@ -138,6 +138,9 @@ public sealed class WatchPacketValidatorTests
         WatchEntityKey validKey = new(WatchEntityKind.Spring, 7);
         WatchEntityState validState = new(validKey, [1]);
 
+        Assert.IsTrue(WatchPacketValidator.IsValid(validState));
+        Assert.IsFalse(WatchPacketValidator.IsValid(new WatchEntityState(validKey, [])));
+
         Assert.IsTrue(WatchPacketValidator.IsValid(
             new WatchSceneSnapshot(Location, 0, [], [], [validState])
         ));
@@ -172,6 +175,9 @@ public sealed class WatchPacketValidatorTests
     {
         WatchEntityKey key = new(WatchEntityKind.Spring, 7);
         WatchEntityState state = new(key, []);
+
+        Assert.IsTrue(WatchPacketValidator.IsValid(new WatchEntityEvent(key, 1, [])));
+        Assert.IsFalse(WatchPacketValidator.IsValid(new WatchEntityEvent(key, 0, [])));
 
         Assert.IsFalse(WatchPacketValidator.IsValid(
             new WatchSceneDelta(

@@ -4,6 +4,7 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class GhostDeadBody : MiaoNetGhostEntity
 {
+    private readonly bool watchPresentationFocus;
     private readonly PlayerHair hair;
     private readonly PlayerSprite sprite;
     private readonly VertexLight? vertexLight;
@@ -14,8 +15,21 @@ public sealed class GhostDeadBody : MiaoNetGhostEntity
     private Facings facing;
     private float scale = 1f;
 
-    public GhostDeadBody(Vector2 position, Facings facing, PlayerHair hair, PlayerSprite sprite, VertexLight? vertexLight, Vector2 direction)
+    public override GhostRenderBand RenderBand => GhostRenderBand.High;
+
+    public override bool WatchPresentationFocus => watchPresentationFocus;
+
+    public GhostDeadBody(
+        Vector2 position,
+        Facings facing,
+        PlayerHair hair,
+        PlayerSprite sprite,
+        VertexLight? vertexLight,
+        Vector2 direction,
+        bool watchPresentationFocus = false
+    )
     {
+        this.watchPresentationFocus = watchPresentationFocus;
         Tag = MiaoNetTag.Normal;
 
         Depth = Depths.Top;
@@ -85,7 +99,7 @@ public sealed class GhostDeadBody : MiaoNetGhostEntity
         Position += Vector2.UnitY * -5f;
         if (!level.Paused)
         {
-            float alpha = MiaoNetModule.Settings.PlayerOpacityValue;
+            float alpha = EffectiveOpacity;
             level.Displacement.AddBurst(Position, 0.3f, 0f, 80f, alpha: alpha);
         }
         OnPlayAudio(MiaoNetSFX.PlayerDeath);

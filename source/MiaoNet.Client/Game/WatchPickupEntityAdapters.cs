@@ -534,7 +534,10 @@ internal sealed class WatchBoosterAdapter : IWatchEntityAdapter
                 {
                     case WatchEntityPhase.Ready:
                         if (info.Phase == WatchEntityPhase.Cooldown)
+                        {
                             booster.Respawn();
+                            booster.AppearParticles();
+                        }
                         else
                         {
                             booster.BoostingPlayer = false;
@@ -567,6 +570,15 @@ internal sealed class WatchBoosterAdapter : IWatchEntityAdapter
                                 : "event:/game/04_cliffside/greenbooster_dash",
                             booster.Position
                         );
+                        if (booster.Scene is Level boosterLevel)
+                        {
+                            boosterLevel.Particles.Emit(
+                                booster.red ? Booster.P_BurstRed : Booster.P_Burst,
+                                12,
+                                booster.Center,
+                                Vector2.One * 3f
+                            );
+                        }
                         if (booster.red)
                         {
                             booster.loopingSfx.Play("event:/game/05_mirror_temple/redbooster_move");

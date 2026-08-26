@@ -126,6 +126,7 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
         public Vector2 SpeedError { get; set; }
         public Vector2 ScaleError { get; set; }
         public float LightAlphaError { get; set; }
+        public float RegenerateParticleTimer { get; set; }
 
         public void ResetErrors()
         {
@@ -330,9 +331,25 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
                     level.DirectionalShake(Calc.SafeNormalize(attacking.Speed), 0.15f);
                 }
                 break;
-            case WallHitEvent when entityEvent.Payload.Length == 1:
+            case WallHitEvent when entityEvent.Payload.Length == 17:
                 if (FindSeeker(level, id) is { } wallHit)
-                    PlayWallHit(wallHit, entityEvent.Payload.Span[0]);
+                {
+                    ReadOnlySpan<byte> payload = entityEvent.Payload.Span;
+                    wallHit.Position = new(
+                        WatchEntityPayloadCodec.ReadSingle(payload, 1),
+                        WatchEntityPayloadCodec.ReadSingle(payload, 5)
+                    );
+                    wallHit.Speed = new(
+                        WatchEntityPayloadCodec.ReadSingle(payload, 9),
+                        WatchEntityPayloadCodec.ReadSingle(payload, 13)
+                    );
+                    if (remoteInfo.TryGetValue(wallHit, out RemoteInfo? wallInfo))
+                    {
+                        wallInfo.PositionError = Vector2.Zero;
+                        wallInfo.SpeedError = Vector2.Zero;
+                    }
+                    PlayWallHit(wallHit, payload[0]);
+                }
                 break;
             case BouncedEvent:
                 if (FindSeeker(level, id) is { } bounced)
@@ -340,7 +357,10 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
                 break;
             case RegenerateBeginEvent:
                 if (FindSeeker(level, id) is { } regenerating)
+                {
                     regenerating.RegenerateBegin();
+                    remoteInfo.GetValue(regenerating, static _ => new()).RegenerateParticleTimer = 0f;
+                }
                 break;
             case RegenerateEndEvent:
                 if (FindSeeker(level, id) is { } regenerated)
@@ -609,6 +629,16 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
                 Vector2.Zero,
                 RecoveryDeceleration * deltaTime
             );
+            applied.RegenerateParticleTimer -= deltaTime;
+            if (applied.RegenerateParticleTimer <= 0f && self.Scene is Level regenLevel)
+            {
+                applied.RegenerateParticleTimer += 0.04f;
+                regenLevel.Particles.Emit(
+                    Seeker.P_Regen,
+                    self.Center + Calc.AngleToVector(Calc.Random.NextFloat(MathF.Tau), 6f),
+                    Calc.Random.NextFloat(MathF.Tau)
+                );
+            }
         }
         else if (state.Phase == WatchSeekerPhase.Stunned)
         {
@@ -765,7 +795,13 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
             return;
         byte direction = EncodeDirection(data.Direction);
         orig(self, data);
-        Publish(self, WallHitEvent, [direction]);
+        byte[] payload = new byte[17];
+        payload[0] = direction;
+        WatchEntityPayloadCodec.WriteSingle(payload, 1, self.Position.X);
+        WatchEntityPayloadCodec.WriteSingle(payload, 5, self.Position.Y);
+        WatchEntityPayloadCodec.WriteSingle(payload, 9, self.Speed.X);
+        WatchEntityPayloadCodec.WriteSingle(payload, 13, self.Speed.Y);
+        Publish(self, WallHitEvent, payload);
     }
 
     private static void Seeker_AttackBegin(

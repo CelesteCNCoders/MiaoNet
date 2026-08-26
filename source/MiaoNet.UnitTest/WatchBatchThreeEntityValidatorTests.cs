@@ -79,13 +79,14 @@ public sealed class WatchBatchThreeEntityValidatorTests
     public void BatchThreeVisualEventsAreStrictlyValidated()
     {
         Assert.IsTrue(IsValidEvent(WatchEntityKind.SeekerSystem, 1, []));
-        Assert.IsTrue(IsValidEvent(WatchEntityKind.SeekerSystem, 3, [3]));
+        Assert.IsTrue(IsValidEvent(WatchEntityKind.SeekerSystem, 3, Payload(17, p => p[0] = 3)));
         Assert.IsTrue(IsValidEvent(WatchEntityKind.SeekerBarrier, 1, []));
         Assert.IsTrue(IsValidEvent(WatchEntityKind.PlayerSeeker, 1, []));
         Assert.IsTrue(IsValidEvent(WatchEntityKind.PlayerSeeker, 2, new byte[8]));
         Assert.IsTrue(IsValidEvent(WatchEntityKind.PlayerSeeker, 3, [3, 2]));
 
-        Assert.IsFalse(IsValidEvent(WatchEntityKind.SeekerSystem, 3, [4]));
+        Assert.IsFalse(IsValidEvent(WatchEntityKind.SeekerSystem, 3, Payload(17, p => p[0] = 4)));
+        Assert.IsFalse(IsValidEvent(WatchEntityKind.SeekerSystem, 3, [3]));
         Assert.IsFalse(IsValidEvent(WatchEntityKind.SeekerBarrier, 1, [0]));
         Assert.IsFalse(IsValidEvent(WatchEntityKind.PlayerSeeker, 2, new byte[4]));
         Assert.IsFalse(IsValidEvent(WatchEntityKind.PlayerSeeker, 3, [4, 0]));

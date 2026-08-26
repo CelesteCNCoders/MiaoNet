@@ -153,6 +153,53 @@ public sealed class WatchSceneStateTests
     }
 
     [TestMethod]
+    public void OnlyProducerRoomReloadDeltaAuthorizesWatcherRoomReload()
+    {
+        WatchSceneDelta explicitReload = new(
+            1,
+            Location,
+            [],
+            [],
+            requiresRoomReload: true,
+            hasTouchSwitchState: true,
+            activeTouchSwitchIDs: [],
+            entityStateMode: WatchEntityStateMode.Replace,
+            entityStates: [],
+            entityEvents: []
+        );
+        WatchSceneDelta deathRespawn = new(
+            2,
+            Location,
+            [],
+            [],
+            requiresRoomReload: false,
+            hasTouchSwitchState: true,
+            activeTouchSwitchIDs: [],
+            entityStateMode: WatchEntityStateMode.Replace,
+            entityStates: [],
+            entityEvents: [],
+            isDeathRespawn: true
+        );
+        WatchSceneDelta invalidPromotedDeathRespawn = new(
+            3,
+            Location,
+            [],
+            [],
+            requiresRoomReload: true,
+            hasTouchSwitchState: true,
+            activeTouchSwitchIDs: [],
+            entityStateMode: WatchEntityStateMode.Replace,
+            entityStates: [],
+            entityEvents: [],
+            isDeathRespawn: true
+        );
+
+        Assert.IsTrue(WatchSceneLifecyclePolicy.AuthorizesRoomReload(explicitReload));
+        Assert.IsFalse(WatchSceneLifecyclePolicy.AuthorizesRoomReload(deathRespawn));
+        Assert.IsFalse(WatchSceneLifecyclePolicy.AuthorizesRoomReload(invalidPromotedDeathRespawn));
+    }
+
+    [TestMethod]
     public void CreateForCrossRoomRespawnCarriesOnlyTheTargetRoomReplace()
     {
         WatchEntityKey oldRoomKey = new(WatchEntityKind.Spring, 17);

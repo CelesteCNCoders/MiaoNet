@@ -19,7 +19,8 @@ public sealed partial class MainComponent
     private readonly List<WatchEntityEvent> watchPendingEntityEvents = new();
     private WatchEntityStateMode watchPendingEntityStateMode;
     private bool watchEntityLifecycleResetPending;
-    private bool watchLifecycleRoomReloadRequired;
+    private readonly HashSet<WatchEntityKind> watchLifecycleIncompleteKinds = new();
+    private bool watchLifecycleTouchSwitchRepairIncomplete;
     private bool watchEntityStateApplied;
     private WatchPersistentSessionBaseline? watchPersistentSessionBaseline;
     private bool watchRoomReloadPending;
@@ -153,11 +154,13 @@ public sealed partial class MainComponent
 
         watchBaselineFlags = new(level.Session.Flags, StringComparer.Ordinal);
         watchPersistentSessionBaseline = WatchPersistentSessionBaseline.Capture(level.Session);
+        WatchRoomEnvironmentAdapter.CaptureBaseline(level);
         ReplaceFlags(level.Session.Flags, snapshot.Flags);
         watchMap = snapshot.Location.Map;
         lastWatchSequence = snapshot.Sequence;
         watchSessionID = sessionID;
         playerWatching = player;
+        WatchTriggerFirewall.BeginWatching(level);
         WatchBadelineOldsiteAdapter.ResetRemotePlayerHistory();
         WatchAngryOshiroAdapter.ResetRemotePlayerState();
         WatchPlayerSeekerAdapter.ResetRemoteState();
@@ -174,7 +177,8 @@ public sealed partial class MainComponent
         watchPendingEntityEvents.Clear();
         watchPendingEntityStateMode = WatchEntityStateMode.Replace;
         watchEntityLifecycleResetPending = false;
-        watchLifecycleRoomReloadRequired = false;
+        watchLifecycleIncompleteKinds.Clear();
+        watchLifecycleTouchSwitchRepairIncomplete = false;
         watchEntityStateApplied = false;
         watchRoomReloadPending = false;
         watchRoomReloadLocation = default;
@@ -236,7 +240,8 @@ public sealed partial class MainComponent
         watchPendingEntityEvents.Clear();
         watchPendingEntityStateMode = WatchEntityStateMode.None;
         watchEntityLifecycleResetPending = false;
-        watchLifecycleRoomReloadRequired = false;
+        watchLifecycleIncompleteKinds.Clear();
+        watchLifecycleTouchSwitchRepairIncomplete = false;
         watchEntityStateApplied = false;
         watchRoomReloadPending = false;
         watchRoomReloadLocation = default;
@@ -254,6 +259,8 @@ public sealed partial class MainComponent
             level.CoreMode = level.Session.CoreMode;
         }
         watchPersistentSessionBaseline = null;
+        if (level is not null)
+            WatchRoomEnvironmentAdapter.RestoreBaseline(level);
         if (restoreScene && level is not null)
         {
             watchSceneRestorePending = true;
@@ -327,7 +334,10 @@ public sealed partial class MainComponent
             watchPendingEntityStateMode = WatchEntityStateMode.Replace;
             watchEntityLifecycleResetPending = packet.Delta.IsDeathRespawn;
             if (packet.Delta.IsDeathRespawn)
-                watchLifecycleRoomReloadRequired = false;
+            {
+                watchLifecycleIncompleteKinds.Clear();
+                watchLifecycleTouchSwitchRepairIncomplete = false;
+            }
             watchRoomTransition = packet.Delta.RoomTransition;
         }
         else if (packet.Delta.EntityStateMode == WatchEntityStateMode.Patch)
@@ -342,7 +352,7 @@ public sealed partial class MainComponent
                 watchPendingEntityStateMode = WatchEntityStateMode.Patch;
         }
         watchPendingEntityEvents.AddRange(packet.Delta.EntityEvents);
-        if (packet.Delta.RequiresRoomReload)
+        if (WatchSceneLifecyclePolicy.AuthorizesRoomReload(packet.Delta))
         {
             watchRoomReloadPending = true;
             watchRoomReloadLocation = packet.Delta.Location;
@@ -425,7 +435,14 @@ public sealed partial class MainComponent
                     if (TryRecreateWatchTouchSwitches(level, current, mapIDs.Count, out resetCount))
                         watchTouchSwitchStateApplied = true;
                     else
-                        watchLifecycleRoomReloadRequired = true;
+                    {
+                        watchLifecycleTouchSwitchRepairIncomplete = true;
+                        Logger.Warn(
+                            LT.MiaoNetWatch,
+                            $"Could not reconstruct the complete TouchSwitch set for " +
+                            $"{watchTouchSwitchLocation.Room}; kept the death respawn lightweight."
+                        );
+                    }
                 }
             }
 
@@ -516,28 +533,33 @@ public sealed partial class MainComponent
             WatchEntityState[] states = replace
                 ? watchEntityStates.Values.ToArray()
                 : watchPendingEntityStateKeys.Select(key => watchEntityStates[key]).ToArray();
-            WatchEntityApplyResult result = WatchEntitySyncRegistry.ApplyStates(
+            WatchEntityApplySummary summary = WatchEntitySyncRegistry.ApplyStates(
                 level,
                 states,
                 replace,
                 lifecycleReset
             );
+            WatchEntityApplyResult result = summary.Result;
             watchEntityStateApplied |= result.HasFlag(WatchEntityApplyResult.SceneChanged);
-            if (result.HasFlag(WatchEntityApplyResult.RequiresRoomReload))
+            if (summary.RoomReloadRequestedKinds.Count > 0)
             {
                 if (lifecycleReset)
                 {
-                    // The death wipe owns a fully black frame. Defer the single
-                    // correctness fallback to that boundary instead of exposing a
-                    // stale one-way entity or reloading during ordinary watching.
-                    watchLifecycleRoomReloadRequired = true;
+                    watchLifecycleIncompleteKinds.UnionWith(summary.RoomReloadRequestedKinds);
+                    Logger.Warn(
+                        LT.MiaoNetWatch,
+                        $"Kept death respawn lightweight after incomplete entity reconciliation " +
+                        $"in {watchEntityLocation.Room}; kinds=" +
+                        $"{string.Join(",", summary.RoomReloadRequestedKinds)}."
+                    );
                 }
                 else
                 {
                     Logger.Warn(
                         LT.MiaoNetWatch,
                         $"Applied watch state for room {watchEntityLocation.Room} without " +
-                        "promoting an entity mismatch outside a death lifecycle."
+                        $"promoting an entity mismatch to a room reload; kinds=" +
+                        $"{string.Join(",", summary.RoomReloadRequestedKinds)}."
                     );
                 }
             }
@@ -803,6 +825,7 @@ public sealed partial class MainComponent
 
         UpdateWatchCamera(level);
         WatchLightningAdapter.RefreshRendererEdgesForCamera(level);
+        WatchRoomEnvironmentAdapter.ApplyFrame(level);
     }
 
     private void BufferWatchCameraSample(OnlinePlayer player, PlayerStateDelta delta)

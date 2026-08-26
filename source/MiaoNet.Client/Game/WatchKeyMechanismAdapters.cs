@@ -667,8 +667,6 @@ internal sealed class WatchLockBlockAdapter : IWatchEntityAdapter
 
         int keyID = BinaryPrimitives.ReadInt32LittleEndian(entityEvent.Payload.Span);
         Key? key = WatchKeyAdapter.Find(level, keyID);
-        if (key is { Collidable: true, StartedUsing: false })
-            key = null;
         block.opening = true;
         block.Collidable = false;
         remoteUnlocks.Add(block);
@@ -707,8 +705,7 @@ internal sealed class WatchLockBlockAdapter : IWatchEntityAdapter
         block.UnlockingRegistered = true;
         block.Tag |= Tags.TransitionUpdate;
         block.Collidable = false;
-        block.sprite.Play("open");
-        yield return 0.6f;
+        yield return block.sprite.PlayRoutine("open", restart: false);
         if (!WatchKeyAdapter.IsRemoteUseCurrent(key, generation)
             || block.Scene is not Level)
         {
@@ -718,8 +715,7 @@ internal sealed class WatchLockBlockAdapter : IWatchEntityAdapter
         }
 
         level.Shake();
-        block.sprite.Play("burst");
-        yield return 0.3f;
+        yield return block.sprite.PlayRoutine("burst", restart: false);
         WatchKeyAdapter.CompleteRemoteUse(key, generation, remove: true);
         remoteUnlocks.Remove(block);
         remoteUnlockInfo.Remove(block);
@@ -730,12 +726,10 @@ internal sealed class WatchLockBlockAdapter : IWatchEntityAdapter
     private static IEnumerator FallbackUnlockRoutine(LockBlock block)
     {
         Audio.Play(block.unlockSfxName, block.Center);
-        block.sprite.Play("open");
-        yield return 0.6f;
-        block.sprite.Play("burst");
+        yield return block.sprite.PlayRoutine("open", restart: false);
         if (block.Scene is Level level)
             level.Shake();
-        yield return 0.3f;
+        yield return block.sprite.PlayRoutine("burst", restart: false);
         phases[(block.ID.Level, block.ID.ID)] = WatchEntityPhase.Gone;
         remoteUnlocks.Remove(block);
         block.RemoveSelf();

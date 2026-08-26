@@ -164,6 +164,7 @@ internal sealed class WatchCrumblePlatformAdapter : IWatchEntityAdapter
 
             Audio.Play("event:/game/general/platform_disintegrate", target.Center);
             target.shaker.ShakeFor(duration, false);
+            target.Add(new Coroutine(EmitCrumbleParticles(target)));
             return;
         }
 
@@ -265,6 +266,29 @@ internal sealed class WatchCrumblePlatformAdapter : IWatchEntityAdapter
         finally
         {
             (sequence as IDisposable)?.Dispose();
+        }
+    }
+
+    private static IEnumerator EmitCrumbleParticles(CrumblePlatform platform)
+    {
+        EmitCrumbleParticleBurst(platform);
+        yield return 0.2f;
+        if (platform.Scene is Level)
+            EmitCrumbleParticleBurst(platform);
+    }
+
+    private static void EmitCrumbleParticleBurst(CrumblePlatform platform)
+    {
+        if (platform.Scene is not Level level)
+            return;
+        foreach (Image image in platform.images)
+        {
+            level.Particles.Emit(
+                CrumblePlatform.P_Crumble,
+                2,
+                platform.Position + image.Position + new Vector2(0f, 2f),
+                Vector2.One * 3f
+            );
         }
     }
 

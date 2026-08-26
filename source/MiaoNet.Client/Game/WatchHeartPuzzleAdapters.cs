@@ -5,7 +5,7 @@ namespace Celeste.Mod.MiaoNet;
 
 internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
 {
-    private const int ControllerPayloadSize = 16;
+    private const int ControllerPayloadSize = 32;
     private const int BirdPayloadSize = 48;
     private const float BirdAnchorInterval = 0.1f;
     private const byte EnabledFlag = 1 << 0;
@@ -13,18 +13,27 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
     private const byte GemPresentFlag = 1 << 2;
     private const byte PulseVisibleFlag = 1 << 3;
     private const byte ScreenVisibleFlag = 1 << 4;
+    private const byte ScreenNoiseVisibleFlag = 1 << 5;
+    private const byte ScreenShineVisibleFlag = 1 << 6;
+    private const byte ScreenBloomVisibleFlag = 1 << 7;
     private const byte BirdActiveFlag = 1 << 0;
     private const byte BirdVisibleFlag = 1 << 1;
     private const byte BirdHeartPresentFlag = 1 << 2;
     private const byte BirdSpriteVisibleFlag = 1 << 3;
     private const byte BirdHeartVisibleFlag = 1 << 4;
     private const byte UnlockEvent = 1;
+    private const byte BirdDashEvent = 2;
+    private const byte BirdTransformEvent = 3;
 
     private readonly record struct ControllerState(
         byte Flags,
         byte InputCount,
         byte[] Inputs,
-        Vector2 HeartPosition
+        Vector2 HeartPosition,
+        uint PulseColor,
+        uint ScreenColor,
+        float PulseBloomAlpha,
+        float ScreenBloomAlpha
     );
 
     private readonly record struct BirdState(
@@ -80,10 +89,12 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
         public WatchEntityState Capture(int id, byte[] payload, float sceneTime, bool force)
         {
             bool signatureChanged = !hasState
-                || !payload.AsSpan(0, 8).SequenceEqual(state.Payload.Span[..8]);
-            bool heartMoved = hasState && (payload[0] & GemPresentFlag) != 0
-                && !payload.AsSpan(8, 8).SequenceEqual(state.Payload.Span.Slice(8, 8));
-            if (force || signatureChanged || (heartMoved && sceneTime >= nextAnchor))
+                || !payload.AsSpan(0, 8).SequenceEqual(state.Payload.Span[..8])
+                || !payload.AsSpan(16, 8).SequenceEqual(state.Payload.Span.Slice(16, 8));
+            bool continuousChanged = hasState
+                && (!payload.AsSpan(8, 8).SequenceEqual(state.Payload.Span.Slice(8, 8))
+                    || !payload.AsSpan(24, 8).SequenceEqual(state.Payload.Span.Slice(24, 8)));
+            if (force || signatureChanged || (continuousChanged && sceneTime >= nextAnchor))
             {
                 state = new(new WatchEntityKey(
                     WatchEntityKind.ForsakenCitySatellite,
@@ -102,6 +113,14 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
         public Vector2 Start { get; set; }
         public Vector2 Target { get; set; }
         public float Elapsed { get; set; }
+        public bool AllowRoutine { get; set; }
+    }
+
+    private sealed class BirdOwner
+    {
+        public int ID { get; init; }
+        public ushort SubID { get; init; }
+        public string Level { get; init; } = string.Empty;
     }
 
     private static readonly WatchForsakenCitySatelliteAdapter instance = new();
@@ -111,28 +130,37 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
         birdSyncInfo = new();
     private static readonly ConditionalWeakTable<ForsakenCitySatellite.CodeBird, BirdRemoteInfo>
         birdRemoteInfo = new();
+    private static readonly ConditionalWeakTable<ForsakenCitySatellite.CodeBird, BirdOwner>
+        birdOwners = new();
     public WatchEntityKind Kind => WatchEntityKind.ForsakenCitySatellite;
 
     public static void Load()
     {
         On.Celeste.ForsakenCitySatellite.ctor += Satellite_ctor;
         On.Celeste.ForsakenCitySatellite.Added += Satellite_Added;
+        On.Celeste.ForsakenCitySatellite.Update += Satellite_Update;
         On.Celeste.ForsakenCitySatellite.UnlockGem += Satellite_UnlockGem;
         On.Celeste.ForsakenCitySatellite.CodeBird.Update += CodeBird_Update;
+        On.Celeste.ForsakenCitySatellite.CodeBird.Dash += CodeBird_Dash;
+        On.Celeste.ForsakenCitySatellite.CodeBird.Transform += CodeBird_Transform;
         WatchEntitySyncRegistry.Register(instance);
     }
 
     public static void Unload()
     {
         WatchEntitySyncRegistry.Unregister(instance);
+        On.Celeste.ForsakenCitySatellite.CodeBird.Transform -= CodeBird_Transform;
+        On.Celeste.ForsakenCitySatellite.CodeBird.Dash -= CodeBird_Dash;
         On.Celeste.ForsakenCitySatellite.CodeBird.Update -= CodeBird_Update;
         On.Celeste.ForsakenCitySatellite.UnlockGem -= Satellite_UnlockGem;
+        On.Celeste.ForsakenCitySatellite.Update -= Satellite_Update;
         On.Celeste.ForsakenCitySatellite.Added -= Satellite_Added;
         On.Celeste.ForsakenCitySatellite.ctor -= Satellite_ctor;
         WatchEntityIDTable<ForsakenCitySatellite>.Clear();
         controllerSyncInfo.Clear();
         birdSyncInfo.Clear();
         birdRemoteInfo.Clear();
+        birdOwners.Clear();
     }
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
@@ -154,12 +182,37 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
                 controller[0] |= GemPresentFlag;
             if (satellite.pulse?.Visible == true) controller[0] |= PulseVisibleFlag;
             if (satellite.computerScreen?.Visible == true) controller[0] |= ScreenVisibleFlag;
-            controller[1] = (byte)Math.Min(6, satellite.currentInputs.Count);
-            for (int i = 0; i < controller[1]; i++)
-                controller[2 + i] = EncodeDirection(satellite.currentInputs[i]);
+            if (satellite.computerScreenNoise?.Visible == true) controller[0] |= ScreenNoiseVisibleFlag;
+            if (satellite.computerScreenShine?.Visible == true) controller[0] |= ScreenShineVisibleFlag;
+            if (satellite.screenBloom?.Visible == true) controller[0] |= ScreenBloomVisibleFlag;
+            byte[] acceptedInputs = satellite.currentInputs
+                .Select(EncodeDirection)
+                .Where(static direction => direction != 0)
+                .Take(6)
+                .ToArray();
+            controller[1] = (byte)acceptedInputs.Length;
+            acceptedInputs.CopyTo(controller, 2);
             Vector2 heartPosition = heart?.Position ?? satellite.gemSpawnPosition;
             WatchEntityPayloadCodec.WriteSingle(controller, 8, heartPosition.X);
             WatchEntityPayloadCodec.WriteSingle(controller, 12, heartPosition.Y);
+            BitConverter.TryWriteBytes(
+                controller.AsSpan(16),
+                satellite.pulse?.Color.PackedValue ?? Color.White.PackedValue
+            );
+            BitConverter.TryWriteBytes(
+                controller.AsSpan(20),
+                satellite.computerScreen?.Color.PackedValue ?? Color.White.PackedValue
+            );
+            WatchEntityPayloadCodec.WriteSingle(
+                controller,
+                24,
+                satellite.pulseBloom?.Alpha ?? 0f
+            );
+            WatchEntityPayloadCodec.WriteSingle(
+                controller,
+                28,
+                satellite.screenBloom?.Alpha ?? 0f
+            );
             yield return controllerSyncInfo.GetValue(satellite, static _ => new()).Capture(
                 id,
                 controller,
@@ -252,13 +305,37 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
 
     public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
     {
-        if (entityEvent.EventID != UnlockEvent || entityEvent.Payload.Length != 0)
-            return;
         ForsakenCitySatellite? satellite = Find(level, entityEvent.Key.EntityID);
         if (satellite is null)
             return;
-        satellite.enabled = false;
-        Audio.Play("event:/game/01_forsaken_city/birdbros_finish", satellite.birdFlyPosition);
+        if (entityEvent.Key.SubID == 0 && entityEvent.EventID == UnlockEvent
+            && entityEvent.Payload.Length == 0)
+        {
+            satellite.enabled = false;
+            Audio.Play("event:/game/01_forsaken_city/birdbros_finish", satellite.birdFlyPosition);
+            return;
+        }
+
+        ForsakenCitySatellite.CodeBird? bird = satellite.birds.FirstOrDefault(candidate =>
+            EncodeDirection(candidate.code) == entityEvent.Key.SubID
+        );
+        if (bird is null)
+            return;
+        BirdRemoteInfo applied = birdRemoteInfo.GetValue(bird, static _ => new());
+        if (entityEvent.EventID == BirdDashEvent && entityEvent.Payload.Length == 0)
+        {
+            applied.AllowRoutine = true;
+            bird.Dash();
+        }
+        else if (entityEvent.EventID == BirdTransformEvent
+            && entityEvent.Payload.Length == 4)
+        {
+            float delay = WatchEntityPayloadCodec.ReadSingle(entityEvent.Payload.Span, 0);
+            if (!float.IsFinite(delay) || delay < 0f || delay > 3f)
+                return;
+            applied.AllowRoutine = true;
+            bird.Transform(delay);
+        }
     }
 
     private static bool TryDecodeController(
@@ -271,7 +348,6 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
         if (state.Key.Kind != WatchEntityKind.ForsakenCitySatellite
             || state.Key.SubID != 0
             || payload.Length != ControllerPayloadSize
-            || (payload[0] & ~0b0001_1111) != 0
             || payload[1] > 6)
             return false;
         byte[] inputs = payload.Slice(2, 6).ToArray();
@@ -284,7 +360,21 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
         );
         if (!float.IsFinite(heartPosition.X) || !float.IsFinite(heartPosition.Y))
             return false;
-        value = new(payload[0], payload[1], inputs, heartPosition);
+        float pulseBloomAlpha = WatchEntityPayloadCodec.ReadSingle(payload, 24);
+        float screenBloomAlpha = WatchEntityPayloadCodec.ReadSingle(payload, 28);
+        if (!float.IsFinite(pulseBloomAlpha) || !float.IsFinite(screenBloomAlpha)
+            || pulseBloomAlpha is < 0f or > 2f || screenBloomAlpha is < 0f or > 2f)
+            return false;
+        value = new(
+            payload[0],
+            payload[1],
+            inputs,
+            heartPosition,
+            BitConverter.ToUInt32(payload[16..20]),
+            BitConverter.ToUInt32(payload[20..24]),
+            pulseBloomAlpha,
+            screenBloomAlpha
+        );
         return true;
     }
 
@@ -371,7 +461,7 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
     {
         satellite.Visible = satellite.Active = true;
         satellite.enabled = (state.Flags & EnabledFlag) != 0;
-        DisableDashListener(satellite);
+        DisableLocalPresentation(satellite);
         satellite.currentInputs.Clear();
         for (int i = 0; i < state.InputCount; i++)
             satellite.currentInputs.Add(DecodeDirection(state.Inputs[i]));
@@ -383,15 +473,21 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
             satellite.pulseBloom.Visible = pulseVisible;
         if (satellite.computerScreen is not null)
             satellite.computerScreen.Visible = (state.Flags & ScreenVisibleFlag) != 0;
-        if (state.InputCount > 0)
+        if (satellite.computerScreenNoise is not null)
+            satellite.computerScreenNoise.Visible = (state.Flags & ScreenNoiseVisibleFlag) != 0;
+        if (satellite.computerScreenShine is not null)
+            satellite.computerScreenShine.Visible = (state.Flags & ScreenShineVisibleFlag) != 0;
+        if (satellite.screenBloom is not null)
         {
-            string direction = DecodeDirection(state.Inputs[state.InputCount - 1]);
-            if (ForsakenCitySatellite.Colors.TryGetValue(direction, out Color color))
-            {
-                if (satellite.pulse is not null) satellite.pulse.Color = color;
-                if (satellite.computerScreen is not null) satellite.computerScreen.Color = color;
-            }
+            satellite.screenBloom.Visible = (state.Flags & ScreenBloomVisibleFlag) != 0;
+            satellite.screenBloom.Alpha = state.ScreenBloomAlpha;
         }
+        if (satellite.pulseBloom is not null)
+            satellite.pulseBloom.Alpha = state.PulseBloomAlpha;
+        if (satellite.pulse is not null)
+            satellite.pulse.Color = ColorFromPacked(state.PulseColor);
+        if (satellite.computerScreen is not null)
+            satellite.computerScreen.Color = ColorFromPacked(state.ScreenColor);
 
         HeartGem? heart = FindSatelliteHeart(level, satellite);
         bool gemPresent = (state.Flags & GemPresentFlag) != 0;
@@ -432,7 +528,8 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
         bird.timer = state.Timer;
         bird.Active = (state.Flags & BirdActiveFlag) != 0;
         bird.Visible = (state.Flags & BirdVisibleFlag) != 0;
-        bird.routine.Active = false;
+        if (!applied.AllowRoutine)
+            bird.routine.Active = false;
         if (bird.sprite is null)
             return;
         string? animation = DecodeBirdAnimation(state.Animation);
@@ -564,8 +661,9 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
     )
     {
         orig(self, scene);
+        RegisterBirds(self);
         if (MiaoNetModule.IsWatching)
-            DisableDashListener(self);
+            DisableLocalPresentation(self);
     }
 
     private static System.Collections.IEnumerator Satellite_UnlockGem(
@@ -587,6 +685,20 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
         return orig(self);
     }
 
+    private static void Satellite_Update(
+        On.Celeste.ForsakenCitySatellite.orig_Update orig,
+        ForsakenCitySatellite self
+    )
+    {
+        if (!MiaoNetModule.IsWatching)
+        {
+            orig(self);
+            return;
+        }
+        if (!MiaoNetModule.IsWatchedPlayerPaused)
+            self.Components.Update();
+    }
+
     private static void CodeBird_Update(
         On.Celeste.ForsakenCitySatellite.CodeBird.orig_Update orig,
         Entity entity
@@ -601,13 +713,22 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
         if (MiaoNetModule.IsWatchedPlayerPaused)
             return;
 
-        self.routine.Active = false;
-        self.timer += Engine.DeltaTime;
-        if (self.sprite is not null)
-            self.sprite.Y = MathF.Sin(self.timer * 2f);
-        self.Components.Update();
-        if (birdRemoteInfo.TryGetValue(self, out BirdRemoteInfo? applied)
-            && applied.HasState && applied.Elapsed < BirdAnchorInterval)
+        BirdRemoteInfo applied = birdRemoteInfo.GetValue(self, static _ => new());
+        if (applied.AllowRoutine)
+        {
+            orig(entity);
+            if (!self.routine.Active)
+                applied.AllowRoutine = false;
+        }
+        else
+        {
+            self.routine.Active = false;
+            self.timer += Engine.DeltaTime;
+            if (self.sprite is not null)
+                self.sprite.Y = MathF.Sin(self.timer * 2f);
+            self.Components.Update();
+        }
+        if (applied.HasState && applied.Elapsed < BirdAnchorInterval)
         {
             applied.Elapsed = Math.Min(BirdAnchorInterval, applied.Elapsed + Engine.DeltaTime);
             self.Position = Vector2.Lerp(
@@ -616,6 +737,91 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
                 applied.Elapsed / BirdAnchorInterval
             );
         }
+    }
+
+    private static void CodeBird_Dash(
+        On.Celeste.ForsakenCitySatellite.CodeBird.orig_Dash orig,
+        Entity entity
+    )
+    {
+        ForsakenCitySatellite.CodeBird self = (ForsakenCitySatellite.CodeBird)entity;
+        if (MiaoNetModule.IsWatching && !WatchEntitySyncRegistry.IsApplyingRemoteState)
+            return;
+        PublishBirdEvent(self, BirdDashEvent, []);
+        orig(entity);
+    }
+
+    private static void CodeBird_Transform(
+        On.Celeste.ForsakenCitySatellite.CodeBird.orig_Transform orig,
+        Entity entity,
+        float delay
+    )
+    {
+        ForsakenCitySatellite.CodeBird self = (ForsakenCitySatellite.CodeBird)entity;
+        if (MiaoNetModule.IsWatching && !WatchEntitySyncRegistry.IsApplyingRemoteState)
+            return;
+        byte[] payload = new byte[4];
+        WatchEntityPayloadCodec.WriteSingle(payload, 0, delay);
+        PublishBirdEvent(self, BirdTransformEvent, payload);
+        orig(entity, delay);
+    }
+
+    private static void RegisterBirds(ForsakenCitySatellite satellite)
+    {
+        if (satellite.Scene is not Level level
+            || !WatchEntityIDTable<ForsakenCitySatellite>.TryGet(
+                satellite,
+                level.Session.Level,
+                out int id
+            ))
+            return;
+        foreach (ForsakenCitySatellite.CodeBird bird in satellite.birds)
+        {
+            ushort subID = EncodeDirection(bird.code);
+            if (subID != 0)
+                birdOwners.AddOrUpdate(bird, new BirdOwner
+                {
+                    ID = id,
+                    SubID = subID,
+                    Level = level.Session.Level,
+                });
+        }
+    }
+
+    private static void PublishBirdEvent(
+        ForsakenCitySatellite.CodeBird bird,
+        byte eventID,
+        ReadOnlySpan<byte> payload
+    )
+    {
+        if (WatchEntitySyncRegistry.IsApplyingRemoteState
+            || bird.Scene is not Level level
+            || !birdOwners.TryGetValue(bird, out BirdOwner? owner)
+            || !StringComparer.Ordinal.Equals(owner.Level, level.Session.Level))
+            return;
+        WatchEntitySyncRegistry.PublishEvent(level, new(
+            new WatchEntityKey(
+                WatchEntityKind.ForsakenCitySatellite,
+                owner.ID,
+                owner.SubID
+            ),
+            eventID,
+            payload.ToArray()
+        ));
+    }
+
+    private static void DisableLocalPresentation(ForsakenCitySatellite satellite)
+    {
+        DisableDashListener(satellite);
+        foreach (Coroutine coroutine in satellite.Components.GetAll<Coroutine>())
+            coroutine.Active = false;
+    }
+
+    private static Color ColorFromPacked(uint packed)
+    {
+        Color color = default;
+        color.PackedValue = packed;
+        return color;
     }
 
     private static System.Collections.IEnumerator EmptyRoutine()
@@ -695,9 +901,13 @@ internal sealed class WatchReflectionHeartStatueAdapter : IWatchEntityAdapter
             if (!statue.enabled && heart is null && !level.Session.HeartGem && mask == 0b1111)
                 payload[0] |= ActivatingFlag;
             payload[1] = mask;
-            payload[2] = (byte)Math.Min(6, statue.currentInputs.Count);
-            for (int i = 0; i < payload[2]; i++)
-                payload[4 + i] = EncodeDirection(statue.currentInputs[i]);
+            byte[] acceptedInputs = statue.currentInputs
+                .Select(EncodeDirection)
+                .Where(static direction => direction != 0)
+                .Take(6)
+                .ToArray();
+            payload[2] = (byte)acceptedInputs.Length;
+            acceptedInputs.CopyTo(payload, 4);
             yield return new(new WatchEntityKey(Kind, id), payload);
         }
     }

@@ -31,6 +31,12 @@ public sealed class MiaoNetModule : EverestModule
     internal static bool IsWatchedPlayerPaused =>
         Instance.miaoNetContext?.MainComponent.WatchedPlayerPaused == true;
 
+    internal static PlayerState? WatchedPlayerState =>
+        Instance.miaoNetContext?.MainComponent.WatchedPlayerState;
+
+    internal static MiaoNetGhost? WatchedGhost =>
+        Instance.miaoNetContext?.MainComponent.WatchedGhost;
+
     // TODO this is ugly
     public static Vector2? NextPlayerSpawnPosition { get; set; }
 
@@ -132,6 +138,22 @@ public sealed class MiaoNetModule : EverestModule
             WatchForsakenCitySatelliteAdapter.Load();
             WatchReflectionHeartStatueAdapter.Load();
             WatchRidgeGateAdapter.Load();
+            WatchRoomEnvironmentAdapter.Load();
+            WatchRumbleTriggerAdapter.Load();
+            WatchRumbleWallAdapter.Load();
+            WatchBridgeAdapter.Load();
+            WatchIntroCrusherAdapter.Load();
+            WatchResortRoofEndingAdapter.Load();
+            WatchBirdNPCAdapter.Load();
+            WatchFlutterBirdAdapter.Load();
+            WatchMoonCreatureAdapter.Load();
+            WatchFlingBirdIntroAdapter.Load();
+            WatchDreamMirrorAdapter.Load();
+            WatchResortMirrorAdapter.Load();
+            WatchTempleMirrorPortalAdapter.Load();
+            WatchGondolaAdapter.Load();
+            WatchWaveDashTutorialAdapter.Load();
+            WatchPowerSourceNumberAdapter.Load();
             WatchCassetteBlockAdapter.Load();
             WatchSwitchGateAdapter.Load();
             WatchClutterSystemAdapter.Load();
@@ -142,11 +164,20 @@ public sealed class MiaoNetModule : EverestModule
             WatchGliderAdapter.Load();
             WatchTheoCrystalPedestalAdapter.Load();
             WatchBadelineBoostAdapter.Load();
+            WatchBadelineDummyAdapter.Load();
             WatchFlingBirdAdapter.Load();
             WatchWallBoosterAdapter.Load();
             WatchTorchAdapter.Load();
             WatchTempleCrackedBlockAdapter.Load();
             WatchTempleBigEyeballAdapter.Load();
+            WatchTriggerFirewall.Load();
+            WatchNarrativeNPCAdapter.Load();
+            WatchAscendManagerAdapter.Load();
+            WatchIntroCarAdapter.Load();
+            WatchChapterPropAdapter.Load();
+            WatchLookoutAdapter.Load();
+            WatchConditionalBlockAdapter.Load();
+            WatchRemotePresentationAdapter.Load();
             WatchSceneAudioSuppression.Load();
             IL.Celeste.Leader.GainFollower += Leader_GainFollower;
             On.Celeste.Overworld.Begin += Overworld_Begin;
@@ -192,10 +223,19 @@ public sealed class MiaoNetModule : EverestModule
         SpriteIDTracker.Unload();
         TouchSwitchIDTracker.Unload();
         WatchTempleBigEyeballAdapter.Unload();
+        WatchTriggerFirewall.Unload();
+        WatchRemotePresentationAdapter.Unload();
+        WatchLookoutAdapter.Unload();
+        WatchChapterPropAdapter.Unload();
+        WatchIntroCarAdapter.Unload();
+        WatchAscendManagerAdapter.Unload();
+        WatchNarrativeNPCAdapter.Unload();
+        WatchConditionalBlockAdapter.Unload();
         WatchTempleCrackedBlockAdapter.Unload();
         WatchTorchAdapter.Unload();
         WatchWallBoosterAdapter.Unload();
         WatchFlingBirdAdapter.Unload();
+        WatchBadelineDummyAdapter.Unload();
         WatchBadelineBoostAdapter.Unload();
         WatchTheoCrystalPedestalAdapter.Unload();
         WatchGliderAdapter.Unload();
@@ -207,6 +247,22 @@ public sealed class MiaoNetModule : EverestModule
         WatchSwitchGateAdapter.Unload();
         WatchCassetteBlockAdapter.Unload();
         WatchRidgeGateAdapter.Unload();
+        WatchRoomEnvironmentAdapter.Unload();
+        WatchPowerSourceNumberAdapter.Unload();
+        WatchWaveDashTutorialAdapter.Unload();
+        WatchGondolaAdapter.Unload();
+        WatchTempleMirrorPortalAdapter.Unload();
+        WatchResortMirrorAdapter.Unload();
+        WatchDreamMirrorAdapter.Unload();
+        WatchFlingBirdIntroAdapter.Unload();
+        WatchMoonCreatureAdapter.Unload();
+        WatchFlutterBirdAdapter.Unload();
+        WatchBirdNPCAdapter.Unload();
+        WatchResortRoofEndingAdapter.Unload();
+        WatchIntroCrusherAdapter.Unload();
+        WatchBridgeAdapter.Unload();
+        WatchRumbleWallAdapter.Unload();
+        WatchRumbleTriggerAdapter.Unload();
         WatchReflectionHeartStatueAdapter.Unload();
         WatchForsakenCitySatelliteAdapter.Unload();
         WatchWhiteBlockAdapter.Unload();
@@ -520,8 +576,9 @@ public sealed class MiaoNetModule : EverestModule
 
     private static void LevelLoader_OnLoadingThread(Level level)
     {
-        level.Add(new GhostRenderLayerEntity(isHigh: false));
-        level.Add(new GhostRenderLayerEntity(isHigh: true));
+        level.Add(new GhostRenderLayerEntity(GhostRenderBand.Normal));
+        level.Add(new GhostRenderLayerEntity(GhostRenderBand.DreamDash));
+        level.Add(new GhostRenderLayerEntity(GhostRenderBand.High));
     }
 
     private static void Overworld_Begin(On.Celeste.Overworld.orig_Begin orig, Overworld self)

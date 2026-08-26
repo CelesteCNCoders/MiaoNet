@@ -7,7 +7,7 @@ namespace Celeste.Mod.MiaoNet;
 
 internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
 {
-    private const int PayloadSize = 32;
+    private const int PayloadSize = 36;
     private const float AnchorInterval = 0.1f;
     private const float HardReanchorDistance = 96f;
 
@@ -25,7 +25,8 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
         int NodeIndex,
         Vector2 Position,
         Vector2 MovementCounter,
-        float StartDelay
+        float StartDelay,
+        float HighlightAlpha
     );
 
     private readonly record struct SyncSignature(byte Flags, int NodeIndex);
@@ -60,11 +61,15 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
         public Vector2 Target { get; set; }
         public float Elapsed { get; set; }
         public float Duration { get; set; }
+        public float StartHighlightAlpha { get; set; }
+        public float TargetHighlightAlpha { get; set; }
+        public bool Finished { get; set; }
     }
 
     private static readonly WatchFinalBossMovingBlockAdapter instance = new();
     private static readonly ConditionalWeakTable<FinalBossMovingBlock, SyncInfo> syncInfo = new();
     private static readonly ConditionalWeakTable<FinalBossMovingBlock, RemoteInfo> remoteInfo = new();
+    private static int remoteFinishDepth;
 
     public WatchEntityKind Kind => WatchEntityKind.FinalBossMovingBlock;
 
@@ -152,11 +157,14 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
         {
             foreach (FinalBossMovingBlock block in existing.Values)
             {
-                changed |= block.Visible || block.Collidable;
-                block.Collidable = false;
-                block.Visible = false;
+                changed = true;
+                block.DestroyStaticMovers();
+                block.RemoveSelf();
                 remoteInfo.GetValue(block, static _ => new()).HasState = false;
             }
+
+            if (WatchEntitySyncRegistry.IsApplyingLifecycleReset && desired.Count > 0)
+                changed |= RestoreMissingMapSpikes(level);
         }
 
         return changed ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
@@ -169,12 +177,23 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
             return;
         if (entityEvent.EventID == StartEvent)
         {
-            block.isHighlighted = true;
             block.StartShaking(0.1f);
         }
         else if (entityEvent.EventID == BreakEvent)
         {
-            block.BreakParticles();
+            RemoteInfo info = remoteInfo.GetValue(block, static _ => new());
+            if (info.Finished)
+                return;
+            info.Finished = true;
+            remoteFinishDepth++;
+            try
+            {
+                block.Finish();
+            }
+            finally
+            {
+                remoteFinishDepth--;
+            }
         }
     }
 
@@ -191,7 +210,8 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
             Math.Max(0, block.nodeIndex),
             block.Position,
             block.movementCounter,
-            block.startDelay
+            block.startDelay,
+            Math.Clamp(block.highlight.Alpha, 0f, 1f)
         );
     }
 
@@ -206,6 +226,7 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
         WatchEntityPayloadCodec.WriteSingle(payload, 20, state.MovementCounter.X);
         WatchEntityPayloadCodec.WriteSingle(payload, 24, state.MovementCounter.Y);
         WatchEntityPayloadCodec.WriteSingle(payload, 28, state.StartDelay);
+        WatchEntityPayloadCodec.WriteSingle(payload, 32, state.HighlightAlpha);
         return new(new WatchEntityKey(WatchEntityKind.FinalBossMovingBlock, id), payload);
     }
 
@@ -226,9 +247,10 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
             WatchEntityPayloadCodec.ReadSingle(p, 24)
         );
         float delay = WatchEntityPayloadCodec.ReadSingle(p, 28);
+        float highlightAlpha = WatchEntityPayloadCodec.ReadSingle(p, 32);
         if (!float.IsFinite(position.X) || !float.IsFinite(position.Y)
             || !float.IsFinite(movement.X) || !float.IsFinite(movement.Y)
-            || !float.IsFinite(delay))
+            || !float.IsFinite(delay) || highlightAlpha is < 0f or > 1f)
             return false;
         value = new(
             p[0],
@@ -236,7 +258,8 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
             BinaryPrimitives.ReadInt32LittleEndian(p[8..]),
             position,
             movement,
-            delay
+            delay,
+            highlightAlpha
         );
         return true;
     }
@@ -264,16 +287,21 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
             block.ClearRemainder();
             applied.Start = applied.Target = state.Position;
             applied.Elapsed = applied.Duration = 0f;
+            applied.StartHighlightAlpha = applied.TargetHighlightAlpha = state.HighlightAlpha;
+            ApplyHighlight(block, state.HighlightAlpha);
         }
         else
         {
             applied.Start = block.Position;
             applied.Target = state.Position;
+            applied.StartHighlightAlpha = block.highlight.Alpha;
+            applied.TargetHighlightAlpha = state.HighlightAlpha;
             applied.Elapsed = 0f;
             applied.Duration = AnchorInterval;
         }
         applied.State = state;
         applied.HasState = true;
+        applied.Finished = false;
         return changed;
     }
 
@@ -294,8 +322,20 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
             );
             block.MoveTo(target);
             block.ClearRemainder();
+            ApplyHighlight(block, MathHelper.Lerp(
+                applied.StartHighlightAlpha,
+                applied.TargetHighlightAlpha,
+                applied.Elapsed / applied.Duration
+            ));
             block.Collidable = false;
         }
+    }
+
+    private static void ApplyHighlight(FinalBossMovingBlock block, float highlightAlpha)
+    {
+        highlightAlpha = Math.Clamp(highlightAlpha, 0f, 1f);
+        block.highlight.Alpha = highlightAlpha;
+        block.sprite.Alpha = 1f - highlightAlpha;
     }
 
     private static FinalBossMovingBlock? Recreate(Level level, int id)
@@ -311,6 +351,45 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
         WatchEntityIDTable<FinalBossMovingBlock>.Set(block, level.Session.Level, id);
         level.Add(block);
         return block;
+    }
+
+    private static bool RestoreMissingMapSpikes(Level level)
+    {
+        LevelData levelData = level.Session.LevelData;
+        Vector2 offset = new(levelData.Bounds.Left, levelData.Bounds.Top);
+        List<Spikes> existing = level.Entities.OfType<Spikes>().ToList();
+        existing.AddRange(level.Entities.ToAdd.OfType<Spikes>());
+        bool changed = false;
+
+        foreach (EntityData data in levelData.Entities)
+        {
+            if (!TryGetSpikeDirection(data.Name, out Spikes.Directions direction))
+                continue;
+
+            Vector2 position = data.Position + offset;
+            if (existing.Any(spike => spike.Position == position && spike.Direction == direction))
+                continue;
+
+            Spikes spike = new(data, offset, direction);
+            level.Add(spike);
+            existing.Add(spike);
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private static bool TryGetSpikeDirection(string entityName, out Spikes.Directions direction)
+    {
+        direction = entityName switch
+        {
+            "spikesUp" => Spikes.Directions.Up,
+            "spikesDown" => Spikes.Directions.Down,
+            "spikesLeft" => Spikes.Directions.Left,
+            "spikesRight" => Spikes.Directions.Right,
+            _ => default,
+        };
+        return entityName is "spikesUp" or "spikesDown" or "spikesLeft" or "spikesRight";
     }
 
     private static FinalBossMovingBlock? Find(Level level, int id)
@@ -371,7 +450,11 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
     )
     {
         if (MiaoNetModule.IsWatching)
+        {
+            if (remoteFinishDepth > 0)
+                orig(self);
             return;
+        }
         Publish(self, BreakEvent);
         orig(self);
     }

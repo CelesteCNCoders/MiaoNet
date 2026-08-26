@@ -107,6 +107,7 @@ internal sealed class WatchReflectionTentaclesAdapter : IWatchEntityAdapter
     private static readonly ConditionalWeakTable<ReflectionTentacles, RemoteInfo> remoteInfo = new();
     private static ReflectionTentacles? creatingLayersFor;
     private static bool replayingEvent;
+    private static ReflectionTentacles? initializingWatcherAwakeFor;
 
     public WatchEntityKind Kind => WatchEntityKind.ReflectionTentacles;
 
@@ -137,6 +138,7 @@ internal sealed class WatchReflectionTentaclesAdapter : IWatchEntityAdapter
         remoteInfo.Clear();
         creatingLayersFor = null;
         replayingEvent = false;
+        initializingWatcherAwakeFor = null;
     }
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
@@ -359,30 +361,26 @@ internal sealed class WatchReflectionTentaclesAdapter : IWatchEntityAdapter
         Scene scene
     )
     {
-        if (!MiaoNetModule.IsWatching
-            || scene.Tracker.GetEntity<Player>() is not { } localPlayer)
+        if (!MiaoNetModule.IsWatching)
         {
             orig(self, scene);
             return;
         }
 
-        // Vanilla Awake repeatedly retreats while the local Player is inside
-        // fearDistance. The watcher Retreat hook deliberately rejects such
-        // local triggers, so leave the Player in place and that loop may never
-        // advance. Keep vanilla component initialization, but make its one
-        // proximity sample harmless and restore the transport Player at once.
-        Vector2 originalPosition = localPlayer.Position;
-        Vector2 perpendicular = Calc.Perpendicular(self.outwards);
-        if (perpendicular.LengthSquared() < 0.0001f)
-            perpendicular = Vector2.UnitY;
-        localPlayer.Position += perpendicular * 100000f;
+        // Vanilla Awake advances Index by repeatedly calling Retreat while the
+        // tracked Player projects inside fearDistance. Normal watcher-side
+        // Retreat calls must stay blocked, but suppressing these initialization
+        // calls leaves Index unchanged and turns the vanilla Awake loop into a
+        // game-thread spin. Scope the exception to this exact entity and Awake.
+        ReflectionTentacles? previous = initializingWatcherAwakeFor;
+        initializingWatcherAwakeFor = self;
         try
         {
             orig(self, scene);
         }
         finally
         {
-            localPlayer.Position = originalPosition;
+            initializingWatcherAwakeFor = previous;
             self.player = null!;
         }
     }
@@ -493,7 +491,9 @@ internal sealed class WatchReflectionTentaclesAdapter : IWatchEntityAdapter
         ReflectionTentacles self
     )
     {
-        if (MiaoNetModule.IsWatching && !replayingEvent)
+        if (MiaoNetModule.IsWatching
+            && !replayingEvent
+            && !ReferenceEquals(initializingWatcherAwakeFor, self))
             return;
         orig(self);
         if (!MiaoNetModule.IsWatching)
@@ -505,7 +505,9 @@ internal sealed class WatchReflectionTentaclesAdapter : IWatchEntityAdapter
         ReflectionTentacles self
     )
     {
-        if (MiaoNetModule.IsWatching && !replayingEvent)
+        if (MiaoNetModule.IsWatching
+            && !replayingEvent
+            && !ReferenceEquals(initializingWatcherAwakeFor, self))
             return;
         orig(self);
         if (!MiaoNetModule.IsWatching)

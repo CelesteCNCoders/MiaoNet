@@ -14,11 +14,12 @@ public sealed class WatchAngryOshiroValidatorTests
     [TestMethod]
     public void AngryOshiroStateAcceptsTheSingletonPayload()
     {
-        byte[] payload = new byte[40];
+        byte[] payload = new byte[48];
         payload[0] = (byte)WatchAngryOshiroPhase.Hurt;
         payload[1] = 0b0011_1111;
         payload[2] = 8;
         payload[36] = 6;
+        BitConverter.TryWriteBytes(payload.AsSpan(40), 1f);
 
         Assert.IsTrue(IsValid(new WatchEntityKey(WatchEntityKind.AngryOshiro, 0), payload));
     }
@@ -34,20 +35,20 @@ public sealed class WatchAngryOshiroValidatorTests
 
         Assert.IsFalse(IsValid(
             new WatchEntityKey(WatchEntityKind.AngryOshiro, 1),
-            new byte[40]
+            new byte[48]
         ));
         Assert.IsFalse(IsValid(
             new WatchEntityKey(WatchEntityKind.AngryOshiro, 0, 1),
-            new byte[40]
+            new byte[48]
         ));
     }
 
     [TestMethod]
     public void AngryOshiroStateRejectsNonFiniteNumbers()
     {
-        foreach (int offset in new[] { 4, 8, 12, 16, 20, 24, 28 })
+        foreach (int offset in new[] { 4, 8, 12, 16, 20, 24, 28, 40, 44 })
         {
-            byte[] payload = new byte[40];
+            byte[] payload = ValidPayload();
             BitConverter.TryWriteBytes(payload.AsSpan(offset), float.NaN);
             Assert.IsFalse(
                 IsValid(new WatchEntityKey(WatchEntityKind.AngryOshiro, 0), payload),
@@ -58,7 +59,7 @@ public sealed class WatchAngryOshiroValidatorTests
 
     private static void AssertInvalid(Action<byte[]> configure)
     {
-        byte[] payload = new byte[40];
+        byte[] payload = ValidPayload();
         configure(payload);
         Assert.IsFalse(IsValid(new WatchEntityKey(WatchEntityKind.AngryOshiro, 0), payload));
     }
@@ -71,4 +72,11 @@ public sealed class WatchAngryOshiroValidatorTests
             [],
             [new WatchEntityState(key, payload)]
         ));
+
+    private static byte[] ValidPayload()
+    {
+        byte[] payload = new byte[48];
+        BitConverter.TryWriteBytes(payload.AsSpan(40), 1f);
+        return payload;
+    }
 }
