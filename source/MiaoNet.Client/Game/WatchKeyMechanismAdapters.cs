@@ -67,7 +67,7 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
     {
         string room = level.Session.Level;
         HashSet<int> live = new();
-        foreach (Key key in level.Entities.OfType<Key>())
+        foreach (Key key in WatchRoomEntityIndex.Enumerate<Key>(level))
         {
             if (!infos.TryGetValue(key, out KeyInfo? info)
                 || !StringComparer.Ordinal.Equals(info.Level, room))
@@ -117,7 +117,7 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
         string room = level.Session.Level;
         if (isCompleteState)
             changed |= RestoreMissingReadyKeys(level, desired);
-        foreach (Key key in level.Entities.OfType<Key>().ToArray())
+        foreach (Key key in WatchRoomEntityIndex.Enumerate<Key>(level).ToArray())
         {
             if (!infos.TryGetValue(key, out KeyInfo? info)
                 || !StringComparer.Ordinal.Equals(info.Level, room)
@@ -162,7 +162,7 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
     )
     {
         string room = level.Session.Level;
-        HashSet<int> existing = level.Entities.OfType<Key>()
+        HashSet<int> existing = WatchRoomEntityIndex.Enumerate<Key>(level)
             .Select(key => infos.TryGetValue(key, out KeyInfo? info)
                 && StringComparer.Ordinal.Equals(info.Level, room)
                     ? info.ID
@@ -243,7 +243,7 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
     }
 
     internal static Key? Find(Level level, int id)
-        => level.Entities.OfType<Key>().FirstOrDefault(key =>
+        => WatchRoomEntityIndex.Enumerate<Key>(level).FirstOrDefault(key =>
             infos.TryGetValue(key, out KeyInfo? info)
             && StringComparer.Ordinal.Equals(info.Level, level.Session.Level)
             && info.ID == id
@@ -402,19 +402,26 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
 
     private static WatchEntityState Encode(int id, WatchEntityPhase phase, Key? key)
     {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = (byte)phase;
+        byte flags = 0;
         if (key is not null)
         {
             if (key.Visible && key.sprite.Visible)
-                payload[1] |= 1;
+                flags |= 1;
             if (key.Collidable)
-                payload[1] |= 2;
+                flags |= 2;
             if (key.Turning)
-                payload[1] |= 4;
-            WatchEntityPayloadCodec.WriteVector2(payload, 4, key.Position);
+                flags |= 4;
         }
-        return new(new WatchEntityKey(WatchEntityKind.Key, id), payload);
+        var current = (Phase: (byte)phase, Flags: flags, Position: key?.Position ?? Vector2.Zero);
+        return WatchEntityState.FromTyped(
+            new(WatchEntityKind.Key, id), current, PayloadSize,
+            static (payload, state) =>
+            {
+                payload[0] = state.Phase;
+                payload[1] = state.Flags;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+            }
+        );
     }
 
     private static bool TryValidate(WatchEntityState state)
@@ -573,7 +580,7 @@ internal sealed class WatchLockBlockAdapter : IWatchEntityAdapter
     {
         string room = level.Session.Level;
         HashSet<int> live = new();
-        foreach (LockBlock block in level.Entities.OfType<LockBlock>())
+        foreach (LockBlock block in WatchRoomEntityIndex.Enumerate<LockBlock>(level))
         {
             if (block.ID.Level != room)
                 continue;
@@ -617,7 +624,7 @@ internal sealed class WatchLockBlockAdapter : IWatchEntityAdapter
         }
 
         bool changed = false;
-        foreach (LockBlock block in level.Entities.OfType<LockBlock>().ToArray())
+        foreach (LockBlock block in WatchRoomEntityIndex.Enumerate<LockBlock>(level).ToArray())
         {
             if (block.ID.Level != level.Session.Level
                 || !desired.Remove(block.ID.ID, out WatchEntityState state))
@@ -649,7 +656,7 @@ internal sealed class WatchLockBlockAdapter : IWatchEntityAdapter
     {
         if (entityEvent.EventID != UnlockEvent || entityEvent.Payload.Length != 4)
             return;
-        LockBlock? block = level.Entities.OfType<LockBlock>().FirstOrDefault(candidate =>
+        LockBlock? block = WatchRoomEntityIndex.Enumerate<LockBlock>(level).FirstOrDefault(candidate =>
             candidate.ID.Level == level.Session.Level
             && candidate.ID.ID == entityEvent.Key.EntityID
         );
@@ -738,18 +745,21 @@ internal sealed class WatchLockBlockAdapter : IWatchEntityAdapter
 
     private static WatchEntityState Encode(int id, WatchEntityPhase phase, LockBlock? block)
     {
-        byte[] payload = new byte[4];
-        payload[0] = (byte)phase;
+        byte flags = 0;
         if (block is not null)
         {
             if (block.Visible)
-                payload[1] |= 1;
+                flags |= 1;
             if (block.Collidable)
-                payload[1] |= 2;
+                flags |= 2;
             if (block.UnlockingRegistered)
-                payload[1] |= 4;
+                flags |= 4;
         }
-        return new(new WatchEntityKey(WatchEntityKind.LockBlock, id), payload);
+        return WatchEntityState.FromTyped(
+            new(WatchEntityKind.LockBlock, id),
+            (Phase: (byte)phase, Flags: flags),
+            static state => [state.Phase, state.Flags, 0, 0]
+        );
     }
 
     private static bool TryValidate(WatchEntityState state)

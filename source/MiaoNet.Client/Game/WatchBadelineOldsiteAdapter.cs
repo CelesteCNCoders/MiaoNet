@@ -113,6 +113,12 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
         RemotePlayerChaserState[] Samples
     );
 
+    private readonly record struct HistoryPayloadState(
+        byte Index,
+        byte Total,
+        RemotePlayerChaserState[] Samples
+    );
+
     private sealed class SyncInfo
     {
         private bool hasState;
@@ -225,7 +231,7 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        BadelineOldsite[] badelines = level.Entities.OfType<BadelineOldsite>()
+        BadelineOldsite[] badelines = WatchRoomEntityIndex.Enumerate<BadelineOldsite>(level)
             .Where(badeline => WatchEntityIDTable<BadelineOldsite>.TryGet(badeline, room, out _))
             .ToArray();
         if (badelines.Length == 0)
@@ -235,7 +241,7 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
         }
 
         if (WatchEntitySyncRegistry.IsCapturingCurrentState)
-            producerHistoryStates = EncodeProducerHistory(level.Tracker.GetEntity<Player>());
+            producerHistoryStates = CaptureProducerHistory(level.Tracker.GetEntity<Player>());
         foreach (WatchEntityState historyState in producerHistoryStates)
             yield return historyState;
 
@@ -280,7 +286,7 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        foreach (BadelineOldsite badeline in level.Entities.OfType<BadelineOldsite>().ToArray())
+        foreach (BadelineOldsite badeline in WatchRoomEntityIndex.Enumerate<BadelineOldsite>(level).ToArray())
         {
             if (!WatchEntityIDTable<BadelineOldsite>.TryGet(badeline, room, out int id))
                 continue;
@@ -315,7 +321,7 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
     }
 
 
-    private static WatchEntityState[] EncodeProducerHistory(Player? player)
+    private static WatchEntityState[] CaptureProducerHistory(Player? player)
     {
         if (player is null)
             return [];
@@ -329,26 +335,38 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
         {
             int chunkStart = first + chunkIndex * MaxHistorySamplesPerChunk;
             int chunkCount = Math.Min(MaxHistorySamplesPerChunk, player.ChaserStates.Count - chunkStart);
-            byte[] payload = new byte[HistoryHeaderSize + chunkCount * HistorySampleSize];
-            payload[0] = HistoryPayloadVersion;
-            payload[1] = (byte)chunkIndex;
-            payload[2] = (byte)chunks;
-            payload[3] = (byte)chunkCount;
+            RemotePlayerChaserState[] samples = new RemotePlayerChaserState[chunkCount];
             for (int i = 0; i < chunkCount; i++)
             {
                 Player.ChaserState sample = player.ChaserStates[chunkStart + i];
-                int offset = HistoryHeaderSize + i * HistorySampleSize;
-                WatchEntityPayloadCodec.WriteSingle(payload, offset, sample.Position.X);
-                WatchEntityPayloadCodec.WriteSingle(payload, offset + 4, sample.Position.Y);
-                int animation = Array.IndexOf(lifecycleAnimations, sample.Animation);
-                byte packed = animation >= 0 ? (byte)animation : UnknownHistoryAnimation;
-                if (sample.Facing == Facings.Left)
-                    packed |= HistoryFacingLeftFlag;
-                payload[offset + 8] = packed;
+                samples[i] = new(sample.Position, sample.Animation, sample.Facing, Depths.Player);
             }
-            states[chunkIndex] = new(
+            states[chunkIndex] = WatchEntityState.FromTyped(
                 new WatchEntityKey(WatchEntityKind.BadelineOldsite, 0, (ushort)(chunkIndex + 1)),
-                payload
+                new HistoryPayloadState((byte)chunkIndex, (byte)chunks, samples),
+                static state =>
+                {
+                    byte[] payload = new byte[
+                        HistoryHeaderSize + state.Samples.Length * HistorySampleSize
+                    ];
+                    payload[0] = HistoryPayloadVersion;
+                    payload[1] = state.Index;
+                    payload[2] = state.Total;
+                    payload[3] = (byte)state.Samples.Length;
+                    for (int i = 0; i < state.Samples.Length; i++)
+                    {
+                        RemotePlayerChaserState sample = state.Samples[i];
+                        int offset = HistoryHeaderSize + i * HistorySampleSize;
+                        WatchEntityPayloadCodec.WriteSingle(payload, offset, sample.Position.X);
+                        WatchEntityPayloadCodec.WriteSingle(payload, offset + 4, sample.Position.Y);
+                        int animation = Array.IndexOf(lifecycleAnimations, sample.Animation);
+                        byte packed = animation >= 0 ? (byte)animation : UnknownHistoryAnimation;
+                        if (sample.Facing == Facings.Left)
+                            packed |= HistoryFacingLeftFlag;
+                        payload[offset + 8] = packed;
+                    }
+                    return payload;
+                }
             );
         }
         return states;
@@ -473,19 +491,21 @@ internal sealed class WatchBadelineOldsiteAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, BadelineState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = state.Flags;
-        payload[1] = state.Animation;
-        payload[2] = state.AnimationFrame;
-        payload[3] = state.Index;
-        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.FollowBehindTime);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.FollowBehindIndexDelay);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.HoveringTimer);
-        WatchEntityPayloadCodec.WriteInt32(payload, 24, state.Depth);
-        return new(new WatchEntityKey(WatchEntityKind.BadelineOldsite, id), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.BadelineOldsite, id), state, PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.Flags;
+                payload[1] = value.Animation;
+                payload[2] = value.AnimationFrame;
+                payload[3] = value.Index;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, value.Position);
+                WatchEntityPayloadCodec.WriteSingle(payload, 12, value.FollowBehindTime);
+                WatchEntityPayloadCodec.WriteSingle(payload, 16, value.FollowBehindIndexDelay);
+                WatchEntityPayloadCodec.WriteSingle(payload, 20, value.HoveringTimer);
+                WatchEntityPayloadCodec.WriteInt32(payload, 24, value.Depth);
+            }
+        );
 
     private static bool TryDecode(WatchEntityState state, out BadelineState value)
     {

@@ -74,7 +74,7 @@ internal sealed class WatchLightningBreakerBoxAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (LightningBreakerBox box in level.Entities.OfType<LightningBreakerBox>())
+        foreach (LightningBreakerBox box in WatchRoomEntityIndex.Enumerate<LightningBreakerBox>(level))
         {
             if (!WatchEntityIDTable<LightningBreakerBox>.TryGet(box, level.Session.Level, out int id))
                 continue;
@@ -103,8 +103,7 @@ internal sealed class WatchLightningBreakerBoxAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        Dictionary<int, LightningBreakerBox> existing = level.Entities
-            .OfType<LightningBreakerBox>()
+        Dictionary<int, LightningBreakerBox> existing = WatchRoomEntityIndex.Enumerate<LightningBreakerBox>(level)
             .Select(box => (
                 Box: box,
                 HasID: WatchEntityIDTable<LightningBreakerBox>.TryGet(box, room, out int id),
@@ -211,17 +210,19 @@ internal sealed class WatchLightningBreakerBoxAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, BoxState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = state.Flags;
-        payload[1] = state.Health;
-        payload[2] = state.Animation;
-        payload[3] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
-        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Scale);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Rotation);
-        return new(new WatchEntityKey(WatchEntityKind.LightningBreakerBox, id), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.LightningBreakerBox, id), state, PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.Flags;
+                payload[1] = value.Health;
+                payload[2] = value.Animation;
+                payload[3] = value.AnimationFrame;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, value.Position);
+                WatchEntityPayloadCodec.WriteVector2(payload, 12, value.Scale);
+                WatchEntityPayloadCodec.WriteSingle(payload, 20, value.Rotation);
+            }
+        );
 
     private static bool TryDecode(WatchEntityState state, out BoxState value)
     {
@@ -511,7 +512,7 @@ internal sealed class WatchLightningAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         float rendererFade = level.Tracker.GetEntity<LightningRenderer>()?.Fade ?? 0f;
-        foreach (Lightning lightning in level.Entities.OfType<Lightning>())
+        foreach (Lightning lightning in WatchRoomEntityIndex.Enumerate<Lightning>(level))
         {
             if (!WatchEntityIDTable<Lightning>.TryGet(lightning, level.Session.Level, out int id))
                 continue;
@@ -559,7 +560,7 @@ internal sealed class WatchLightningAdapter : IWatchEntityAdapter
         float rendererFade = desired.Count == 0
             ? 0f
             : desired.Values.Max(state => state.RendererFade);
-        foreach (Lightning lightning in level.Entities.OfType<Lightning>())
+        foreach (Lightning lightning in WatchRoomEntityIndex.Enumerate<Lightning>(level))
         {
             if (!WatchEntityIDTable<Lightning>.TryGet(lightning, room, out int id))
                 continue;
@@ -603,15 +604,17 @@ internal sealed class WatchLightningAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, LightningState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = state.Flags;
-        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Fade);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.RendererFade);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.MotionPhase);
-        return new(new WatchEntityKey(WatchEntityKind.Lightning, id), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.Lightning, id), state, PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.Flags;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, value.Position);
+                WatchEntityPayloadCodec.WriteSingle(payload, 12, value.Fade);
+                WatchEntityPayloadCodec.WriteSingle(payload, 16, value.RendererFade);
+                WatchEntityPayloadCodec.WriteSingle(payload, 20, value.MotionPhase);
+            }
+        );
 
     private static bool TryDecode(WatchEntityState state, out LightningState value)
     {
@@ -877,7 +880,7 @@ internal sealed class WatchLightningAdapter : IWatchEntityAdapter
         }
 
         List<(Lightning Entity, Vector2 Position)> moved = new();
-        foreach (Lightning lightning in level.Entities.OfType<Lightning>())
+        foreach (Lightning lightning in WatchRoomEntityIndex.Enumerate<Lightning>(level))
         {
             if (!metadata.TryGetValue(lightning, out Metadata? info)
                 || !info.Moving || lightning.Position == info.Start)

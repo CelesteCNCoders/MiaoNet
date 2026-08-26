@@ -68,7 +68,7 @@ internal sealed class WatchBounceBlockAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (BounceBlock block in level.Entities.OfType<BounceBlock>())
+        foreach (BounceBlock block in WatchRoomEntityIndex.Enumerate<BounceBlock>(level))
         {
             if (WatchEntityIDTable<BounceBlock>.TryGet(block, room, out int id))
                 yield return Encode(id, Capture(block));
@@ -105,7 +105,7 @@ internal sealed class WatchBounceBlockAdapter : IWatchEntityAdapter
         bool changed = false;
         bool requiresReload = false;
         HashSet<int> found = new();
-        foreach (BounceBlock block in level.Entities.OfType<BounceBlock>())
+        foreach (BounceBlock block in WatchRoomEntityIndex.Enumerate<BounceBlock>(level))
         {
             if (!WatchEntityIDTable<BounceBlock>.TryGet(block, room, out int id))
                 continue;
@@ -222,22 +222,26 @@ internal sealed class WatchBounceBlockAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, BounceState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = state.Flags;
-        payload[1] = state.State;
-        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
-        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.BounceDirection);
-        WatchEntityPayloadCodec.WriteVector2(payload, 20, state.DebrisDirection);
-        WatchEntityPayloadCodec.WriteVector2(payload, 28, state.BounceLift);
-        WatchEntityPayloadCodec.WriteSingle(payload, 36, state.MoveSpeed);
-        WatchEntityPayloadCodec.WriteSingle(payload, 40, state.WindUpStartTimer);
-        WatchEntityPayloadCodec.WriteSingle(payload, 44, state.WindUpProgress);
-        WatchEntityPayloadCodec.WriteSingle(payload, 48, state.RespawnTimer);
-        WatchEntityPayloadCodec.WriteSingle(payload, 52, state.BounceEndTimer);
-        WatchEntityPayloadCodec.WriteSingle(payload, 56, state.ReappearFlash);
-        return new(new WatchEntityKey(WatchEntityKind.BounceBlock, id), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.BounceBlock, id),
+            state,
+            PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.Flags;
+                payload[1] = value.State;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, value.Position);
+                WatchEntityPayloadCodec.WriteVector2(payload, 12, value.BounceDirection);
+                WatchEntityPayloadCodec.WriteVector2(payload, 20, value.DebrisDirection);
+                WatchEntityPayloadCodec.WriteVector2(payload, 28, value.BounceLift);
+                WatchEntityPayloadCodec.WriteSingle(payload, 36, value.MoveSpeed);
+                WatchEntityPayloadCodec.WriteSingle(payload, 40, value.WindUpStartTimer);
+                WatchEntityPayloadCodec.WriteSingle(payload, 44, value.WindUpProgress);
+                WatchEntityPayloadCodec.WriteSingle(payload, 48, value.RespawnTimer);
+                WatchEntityPayloadCodec.WriteSingle(payload, 52, value.BounceEndTimer);
+                WatchEntityPayloadCodec.WriteSingle(payload, 56, value.ReappearFlash);
+            }
+        );
 
     private static bool TryDecode(ReadOnlySpan<byte> payload, out BounceState state)
     {
@@ -280,7 +284,7 @@ internal sealed class WatchBounceBlockAdapter : IWatchEntityAdapter
         if (!MiaoNetModule.IsWatching || !StringComparer.Ordinal.Equals(remoteRoom, self.Session.Level))
             return;
 
-        foreach (BounceBlock block in self.Entities.OfType<BounceBlock>())
+        foreach (BounceBlock block in WatchRoomEntityIndex.Enumerate<BounceBlock>(self))
         {
             if (WatchEntityIDTable<BounceBlock>.TryGet(block, self.Session.Level, out int id)
                 && remoteStates.TryGetValue(id, out BounceState desired))

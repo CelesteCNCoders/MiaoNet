@@ -1,4 +1,5 @@
 using MiaoNet.Shared;
+using System.Diagnostics;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -35,6 +36,8 @@ internal interface IWatchEntityAdapter
 internal static class WatchEntitySyncRegistry
 {
     private static readonly SortedDictionary<WatchEntityKind, IWatchEntityAdapter> adapters = new();
+    private static IWatchEntityAdapter[] orderedAdapters = [];
+    private static readonly Dictionary<WatchEntityKey, WatchEntityState> emptyAdapterStates = [];
     private static int remoteApplyDepth;
     private static int forceCurrentCaptureDepth;
     private static int lifecycleResetApplyDepth;
@@ -51,29 +54,46 @@ internal static class WatchEntitySyncRegistry
     {
         if (adapter.Kind == WatchEntityKind.None || !adapters.TryAdd(adapter.Kind, adapter))
             throw new InvalidOperationException($"Invalid or duplicate watch entity adapter: {adapter.Kind}.");
+        orderedAdapters = adapters.Values.ToArray();
     }
 
     public static void Unregister(IWatchEntityAdapter adapter)
     {
         if (adapters.TryGetValue(adapter.Kind, out IWatchEntityAdapter? registered)
             && ReferenceEquals(adapter, registered))
+        {
             adapters.Remove(adapter.Kind);
+            orderedAdapters = adapters.Values.ToArray();
+        }
     }
 
-    public static HashSet<WatchEntityKind> CaptureStates(
+    public static WatchEntityStateTable.Capture CaptureStates(
         Level level,
-        out Dictionary<WatchEntityKey, WatchEntityState> states,
-        bool forceCurrent = false
+        WatchRoomEntityIndex roomEntityIndex,
+        WatchEntityStateTable stateTable,
+        out HashSet<WatchEntityKind> unavailableKinds,
+        bool resetCurrent = false,
+        bool forceCurrent = false,
+        WatchEntityCaptureCursor? captureCursor = null,
+        long captureBudgetTicks = long.MaxValue
     )
     {
-        states = new();
-        HashSet<WatchEntityKind> unavailableKinds = new();
+        using IDisposable captureScope = roomEntityIndex.BeginCapture(level);
+        WatchEntityStateTable.Capture capture = stateTable.BeginCapture(resetCurrent);
+        unavailableKinds = new();
         if (forceCurrent)
             forceCurrentCaptureDepth++;
         try
         {
-            foreach (IWatchEntityAdapter adapter in adapters.Values)
+            bool captureBudgeted = !resetCurrent && !forceCurrent && captureCursor is not null;
+            int adapterCount = orderedAdapters.Length;
+            int startIndex = captureBudgeted ? captureCursor!.GetStartIndex(adapterCount) : 0;
+            int processedCount = 0;
+            long captureStartedAt = Stopwatch.GetTimestamp();
+            while (processedCount < adapterCount)
             {
+                int adapterIndex = (startIndex + processedCount) % adapterCount;
+                IWatchEntityAdapter adapter = orderedAdapters[adapterIndex];
                 Dictionary<WatchEntityKey, WatchEntityState>? adapterStates = null;
                 try
                 {
@@ -85,14 +105,6 @@ internal static class WatchEntitySyncRegistry
                                 $"Watch entity adapter {adapter.Kind} produced an invalid key."
                             );
                         }
-                        if (!WatchPacketValidator.IsValid(state))
-                        {
-                            throw new InvalidOperationException(
-                                $"Watch entity adapter {adapter.Kind} produced an invalid state for " +
-                                $"#{state.Key.EntityID}:{state.Key.SubID} ({state.Payload.Length} bytes)."
-                            );
-                        }
-
                         adapterStates ??= new();
                         if (!adapterStates.TryAdd(state.Key, state))
                         {
@@ -105,9 +117,7 @@ internal static class WatchEntitySyncRegistry
                         }
                     }
 
-                    if (adapterStates is not null)
-                        foreach ((WatchEntityKey key, WatchEntityState state) in adapterStates)
-                            states.Add(key, state);
+                    capture.UpdateKind(adapter.Kind, adapterStates ?? emptyAdapterStates);
                 }
                 catch (Exception exception)
                 {
@@ -119,8 +129,19 @@ internal static class WatchEntitySyncRegistry
                     );
                     Logger.LogDetailed(exception, LT.MiaoNetWatch);
                 }
+
+                processedCount++;
+                if (captureBudgeted
+                    && processedCount < adapterCount
+                    && Stopwatch.GetTimestamp() - captureStartedAt >= captureBudgetTicks)
+                    break;
             }
-            return unavailableKinds;
+
+            if (captureBudgeted)
+                captureCursor!.Advance(processedCount, adapterCount);
+            else
+                captureCursor?.Reset();
+            return capture;
         }
         finally
         {
@@ -234,4 +255,5 @@ internal static class WatchEntitySyncRegistry
 
     public static void PublishEvent(Level level, WatchEntityEvent entityEvent)
         => EventProduced?.Invoke(level, entityEvent);
+
 }

@@ -10,6 +10,27 @@ internal sealed class WatchCrumblePlatformAdapter : IWatchEntityAdapter
     private const byte TileInEvent = 2;
     private const byte ShakeEvent = 3;
 
+    private sealed record CrumbleState(
+        WatchEntityPhase Phase,
+        bool Collidable,
+        bool[] VisibleImages
+    );
+
+    private sealed class CrumbleStateComparer : IEqualityComparer<CrumbleState>
+    {
+        internal static readonly CrumbleStateComparer Instance = new();
+
+        public bool Equals(CrumbleState? x, CrumbleState? y)
+            => ReferenceEquals(x, y)
+                || x is not null && y is not null
+                && x.Phase == y.Phase
+                && x.Collidable == y.Collidable
+                && x.VisibleImages.SequenceEqual(y.VisibleImages);
+
+        public int GetHashCode(CrumbleState value)
+            => HashCode.Combine(value.Phase, value.Collidable, value.VisibleImages.Length);
+    }
+
     private sealed class PlatformInfo
     {
         public string Level { get; }
@@ -52,23 +73,38 @@ internal sealed class WatchCrumblePlatformAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (CrumblePlatform platform in level.Entities.OfType<CrumblePlatform>())
+        foreach (CrumblePlatform platform in WatchRoomEntityIndex.Enumerate<CrumblePlatform>(level))
         {
             if (!infos.TryGetValue(platform, out PlatformInfo? info)
                 || !StringComparer.Ordinal.Equals(info.Level, level.Session.Level))
                 continue;
 
             int imageCount = Math.Min(platform.images.Count, ushort.MaxValue);
-            byte[] payload = new byte[4 + (imageCount + 7) / 8];
-            payload[0] = (byte)GetPhase(platform);
-            payload[1] = platform.Collidable ? (byte)1 : (byte)0;
-            WatchEntityPayloadCodec.WriteUInt16(payload, 2, (ushort)imageCount);
-            for (int i = 0; i < imageCount; i++)
-            {
-                if (platform.images[i].Visible)
-                    payload[4 + i / 8] |= (byte)(1 << (i % 8));
-            }
-            yield return new WatchEntityState(new WatchEntityKey(Kind, info.ID), payload);
+            CrumbleState current = new(
+                GetPhase(platform),
+                platform.Collidable,
+                platform.images.Take(imageCount).Select(image => image.Visible).ToArray()
+            );
+            yield return WatchEntityState.FromTyped(
+                new(Kind, info.ID),
+                current,
+                static state =>
+                {
+                    byte[] payload = new byte[4 + (state.VisibleImages.Length + 7) / 8];
+                    payload[0] = (byte)state.Phase;
+                    payload[1] = state.Collidable ? (byte)1 : (byte)0;
+                    WatchEntityPayloadCodec.WriteUInt16(
+                        payload,
+                        2,
+                        (ushort)state.VisibleImages.Length
+                    );
+                    for (int index = 0; index < state.VisibleImages.Length; index++)
+                        if (state.VisibleImages[index])
+                            payload[4 + index / 8] |= (byte)(1 << (index % 8));
+                    return payload;
+                },
+                CrumbleStateComparer.Instance
+            );
         }
     }
 
@@ -96,7 +132,7 @@ internal sealed class WatchCrumblePlatformAdapter : IWatchEntityAdapter
         }
 
         bool changed = false;
-        foreach (CrumblePlatform platform in level.Entities.OfType<CrumblePlatform>())
+        foreach (CrumblePlatform platform in WatchRoomEntityIndex.Enumerate<CrumblePlatform>(level))
         {
             if (!infos.TryGetValue(platform, out PlatformInfo? info)
                 || !StringComparer.Ordinal.Equals(info.Level, level.Session.Level)
@@ -208,7 +244,7 @@ internal sealed class WatchCrumblePlatformAdapter : IWatchEntityAdapter
     }
 
     private static CrumblePlatform? FindPlatform(Level level, int id)
-        => level.Entities.OfType<CrumblePlatform>().FirstOrDefault(candidate =>
+        => WatchRoomEntityIndex.Enumerate<CrumblePlatform>(level).FirstOrDefault(candidate =>
             infos.TryGetValue(candidate, out PlatformInfo? info)
             && StringComparer.Ordinal.Equals(info.Level, level.Session.Level)
             && info.ID == id

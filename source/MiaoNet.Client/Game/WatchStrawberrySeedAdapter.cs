@@ -43,7 +43,7 @@ internal sealed class WatchStrawberrySeedAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (Strawberry strawberry in level.Entities.OfType<Strawberry>())
+        foreach (Strawberry strawberry in WatchRoomEntityIndex.Enumerate<Strawberry>(level))
         {
             if (strawberry.ID.Level != room || strawberry.Seeds is not { Count: > 0 })
                 continue;
@@ -90,8 +90,7 @@ internal sealed class WatchStrawberrySeedAdapter : IWatchEntityAdapter
         bool changed = false;
         bool requiresReload = false;
         string room = level.Session.Level;
-        Dictionary<int, Strawberry> strawberries = level.Entities
-            .OfType<Strawberry>()
+        Dictionary<int, Strawberry> strawberries = WatchRoomEntityIndex.Enumerate<Strawberry>(level)
             .Where(strawberry => strawberry.ID.Level == room && strawberry.Seeds is { Count: > 0 })
             .ToDictionary(strawberry => strawberry.ID.ID);
         HashSet<WatchEntityKey> foundSeedKeys = new();
@@ -126,7 +125,7 @@ internal sealed class WatchStrawberrySeedAdapter : IWatchEntityAdapter
             }
         }
 
-        foreach (StrawberrySeed seed in level.Entities.OfType<StrawberrySeed>().ToArray())
+        foreach (StrawberrySeed seed in WatchRoomEntityIndex.Enumerate<StrawberrySeed>(level).ToArray())
         {
             if (seed.index < 0 || seed.index >= ushort.MaxValue)
                 continue;
@@ -214,7 +213,11 @@ internal sealed class WatchStrawberrySeedAdapter : IWatchEntityAdapter
             flags |= ParentBloomVisibleFlag;
         if (strawberry.light.Visible)
             flags |= ParentLightVisibleFlag;
-        return new(new WatchEntityKey(KindValue, strawberry.ID.ID), [flags]);
+        return WatchEntityState.FromTyped(
+            new(KindValue, strawberry.ID.ID),
+            flags,
+            static value => [value]
+        );
     }
 
     private static WatchEntityState EncodeSeed(int strawberryID, StrawberrySeed seed)
@@ -233,13 +236,17 @@ internal sealed class WatchStrawberrySeedAdapter : IWatchEntityAdapter
             flags |= SeedCollidableFlag;
         if (seed.ghost)
             flags |= SeedGhostFlag;
-        byte[] payload = new byte[SeedPayloadSize];
-        payload[0] = (byte)phase;
-        payload[1] = flags;
-        WatchEntityPayloadCodec.WriteVector2(payload, 2, seed.Position);
-        return new(
-            new WatchEntityKey(KindValue, strawberryID, checked((ushort)(seed.index + 1))),
-            payload
+        var current = (Phase: (byte)phase, Flags: flags, seed.Position);
+        return WatchEntityState.FromTyped(
+            new(KindValue, strawberryID, checked((ushort)(seed.index + 1))),
+            current,
+            SeedPayloadSize,
+            static (payload, state) =>
+            {
+                payload[0] = state.Phase;
+                payload[1] = state.Flags;
+                WatchEntityPayloadCodec.WriteVector2(payload, 2, state.Position);
+            }
         );
     }
 

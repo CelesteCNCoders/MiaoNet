@@ -34,22 +34,37 @@ internal sealed class WatchHeartGemDoorAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (HeartGemDoor door in level.Entities.OfType<HeartGemDoor>())
+        foreach (HeartGemDoor door in WatchRoomEntityIndex.Enumerate<HeartGemDoor>(level))
         {
             if (!WatchEntityIDTable<HeartGemDoor>.TryGet(door, room, out int id))
                 continue;
 
-            byte[] payload = new byte[24];
-            payload[0] = door.Opened ? (byte)1 : (byte)0;
-            WatchEntityPayloadCodec.WriteSingle(payload, 1, door.Counter);
-            WatchEntityPayloadCodec.WriteSingle(payload, 5, door.openPercent);
-            WatchEntityPayloadCodec.WriteSingle(payload, 9, door.TopSolid.Position.Y);
-            WatchEntityPayloadCodec.WriteSingle(payload, 13, door.BotSolid.Position.Y);
-            payload[17] = door.TopSolid.Collidable ? (byte)1 : (byte)0;
-            payload[18] = door.BotSolid.Collidable ? (byte)1 : (byte)0;
-            payload[19] = door.Visible ? (byte)1 : (byte)0;
-            WatchEntityPayloadCodec.WriteSingle(payload, 20, door.heartAlpha);
-            yield return new WatchEntityState(new WatchEntityKey(Kind, id), payload);
+            var current = (
+                door.Opened,
+                door.Counter,
+                door.openPercent,
+                TopY: door.TopSolid.Position.Y,
+                BottomY: door.BotSolid.Position.Y,
+                TopCollidable: door.TopSolid.Collidable,
+                BottomCollidable: door.BotSolid.Collidable,
+                door.Visible,
+                door.heartAlpha
+            );
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id), current, 24,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Opened ? (byte)1 : (byte)0;
+                    WatchEntityPayloadCodec.WriteSingle(payload, 1, state.Counter);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 5, state.openPercent);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 9, state.TopY);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 13, state.BottomY);
+                    payload[17] = state.TopCollidable ? (byte)1 : (byte)0;
+                    payload[18] = state.BottomCollidable ? (byte)1 : (byte)0;
+                    payload[19] = state.Visible ? (byte)1 : (byte)0;
+                    WatchEntityPayloadCodec.WriteSingle(payload, 20, state.heartAlpha);
+                }
+            );
         }
     }
 
@@ -77,7 +92,7 @@ internal sealed class WatchHeartGemDoorAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        foreach (HeartGemDoor door in level.Entities.OfType<HeartGemDoor>())
+        foreach (HeartGemDoor door in WatchRoomEntityIndex.Enumerate<HeartGemDoor>(level))
         {
             if (!WatchEntityIDTable<HeartGemDoor>.TryGet(door, room, out int id)
                 || !desiredByID.TryGetValue(id, out WatchEntityState state))

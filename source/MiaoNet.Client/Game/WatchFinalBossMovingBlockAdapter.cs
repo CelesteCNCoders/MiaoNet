@@ -100,7 +100,7 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (FinalBossMovingBlock block in level.Entities.OfType<FinalBossMovingBlock>())
+        foreach (FinalBossMovingBlock block in WatchRoomEntityIndex.Enumerate<FinalBossMovingBlock>(level))
         {
             if (!WatchEntityIDTable<FinalBossMovingBlock>.TryGet(block, room, out int id))
                 continue;
@@ -129,8 +129,7 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        Dictionary<int, FinalBossMovingBlock> existing = level.Entities
-            .OfType<FinalBossMovingBlock>()
+        Dictionary<int, FinalBossMovingBlock> existing = WatchRoomEntityIndex.Enumerate<FinalBossMovingBlock>(level)
             .Select(block => (
                 Block: block,
                 HasID: WatchEntityIDTable<FinalBossMovingBlock>.TryGet(block, room, out int id),
@@ -215,17 +214,19 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, BlockState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = state.Flags;
-        WatchEntityPayloadCodec.WriteInt32(payload, 4, state.BossNodeIndex);
-        WatchEntityPayloadCodec.WriteInt32(payload, 8, state.NodeIndex);
-        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Position);
-        WatchEntityPayloadCodec.WriteVector2(payload, 20, state.MovementCounter);
-        WatchEntityPayloadCodec.WriteSingle(payload, 28, state.StartDelay);
-        WatchEntityPayloadCodec.WriteSingle(payload, 32, state.HighlightAlpha);
-        return new(new WatchEntityKey(WatchEntityKind.FinalBossMovingBlock, id), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.FinalBossMovingBlock, id), state, PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.Flags;
+                WatchEntityPayloadCodec.WriteInt32(payload, 4, value.BossNodeIndex);
+                WatchEntityPayloadCodec.WriteInt32(payload, 8, value.NodeIndex);
+                WatchEntityPayloadCodec.WriteVector2(payload, 12, value.Position);
+                WatchEntityPayloadCodec.WriteVector2(payload, 20, value.MovementCounter);
+                WatchEntityPayloadCodec.WriteSingle(payload, 28, value.StartDelay);
+                WatchEntityPayloadCodec.WriteSingle(payload, 32, value.HighlightAlpha);
+            }
+        );
 
     private static bool TryDecode(WatchEntityState state, out BlockState value)
     {
@@ -300,7 +301,7 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
     {
         if (!MiaoNetModule.IsWatching || MiaoNetModule.IsWatchedPlayerPaused)
             return;
-        foreach (FinalBossMovingBlock block in level.Entities.OfType<FinalBossMovingBlock>())
+        foreach (FinalBossMovingBlock block in WatchRoomEntityIndex.Enumerate<FinalBossMovingBlock>(level))
         {
             if (!remoteInfo.TryGetValue(block, out RemoteInfo? applied) || !applied.HasState
                 || applied.Duration <= 0f)
@@ -348,7 +349,7 @@ internal sealed class WatchFinalBossMovingBlockAdapter : IWatchEntityAdapter
     {
         LevelData levelData = level.Session.LevelData;
         Vector2 offset = new(levelData.Bounds.Left, levelData.Bounds.Top);
-        List<Spikes> existing = level.Entities.OfType<Spikes>().ToList();
+        List<Spikes> existing = WatchRoomEntityIndex.Enumerate<Spikes>(level).ToList();
         existing.AddRange(level.Entities.ToAdd.OfType<Spikes>());
         bool changed = false;
 

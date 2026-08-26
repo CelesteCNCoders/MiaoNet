@@ -17,7 +17,7 @@ internal sealed class WatchEntityIDHolder
     }
 }
 
-internal static class WatchEntityIDTable<TEntity> where TEntity : class
+internal static class WatchEntityIDTable<TEntity> where TEntity : Entity
 {
     private static readonly ConditionalWeakTable<TEntity, WatchEntityIDHolder> ids = new();
 
@@ -46,10 +46,10 @@ internal static class WatchEntityIDTable<TEntity> where TEntity : class
     }
 
     public static TEntity? Find(Level level, int id)
-        => Find(level.Entities.OfType<TEntity>(), level.Session.Level, id);
+        => Find(WatchRoomEntityIndex.Enumerate<TEntity>(level), level.Session.Level, id);
 
     public static TEntity? Find(Level level, string room, int id)
-        => Find(level.Entities.OfType<TEntity>(), room, id);
+        => Find(WatchRoomEntityIndex.Enumerate<TEntity>(level), room, id);
 
     public static void Clear()
         => ids.Clear();

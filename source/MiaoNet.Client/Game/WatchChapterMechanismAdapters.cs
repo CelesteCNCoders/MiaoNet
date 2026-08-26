@@ -86,7 +86,7 @@ internal sealed class WatchBirdPathAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (BirdPath bird in level.Entities.OfType<BirdPath>())
+        foreach (BirdPath bird in WatchRoomEntityIndex.Enumerate<BirdPath>(level))
         {
             if (!WatchEntityIDTable<BirdPath>.TryGet(bird, level.Session.Level, out int id))
                 continue;
@@ -115,7 +115,7 @@ internal sealed class WatchBirdPathAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        foreach (BirdPath bird in level.Entities.OfType<BirdPath>())
+        foreach (BirdPath bird in WatchRoomEntityIndex.Enumerate<BirdPath>(level))
         {
             if (!WatchEntityIDTable<BirdPath>.TryGet(bird, room, out int id))
                 continue;
@@ -194,17 +194,19 @@ internal sealed class WatchBirdPathAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, BirdState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = state.Flags;
-        payload[1] = state.Animation;
-        payload[2] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
-        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Speed);
-        WatchEntityPayloadCodec.WriteVector2(payload, 20, state.Target);
-        WatchEntityPayloadCodec.WriteSingle(payload, 28, state.Rotation);
-        return new(new WatchEntityKey(WatchEntityKind.BirdPath, id), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.BirdPath, id), state, PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.Flags;
+                payload[1] = value.Animation;
+                payload[2] = value.AnimationFrame;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, value.Position);
+                WatchEntityPayloadCodec.WriteVector2(payload, 12, value.Speed);
+                WatchEntityPayloadCodec.WriteVector2(payload, 20, value.Target);
+                WatchEntityPayloadCodec.WriteSingle(payload, 28, value.Rotation);
+            }
+        );
 
     private static bool TryDecode(WatchEntityState state, out BirdState value)
     {
@@ -430,19 +432,26 @@ internal sealed class WatchWhiteBlockAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (WhiteBlock block in level.Entities.OfType<WhiteBlock>())
+        foreach (WhiteBlock block in WatchRoomEntityIndex.Enumerate<WhiteBlock>(level))
         {
             if (!WatchEntityIDTable<WhiteBlock>.TryGet(block, level.Session.Level, out int id))
                 continue;
-            byte[] payload = new byte[PayloadSize];
-            if (block.enabled) payload[0] |= EnabledFlag;
-            if (block.activated) payload[0] |= ActivatedFlag;
-            if (block.Visible) payload[0] |= VisibleFlag;
-            if (block.Collidable) payload[0] |= CollidableFlag;
-            if (block.bgSolidTiles?.Scene is not null) payload[0] |= BackgroundFlag;
-            WatchEntityPayloadCodec.WriteSingle(payload, 4, block.playerDuckTimer);
-            BitConverter.TryWriteBytes(payload.AsSpan(8), block.Depth);
-            yield return new(new WatchEntityKey(Kind, id), payload);
+            byte flags = 0;
+            if (block.enabled) flags |= EnabledFlag;
+            if (block.activated) flags |= ActivatedFlag;
+            if (block.Visible) flags |= VisibleFlag;
+            if (block.Collidable) flags |= CollidableFlag;
+            if (block.bgSolidTiles?.Scene is not null) flags |= BackgroundFlag;
+            var current = (Flags: flags, block.playerDuckTimer, block.Depth);
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id), current, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    WatchEntityPayloadCodec.WriteSingle(payload, 4, state.playerDuckTimer);
+                    BitConverter.TryWriteBytes(payload[8..], state.Depth);
+                }
+            );
         }
     }
 
@@ -460,7 +469,7 @@ internal sealed class WatchWhiteBlockAdapter : IWatchEntityAdapter
         }
         bool changed = false;
         string room = level.Session.Level;
-        Dictionary<int, WhiteBlock> existing = level.Entities.OfType<WhiteBlock>()
+        Dictionary<int, WhiteBlock> existing = WatchRoomEntityIndex.Enumerate<WhiteBlock>(level)
             .Where(block => WatchEntityIDTable<WhiteBlock>.TryGet(block, room, out _))
             .ToDictionary(
                 block => { WatchEntityIDTable<WhiteBlock>.TryGet(block, room, out int id); return id; },
@@ -642,19 +651,25 @@ internal sealed class WatchRidgeGateAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (RidgeGate gate in level.Entities.OfType<RidgeGate>())
+        foreach (RidgeGate gate in WatchRoomEntityIndex.Enumerate<RidgeGate>(level))
         {
             if (!WatchEntityIDTable<RidgeGate>.TryGet(gate, level.Session.Level, out int id))
                 continue;
-            byte[] payload = new byte[PayloadSize];
-            if (gate.Visible) payload[0] |= VisibleFlag;
-            if (gate.Collidable) payload[0] |= CollidableFlag;
-            if (gate.node.HasValue) payload[0] |= NodeFlag;
-            WatchEntityPayloadCodec.WriteVector2(payload, 4, gate.Position);
-            WatchEntityPayloadCodec.WriteSingle(payload, 12, gate.node?.X ?? 0f);
-            WatchEntityPayloadCodec.WriteSingle(payload, 16, gate.node?.Y ?? 0f);
-            BitConverter.TryWriteBytes(payload.AsSpan(20), gate.Depth);
-            yield return new(new WatchEntityKey(Kind, id), payload);
+            byte flags = 0;
+            if (gate.Visible) flags |= VisibleFlag;
+            if (gate.Collidable) flags |= CollidableFlag;
+            if (gate.node.HasValue) flags |= NodeFlag;
+            var current = (Flags: flags, gate.Position, Node: gate.node ?? Vector2.Zero, gate.Depth);
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id), current, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Node);
+                    BitConverter.TryWriteBytes(payload[20..], state.Depth);
+                }
+            );
         }
     }
 
@@ -672,7 +687,7 @@ internal sealed class WatchRidgeGateAdapter : IWatchEntityAdapter
         }
         bool changed = false;
         string room = level.Session.Level;
-        foreach (RidgeGate gate in level.Entities.OfType<RidgeGate>())
+        foreach (RidgeGate gate in WatchRoomEntityIndex.Enumerate<RidgeGate>(level))
         {
             if (!WatchEntityIDTable<RidgeGate>.TryGet(gate, room, out int id))
                 continue;

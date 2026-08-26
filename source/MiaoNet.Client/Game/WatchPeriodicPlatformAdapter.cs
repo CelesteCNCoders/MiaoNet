@@ -518,23 +518,23 @@ internal sealed class WatchPeriodicPlatformAdapter : IWatchEntityAdapter
     private static IEnumerable<(Entity Entity, byte Type, int ID)> Enumerate(Level level)
     {
         string room = level.Session.Level;
-        foreach (MovingPlatform platform in level.Entities.OfType<MovingPlatform>())
+        foreach (MovingPlatform platform in WatchRoomEntityIndex.Enumerate<MovingPlatform>(level))
         {
             if (WatchEntityIDTable<MovingPlatform>.TryGet(platform, room, out int id)
                 || WatchSyntheticEntityIDTable<MovingPlatform>.TryGet(platform, out id))
                 yield return (platform, MovingPlatformType, id);
         }
-        foreach (Slider slider in level.Entities.OfType<Slider>())
+        foreach (Slider slider in WatchRoomEntityIndex.Enumerate<Slider>(level))
         {
             if (WatchEntityIDTable<Slider>.TryGet(slider, room, out int id))
                 yield return (slider, SliderType, id);
         }
-        foreach (TrackSpinner spinner in level.Entities.OfType<TrackSpinner>())
+        foreach (TrackSpinner spinner in WatchRoomEntityIndex.Enumerate<TrackSpinner>(level))
         {
             if (WatchEntityIDTable<TrackSpinner>.TryGet(spinner, room, out int id))
                 yield return (spinner, TrackSpinnerType, id);
         }
-        foreach (RotateSpinner spinner in level.Entities.OfType<RotateSpinner>())
+        foreach (RotateSpinner spinner in WatchRoomEntityIndex.Enumerate<RotateSpinner>(level))
         {
             if (WatchEntityIDTable<RotateSpinner>.TryGet(spinner, room, out int id))
                 yield return (spinner, RotateSpinnerType, id);
@@ -542,17 +542,21 @@ internal sealed class WatchPeriodicPlatformAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, PlatformState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = state.Type;
-        payload[1] = state.Flags;
-        payload[2] = state.Aux;
-        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Value0);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Value1);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Value2);
-        return new WatchEntityState(new WatchEntityKey(WatchEntityKind.PeriodicPlatform, id), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.PeriodicPlatform, id),
+            state,
+            PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.Type;
+                payload[1] = value.Flags;
+                payload[2] = value.Aux;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, value.Position);
+                WatchEntityPayloadCodec.WriteSingle(payload, 12, value.Value0);
+                WatchEntityPayloadCodec.WriteSingle(payload, 16, value.Value1);
+                WatchEntityPayloadCodec.WriteSingle(payload, 20, value.Value2);
+            }
+        );
 
     private static bool TryDecode(ReadOnlySpan<byte> payload, out PlatformState state)
     {

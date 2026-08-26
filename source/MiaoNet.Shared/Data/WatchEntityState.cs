@@ -1,5 +1,24 @@
 namespace MiaoNet.Shared;
 
+internal delegate void WatchEntityPayloadEncoder<TState>(Span<byte> payload, TState state);
+
+internal sealed class WatchArrayEqualityComparer<T> : IEqualityComparer<T[]>
+{
+    internal static readonly WatchArrayEqualityComparer<T> Instance = new();
+
+    public bool Equals(T[]? x, T[]? y)
+        => ReferenceEquals(x, y)
+            || x is not null && y is not null && x.SequenceEqual(y);
+
+    public int GetHashCode(T[] value)
+    {
+        HashCode hash = new();
+        foreach (T item in value)
+            hash.Add(item);
+        return hash.ToHashCode();
+    }
+}
+
 public enum WatchEntityKind : ushort
 {
     None = 0,
@@ -269,16 +288,65 @@ public readonly struct WatchEntityKey : IRefBinarySerializable<WatchEntityKey>, 
 
 public readonly struct WatchEntityState : IRefBinarySerializable<WatchEntityState>
 {
-    private readonly byte[] payload;
+    private readonly byte[]? payload;
+    private readonly IDeferredWatchEntityPayload? deferredPayload;
 
     public WatchEntityKey Key { get; }
 
-    public ReadOnlyMemory<byte> Payload => payload;
+    public ReadOnlyMemory<byte> Payload
+        => payload ?? deferredPayload?.GetPayload() ?? ReadOnlyMemory<byte>.Empty;
 
     public WatchEntityState(WatchEntityKey key, ReadOnlySpan<byte> payload)
     {
         Key = key;
         this.payload = payload.ToArray();
+        deferredPayload = null;
+    }
+
+    private WatchEntityState(WatchEntityKey key, IDeferredWatchEntityPayload deferredPayload)
+    {
+        Key = key;
+        payload = null;
+        this.deferredPayload = deferredPayload;
+    }
+
+    internal static WatchEntityState FromTyped<TState>(
+        WatchEntityKey key,
+        TState state,
+        Func<TState, byte[]> encoder
+    ) => new(key, new DeferredWatchEntityPayload<TState>(state, encoder));
+
+    internal static WatchEntityState FromTyped<TState>(
+        WatchEntityKey key,
+        TState state,
+        Func<TState, byte[]> encoder,
+        IEqualityComparer<TState> comparer
+    ) => new(key, new DeferredWatchEntityPayload<TState>(state, encoder, comparer));
+
+    internal static WatchEntityState FromTyped<TState>(
+        WatchEntityKey key,
+        TState state,
+        int payloadSize,
+        WatchEntityPayloadEncoder<TState> encoder
+    ) => new(key, new DeferredWatchEntityPayload<TState>(state, payloadSize, encoder));
+
+    internal static WatchEntityState FromTyped<TState>(
+        WatchEntityKey key,
+        TState state,
+        int payloadSize,
+        WatchEntityPayloadEncoder<TState> encoder,
+        IEqualityComparer<TState> comparer
+    ) => new(
+        key,
+        new DeferredWatchEntityPayload<TState>(state, payloadSize, encoder, comparer)
+    );
+
+    internal bool TryTypedStateEquals(WatchEntityState other, out bool equals)
+    {
+        if (deferredPayload is not null && other.deferredPayload is not null)
+            return deferredPayload.TryStateEquals(other.deferredPayload, out equals);
+        equals = false;
+        return false;
     }
 
     public void Serialize(ref RefBinaryWriter writer)
@@ -301,6 +369,79 @@ public readonly struct WatchEntityState : IRefBinarySerializable<WatchEntityStat
 
     internal static byte[] ReadPayload(ref RefBinaryReader reader)
         => reader.ReadSpan(reader.ReadUInt16()).ToArray();
+
+    private interface IDeferredWatchEntityPayload
+    {
+        byte[] GetPayload();
+
+        bool TryStateEquals(IDeferredWatchEntityPayload other, out bool equals);
+    }
+
+    private sealed class DeferredWatchEntityPayload<TState> : IDeferredWatchEntityPayload
+    {
+        private readonly TState state;
+        private readonly Func<TState, byte[]>? encoder;
+        private readonly WatchEntityPayloadEncoder<TState>? sizedEncoder;
+        private readonly IEqualityComparer<TState> comparer;
+        private readonly int payloadSize;
+        private byte[]? payload;
+
+        public DeferredWatchEntityPayload(
+            TState state,
+            Func<TState, byte[]> encoder,
+            IEqualityComparer<TState>? comparer = null
+        )
+        {
+            this.state = state;
+            this.encoder = encoder;
+            this.comparer = comparer ?? EqualityComparer<TState>.Default;
+        }
+
+        public DeferredWatchEntityPayload(
+            TState state,
+            int payloadSize,
+            WatchEntityPayloadEncoder<TState> encoder,
+            IEqualityComparer<TState>? comparer = null
+        )
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(payloadSize);
+            this.state = state;
+            this.payloadSize = payloadSize;
+            sizedEncoder = encoder;
+            this.comparer = comparer ?? EqualityComparer<TState>.Default;
+        }
+
+        public byte[] GetPayload()
+        {
+            byte[]? value = Volatile.Read(ref payload);
+            if (value is not null)
+                return value;
+
+            if (sizedEncoder is null)
+            {
+                value = encoder!(state)
+                    ?? throw new InvalidOperationException("Watch entity encoder returned null.");
+            }
+            else
+            {
+                value = new byte[payloadSize];
+                sizedEncoder(value, state);
+            }
+            return Interlocked.CompareExchange(ref payload, value, null) ?? value;
+        }
+
+        public bool TryStateEquals(IDeferredWatchEntityPayload other, out bool equals)
+        {
+            if (other is DeferredWatchEntityPayload<TState> typed)
+            {
+                equals = comparer.Equals(state, typed.state);
+                return true;
+            }
+
+            equals = false;
+            return false;
+        }
+    }
 }
 
 public readonly struct WatchEntityEvent : IRefBinarySerializable<WatchEntityEvent>

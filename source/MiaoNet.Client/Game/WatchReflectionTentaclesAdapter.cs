@@ -143,7 +143,7 @@ internal sealed class WatchReflectionTentaclesAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (ReflectionTentacles tentacles in level.Entities.OfType<ReflectionTentacles>())
+        foreach (ReflectionTentacles tentacles in WatchRoomEntityIndex.Enumerate<ReflectionTentacles>(level))
         {
             if (!identities.TryGetValue(tentacles, out Identity? identity)
                 || !StringComparer.Ordinal.Equals(identity.Room, room))
@@ -173,7 +173,7 @@ internal sealed class WatchReflectionTentaclesAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        foreach (ReflectionTentacles tentacles in level.Entities.OfType<ReflectionTentacles>())
+        foreach (ReflectionTentacles tentacles in WatchRoomEntityIndex.Enumerate<ReflectionTentacles>(level))
         {
             if (!identities.TryGetValue(tentacles, out Identity? identity)
                 || !StringComparer.Ordinal.Equals(identity.Room, room))
@@ -243,27 +243,24 @@ internal sealed class WatchReflectionTentaclesAdapter : IWatchEntityAdapter
         );
 
     private static WatchEntityState Encode(Identity identity, TentacleState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = state.Flags;
-        WatchEntityPayloadCodec.WriteInt32(payload, 4, state.Index);
-        WatchEntityPayloadCodec.WriteInt32(payload, 8, state.SlideUntilIndex);
-        WatchEntityPayloadCodec.WriteInt32(payload, 12, state.Layer);
-        WatchEntityPayloadCodec.WriteVector2(payload, 16, state.Outwards);
-        WatchEntityPayloadCodec.WriteVector2(payload, 24, state.LastOutwards);
-        WatchEntityPayloadCodec.WriteSingle(payload, 32, state.Ease);
-        WatchEntityPayloadCodec.WriteVector2(payload, 36, state.PlayerProjection);
-        WatchEntityPayloadCodec.WriteSingle(payload, 44, state.FearDistance);
-        WatchEntityPayloadCodec.WriteSingle(payload, 48, state.Offset);
-        return new(
-            new WatchEntityKey(
-                WatchEntityKind.ReflectionTentacles,
-                identity.EntityID,
-                identity.SubID
-            ),
-            payload
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.ReflectionTentacles, identity.EntityID, identity.SubID),
+            state,
+            PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.Flags;
+                WatchEntityPayloadCodec.WriteInt32(payload, 4, value.Index);
+                WatchEntityPayloadCodec.WriteInt32(payload, 8, value.SlideUntilIndex);
+                WatchEntityPayloadCodec.WriteInt32(payload, 12, value.Layer);
+                WatchEntityPayloadCodec.WriteVector2(payload, 16, value.Outwards);
+                WatchEntityPayloadCodec.WriteVector2(payload, 24, value.LastOutwards);
+                WatchEntityPayloadCodec.WriteSingle(payload, 32, value.Ease);
+                WatchEntityPayloadCodec.WriteVector2(payload, 36, value.PlayerProjection);
+                WatchEntityPayloadCodec.WriteSingle(payload, 44, value.FearDistance);
+                WatchEntityPayloadCodec.WriteSingle(payload, 48, value.Offset);
+            }
         );
-    }
 
     private static bool TryDecode(WatchEntityState state, out TentacleState value)
     {
@@ -312,7 +309,7 @@ internal sealed class WatchReflectionTentaclesAdapter : IWatchEntityAdapter
     }
 
     private static ReflectionTentacles? Find(Level level, int id, ushort subID)
-        => level.Entities.OfType<ReflectionTentacles>().FirstOrDefault(tentacles =>
+        => WatchRoomEntityIndex.Enumerate<ReflectionTentacles>(level).FirstOrDefault(tentacles =>
             identities.TryGetValue(tentacles, out Identity? identity)
             && StringComparer.Ordinal.Equals(identity.Room, level.Session.Level)
             && identity.EntityID == id && identity.SubID == subID

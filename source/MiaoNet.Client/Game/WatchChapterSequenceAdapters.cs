@@ -44,7 +44,7 @@ internal sealed class WatchBadelineBoostAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (BadelineBoost boost in level.Entities.OfType<BadelineBoost>().ToArray())
+        foreach (BadelineBoost boost in WatchRoomEntityIndex.Enumerate<BadelineBoost>(level).ToArray())
         {
             if (!infos.TryGetValue(boost, out Info? info) || info.Level != level.Session.Level)
                 continue;
@@ -53,17 +53,30 @@ internal sealed class WatchBadelineBoostAdapter : IWatchEntityAdapter
                 : boost.travelling
                     ? WatchEntityPhase.Returning
                     : boost.Visible ? WatchEntityPhase.Ready : WatchEntityPhase.Gone;
-            byte[] payload = new byte[PayloadSize];
-            payload[0] = (byte)phase;
-            if (boost.Visible) payload[1] |= EntityVisibleFlag;
-            if (boost.travelling) payload[1] |= TravellingFlag;
-            if (boost.holding is not null) payload[1] |= HoldingFlag;
-            if (boost.sprite.Visible) payload[1] |= SpriteVisibleFlag;
-            if (boost.stretch.Visible) payload[1] |= StretchVisibleFlag;
-            WatchEntityPayloadCodec.WriteUInt16(payload, 2, checked((ushort)Math.Clamp(boost.nodeIndex, 0, ushort.MaxValue)));
-            WatchEntityPayloadCodec.WriteVector2(payload, 4, boost.Position);
-            WatchEntityPayloadCodec.WriteSingle(payload, 12, GetStretchProgress(boost));
-            yield return new(new WatchEntityKey(Kind, info.ID), payload);
+            byte flags = 0;
+            if (boost.Visible) flags |= EntityVisibleFlag;
+            if (boost.travelling) flags |= TravellingFlag;
+            if (boost.holding is not null) flags |= HoldingFlag;
+            if (boost.sprite.Visible) flags |= SpriteVisibleFlag;
+            if (boost.stretch.Visible) flags |= StretchVisibleFlag;
+            var current = (
+                Phase: (byte)phase,
+                Flags: flags,
+                NodeIndex: checked((ushort)Math.Clamp(boost.nodeIndex, 0, ushort.MaxValue)),
+                boost.Position,
+                StretchProgress: GetStretchProgress(boost)
+            );
+            yield return WatchEntityState.FromTyped(
+                new(Kind, info.ID), current, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Phase;
+                    payload[1] = state.Flags;
+                    WatchEntityPayloadCodec.WriteUInt16(payload, 2, state.NodeIndex);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 12, state.StretchProgress);
+                }
+            );
         }
     }
 
@@ -76,7 +89,7 @@ internal sealed class WatchBadelineBoostAdapter : IWatchEntityAdapter
                 return WatchEntityApplyResult.None;
         }
         bool changed = false;
-        foreach (BadelineBoost boost in level.Entities.OfType<BadelineBoost>().ToArray())
+        foreach (BadelineBoost boost in WatchRoomEntityIndex.Enumerate<BadelineBoost>(level).ToArray())
         {
             if (!infos.TryGetValue(boost, out Info? info) || info.Level != level.Session.Level)
                 continue;
@@ -118,7 +131,7 @@ internal sealed class WatchBadelineBoostAdapter : IWatchEntityAdapter
     {
         if (entityEvent.EventID != ActivateEvent || entityEvent.Payload.Length != 0)
             return;
-        BadelineBoost? boost = level.Entities.OfType<BadelineBoost>().FirstOrDefault(candidate =>
+        BadelineBoost? boost = WatchRoomEntityIndex.Enumerate<BadelineBoost>(level).FirstOrDefault(candidate =>
             infos.TryGetValue(candidate, out Info? info)
             && info.Level == level.Session.Level && info.ID == entityEvent.Key.EntityID);
         if (boost is null)
@@ -333,7 +346,7 @@ internal sealed class WatchFlingBirdAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (FlingBird bird in level.Entities.OfType<FlingBird>().ToArray())
+        foreach (FlingBird bird in WatchRoomEntityIndex.Enumerate<FlingBird>(level).ToArray())
         {
             if (!infos.TryGetValue(bird, out Info? info) || info.Level != level.Session.Level)
                 continue;
@@ -355,7 +368,7 @@ internal sealed class WatchFlingBirdAdapter : IWatchEntityAdapter
                 return WatchEntityApplyResult.None;
         }
         bool changed = false;
-        foreach (FlingBird bird in level.Entities.OfType<FlingBird>().ToArray())
+        foreach (FlingBird bird in WatchRoomEntityIndex.Enumerate<FlingBird>(level).ToArray())
         {
             if (!infos.TryGetValue(bird, out Info? info) || info.Level != level.Session.Level)
                 continue;
@@ -378,7 +391,7 @@ internal sealed class WatchFlingBirdAdapter : IWatchEntityAdapter
     {
         if (entityEvent.EventID != ActivateEvent || entityEvent.Payload.Length != 0)
             return;
-        FlingBird? bird = level.Entities.OfType<FlingBird>().FirstOrDefault(candidate =>
+        FlingBird? bird = WatchRoomEntityIndex.Enumerate<FlingBird>(level).FirstOrDefault(candidate =>
             infos.TryGetValue(candidate, out Info? info)
             && info.Level == level.Session.Level && info.ID == entityEvent.Key.EntityID);
         if (bird is null)
@@ -418,22 +431,24 @@ internal sealed class WatchFlingBirdAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, BirdState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = state.State;
-        payload[1] = state.Flags;
-        WatchEntityPayloadCodec.WriteUInt16(payload, 2, state.SegmentIndex);
-        payload[4] = state.Animation;
-        payload[5] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteVector2(payload, 8, state.Position);
-        WatchEntityPayloadCodec.WriteVector2(payload, 16, state.FlingSpeed);
-        WatchEntityPayloadCodec.WriteVector2(payload, 24, state.FlingTargetSpeed);
-        WatchEntityPayloadCodec.WriteSingle(payload, 32, state.FlingAccel);
-        WatchEntityPayloadCodec.WriteVector2(payload, 36, state.SpritePosition);
-        WatchEntityPayloadCodec.WriteVector2(payload, 44, state.SpriteScale);
-        WatchEntityPayloadCodec.WriteSingle(payload, 52, state.SpriteRotation);
-        return new(new WatchEntityKey(WatchEntityKind.FlingBird, id), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.FlingBird, id), state, PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.State;
+                payload[1] = value.Flags;
+                WatchEntityPayloadCodec.WriteUInt16(payload, 2, value.SegmentIndex);
+                payload[4] = value.Animation;
+                payload[5] = value.AnimationFrame;
+                WatchEntityPayloadCodec.WriteVector2(payload, 8, value.Position);
+                WatchEntityPayloadCodec.WriteVector2(payload, 16, value.FlingSpeed);
+                WatchEntityPayloadCodec.WriteVector2(payload, 24, value.FlingTargetSpeed);
+                WatchEntityPayloadCodec.WriteSingle(payload, 32, value.FlingAccel);
+                WatchEntityPayloadCodec.WriteVector2(payload, 36, value.SpritePosition);
+                WatchEntityPayloadCodec.WriteVector2(payload, 44, value.SpriteScale);
+                WatchEntityPayloadCodec.WriteSingle(payload, 52, value.SpriteRotation);
+            }
+        );
 
     private static BirdState Decode(WatchEntityState state)
     {
@@ -652,11 +667,18 @@ internal sealed class WatchWallBoosterAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (WallBooster booster in level.Entities.OfType<WallBooster>())
+        foreach (WallBooster booster in WatchRoomEntityIndex.Enumerate<WallBooster>(level))
         {
             if (WatchEntityIDTable<WallBooster>.TryGet(booster, level.Session.Level, out int id))
-                yield return new(new WatchEntityKey(Kind, id),
-                    [booster.IceMode ? (byte)1 : (byte)0, booster.Visible ? (byte)1 : (byte)0]);
+                yield return WatchEntityState.FromTyped(
+                    new(Kind, id),
+                    (booster.IceMode, booster.Visible),
+                    static value =>
+                    [
+                        value.IceMode ? (byte)1 : (byte)0,
+                        value.Visible ? (byte)1 : (byte)0,
+                    ]
+                );
         }
     }
 
@@ -672,7 +694,7 @@ internal sealed class WatchWallBoosterAdapter : IWatchEntityAdapter
                 return WatchEntityApplyResult.None;
         }
         bool changed = false;
-        foreach (WallBooster booster in level.Entities.OfType<WallBooster>())
+        foreach (WallBooster booster in WatchRoomEntityIndex.Enumerate<WallBooster>(level))
         {
             if (!WatchEntityIDTable<WallBooster>.TryGet(booster, level.Session.Level, out int id)
                 || !desired.TryGetValue(id, out var state))

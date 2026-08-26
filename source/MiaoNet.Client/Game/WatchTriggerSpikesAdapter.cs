@@ -45,12 +45,25 @@ internal sealed class WatchTriggerSpikesAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (TriggerSpikes parent in level.Entities.OfType<TriggerSpikes>())
+        foreach (TriggerSpikes parent in WatchRoomEntityIndex.Enumerate<TriggerSpikes>(level))
         {
             if (!WatchEntityIDTable<TriggerSpikes>.TryGet(parent, room, out int id))
                 continue;
             for (int i = 0; i < parent.spikes.Length && i <= ushort.MaxValue; i++)
-                yield return Encode(id, (ushort)i, parent.direction, parent.spikes[i]);
+            {
+                TriggerSpikes.SpikeInfo spike = parent.spikes[i];
+                yield return Encode(
+                    id,
+                    (ushort)i,
+                    new(
+                        spike.Triggered,
+                        (byte)parent.direction,
+                        spike.Lerp,
+                        spike.DelayTimer,
+                        spike.RetractTimer
+                    )
+                );
+            }
         }
     }
 
@@ -82,7 +95,7 @@ internal sealed class WatchTriggerSpikesAdapter : IWatchEntityAdapter
         bool changed = false;
         bool requiresReload = false;
         HashSet<SpikeKey> found = new();
-        foreach (TriggerSpikes parent in level.Entities.OfType<TriggerSpikes>())
+        foreach (TriggerSpikes parent in WatchRoomEntityIndex.Enumerate<TriggerSpikes>(level))
         {
             if (!WatchEntityIDTable<TriggerSpikes>.TryGet(parent, room, out int id))
                 continue;
@@ -136,18 +149,21 @@ internal sealed class WatchTriggerSpikesAdapter : IWatchEntityAdapter
     private static WatchEntityState Encode(
         int id,
         ushort subID,
-        TriggerSpikes.Directions direction,
-        TriggerSpikes.SpikeInfo spike
+        SpikeState state
     )
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = spike.Triggered ? TriggeredFlag : (byte)0;
-        payload[1] = (byte)direction;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, spike.Lerp);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, spike.DelayTimer);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, spike.RetractTimer);
-        return new(new WatchEntityKey(WatchEntityKind.TriggerSpikes, id, subID), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.TriggerSpikes, id, subID),
+            state,
+            PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.Triggered ? TriggeredFlag : (byte)0;
+                payload[1] = value.Direction;
+                WatchEntityPayloadCodec.WriteSingle(payload, 4, value.Lerp);
+                WatchEntityPayloadCodec.WriteSingle(payload, 8, value.DelayTimer);
+                WatchEntityPayloadCodec.WriteSingle(payload, 12, value.RetractTimer);
+            }
+        );
 
     private static bool TryDecode(
         WatchEntityState state,

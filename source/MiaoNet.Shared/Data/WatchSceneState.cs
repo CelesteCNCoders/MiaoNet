@@ -196,12 +196,6 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
         WatchRoomTransition? roomTransition = null
     )
     {
-        string[] added = currentFlags.Except(previousFlags, StringComparer.Ordinal)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-        string[] removed = previousFlags.Except(currentFlags, StringComparer.Ordinal)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
         WatchEntityStateMode entityStateMode;
         WatchEntityState[] entityStates;
         if (requiresRoomReload
@@ -222,6 +216,41 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
                 : WatchEntityStateMode.Patch;
         }
 
+        return CreateFromChanges(
+            sequence,
+            location,
+            previousFlags,
+            currentFlags,
+            entityStateMode,
+            entityStates,
+            entityEvents,
+            requiresRoomReload,
+            isDeathRespawn,
+            roomTransition
+        );
+    }
+
+    public static WatchSceneDelta? CreateFromChanges(
+        int sequence,
+        PlayerLocation location,
+        IReadOnlySet<string> previousFlags,
+        IReadOnlySet<string> currentFlags,
+        WatchEntityStateMode entityStateMode,
+        IEnumerable<WatchEntityState> entityStates,
+        IReadOnlyCollection<WatchEntityEvent> entityEvents,
+        bool requiresRoomReload,
+        bool isDeathRespawn = false,
+        WatchRoomTransition? roomTransition = null
+    )
+    {
+        string[] added = currentFlags.Except(previousFlags, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        string[] removed = previousFlags.Except(currentFlags, StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        WatchEntityState[] orderedEntityStates = OrderEntityStates(entityStates);
+
         return added.Length == 0
             && removed.Length == 0
             && !requiresRoomReload
@@ -237,7 +266,7 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
                 removed,
                 requiresRoomReload,
                 entityStateMode,
-                entityStates,
+                orderedEntityStates,
                 entityEvents.ToArray(),
                 isDeathRespawn,
                 roomTransition

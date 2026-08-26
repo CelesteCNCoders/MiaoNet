@@ -224,7 +224,7 @@ internal sealed class WatchRoomEnvironmentAdapter : IWatchEntityAdapter
     }
 
     private static WindController? FindWindController(Level level)
-        => level.Entities.OfType<WindController>().FirstOrDefault();
+        => WatchRoomEntityIndex.Enumerate<WindController>(level).FirstOrDefault();
 
     private static void ApplyAudio(Level level, EnvironmentState state)
     {
@@ -242,6 +242,9 @@ internal sealed class WatchRoomEnvironmentAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(EnvironmentState state)
+        => WatchEntityState.FromTyped(StateKey, state, EncodePayload);
+
+    private static byte[] EncodePayload(EnvironmentState state)
     {
         byte[] music = Encoding.UTF8.GetBytes(state.MusicEvent);
         if (music.Length > MaxMusicEventBytes)
@@ -275,7 +278,7 @@ internal sealed class WatchRoomEnvironmentAdapter : IWatchEntityAdapter
         payload[71] = state.BackgroundColor.A;
         music.CopyTo(payload.AsSpan(FixedPayloadSize));
         colorGrade.CopyTo(payload.AsSpan(FixedPayloadSize + music.Length));
-        return new(StateKey, payload);
+        return payload;
     }
 
     private static bool TryDecode(WatchEntityState state, out EnvironmentState value)

@@ -404,7 +404,7 @@ internal sealed class WatchMovingSolidAdapter : IWatchEntityAdapter
 
         FloatySpaceBlock? master = block.MasterOfGroup
             ? block
-            : level.Entities.OfType<FloatySpaceBlock>().FirstOrDefault(candidate =>
+            : WatchRoomEntityIndex.Enumerate<FloatySpaceBlock>(level).FirstOrDefault(candidate =>
                 candidate.MasterOfGroup
                 && candidate.Group is not null
                 && candidate.Group.Contains(block)
@@ -453,17 +453,21 @@ internal sealed class WatchMovingSolidAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, MovingSolidState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = (byte)state.Type;
-        payload[1] = state.Flags;
-        payload[2] = state.State;
-        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Value0);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Value1);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Value2);
-        return new WatchEntityState(new WatchEntityKey(WatchEntityKind.MovingSolid, id), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.MovingSolid, id),
+            state,
+            PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = (byte)value.Type;
+                payload[1] = value.Flags;
+                payload[2] = value.State;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, value.Position);
+                WatchEntityPayloadCodec.WriteSingle(payload, 12, value.Value0);
+                WatchEntityPayloadCodec.WriteSingle(payload, 16, value.Value1);
+                WatchEntityPayloadCodec.WriteSingle(payload, 20, value.Value2);
+            }
+        );
 
     private static bool TryDecode(ReadOnlySpan<byte> payload, out MovingSolidState state)
     {
@@ -511,6 +515,33 @@ internal sealed class WatchMovingSolidAdapter : IWatchEntityAdapter
     )
     {
         string room = level.Session.Level;
+        if (WatchRoomEntityIndex.IsCapturing(level))
+        {
+            foreach ((Entity entity, int id) in EnumerateTracked<ZipMover>(level, room))
+                yield return (entity, WatchMovingSolidType.ZipMover, id);
+            foreach ((Entity entity, int id) in EnumerateTracked<SwapBlock>(level, room))
+                yield return (entity, WatchMovingSolidType.SwapBlock, id);
+            foreach ((Entity entity, int id) in EnumerateTracked<MoveBlock>(level, room))
+                yield return (entity, WatchMovingSolidType.MoveBlock, id);
+            foreach ((Entity entity, int id) in EnumerateTracked<FallingBlock>(level, room))
+                yield return (entity, WatchMovingSolidType.FallingBlock, id);
+            foreach ((Entity entity, int id) in EnumerateTracked<CrushBlock>(level, room))
+                yield return (entity, WatchMovingSolidType.CrushBlock, id);
+            foreach ((Entity entity, int id) in EnumerateTracked<SinkingPlatform>(level, room))
+                yield return (entity, WatchMovingSolidType.SinkingPlatform, id);
+            foreach ((Entity entity, int id) in EnumerateTracked<FloatySpaceBlock>(level, room))
+                yield return (entity, WatchMovingSolidType.FloatySpaceBlock, id);
+            foreach ((Entity entity, int id) in EnumerateTracked<DreamBlock>(level, room))
+                yield return (entity, WatchMovingSolidType.DreamBlock, id);
+            foreach ((Entity entity, int id) in EnumerateTracked<GoldenBlock>(level, room))
+                yield return (entity, WatchMovingSolidType.GoldenBlock, id);
+            foreach ((Entity entity, int id) in EnumerateTracked<GlassBlock>(level, room))
+                yield return (entity, WatchMovingSolidType.GlassBlock, id);
+            foreach ((Entity entity, int id) in EnumerateTracked<StarJumpBlock>(level, room))
+                yield return (entity, WatchMovingSolidType.StarJumpBlock, id);
+            yield break;
+        }
+
         foreach (Entity entity in level.Entities)
         {
             WatchMovingSolidType type;
@@ -557,7 +588,17 @@ internal sealed class WatchMovingSolidAdapter : IWatchEntityAdapter
         }
     }
 
-    private static void Track<TEntity>(TEntity entity, EntityData data) where TEntity : class
+    private static IEnumerable<(Entity Entity, int ID)> EnumerateTracked<TEntity>(
+        Level level,
+        string room
+    ) where TEntity : Entity
+    {
+        foreach (TEntity entity in WatchRoomEntityIndex.Enumerate<TEntity>(level))
+            if (WatchEntityIDTable<TEntity>.TryGet(entity, room, out int id))
+                yield return (entity, id);
+    }
+
+    private static void Track<TEntity>(TEntity entity, EntityData data) where TEntity : Entity
         => WatchEntityIDTable<TEntity>.Set(entity, data.Level.Name, data.ID);
 
     private static void FallingBlock_ShakeSfx(

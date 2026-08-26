@@ -115,7 +115,7 @@ internal sealed class WatchFinalBossShotAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (FinalBossShot shot in level.Entities.OfType<FinalBossShot>())
+        foreach (FinalBossShot shot in WatchRoomEntityIndex.Enumerate<FinalBossShot>(level))
         {
             if (!identities.TryGetValue(shot, out Identity? identity))
                 continue;
@@ -143,8 +143,7 @@ internal sealed class WatchFinalBossShotAdapter : IWatchEntityAdapter
         }
 
         bool changed = false;
-        Dictionary<(int, ushort), FinalBossShot> existing = level.Entities
-            .OfType<FinalBossShot>()
+        Dictionary<(int, ushort), FinalBossShot> existing = WatchRoomEntityIndex.Enumerate<FinalBossShot>(level)
             .Select(shot => (
                 Shot: shot,
                 HasIdentity: identities.TryGetValue(shot, out Identity? identity),
@@ -210,24 +209,25 @@ internal sealed class WatchFinalBossShotAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(Identity identity, ShotState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = state.Flags;
-        payload[1] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
-        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Speed);
-        WatchEntityPayloadCodec.WriteVector2(payload, 20, state.Anchor);
-        WatchEntityPayloadCodec.WriteVector2(payload, 28, state.Perpendicular);
-        WatchEntityPayloadCodec.WriteSingle(payload, 36, state.AngleOffset);
-        WatchEntityPayloadCodec.WriteSingle(payload, 40, state.CantKillTimer);
-        WatchEntityPayloadCodec.WriteSingle(payload, 44, state.AppearTimer);
-        WatchEntityPayloadCodec.WriteSingle(payload, 48, state.SineMultiplier);
-        WatchEntityPayloadCodec.WriteSingle(payload, 52, state.ParticleDirection);
-        return new(
-            new WatchEntityKey(WatchEntityKind.FinalBossShot, identity.BossID, identity.SubID),
-            payload
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.FinalBossShot, identity.BossID, identity.SubID),
+            state,
+            PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.Flags;
+                payload[1] = value.AnimationFrame;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, value.Position);
+                WatchEntityPayloadCodec.WriteVector2(payload, 12, value.Speed);
+                WatchEntityPayloadCodec.WriteVector2(payload, 20, value.Anchor);
+                WatchEntityPayloadCodec.WriteVector2(payload, 28, value.Perpendicular);
+                WatchEntityPayloadCodec.WriteSingle(payload, 36, value.AngleOffset);
+                WatchEntityPayloadCodec.WriteSingle(payload, 40, value.CantKillTimer);
+                WatchEntityPayloadCodec.WriteSingle(payload, 44, value.AppearTimer);
+                WatchEntityPayloadCodec.WriteSingle(payload, 48, value.SineMultiplier);
+                WatchEntityPayloadCodec.WriteSingle(payload, 52, value.ParticleDirection);
+            }
         );
-    }
 
     private static bool TryDecode(WatchEntityState state, out ShotState value)
     {
@@ -524,7 +524,7 @@ internal sealed class WatchFinalBossBeamAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (FinalBossBeam beam in level.Entities.OfType<FinalBossBeam>())
+        foreach (FinalBossBeam beam in WatchRoomEntityIndex.Enumerate<FinalBossBeam>(level))
         {
             if (!identities.TryGetValue(beam, out Identity? identity))
                 continue;
@@ -552,8 +552,7 @@ internal sealed class WatchFinalBossBeamAdapter : IWatchEntityAdapter
         }
 
         bool changed = false;
-        Dictionary<(int, ushort), FinalBossBeam> existing = level.Entities
-            .OfType<FinalBossBeam>()
+        Dictionary<(int, ushort), FinalBossBeam> existing = WatchRoomEntityIndex.Enumerate<FinalBossBeam>(level)
             .Select(beam => (
                 Beam: beam,
                 HasIdentity: identities.TryGetValue(beam, out Identity? identity),
@@ -601,7 +600,7 @@ internal sealed class WatchFinalBossBeamAdapter : IWatchEntityAdapter
     {
         if (entityEvent.EventID != FireEvent || entityEvent.Payload.Length != 0)
             return;
-        FinalBossBeam? beam = level.Entities.OfType<FinalBossBeam>().FirstOrDefault(candidate =>
+        FinalBossBeam? beam = WatchRoomEntityIndex.Enumerate<FinalBossBeam>(level).FirstOrDefault(candidate =>
             identities.TryGetValue(candidate, out Identity? identity)
             && identity.BossID == entityEvent.Key.EntityID
             && identity.SubID == entityEvent.Key.SubID
@@ -641,22 +640,23 @@ internal sealed class WatchFinalBossBeamAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(Identity identity, BeamState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = (byte)state.Phase;
-        payload[1] = state.Animation;
-        payload[2] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.Angle);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.ChargeTimer);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.FollowTimer);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.ActiveTimer);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.BeamAlpha);
-        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.SideFadeAlpha);
-        return new(
-            new WatchEntityKey(WatchEntityKind.FinalBossBeam, identity.BossID, identity.SubID),
-            payload
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.FinalBossBeam, identity.BossID, identity.SubID),
+            state,
+            PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = (byte)value.Phase;
+                payload[1] = value.Animation;
+                payload[2] = value.AnimationFrame;
+                WatchEntityPayloadCodec.WriteSingle(payload, 4, value.Angle);
+                WatchEntityPayloadCodec.WriteSingle(payload, 8, value.ChargeTimer);
+                WatchEntityPayloadCodec.WriteSingle(payload, 12, value.FollowTimer);
+                WatchEntityPayloadCodec.WriteSingle(payload, 16, value.ActiveTimer);
+                WatchEntityPayloadCodec.WriteSingle(payload, 20, value.BeamAlpha);
+                WatchEntityPayloadCodec.WriteSingle(payload, 24, value.SideFadeAlpha);
+            }
         );
-    }
 
     private static bool TryDecode(WatchEntityState state, out BeamState value)
     {

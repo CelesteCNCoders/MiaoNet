@@ -27,16 +27,23 @@ internal sealed class WatchRumbleTriggerAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (RumbleTrigger trigger in level.Entities.OfType<RumbleTrigger>())
+        foreach (RumbleTrigger trigger in WatchRoomEntityIndex.Enumerate<RumbleTrigger>(level))
         {
-            byte[] payload = new byte[PayloadSize];
-            if (trigger.started) payload[0] |= 1;
-            if (trigger.persistent) payload[0] |= 2;
-            if (trigger.manualTrigger) payload[0] |= 4;
-            WatchEntityPayloadCodec.WriteSingle(payload, 4, trigger.rumble);
-            WatchEntityPayloadCodec.WriteSingle(payload, 8, trigger.left);
-            WatchEntityPayloadCodec.WriteSingle(payload, 12, trigger.right);
-            yield return new(new(Kind, trigger.id.ID), payload);
+            byte flags = 0;
+            if (trigger.started) flags |= 1;
+            if (trigger.persistent) flags |= 2;
+            if (trigger.manualTrigger) flags |= 4;
+            var current = (Flags: flags, trigger.rumble, trigger.left, trigger.right);
+            yield return WatchEntityState.FromTyped(
+                new(Kind, trigger.id.ID), current, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    WatchEntityPayloadCodec.WriteSingle(payload, 4, state.rumble);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 8, state.left);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 12, state.right);
+                }
+            );
         }
     }
 
@@ -48,7 +55,7 @@ internal sealed class WatchRumbleTriggerAdapter : IWatchEntityAdapter
     {
         Dictionary<int, WatchEntityState> desired = states.ToDictionary(state => state.Key.EntityID);
         bool changed = false;
-        foreach (RumbleTrigger trigger in level.Entities.OfType<RumbleTrigger>())
+        foreach (RumbleTrigger trigger in WatchRoomEntityIndex.Enumerate<RumbleTrigger>(level))
         {
             if (!desired.Remove(trigger.id.ID, out WatchEntityState state)
                 || !TryDecode(state, out byte flags, out float rumble, out float left, out float right))
@@ -69,7 +76,7 @@ internal sealed class WatchRumbleTriggerAdapter : IWatchEntityAdapter
     {
         if (entityEvent.EventID != InvokeEvent || entityEvent.Payload.Length != 4)
             return;
-        RumbleTrigger? trigger = level.Entities.OfType<RumbleTrigger>()
+        RumbleTrigger? trigger = WatchRoomEntityIndex.Enumerate<RumbleTrigger>(level)
             .FirstOrDefault(candidate => candidate.id.ID == entityEvent.Key.EntityID);
         trigger?.Invoke(WatchEntityPayloadCodec.ReadSingle(entityEvent.Payload.Span, 0));
     }
@@ -152,8 +159,10 @@ internal sealed class WatchRumbleWallAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (CrumbleWallOnRumble wall in level.Entities.OfType<CrumbleWallOnRumble>())
-            yield return new(new(Kind, wall.id.ID), []);
+        foreach (CrumbleWallOnRumble wall in WatchRoomEntityIndex.Enumerate<CrumbleWallOnRumble>(level))
+            yield return WatchEntityState.FromTyped(
+                new(Kind, wall.id.ID), true, static _ => []
+            );
     }
 
     public WatchEntityApplyResult ApplyStates(
@@ -167,8 +176,7 @@ internal sealed class WatchRumbleWallAdapter : IWatchEntityAdapter
             return WatchEntityApplyResult.None;
         HashSet<int> desired = states.Select(state => state.Key.EntityID).ToHashSet();
         string room = level.Session.Level;
-        Dictionary<int, CrumbleWallOnRumble> existing = level.Entities
-            .OfType<CrumbleWallOnRumble>()
+        Dictionary<int, CrumbleWallOnRumble> existing = WatchRoomEntityIndex.Enumerate<CrumbleWallOnRumble>(level)
             .ToDictionary(wall => wall.id.ID);
         bool changed = false;
         foreach (int id in desired)
@@ -202,7 +210,7 @@ internal sealed class WatchRumbleWallAdapter : IWatchEntityAdapter
     {
         if (entityEvent.EventID != BreakEvent || entityEvent.Payload.Length != 0)
             return;
-        level.Entities.OfType<CrumbleWallOnRumble>()
+        WatchRoomEntityIndex.Enumerate<CrumbleWallOnRumble>(level)
             .FirstOrDefault(wall => wall.id.ID == entityEvent.Key.EntityID)?.Break();
     }
 
@@ -292,22 +300,33 @@ internal sealed class WatchBridgeAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (Bridge bridge in level.Entities.OfType<Bridge>())
+        foreach (Bridge bridge in WatchRoomEntityIndex.Enumerate<Bridge>(level))
         {
             if (!bridges.TryGetValue(bridge, out BridgeInfo? info)
                 || !StringComparer.Ordinal.Equals(info.Level, level.Session.Level))
                 continue;
             int id = info.ID;
-            byte[] controller = new byte[ControllerPayloadSize];
-            if (bridge.canCollapse) controller[0] |= 1;
-            if (bridge.ending) controller[0] |= 2;
-            if (bridge.canEndCollapseA) controller[0] |= 4;
-            if (bridge.canEndCollapseB) controller[0] |= 8;
-            WatchEntityPayloadCodec.WriteSingle(controller, 4, bridge.collapseTimer);
-            WatchEntityPayloadCodec.WriteSingle(controller, 8, bridge.gapStartX);
-            WatchEntityPayloadCodec.WriteSingle(controller, 12, bridge.gapEndX);
+            byte flags = 0;
+            if (bridge.canCollapse) flags |= 1;
+            if (bridge.ending) flags |= 2;
+            if (bridge.canEndCollapseA) flags |= 4;
+            if (bridge.canEndCollapseB) flags |= 8;
+            var controller = (
+                Flags: flags,
+                CollapseTimer: bridge.collapseTimer,
+                GapStartX: bridge.gapStartX,
+                GapEndX: bridge.gapEndX
+            );
             yield return controllerSync.GetValue(bridge, static _ => new()).Capture(
-                new(Kind, id), controller, 1, level.TimeActive,
+                new(Kind, id), controller, controller.Flags, ControllerPayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    WatchEntityPayloadCodec.WriteSingle(payload, 4, state.CollapseTimer);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 8, state.GapStartX);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 12, state.GapEndX);
+                },
+                level.TimeActive,
                 WatchEntitySyncRegistry.IsCapturingCurrentState
             );
             for (int index = 0; index < info.Tiles.Count; index++)
@@ -315,16 +334,28 @@ internal sealed class WatchBridgeAdapter : IWatchEntityAdapter
                 BridgeTile tile = info.Tiles[index];
                 if (!ReferenceEquals(tile.Scene, level))
                     continue;
-                byte[] payload = new byte[TilePayloadSize];
-                if (tile.Fallen) payload[0] |= 1;
-                WatchEntityPayloadCodec.WriteVector2(payload, 4, tile.Position);
-                WatchEntityPayloadCodec.WriteSingle(payload, 12, tile.speedY);
-                WatchEntityPayloadCodec.WriteSingle(payload, 16, tile.colorLerp);
-                WatchEntityPayloadCodec.WriteVector2(payload, 20, tile.shakeOffset);
-                WatchEntityPayloadCodec.WriteSingle(payload, 28, tile.shakeTimer);
+                var current = (
+                    Fallen: tile.Fallen,
+                    tile.Position,
+                    SpeedY: tile.speedY,
+                    ColorLerp: tile.colorLerp,
+                    ShakeOffset: tile.shakeOffset,
+                    ShakeTimer: tile.shakeTimer
+                );
                 yield return tileSync.GetValue(tile, static _ => new()).Capture(
-                    new(Kind, id, checked((ushort)(index + 1))), payload, 1,
-                    level.TimeActive, WatchEntitySyncRegistry.IsCapturingCurrentState
+                    new(Kind, id, checked((ushort)(index + 1))), current, current.Fallen,
+                    TilePayloadSize,
+                    static (payload, state) =>
+                    {
+                        if (state.Fallen) payload[0] = 1;
+                        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+                        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.SpeedY);
+                        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.ColorLerp);
+                        WatchEntityPayloadCodec.WriteVector2(payload, 20, state.ShakeOffset);
+                        WatchEntityPayloadCodec.WriteSingle(payload, 28, state.ShakeTimer);
+                    },
+                    level.TimeActive,
+                    WatchEntitySyncRegistry.IsCapturingCurrentState
                 );
             }
         }
@@ -343,7 +374,7 @@ internal sealed class WatchBridgeAdapter : IWatchEntityAdapter
             .ToHashSet();
         foreach (IGrouping<int, WatchEntityState> group in states.GroupBy(state => state.Key.EntityID))
         {
-            Bridge? bridge = level.Entities.OfType<Bridge>().FirstOrDefault(candidate =>
+            Bridge? bridge = WatchRoomEntityIndex.Enumerate<Bridge>(level).FirstOrDefault(candidate =>
                 bridges.TryGetValue(candidate, out BridgeInfo? info)
                 && StringComparer.Ordinal.Equals(info.Level, level.Session.Level)
                 && info.ID == group.Key
@@ -386,7 +417,7 @@ internal sealed class WatchBridgeAdapter : IWatchEntityAdapter
 
         if (isCompleteState)
         {
-            foreach (Bridge bridge in level.Entities.OfType<Bridge>())
+            foreach (Bridge bridge in WatchRoomEntityIndex.Enumerate<Bridge>(level))
             {
                 if (!bridges.TryGetValue(bridge, out BridgeInfo? info)
                     || !StringComparer.Ordinal.Equals(info.Level, level.Session.Level))
@@ -493,7 +524,7 @@ internal sealed class WatchBridgeAdapter : IWatchEntityAdapter
 
     private static BridgeTile? FindTile(Level level, WatchEntityKey key)
     {
-        foreach (Bridge bridge in level.Entities.OfType<Bridge>())
+        foreach (Bridge bridge in WatchRoomEntityIndex.Enumerate<Bridge>(level))
         {
             if (!bridges.TryGetValue(bridge, out BridgeInfo? info)
                 || info.ID != key.EntityID
@@ -531,18 +562,25 @@ internal sealed class WatchIntroCrusherAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (IntroCrusher crusher in level.Entities.OfType<IntroCrusher>())
+        foreach (IntroCrusher crusher in WatchRoomEntityIndex.Enumerate<IntroCrusher>(level))
         {
             if (!WatchEntityIDTable<IntroCrusher>.TryGet(crusher, level.Session.Level, out int id))
                 continue;
-            byte[] payload = new byte[PayloadSize];
-            if (crusher.Visible) payload[0] |= 1;
-            if (crusher.Collidable) payload[0] |= 2;
-            if (crusher.Active) payload[0] |= 4;
-            WatchEntityPayloadCodec.WriteVector2(payload, 4, crusher.Position);
-            WatchEntityPayloadCodec.WriteVector2(payload, 12, crusher.shake);
-            WatchEntityPayloadCodec.WriteVector2(payload, 20, crusher.start);
-            yield return new(new(Kind, id), payload);
+            byte flags = 0;
+            if (crusher.Visible) flags |= 1;
+            if (crusher.Collidable) flags |= 2;
+            if (crusher.Active) flags |= 4;
+            var current = (Flags: flags, crusher.Position, Shake: crusher.shake, Start: crusher.start);
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id), current, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Shake);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 20, state.Start);
+                }
+            );
         }
     }
 
@@ -629,21 +667,35 @@ internal sealed class WatchResortRoofEndingAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (ResortRoofEnding roof in level.Entities.OfType<ResortRoofEnding>())
+        foreach (ResortRoofEnding roof in WatchRoomEntityIndex.Enumerate<ResortRoofEnding>(level))
         {
             if (!WatchEntityIDTable<ResortRoofEnding>.TryGet(roof, level.Session.Level, out int id))
                 continue;
-            yield return new(new(Kind, id), new byte[] { roof.BeginFalling ? (byte)1 : (byte)0 });
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id), roof.BeginFalling,
+                static value => [value ? (byte)1 : (byte)0]
+            );
             for (int index = 0; index < roof.images.Count; index++)
             {
                 Image image = roof.images[index];
-                byte[] payload = new byte[ImagePayloadSize];
-                if (image.Visible) payload[0] |= 1;
-                WatchEntityPayloadCodec.WriteVector2(payload, 4, image.Position);
-                WatchEntityPayloadCodec.WriteSingle(payload, 12, image.Rotation);
-                WatchEntityPayloadCodec.WriteVector2(payload, 16, image.Scale);
-                WatchEntityPayloadCodec.WriteSingle(payload, 24, image.Color.A / 255f);
-                yield return new(new(Kind, id, checked((ushort)(index + 1))), payload);
+                var current = (
+                    image.Visible,
+                    image.Position,
+                    image.Rotation,
+                    image.Scale,
+                    Alpha: image.Color.A / 255f
+                );
+                yield return WatchEntityState.FromTyped(
+                    new(Kind, id, checked((ushort)(index + 1))), current, ImagePayloadSize,
+                    static (payload, state) =>
+                    {
+                        if (state.Visible) payload[0] = 1;
+                        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+                        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Rotation);
+                        WatchEntityPayloadCodec.WriteVector2(payload, 16, state.Scale);
+                        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.Alpha);
+                    }
+                );
             }
         }
     }

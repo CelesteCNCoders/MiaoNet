@@ -34,7 +34,7 @@ internal sealed class WatchFakeHeartAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (FakeHeart heart in level.Entities.OfType<FakeHeart>())
+        foreach (FakeHeart heart in WatchRoomEntityIndex.Enumerate<FakeHeart>(level))
         {
             if (!WatchEntityIDTable<FakeHeart>.TryGet(heart, room, out int id))
                 continue;
@@ -42,7 +42,11 @@ internal sealed class WatchFakeHeartAdapter : IWatchEntityAdapter
             WatchEntityPhase phase = heart.Visible && heart.Collidable
                 ? WatchEntityPhase.Ready
                 : WatchEntityPhase.Cooldown;
-            yield return new WatchEntityState(new WatchEntityKey(Kind, id), [(byte)phase]);
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id),
+                (byte)phase,
+                static value => [value]
+            );
         }
     }
 
@@ -68,7 +72,7 @@ internal sealed class WatchFakeHeartAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        foreach (FakeHeart heart in level.Entities.OfType<FakeHeart>())
+        foreach (FakeHeart heart in WatchRoomEntityIndex.Enumerate<FakeHeart>(level))
         {
             if (!WatchEntityIDTable<FakeHeart>.TryGet(heart, room, out int id)
                 || !desiredByID.TryGetValue(id, out WatchEntityPhase phase))

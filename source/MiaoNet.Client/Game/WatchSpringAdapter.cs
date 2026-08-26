@@ -31,13 +31,14 @@ internal sealed class WatchSpringAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (Spring spring in level.Entities.OfType<Spring>())
+        foreach (Spring spring in WatchRoomEntityIndex.Enumerate<Spring>(level))
         {
             if (WatchEntityIDTable<Spring>.TryGet(spring, room, out int id))
             {
-                yield return new WatchEntityState(
-                    new WatchEntityKey(Kind, id),
-                    [spring.playerCanUse ? (byte)1 : (byte)0]
+                yield return WatchEntityState.FromTyped(
+                    new(Kind, id),
+                    spring.playerCanUse,
+                    static value => [value ? (byte)1 : (byte)0]
                 );
             }
         }
@@ -62,7 +63,7 @@ internal sealed class WatchSpringAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        foreach (Spring spring in level.Entities.OfType<Spring>())
+        foreach (Spring spring in WatchRoomEntityIndex.Enumerate<Spring>(level))
         {
             if (!WatchEntityIDTable<Spring>.TryGet(spring, room, out int id)
                 || !enabledByID.TryGetValue(id, out bool enabled)

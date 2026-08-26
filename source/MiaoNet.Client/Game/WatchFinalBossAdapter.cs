@@ -128,7 +128,7 @@ internal sealed class WatchFinalBossAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (FinalBoss boss in level.Entities.OfType<FinalBoss>())
+        foreach (FinalBoss boss in WatchRoomEntityIndex.Enumerate<FinalBoss>(level))
         {
             if (!WatchEntityIDTable<FinalBoss>.TryGet(boss, room, out int id))
                 continue;
@@ -157,7 +157,7 @@ internal sealed class WatchFinalBossAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        Dictionary<int, FinalBoss> existing = level.Entities.OfType<FinalBoss>()
+        Dictionary<int, FinalBoss> existing = WatchRoomEntityIndex.Enumerate<FinalBoss>(level)
             .Select(entity => (
                 Entity: entity,
                 HasID: WatchEntityIDTable<FinalBoss>.TryGet(entity, room, out int id),
@@ -238,20 +238,22 @@ internal sealed class WatchFinalBossAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, BossState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = state.Flags;
-        payload[1] = (byte)state.Animation;
-        payload[2] = state.AnimationFrame;
-        payload[3] = state.Facing < 0 ? (byte)1 : (byte)0;
-        WatchEntityPayloadCodec.WriteInt32(payload, 4, state.NodeIndex);
-        WatchEntityPayloadCodec.WriteInt32(payload, 8, state.PatternIndex);
-        WatchEntityPayloadCodec.WriteInt32(payload, 12, state.Depth);
-        WatchEntityPayloadCodec.WriteVector2(payload, 16, state.Position);
-        WatchEntityPayloadCodec.WriteVector2(payload, 24, state.Scale);
-        WatchEntityPayloadCodec.WriteSingle(payload, 32, state.LightAlpha);
-        return new(new WatchEntityKey(WatchEntityKind.FinalBoss, id), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.FinalBoss, id), state, PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.Flags;
+                payload[1] = (byte)value.Animation;
+                payload[2] = value.AnimationFrame;
+                payload[3] = value.Facing < 0 ? (byte)1 : (byte)0;
+                WatchEntityPayloadCodec.WriteInt32(payload, 4, value.NodeIndex);
+                WatchEntityPayloadCodec.WriteInt32(payload, 8, value.PatternIndex);
+                WatchEntityPayloadCodec.WriteInt32(payload, 12, value.Depth);
+                WatchEntityPayloadCodec.WriteVector2(payload, 16, value.Position);
+                WatchEntityPayloadCodec.WriteVector2(payload, 24, value.Scale);
+                WatchEntityPayloadCodec.WriteSingle(payload, 32, value.LightAlpha);
+            }
+        );
 
     private static bool TryDecode(WatchEntityState state, out BossState value)
     {

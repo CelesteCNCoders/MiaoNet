@@ -160,7 +160,7 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        AngryOshiro? oshiro = level.Entities.OfType<AngryOshiro>().FirstOrDefault();
+        AngryOshiro? oshiro = WatchRoomEntityIndex.Enumerate<AngryOshiro>(level).FirstOrDefault();
         if (oshiro is null)
             yield break;
 
@@ -187,7 +187,7 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
             hasDesired = true;
         }
 
-        AngryOshiro[] existing = level.Entities.OfType<AngryOshiro>().ToArray();
+        AngryOshiro[] existing = WatchRoomEntityIndex.Enumerate<AngryOshiro>(level).ToArray();
         if (!hasDesired)
         {
             if (!isCompleteState)
@@ -244,7 +244,7 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
     public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
     {
         if (entityEvent.EventID != BounceEvent || entityEvent.Payload.Length != 8
-            || level.Entities.OfType<AngryOshiro>().FirstOrDefault() is not { } oshiro)
+            || WatchRoomEntityIndex.Enumerate<AngryOshiro>(level).FirstOrDefault() is not { } oshiro)
             return;
         oshiro.Position = new(
             WatchEntityPayloadCodec.ReadSingle(entityEvent.Payload.Span, 0),
@@ -294,23 +294,25 @@ internal sealed class WatchAngryOshiroAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(OshiroState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = (byte)state.Phase;
-        payload[1] = state.Flags;
-        payload[2] = state.Animation;
-        payload[3] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.CameraXOffset);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.AttackSpeed);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.YApproachSpeed);
-        WatchEntityPayloadCodec.WriteVector2(payload, 24, state.Scale);
-        WatchEntityPayloadCodec.WriteInt32(payload, 32, state.Depth);
-        payload[36] = state.LightningFrame;
-        WatchEntityPayloadCodec.WriteSingle(payload, 40, state.TimeRate);
-        WatchEntityPayloadCodec.WriteSingle(payload, 44, state.Anxiety);
-        return new(new WatchEntityKey(WatchEntityKind.AngryOshiro, 0), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.AngryOshiro, 0), state, PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = (byte)value.Phase;
+                payload[1] = value.Flags;
+                payload[2] = value.Animation;
+                payload[3] = value.AnimationFrame;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, value.Position);
+                WatchEntityPayloadCodec.WriteSingle(payload, 12, value.CameraXOffset);
+                WatchEntityPayloadCodec.WriteSingle(payload, 16, value.AttackSpeed);
+                WatchEntityPayloadCodec.WriteSingle(payload, 20, value.YApproachSpeed);
+                WatchEntityPayloadCodec.WriteVector2(payload, 24, value.Scale);
+                WatchEntityPayloadCodec.WriteInt32(payload, 32, value.Depth);
+                payload[36] = value.LightningFrame;
+                WatchEntityPayloadCodec.WriteSingle(payload, 40, value.TimeRate);
+                WatchEntityPayloadCodec.WriteSingle(payload, 44, value.Anxiety);
+            }
+        );
 
     private static bool TryDecode(WatchEntityState state, out OshiroState value)
     {

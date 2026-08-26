@@ -48,6 +48,24 @@ internal sealed class WatchPersistentSessionBaseline
 
 internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
 {
+    private sealed class PersistentStateComparer : IEqualityComparer<WatchPersistentSceneState>
+    {
+        internal static readonly PersistentStateComparer Instance = new();
+
+        public bool Equals(WatchPersistentSceneState? x, WatchPersistentSceneState? y)
+            => ReferenceEquals(x, y)
+                || x is not null && y is not null
+                && x.Flags == y.Flags
+                && x.SummitGems == y.SummitGems
+                && x.RespawnPoint == y.RespawnPoint
+                && x.DoNotLoadIDs.SequenceEqual(y.DoNotLoadIDs)
+                && x.StrawberryIDs.SequenceEqual(y.StrawberryIDs)
+                && x.GhostStrawberryIDs.SequenceEqual(y.GhostStrawberryIDs);
+
+        public int GetHashCode(WatchPersistentSceneState value)
+            => HashCode.Combine(value.Flags, value.SummitGems, value.RespawnPoint);
+    }
+
     private static readonly WatchPersistentSessionAdapter instance = new();
     private static readonly WatchEntityKey StateKey = new(WatchEntityKind.PersistentSession, 0);
 
@@ -99,11 +117,10 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
             flags |= WatchPersistentSceneFlags.HitCheckpoint;
         if (session.RespawnPoint.HasValue)
             flags |= WatchPersistentSceneFlags.HasRespawnPoint;
-        Cassette? cassette = level.Entities.OfType<Cassette>().FirstOrDefault();
+        Cassette? cassette = WatchRoomEntityIndex.Enumerate<Cassette>(level).FirstOrDefault();
         if (cassette?.IsGhost == true)
             flags |= WatchPersistentSceneFlags.CassetteGhost;
-        HeartGem? heartGem = level.Entities
-            .OfType<HeartGem>()
+        HeartGem? heartGem = WatchRoomEntityIndex.Enumerate<HeartGem>(level)
             .FirstOrDefault(heart => !heart.IsFake);
         if (heartGem?.IsGhost == true)
             flags |= WatchPersistentSceneFlags.HeartGemGhost;
@@ -125,15 +142,19 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
                 .Select(id => id.ID)
                 .Order()
                 .ToArray(),
-            level.Entities
-                .OfType<Strawberry>()
+            WatchRoomEntityIndex.Enumerate<Strawberry>(level)
                 .Where(strawberry => strawberry.ID.Level == room && IsGhostSprite(strawberry.sprite))
                 .Select(strawberry => strawberry.ID.ID)
                 .Distinct()
                 .Order()
                 .ToArray()
         );
-        yield return new WatchEntityState(StateKey, state.ToPayload());
+        yield return WatchEntityState.FromTyped(
+            StateKey,
+            state,
+            static value => value.ToPayload(),
+            PersistentStateComparer.Instance
+        );
     }
 
     public WatchEntityApplyResult ApplyStates(
@@ -355,8 +376,7 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
         if (requested.Count == 0)
             return [];
 
-        HashSet<int> existingIDs = level.Entities
-            .OfType<Strawberry>()
+        HashSet<int> existingIDs = WatchRoomEntityIndex.Enumerate<Strawberry>(level)
             .Where(strawberry => strawberry.ID.Level == room)
             .Select(strawberry => strawberry.ID.ID)
             .ToHashSet();
@@ -403,7 +423,7 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
             heart.bird?.RemoveSelf();
             heart.fakeRightWall?.RemoveSelf();
             heart.FakeRemoveCameraTrigger();
-            foreach (AbsorbOrb orb in level.Entities.OfType<AbsorbOrb>().ToArray())
+            foreach (AbsorbOrb orb in WatchRoomEntityIndex.Enumerate<AbsorbOrb>(level).ToArray())
                 orb.RemoveSelf();
         }
 
@@ -417,7 +437,7 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
     {
         bool changed = false;
         HashSet<int> ghostStrawberryIDs = state.GhostStrawberryIDs.ToHashSet();
-        foreach (Strawberry strawberry in level.Entities.OfType<Strawberry>())
+        foreach (Strawberry strawberry in WatchRoomEntityIndex.Enumerate<Strawberry>(level))
         {
             if (strawberry.ID.Level != level.Session.Level)
                 continue;
@@ -431,7 +451,7 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
         }
 
         bool cassetteGhost = state.Flags.HasFlag(WatchPersistentSceneFlags.CassetteGhost);
-        foreach (Cassette cassette in level.Entities.OfType<Cassette>())
+        foreach (Cassette cassette in WatchRoomEntityIndex.Enumerate<Cassette>(level))
         {
             if (cassette.IsGhost == cassetteGhost)
                 continue;
@@ -441,7 +461,7 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
         }
 
         bool heartGemGhost = state.Flags.HasFlag(WatchPersistentSceneFlags.HeartGemGhost);
-        foreach (HeartGem heartGem in level.Entities.OfType<HeartGem>().Where(heart => !heart.IsFake))
+        foreach (HeartGem heartGem in WatchRoomEntityIndex.Enumerate<HeartGem>(level).Where(heart => !heart.IsFake))
         {
             if (heartGem.IsGhost == heartGemGhost)
                 continue;

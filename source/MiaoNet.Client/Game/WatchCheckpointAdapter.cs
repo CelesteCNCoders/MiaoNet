@@ -52,28 +52,30 @@ internal sealed class WatchCheckpointAdapter : IWatchEntityAdapter
     {
         if (Kind == WatchEntityKind.Checkpoint)
         {
-            foreach (Checkpoint checkpoint in level.Entities.OfType<Checkpoint>())
+            foreach (Checkpoint checkpoint in WatchRoomEntityIndex.Enumerate<Checkpoint>(level))
             {
                 if (checkpointIDs.TryGetValue(checkpoint, out IDHolder? holder)
                     && StringComparer.Ordinal.Equals(holder.Level, level.Session.Level))
                 {
-                    yield return new WatchEntityState(
-                        new WatchEntityKey(Kind, holder.ID),
-                        [checkpoint.triggered ? (byte)1 : (byte)0]
+                    yield return WatchEntityState.FromTyped(
+                        new(Kind, holder.ID),
+                        checkpoint.triggered,
+                        static value => [value ? (byte)1 : (byte)0]
                     );
                 }
             }
         }
         else
         {
-            foreach (SummitCheckpoint checkpoint in level.Entities.OfType<SummitCheckpoint>())
+            foreach (SummitCheckpoint checkpoint in WatchRoomEntityIndex.Enumerate<SummitCheckpoint>(level))
             {
                 if (summitCheckpointIDs.TryGetValue(checkpoint, out IDHolder? holder)
                     && StringComparer.Ordinal.Equals(holder.Level, level.Session.Level))
                 {
-                    yield return new WatchEntityState(
-                        new WatchEntityKey(Kind, holder.ID),
-                        [checkpoint.Activated ? (byte)1 : (byte)0]
+                    yield return WatchEntityState.FromTyped(
+                        new(Kind, holder.ID),
+                        checkpoint.Activated,
+                        static value => [value ? (byte)1 : (byte)0]
                     );
                 }
             }
@@ -103,7 +105,7 @@ internal sealed class WatchCheckpointAdapter : IWatchEntityAdapter
         bool changed = false;
         if (Kind == WatchEntityKind.Checkpoint)
         {
-            foreach (Checkpoint checkpoint in level.Entities.OfType<Checkpoint>())
+            foreach (Checkpoint checkpoint in WatchRoomEntityIndex.Enumerate<Checkpoint>(level))
             {
                 if (!checkpointIDs.TryGetValue(checkpoint, out IDHolder? holder)
                     || !StringComparer.Ordinal.Equals(holder.Level, level.Session.Level)
@@ -120,7 +122,7 @@ internal sealed class WatchCheckpointAdapter : IWatchEntityAdapter
         }
         else
         {
-            foreach (SummitCheckpoint checkpoint in level.Entities.OfType<SummitCheckpoint>())
+            foreach (SummitCheckpoint checkpoint in WatchRoomEntityIndex.Enumerate<SummitCheckpoint>(level))
             {
                 if (!summitCheckpointIDs.TryGetValue(checkpoint, out IDHolder? holder)
                     || !StringComparer.Ordinal.Equals(holder.Level, level.Session.Level)

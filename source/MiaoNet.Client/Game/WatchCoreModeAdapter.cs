@@ -17,7 +17,11 @@ internal sealed class WatchCoreModeAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        yield return new WatchEntityState(StateKey, [(byte)level.CoreMode]);
+        yield return WatchEntityState.FromTyped(
+            StateKey,
+            (byte)level.CoreMode,
+            static value => [value]
+        );
     }
 
     public WatchEntityApplyResult ApplyStates(

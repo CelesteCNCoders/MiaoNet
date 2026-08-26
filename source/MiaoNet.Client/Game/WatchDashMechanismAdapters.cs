@@ -17,17 +17,19 @@ internal sealed class WatchDashSwitchAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (DashSwitch dashSwitch in level.Entities.OfType<DashSwitch>())
+        foreach (DashSwitch dashSwitch in WatchRoomEntityIndex.Enumerate<DashSwitch>(level))
         {
             if (!StringComparer.Ordinal.Equals(dashSwitch.id.Level, level.Session.Level))
                 continue;
 
-            byte[] payload = new byte[9];
-            payload[0] = dashSwitch.pressed ? (byte)1 : (byte)0;
-            WatchEntityPayloadCodec.WriteVector2(payload, 1, dashSwitch.Position);
-            yield return new WatchEntityState(
-                new WatchEntityKey(Kind, dashSwitch.id.ID),
-                payload
+            var current = (dashSwitch.pressed, dashSwitch.Position);
+            yield return WatchEntityState.FromTyped(
+                new(Kind, dashSwitch.id.ID), current, 9,
+                static (payload, state) =>
+                {
+                    payload[0] = state.pressed ? (byte)1 : (byte)0;
+                    WatchEntityPayloadCodec.WriteVector2(payload, 1, state.Position);
+                }
             );
         }
     }
@@ -50,7 +52,7 @@ internal sealed class WatchDashSwitchAdapter : IWatchEntityAdapter
         }
 
         bool changed = false;
-        foreach (DashSwitch dashSwitch in level.Entities.OfType<DashSwitch>())
+        foreach (DashSwitch dashSwitch in WatchRoomEntityIndex.Enumerate<DashSwitch>(level))
         {
             if (!StringComparer.Ordinal.Equals(dashSwitch.id.Level, level.Session.Level)
                 || !desiredByID.TryGetValue(dashSwitch.id.ID, out WatchEntityState state))
@@ -113,16 +115,21 @@ internal sealed class WatchTempleGateAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (TempleGate gate in level.Entities.OfType<TempleGate>())
+        foreach (TempleGate gate in WatchRoomEntityIndex.Enumerate<TempleGate>(level))
         {
             if (!WatchEntityIDTable<TempleGate>.TryGet(gate, room, out int id))
                 continue;
 
-            byte[] payload = new byte[6];
-            payload[0] = gate.open ? (byte)1 : (byte)0;
-            WatchEntityPayloadCodec.WriteSingle(payload, 1, gate.drawHeight);
-            payload[5] = gate.Collidable ? (byte)1 : (byte)0;
-            yield return new WatchEntityState(new WatchEntityKey(Kind, id), payload);
+            var current = (gate.open, gate.drawHeight, gate.Collidable);
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id), current, 6,
+                static (payload, state) =>
+                {
+                    payload[0] = state.open ? (byte)1 : (byte)0;
+                    WatchEntityPayloadCodec.WriteSingle(payload, 1, state.drawHeight);
+                    payload[5] = state.Collidable ? (byte)1 : (byte)0;
+                }
+            );
         }
     }
 
@@ -146,7 +153,7 @@ internal sealed class WatchTempleGateAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        foreach (TempleGate gate in level.Entities.OfType<TempleGate>())
+        foreach (TempleGate gate in WatchRoomEntityIndex.Enumerate<TempleGate>(level))
         {
             if (!WatchEntityIDTable<TempleGate>.TryGet(gate, room, out int id)
                 || !desiredByID.TryGetValue(id, out WatchEntityState state))

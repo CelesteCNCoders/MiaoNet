@@ -192,7 +192,7 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
     {
         string room = level.Session.Level;
         HashSet<int> captured = new();
-        foreach (Seeker seeker in level.Entities.OfType<Seeker>())
+        foreach (Seeker seeker in WatchRoomEntityIndex.Enumerate<Seeker>(level))
         {
             if (!WatchEntityIDTable<Seeker>.TryGet(seeker, room, out int id)
                 || !captured.Add(id))
@@ -206,7 +206,7 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
             );
         }
 
-        foreach (SeekerStatue statue in level.Entities.OfType<SeekerStatue>())
+        foreach (SeekerStatue statue in WatchRoomEntityIndex.Enumerate<SeekerStatue>(level))
         {
             if (!WatchEntityIDTable<SeekerStatue>.TryGet(statue, room, out int id)
                 || !captured.Add(id))
@@ -237,7 +237,7 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        Dictionary<int, Seeker> seekers = level.Entities.OfType<Seeker>()
+        Dictionary<int, Seeker> seekers = WatchRoomEntityIndex.Enumerate<Seeker>(level)
             .Select(entity => (
                 Entity: entity,
                 HasID: WatchEntityIDTable<Seeker>.TryGet(entity, room, out int id),
@@ -246,7 +246,7 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
             .Where(item => item.HasID)
             .GroupBy(item => item.ID)
             .ToDictionary(group => group.Key, group => group.First().Entity);
-        Dictionary<int, SeekerStatue> statues = level.Entities.OfType<SeekerStatue>()
+        Dictionary<int, SeekerStatue> statues = WatchRoomEntityIndex.Enumerate<SeekerStatue>(level)
             .Select(entity => (
                 Entity: entity,
                 HasID: WatchEntityIDTable<SeekerStatue>.TryGet(entity, room, out int id),
@@ -417,23 +417,25 @@ internal sealed class WatchSeekerSystemAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, SeekerState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = (byte)state.Form;
-        payload[1] = (byte)state.Phase;
-        payload[2] = state.Flags;
-        payload[3] = state.Animation;
-        payload[4] = state.AnimationFrame;
-        payload[5] = state.Facing < 0 ? (byte)0 : (byte)1;
-        payload[6] = state.SpriteFacing < 0 ? (byte)0 : (byte)1;
-        WatchEntityPayloadCodec.WriteVector2(payload, 8, state.Position);
-        WatchEntityPayloadCodec.WriteVector2(payload, 16, state.Speed);
-        WatchEntityPayloadCodec.WriteVector2(payload, 24, state.Scale);
-        WatchEntityPayloadCodec.WriteSingle(payload, 32, state.LightAlpha);
-        WatchEntityPayloadCodec.WriteSingle(payload, 36, state.AttackSpeed);
-        WatchEntityPayloadCodec.WriteInt32(payload, 40, state.Depth);
-        return new(new WatchEntityKey(WatchEntityKind.SeekerSystem, id), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.SeekerSystem, id), state, PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = (byte)value.Form;
+                payload[1] = (byte)value.Phase;
+                payload[2] = value.Flags;
+                payload[3] = value.Animation;
+                payload[4] = value.AnimationFrame;
+                payload[5] = value.Facing < 0 ? (byte)0 : (byte)1;
+                payload[6] = value.SpriteFacing < 0 ? (byte)0 : (byte)1;
+                WatchEntityPayloadCodec.WriteVector2(payload, 8, value.Position);
+                WatchEntityPayloadCodec.WriteVector2(payload, 16, value.Speed);
+                WatchEntityPayloadCodec.WriteVector2(payload, 24, value.Scale);
+                WatchEntityPayloadCodec.WriteSingle(payload, 32, value.LightAlpha);
+                WatchEntityPayloadCodec.WriteSingle(payload, 36, value.AttackSpeed);
+                WatchEntityPayloadCodec.WriteInt32(payload, 40, value.Depth);
+            }
+        );
 
     private static bool TryDecode(WatchEntityState state, out SeekerState value)
     {
@@ -986,7 +988,7 @@ internal sealed class WatchSeekerBarrierAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (SeekerBarrier barrier in level.Entities.OfType<SeekerBarrier>())
+        foreach (SeekerBarrier barrier in WatchRoomEntityIndex.Enumerate<SeekerBarrier>(level))
         {
             if (!WatchEntityIDTable<SeekerBarrier>.TryGet(barrier, room, out int id))
                 continue;
@@ -1014,7 +1016,7 @@ internal sealed class WatchSeekerBarrierAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        foreach (SeekerBarrier barrier in level.Entities.OfType<SeekerBarrier>())
+        foreach (SeekerBarrier barrier in WatchRoomEntityIndex.Enumerate<SeekerBarrier>(level))
         {
             barrier.Collidable = false;
             if (!WatchEntityIDTable<SeekerBarrier>.TryGet(barrier, room, out int id)
@@ -1049,14 +1051,16 @@ internal sealed class WatchSeekerBarrierAdapter : IWatchEntityAdapter
         => new(barrier.Flashing, barrier.Flash, barrier.Solidify, barrier.solidifyDelay);
 
     private static WatchEntityState Encode(int id, BarrierState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        if (state.Flashing) payload[0] = FlashingFlag;
-        WatchEntityPayloadCodec.WriteSingle(payload, 4, state.Flash);
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Solidify);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.SolidifyDelay);
-        return new(new WatchEntityKey(WatchEntityKind.SeekerBarrier, id), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.SeekerBarrier, id), state, PayloadSize,
+            static (payload, value) =>
+            {
+                if (value.Flashing) payload[0] = FlashingFlag;
+                WatchEntityPayloadCodec.WriteSingle(payload, 4, value.Flash);
+                WatchEntityPayloadCodec.WriteSingle(payload, 8, value.Solidify);
+                WatchEntityPayloadCodec.WriteSingle(payload, 12, value.SolidifyDelay);
+            }
+        );
 
     private static bool TryDecode(WatchEntityState state, out BarrierState value)
     {

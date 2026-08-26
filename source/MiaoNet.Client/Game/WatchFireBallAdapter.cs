@@ -96,7 +96,7 @@ internal sealed class WatchFireBallAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (FireBall fireBall in level.Entities.OfType<FireBall>())
+        foreach (FireBall fireBall in WatchRoomEntityIndex.Enumerate<FireBall>(level))
         {
             if (fireBall.index is < 0 or > ushort.MaxValue
                 || !WatchEntityIDTable<FireBall>.TryGet(fireBall, room, out int id))
@@ -131,7 +131,7 @@ internal sealed class WatchFireBallAdapter : IWatchEntityAdapter
         bool changed = false;
         bool requiresReload = false;
         string room = level.Session.Level;
-        foreach (FireBall fireBall in level.Entities.OfType<FireBall>())
+        foreach (FireBall fireBall in WatchRoomEntityIndex.Enumerate<FireBall>(level))
         {
             if (fireBall.index is < 0 or > ushort.MaxValue
                 || !WatchEntityIDTable<FireBall>.TryGet(fireBall, room, out int id))
@@ -196,15 +196,17 @@ internal sealed class WatchFireBallAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, ushort subID, FireBallState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = state.Flags;
-        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Percent);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Speed);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.SpeedMultiplier);
-        return new(new WatchEntityKey(WatchEntityKind.FireBall, id, subID), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.FireBall, id, subID), state, PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.Flags;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, value.Position);
+                WatchEntityPayloadCodec.WriteSingle(payload, 12, value.Percent);
+                WatchEntityPayloadCodec.WriteSingle(payload, 16, value.Speed);
+                WatchEntityPayloadCodec.WriteSingle(payload, 20, value.SpeedMultiplier);
+            }
+        );
 
     private static bool TryDecode(WatchEntityState state, out FireBallState value)
     {
@@ -298,7 +300,7 @@ internal sealed class WatchFireBallAdapter : IWatchEntityAdapter
     private static FireBall? Find(Level level, int id, ushort subID)
     {
         string room = level.Session.Level;
-        return level.Entities.OfType<FireBall>().FirstOrDefault(candidate =>
+        return WatchRoomEntityIndex.Enumerate<FireBall>(level).FirstOrDefault(candidate =>
             candidate.index == subID
             && WatchEntityIDTable<FireBall>.TryGet(candidate, room, out int candidateID)
             && candidateID == id

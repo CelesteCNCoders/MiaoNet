@@ -6,6 +6,15 @@ namespace Celeste.Mod.MiaoNet;
 
 internal static class WatchHoldableEntityPayload
 {
+    private readonly record struct State(
+        WatchHoldablePhase Phase,
+        byte Flags,
+        byte Animation,
+        Vector2 Position,
+        Vector2 Speed,
+        float Rotation
+    );
+
     public const int Size = 24;
     public const float CorrectionInterval = 0.1f;
     public const float ThrownStateDuration = 0.12f;
@@ -23,16 +32,20 @@ internal static class WatchHoldableEntityPayload
         Vector2 speed,
         float rotation
     )
-    {
-        byte[] payload = new byte[Size];
-        payload[0] = (byte)phase;
-        payload[1] = flags;
-        payload[2] = animation;
-        WatchEntityPayloadCodec.WriteVector2(payload, 4, position);
-        WatchEntityPayloadCodec.WriteVector2(payload, 12, speed);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, rotation);
-        return new(new WatchEntityKey(kind, id), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(kind, id),
+            new State(phase, flags, animation, position, speed, rotation),
+            Size,
+            static (payload, state) =>
+            {
+                payload[0] = (byte)state.Phase;
+                payload[1] = state.Flags;
+                payload[2] = state.Animation;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+                WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Speed);
+                WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Rotation);
+            }
+        );
 
     public static bool TryParse(
         WatchEntityKind kind,
@@ -233,7 +246,7 @@ internal sealed class WatchTheoCrystalAdapter : IWatchEntityAdapter
     {
         string room = level.Session.Level;
         HashSet<int> live = new();
-        foreach (TheoCrystal crystal in level.Entities.OfType<TheoCrystal>())
+        foreach (TheoCrystal crystal in WatchRoomEntityIndex.Enumerate<TheoCrystal>(level))
         {
             if (!infos.TryGetValue(crystal, out WatchHoldableSyncInfo? info))
                 continue;
@@ -288,7 +301,7 @@ internal sealed class WatchTheoCrystalAdapter : IWatchEntityAdapter
         }
 
         bool changed = false;
-        foreach (TheoCrystal crystal in level.Entities.OfType<TheoCrystal>().ToArray())
+        foreach (TheoCrystal crystal in WatchRoomEntityIndex.Enumerate<TheoCrystal>(level).ToArray())
         {
             if (!infos.TryGetValue(crystal, out WatchHoldableSyncInfo? info)
                 || info.Level != level.Session.Level
@@ -378,7 +391,7 @@ internal sealed class WatchTheoCrystalAdapter : IWatchEntityAdapter
     }
 
     private static TheoCrystal? Find(Level level, int id)
-        => level.Entities.OfType<TheoCrystal>().FirstOrDefault(crystal =>
+        => WatchRoomEntityIndex.Enumerate<TheoCrystal>(level).FirstOrDefault(crystal =>
             infos.TryGetValue(crystal, out WatchHoldableSyncInfo? info)
             && info.Level == level.Session.Level && info.ID == id);
 
@@ -526,7 +539,7 @@ internal sealed class WatchGliderAdapter : IWatchEntityAdapter
     {
         string room = level.Session.Level;
         HashSet<int> live = new();
-        foreach (Glider glider in level.Entities.OfType<Glider>())
+        foreach (Glider glider in WatchRoomEntityIndex.Enumerate<Glider>(level))
         {
             if (!infos.TryGetValue(glider, out WatchHoldableSyncInfo? info))
                 continue;
@@ -577,7 +590,7 @@ internal sealed class WatchGliderAdapter : IWatchEntityAdapter
                 return WatchEntityApplyResult.None;
         }
         bool changed = false;
-        foreach (Glider glider in level.Entities.OfType<Glider>().ToArray())
+        foreach (Glider glider in WatchRoomEntityIndex.Enumerate<Glider>(level).ToArray())
         {
             if (!infos.TryGetValue(glider, out WatchHoldableSyncInfo? info) || info.Level != level.Session.Level
                 || !desired.Remove(info.ID, out WatchEntityState state)
@@ -692,7 +705,7 @@ internal sealed class WatchGliderAdapter : IWatchEntityAdapter
     }
 
     private static Glider? Find(Level level, int id)
-        => level.Entities.OfType<Glider>().FirstOrDefault(glider =>
+        => WatchRoomEntityIndex.Enumerate<Glider>(level).FirstOrDefault(glider =>
             infos.TryGetValue(glider, out WatchHoldableSyncInfo? info)
             && info.Level == level.Session.Level && info.ID == id);
 
@@ -882,10 +895,14 @@ internal sealed class WatchTheoCrystalPedestalAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (TheoCrystalPedestal pedestal in level.Entities.OfType<TheoCrystalPedestal>())
+        foreach (TheoCrystalPedestal pedestal in WatchRoomEntityIndex.Enumerate<TheoCrystalPedestal>(level))
         {
             if (WatchEntityIDTable<TheoCrystalPedestal>.TryGet(pedestal, level.Session.Level, out int id))
-                yield return new(new WatchEntityKey(Kind, id), [pedestal.DroppedTheo ? (byte)1 : (byte)0]);
+                yield return WatchEntityState.FromTyped(
+                    new(Kind, id),
+                    pedestal.DroppedTheo,
+                    static value => [value ? (byte)1 : (byte)0]
+                );
         }
     }
 
@@ -899,7 +916,7 @@ internal sealed class WatchTheoCrystalPedestalAdapter : IWatchEntityAdapter
                 return WatchEntityApplyResult.None;
         }
         bool changed = false;
-        foreach (TheoCrystalPedestal pedestal in level.Entities.OfType<TheoCrystalPedestal>())
+        foreach (TheoCrystalPedestal pedestal in WatchRoomEntityIndex.Enumerate<TheoCrystalPedestal>(level))
         {
             if (!WatchEntityIDTable<TheoCrystalPedestal>.TryGet(pedestal, level.Session.Level, out int id)
                 || !desired.TryGetValue(id, out bool dropped) || pedestal.DroppedTheo == dropped)

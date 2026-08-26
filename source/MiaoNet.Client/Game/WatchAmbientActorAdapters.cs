@@ -7,24 +7,32 @@ internal sealed class WatchTimedStateCache
 {
     private const float AnchorInterval = 0.1f;
     private bool hasState;
-    private byte[] signature = [];
+    private object? typedSignature;
+    private Type? typedSignatureType;
     private float nextAnchor;
     private WatchEntityState state;
 
-    public WatchEntityState Capture(
+    public WatchEntityState Capture<TState, TSignature>(
         WatchEntityKey key,
-        byte[] payload,
-        int signatureLength,
+        TState current,
+        TSignature currentSignature,
+        int payloadSize,
+        WatchEntityPayloadEncoder<TState> encoder,
         float sceneTime,
         bool force
     )
     {
         bool signatureChanged = !hasState
-            || !payload.AsSpan(0, signatureLength).SequenceEqual(signature);
+            || typedSignatureType != typeof(TSignature)
+            || !EqualityComparer<TSignature>.Default.Equals(
+                currentSignature,
+                (TSignature)typedSignature!
+            );
         if (force || signatureChanged || sceneTime >= nextAnchor)
         {
-            state = new(key, payload);
-            signature = payload[..signatureLength];
+            state = WatchEntityState.FromTyped(key, current, payloadSize, encoder);
+            typedSignature = currentSignature;
+            typedSignatureType = typeof(TSignature);
             hasState = true;
             nextAnchor = sceneTime + AnchorInterval;
         }
@@ -138,24 +146,46 @@ internal sealed class WatchBirdNPCAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (BirdNPC bird in level.Entities.OfType<BirdNPC>())
+        foreach (BirdNPC bird in WatchRoomEntityIndex.Enumerate<BirdNPC>(level))
         {
             if (!WatchEntityIDTable<BirdNPC>.TryGet(bird, level.Session.Level, out int id))
                 continue;
-            byte[] payload = new byte[PayloadSize];
-            if (bird.Visible) payload[0] |= 1;
-            if (bird.Sprite.Visible) payload[0] |= 2;
-            if (bird.Light.Visible) payload[0] |= 4;
-            payload[1] = (byte)bird.mode;
-            payload[2] = bird.Facing == Facings.Left ? (byte)0 : (byte)1;
-            payload[3] = WatchAmbientAnimation.Encode(bird.Sprite.CurrentAnimationID);
-            payload[4] = (byte)Math.Max(0, bird.Sprite.CurrentAnimationFrame);
-            WriteTransform(payload, bird.Position, bird.Sprite);
-            WatchEntityPayloadCodec.WriteSingle(payload, 28, bird.Light.Alpha);
-            WatchEntityPayloadCodec.WriteSingle(payload, 32, bird.Sprite.Rate);
-            WatchEntityPayloadCodec.WriteVector2(payload, 36, bird.Sprite.Position);
+            byte flags = 0;
+            if (bird.Visible) flags |= 1;
+            if (bird.Sprite.Visible) flags |= 2;
+            if (bird.Light.Visible) flags |= 4;
+            var current = (
+                Flags: flags,
+                Mode: (byte)bird.mode,
+                Facing: bird.Facing == Facings.Left ? (byte)0 : (byte)1,
+                Animation: WatchAmbientAnimation.Encode(bird.Sprite.CurrentAnimationID),
+                AnimationFrame: (byte)Math.Max(0, bird.Sprite.CurrentAnimationFrame),
+                Position: bird.Position,
+                Scale: bird.Sprite.Scale,
+                Rotation: bird.Sprite.Rotation,
+                LightAlpha: bird.Light.Alpha,
+                Rate: bird.Sprite.Rate,
+                SpritePosition: bird.Sprite.Position
+            );
             yield return syncInfo.GetValue(bird, static _ => new()).Capture(
-                new(Kind, id), payload, 4, level.TimeActive,
+                new(Kind, id), current,
+                (current.Flags, current.Mode, current.Facing, current.Animation),
+                PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[1] = state.Mode;
+                    payload[2] = state.Facing;
+                    payload[3] = state.Animation;
+                    payload[4] = state.AnimationFrame;
+                    WatchEntityPayloadCodec.WriteVector2(payload, 8, state.Position);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 16, state.Scale);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 24, state.Rotation);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 28, state.LightAlpha);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 32, state.Rate);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 36, state.SpritePosition);
+                },
+                level.TimeActive,
                 WatchEntitySyncRegistry.IsCapturingCurrentState
             );
         }
@@ -270,21 +300,37 @@ internal sealed class WatchFlutterBirdAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (FlutterBird bird in level.Entities.OfType<FlutterBird>())
+        foreach (FlutterBird bird in WatchRoomEntityIndex.Enumerate<FlutterBird>(level))
         {
             if (!WatchEntityIDTable<FlutterBird>.TryGet(bird, level.Session.Level, out int id))
                 continue;
-            byte[] p = new byte[PayloadSize];
-            if (bird.Visible) p[0] |= 1;
-            if (bird.flyingAway) p[0] |= 2;
-            p[1] = WatchAmbientAnimation.Encode(bird.sprite.CurrentAnimationID);
-            p[2] = (byte)Math.Max(0, bird.sprite.CurrentAnimationFrame);
-            WatchEntityPayloadCodec.WriteVector2(p, 4, bird.Position);
-            WatchEntityPayloadCodec.WriteVector2(p, 12, bird.sprite.Scale);
-            WatchEntityPayloadCodec.WriteSingle(p, 20, bird.sprite.Rotation);
-            WatchEntityPayloadCodec.WriteSingle(p, 24, bird.sprite.Rate);
+            byte flags = 0;
+            if (bird.Visible) flags |= 1;
+            if (bird.flyingAway) flags |= 2;
+            var current = (
+                Flags: flags,
+                Animation: WatchAmbientAnimation.Encode(bird.sprite.CurrentAnimationID),
+                AnimationFrame: (byte)Math.Max(0, bird.sprite.CurrentAnimationFrame),
+                Position: bird.Position,
+                Scale: bird.sprite.Scale,
+                Rotation: bird.sprite.Rotation,
+                Rate: bird.sprite.Rate
+            );
             yield return syncInfo.GetValue(bird, static _ => new()).Capture(
-                new(Kind, id), p, 3, level.TimeActive,
+                new(Kind, id), current,
+                (current.Flags, current.Animation, current.AnimationFrame),
+                PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[1] = state.Animation;
+                    payload[2] = state.AnimationFrame;
+                    WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Scale);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Rotation);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 24, state.Rate);
+                },
+                level.TimeActive,
                 WatchEntitySyncRegistry.IsCapturingCurrentState
             );
         }
@@ -381,24 +427,43 @@ internal sealed class WatchMoonCreatureAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (MoonCreature creature in level.Entities.OfType<MoonCreature>())
+        foreach (MoonCreature creature in WatchRoomEntityIndex.Enumerate<MoonCreature>(level))
         {
             if (!WatchEntityIDTable<MoonCreature>.TryGet(creature, level.Session.Level, out int id))
                 continue;
-            byte[] p = new byte[PayloadSize];
-            if (creature.Visible) p[0] |= 1;
-            if (creature.following is not null) p[0] |= 2;
-            p[1] = (byte)Math.Clamp(creature.spawn, 0, byte.MaxValue);
-            p[2] = WatchAmbientAnimation.Encode(creature.Sprite.CurrentAnimationID);
-            p[3] = (byte)Math.Max(0, creature.Sprite.CurrentAnimationFrame);
-            WatchEntityPayloadCodec.WriteVector2(p, 4, creature.Position);
-            WatchEntityPayloadCodec.WriteVector2(p, 12, creature.speed);
-            WatchEntityPayloadCodec.WriteVector2(p, 20, creature.target);
-            WatchEntityPayloadCodec.WriteVector2(p, 28, creature.bump);
-            WatchEntityPayloadCodec.WriteSingle(p, 36, creature.followingTime);
-            WatchEntityPayloadCodec.WriteVector2(p, 40, creature.followingOffset);
+            byte flags = 0;
+            if (creature.Visible) flags |= 1;
+            if (creature.following is not null) flags |= 2;
+            var current = (
+                Flags: flags,
+                Spawn: (byte)Math.Clamp(creature.spawn, 0, byte.MaxValue),
+                Animation: WatchAmbientAnimation.Encode(creature.Sprite.CurrentAnimationID),
+                AnimationFrame: (byte)Math.Max(0, creature.Sprite.CurrentAnimationFrame),
+                Position: creature.Position,
+                Speed: creature.speed,
+                Target: creature.target,
+                Bump: creature.bump,
+                FollowingTime: creature.followingTime,
+                FollowingOffset: creature.followingOffset
+            );
             yield return syncInfo.GetValue(creature, static _ => new()).Capture(
-                new(Kind, id), p, 4, level.TimeActive,
+                new(Kind, id), current,
+                (current.Flags, current.Spawn, current.Animation, current.AnimationFrame),
+                PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[1] = state.Spawn;
+                    payload[2] = state.Animation;
+                    payload[3] = state.AnimationFrame;
+                    WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Speed);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 20, state.Target);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 28, state.Bump);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 36, state.FollowingTime);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 40, state.FollowingOffset);
+                },
+                level.TimeActive,
                 WatchEntitySyncRegistry.IsCapturingCurrentState
             );
         }
@@ -509,25 +574,42 @@ internal sealed class WatchFlingBirdIntroAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (FlingBirdIntro bird in level.Entities.OfType<FlingBirdIntro>())
+        foreach (FlingBirdIntro bird in WatchRoomEntityIndex.Enumerate<FlingBirdIntro>(level))
         {
             if (!WatchEntityIDTable<FlingBirdIntro>.TryGet(bird, level.Session.Level, out int id))
                 continue;
-            byte[] p = new byte[PayloadSize];
-            if (bird.Visible) p[0] |= 1;
-            if (bird.startedRoutine) p[0] |= 2;
-            if (bird.crashes) p[0] |= 4;
-            if (bird.emitParticles) p[0] |= 8;
-            if (bird.inCutscene) p[0] |= 16;
-            p[1] = WatchAmbientAnimation.Encode(bird.Sprite.CurrentAnimationID);
-            p[2] = (byte)Math.Max(0, bird.Sprite.CurrentAnimationFrame);
-            WatchEntityPayloadCodec.WriteVector2(p, 4, bird.Position);
-            WatchEntityPayloadCodec.WriteVector2(p, 12, bird.Sprite.Scale);
-            WatchEntityPayloadCodec.WriteSingle(p, 20, bird.Sprite.Rotation);
-            WatchEntityPayloadCodec.WriteVector2(p, 24, bird.BirdEndPosition);
-            WatchEntityPayloadCodec.WriteSingle(p, 32, bird.Sprite.Rate);
+            byte flags = 0;
+            if (bird.Visible) flags |= 1;
+            if (bird.startedRoutine) flags |= 2;
+            if (bird.crashes) flags |= 4;
+            if (bird.emitParticles) flags |= 8;
+            if (bird.inCutscene) flags |= 16;
+            var current = (
+                Flags: flags,
+                Animation: WatchAmbientAnimation.Encode(bird.Sprite.CurrentAnimationID),
+                AnimationFrame: (byte)Math.Max(0, bird.Sprite.CurrentAnimationFrame),
+                Position: bird.Position,
+                Scale: bird.Sprite.Scale,
+                Rotation: bird.Sprite.Rotation,
+                EndPosition: bird.BirdEndPosition,
+                Rate: bird.Sprite.Rate
+            );
             yield return syncInfo.GetValue(bird, static _ => new()).Capture(
-                new(Kind, id), p, 3, level.TimeActive,
+                new(Kind, id), current,
+                (current.Flags, current.Animation, current.AnimationFrame),
+                PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[1] = state.Animation;
+                    payload[2] = state.AnimationFrame;
+                    WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Scale);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Rotation);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 24, state.EndPosition);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 32, state.Rate);
+                },
+                level.TimeActive,
                 WatchEntitySyncRegistry.IsCapturingCurrentState
             );
         }

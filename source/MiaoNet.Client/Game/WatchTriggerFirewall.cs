@@ -17,7 +17,7 @@ internal static class WatchTriggerFirewall
             player.triggersInside.Clear();
         foreach (Trigger trigger in level.Tracker.GetEntities<Trigger>().Cast<Trigger>())
             trigger.Triggered = false;
-        foreach (BirdTutorialGui tutorial in level.Entities.OfType<BirdTutorialGui>())
+        foreach (BirdTutorialGui tutorial in WatchRoomEntityIndex.Enumerate<BirdTutorialGui>(level))
         {
             tutorial.Open = false;
             tutorial.Visible = false;

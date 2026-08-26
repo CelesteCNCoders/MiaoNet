@@ -17,6 +17,19 @@ internal sealed class WatchBadelineDummyAdapter : IWatchEntityAdapter
     private const byte LightVisibleFlag = 1 << 3;
     private const byte FacingLeftFlag = 1 << 4;
 
+    private readonly record struct DummyState(
+        byte Flags,
+        byte AnimationFrame,
+        ushort Animation,
+        int Depth,
+        Vector2 Position,
+        Vector2 Scale,
+        float Rotation,
+        float Rate,
+        float HairAlpha,
+        float LightAlpha
+    );
+
     private sealed class SourceIdentity
     {
         public int ID { get; }
@@ -57,15 +70,16 @@ internal sealed class WatchBadelineDummyAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (BadelineDummy dummy in level.Entities.OfType<BadelineDummy>())
+        foreach (BadelineDummy dummy in WatchRoomEntityIndex.Enumerate<BadelineDummy>(level))
         {
             if (remote.TryGetValue(dummy, out _))
                 continue;
             SourceIdentity identity = sourceIDs.GetValue(dummy,
                 static _ => new SourceIdentity(Interlocked.Increment(ref nextSourceID)));
-            byte[] payload = Encode(dummy);
+            DummyState current = Capture(dummy);
             yield return sync.GetValue(dummy, static _ => new()).Capture(
-                new(Kind, identity.ID), payload, 1, level.TimeActive,
+                new(Kind, identity.ID), current, current.Flags, PayloadSize, Encode,
+                level.TimeActive,
                 WatchEntitySyncRegistry.IsCapturingCurrentState
             );
         }
@@ -125,24 +139,40 @@ internal sealed class WatchBadelineDummyAdapter : IWatchEntityAdapter
     }
 
 
-    private static byte[] Encode(BadelineDummy dummy)
+    private static DummyState Capture(BadelineDummy dummy)
     {
-        byte[] payload = new byte[PayloadSize];
-        if (dummy.Visible) payload[0] |= VisibleFlag;
-        if (dummy.Sprite.Visible) payload[0] |= SpriteVisibleFlag;
-        if (dummy.Hair.Visible) payload[0] |= HairVisibleFlag;
-        if (dummy.Light.Visible) payload[0] |= LightVisibleFlag;
-        if (dummy.Hair.Facing == Facings.Left) payload[0] |= FacingLeftFlag;
-        payload[1] = (byte)Math.Clamp(dummy.Sprite.CurrentAnimationFrame, 0, byte.MaxValue);
-        WatchEntityPayloadCodec.WriteUInt16(payload, 2, WatchSpriteState.EncodeAnimation(dummy.Sprite));
-        WatchEntityPayloadCodec.WriteInt32(payload, 4, dummy.Depth);
-        WatchEntityPayloadCodec.WriteVector2(payload, 8, dummy.Position);
-        WatchEntityPayloadCodec.WriteVector2(payload, 16, dummy.Sprite.Scale);
-        WatchEntityPayloadCodec.WriteSingle(payload, 24, dummy.Sprite.Rotation);
-        WatchEntityPayloadCodec.WriteSingle(payload, 28, dummy.Sprite.Rate);
-        WatchEntityPayloadCodec.WriteSingle(payload, 32, Math.Clamp(dummy.Hair.Alpha, 0f, 1f));
-        WatchEntityPayloadCodec.WriteSingle(payload, 36, Math.Clamp(dummy.Light.Alpha, 0f, 1f));
-        return payload;
+        byte flags = 0;
+        if (dummy.Visible) flags |= VisibleFlag;
+        if (dummy.Sprite.Visible) flags |= SpriteVisibleFlag;
+        if (dummy.Hair.Visible) flags |= HairVisibleFlag;
+        if (dummy.Light.Visible) flags |= LightVisibleFlag;
+        if (dummy.Hair.Facing == Facings.Left) flags |= FacingLeftFlag;
+        return new(
+            flags,
+            (byte)Math.Clamp(dummy.Sprite.CurrentAnimationFrame, 0, byte.MaxValue),
+            WatchSpriteState.EncodeAnimation(dummy.Sprite),
+            dummy.Depth,
+            dummy.Position,
+            dummy.Sprite.Scale,
+            dummy.Sprite.Rotation,
+            dummy.Sprite.Rate,
+            Math.Clamp(dummy.Hair.Alpha, 0f, 1f),
+            Math.Clamp(dummy.Light.Alpha, 0f, 1f)
+        );
+    }
+
+    private static void Encode(Span<byte> payload, DummyState state)
+    {
+        payload[0] = state.Flags;
+        payload[1] = state.AnimationFrame;
+        WatchEntityPayloadCodec.WriteUInt16(payload, 2, state.Animation);
+        WatchEntityPayloadCodec.WriteInt32(payload, 4, state.Depth);
+        WatchEntityPayloadCodec.WriteVector2(payload, 8, state.Position);
+        WatchEntityPayloadCodec.WriteVector2(payload, 16, state.Scale);
+        WatchEntityPayloadCodec.WriteSingle(payload, 24, state.Rotation);
+        WatchEntityPayloadCodec.WriteSingle(payload, 28, state.Rate);
+        WatchEntityPayloadCodec.WriteSingle(payload, 32, state.HairAlpha);
+        WatchEntityPayloadCodec.WriteSingle(payload, 36, state.LightAlpha);
     }
 
     private static void Apply(BadelineDummy dummy, ReadOnlySpan<byte> payload)

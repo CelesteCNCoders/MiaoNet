@@ -98,7 +98,7 @@ internal sealed class WatchSnowballAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (Snowball snowball in level.Entities.OfType<Snowball>())
+        foreach (Snowball snowball in WatchRoomEntityIndex.Enumerate<Snowball>(level))
         {
             if (!WatchEntityIDTable<Snowball>.TryGet(snowball, room, out int id))
                 continue;
@@ -129,7 +129,7 @@ internal sealed class WatchSnowballAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        foreach (Snowball snowball in level.Entities.OfType<Snowball>())
+        foreach (Snowball snowball in WatchRoomEntityIndex.Enumerate<Snowball>(level))
         {
             if (!WatchEntityIDTable<Snowball>.TryGet(snowball, room, out int id))
                 continue;
@@ -202,18 +202,20 @@ internal sealed class WatchSnowballAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, SnowballState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = (byte)state.Phase;
-        payload[1] = state.Flags;
-        payload[2] = state.Phase == WatchSnowballPhase.Broken ? (byte)1 : (byte)0;
-        payload[3] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, state.AtY);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, state.ResetTimer);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.SineCounter);
-        return new(new WatchEntityKey(WatchEntityKind.Snowball, id), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.Snowball, id), state, PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = (byte)value.Phase;
+                payload[1] = value.Flags;
+                payload[2] = value.Phase == WatchSnowballPhase.Broken ? (byte)1 : (byte)0;
+                payload[3] = value.AnimationFrame;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, value.Position);
+                WatchEntityPayloadCodec.WriteSingle(payload, 12, value.AtY);
+                WatchEntityPayloadCodec.WriteSingle(payload, 16, value.ResetTimer);
+                WatchEntityPayloadCodec.WriteSingle(payload, 20, value.SineCounter);
+            }
+        );
 
     private static bool TryDecode(WatchEntityState state, out SnowballState value)
     {

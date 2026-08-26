@@ -26,10 +26,14 @@ internal sealed class WatchTorchAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (Torch torch in level.Entities.OfType<Torch>())
+        foreach (Torch torch in WatchRoomEntityIndex.Enumerate<Torch>(level))
         {
             if (WatchEntityIDTable<Torch>.TryGet(torch, level.Session.Level, out int id))
-                yield return new(new WatchEntityKey(Kind, id), [torch.lit ? (byte)1 : (byte)0]);
+                yield return WatchEntityState.FromTyped(
+                    new(Kind, id),
+                    torch.lit,
+                    static value => [value ? (byte)1 : (byte)0]
+                );
         }
     }
 
@@ -43,7 +47,7 @@ internal sealed class WatchTorchAdapter : IWatchEntityAdapter
                 return WatchEntityApplyResult.None;
         }
         bool changed = false;
-        foreach (Torch torch in level.Entities.OfType<Torch>())
+        foreach (Torch torch in WatchRoomEntityIndex.Enumerate<Torch>(level))
         {
             if (!WatchEntityIDTable<Torch>.TryGet(torch, level.Session.Level, out int id)
                 || !desired.TryGetValue(id, out bool lit) || torch.lit == lit)
@@ -122,7 +126,7 @@ internal sealed class WatchTempleCrackedBlockAdapter : IWatchEntityAdapter
     {
         string room = level.Session.Level;
         HashSet<int> live = new();
-        foreach (TempleCrackedBlock block in level.Entities.OfType<TempleCrackedBlock>())
+        foreach (TempleCrackedBlock block in WatchRoomEntityIndex.Enumerate<TempleCrackedBlock>(level))
         {
             if (block.eid.Level != room)
                 continue;
@@ -159,7 +163,7 @@ internal sealed class WatchTempleCrackedBlockAdapter : IWatchEntityAdapter
                 return WatchEntityApplyResult.None;
         }
         bool changed = false;
-        foreach (TempleCrackedBlock block in level.Entities.OfType<TempleCrackedBlock>().ToArray())
+        foreach (TempleCrackedBlock block in WatchRoomEntityIndex.Enumerate<TempleCrackedBlock>(level).ToArray())
         {
             if (block.eid.Level != level.Session.Level
                 || !desired.Remove(block.eid.ID, out bool shouldBeBroken))
@@ -220,7 +224,7 @@ internal sealed class WatchTempleCrackedBlockAdapter : IWatchEntityAdapter
     {
         if (entityEvent.EventID != BreakEvent || entityEvent.Payload.Length != 8)
             return;
-        TempleCrackedBlock? block = level.Entities.OfType<TempleCrackedBlock>().FirstOrDefault(candidate =>
+        TempleCrackedBlock? block = WatchRoomEntityIndex.Enumerate<TempleCrackedBlock>(level).FirstOrDefault(candidate =>
             candidate.eid.Level == level.Session.Level && candidate.eid.ID == entityEvent.Key.EntityID);
         if (block is null || block.broken)
             return;
@@ -233,7 +237,11 @@ internal sealed class WatchTempleCrackedBlockAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, bool isBroken)
-        => new(new WatchEntityKey(WatchEntityKind.TempleCrackedBlock, id), [isBroken ? (byte)1 : (byte)0]);
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.TempleCrackedBlock, id),
+            isBroken,
+            static value => [value ? (byte)1 : (byte)0]
+        );
 
     private static bool TryRecreate(Level level, int id)
     {
@@ -317,11 +325,18 @@ internal sealed class WatchTempleBigEyeballAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (TempleBigEyeball eye in level.Entities.OfType<TempleBigEyeball>())
+        foreach (TempleBigEyeball eye in WatchRoomEntityIndex.Enumerate<TempleBigEyeball>(level))
         {
             if (infos.TryGetValue(eye, out Info? info) && info.Level == level.Session.Level)
-                yield return new(new WatchEntityKey(Kind, info.ID),
-                    [eye.triggered ? (byte)1 : (byte)0, eye.bursting ? (byte)1 : (byte)0]);
+                yield return WatchEntityState.FromTyped(
+                    new(Kind, info.ID),
+                    (eye.triggered, eye.bursting),
+                    static state =>
+                    [
+                        state.triggered ? (byte)1 : (byte)0,
+                        state.bursting ? (byte)1 : (byte)0,
+                    ]
+                );
         }
     }
 
@@ -337,7 +352,7 @@ internal sealed class WatchTempleBigEyeballAdapter : IWatchEntityAdapter
                 return WatchEntityApplyResult.None;
         }
         bool changed = false;
-        foreach (TempleBigEyeball eye in level.Entities.OfType<TempleBigEyeball>())
+        foreach (TempleBigEyeball eye in WatchRoomEntityIndex.Enumerate<TempleBigEyeball>(level))
         {
             if (!infos.TryGetValue(eye, out Info? info) || info.Level != level.Session.Level
                 || !desired.TryGetValue(info.ID, out var state))
@@ -354,7 +369,7 @@ internal sealed class WatchTempleBigEyeballAdapter : IWatchEntityAdapter
 
     public void ApplyEvent(Level level, WatchEntityEvent entityEvent)
     {
-        TempleBigEyeball? eye = level.Entities.OfType<TempleBigEyeball>().FirstOrDefault(candidate =>
+        TempleBigEyeball? eye = WatchRoomEntityIndex.Enumerate<TempleBigEyeball>(level).FirstOrDefault(candidate =>
             infos.TryGetValue(candidate, out Info? info)
             && info.Level == level.Session.Level && info.ID == entityEvent.Key.EntityID);
         if (eye is null || entityEvent.Payload.Length != 0)
@@ -380,7 +395,7 @@ internal sealed class WatchTempleBigEyeballAdapter : IWatchEntityAdapter
         eye.sprite.Play("burst");
         eye.pupil.Visible = false;
         level.Shake();
-        foreach (TempleEye templeEye in level.Entities.OfType<TempleEye>())
+        foreach (TempleEye templeEye in WatchRoomEntityIndex.Enumerate<TempleEye>(level))
             templeEye.Burst();
     }
 

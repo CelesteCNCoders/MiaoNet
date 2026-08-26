@@ -15,6 +15,15 @@ internal sealed class WatchDoorMechanismAdapter : IWatchEntityAdapter
     private const byte CollidableFlag = 1 << 1;
     private const byte BoolFlag = 1 << 2;
 
+    private readonly record struct DoorState(
+        byte Type,
+        byte Flags,
+        byte Animation,
+        ushort AnimationFrame,
+        float Value0,
+        float Value1
+    );
+
     private static readonly WatchDoorMechanismAdapter instance = new();
     private static readonly Dictionary<WatchEntityKey, byte[]> remoteStates = new();
     private static string? remoteRoom;
@@ -53,7 +62,7 @@ internal sealed class WatchDoorMechanismAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (Door door in level.Entities.OfType<Door>())
+        foreach (Door door in WatchRoomEntityIndex.Enumerate<Door>(level))
         {
             if (WatchEntityIDTable<Door>.TryGet(door, room, out int id))
                 yield return Encode(
@@ -65,7 +74,7 @@ internal sealed class WatchDoorMechanismAdapter : IWatchEntityAdapter
                     0f
                 );
         }
-        foreach (Trapdoor door in level.Entities.OfType<Trapdoor>())
+        foreach (Trapdoor door in WatchRoomEntityIndex.Enumerate<Trapdoor>(level))
         {
             if (WatchEntityIDTable<Trapdoor>.TryGet(door, room, out int id))
                 yield return Encode(
@@ -77,7 +86,7 @@ internal sealed class WatchDoorMechanismAdapter : IWatchEntityAdapter
                     0f
                 );
         }
-        foreach (MrOshiroDoor door in level.Entities.OfType<MrOshiroDoor>())
+        foreach (MrOshiroDoor door in WatchRoomEntityIndex.Enumerate<MrOshiroDoor>(level))
         {
             if (WatchEntityIDTable<MrOshiroDoor>.TryGet(door, room, out int id))
                 yield return Encode(
@@ -192,13 +201,13 @@ internal sealed class WatchDoorMechanismAdapter : IWatchEntityAdapter
     private static IEnumerable<(Entity Entity, WatchEntityKey Key)> Enumerate(Level level)
     {
         string room = level.Session.Level;
-        foreach (Door door in level.Entities.OfType<Door>())
+        foreach (Door door in WatchRoomEntityIndex.Enumerate<Door>(level))
             if (WatchEntityIDTable<Door>.TryGet(door, room, out int id))
                 yield return (door, new WatchEntityKey(WatchEntityKind.DoorMechanism, id, DoorType));
-        foreach (Trapdoor door in level.Entities.OfType<Trapdoor>())
+        foreach (Trapdoor door in WatchRoomEntityIndex.Enumerate<Trapdoor>(level))
             if (WatchEntityIDTable<Trapdoor>.TryGet(door, room, out int id))
                 yield return (door, new WatchEntityKey(WatchEntityKind.DoorMechanism, id, TrapdoorType));
-        foreach (MrOshiroDoor door in level.Entities.OfType<MrOshiroDoor>())
+        foreach (MrOshiroDoor door in WatchRoomEntityIndex.Enumerate<MrOshiroDoor>(level))
             if (WatchEntityIDTable<MrOshiroDoor>.TryGet(door, room, out int id))
                 yield return (door, new WatchEntityKey(WatchEntityKind.DoorMechanism, id, OshiroDoorType));
     }
@@ -216,16 +225,27 @@ internal sealed class WatchDoorMechanismAdapter : IWatchEntityAdapter
         float value0,
         float value1
     )
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = type;
-        payload[1] = flags;
-        payload[2] = EncodeAnimation(sprite.CurrentAnimationID);
-        WatchEntityPayloadCodec.WriteUInt16(payload, 4, (ushort)Math.Max(0, sprite.CurrentAnimationFrame));
-        WatchEntityPayloadCodec.WriteSingle(payload, 8, value0);
-        WatchEntityPayloadCodec.WriteSingle(payload, 12, value1);
-        return new WatchEntityState(key, payload);
-    }
+        => WatchEntityState.FromTyped(
+            key,
+            new DoorState(
+                type,
+                flags,
+                EncodeAnimation(sprite.CurrentAnimationID),
+                (ushort)Math.Max(0, sprite.CurrentAnimationFrame),
+                value0,
+                value1
+            ),
+            PayloadSize,
+            static (payload, state) =>
+            {
+                payload[0] = state.Type;
+                payload[1] = state.Flags;
+                payload[2] = state.Animation;
+                WatchEntityPayloadCodec.WriteUInt16(payload, 4, state.AnimationFrame);
+                WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Value0);
+                WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Value1);
+            }
+        );
 
     private static bool TryValidate(WatchEntityState state)
     {

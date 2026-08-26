@@ -37,31 +37,49 @@ internal sealed class WatchCassetteBlockAdapter : IWatchEntityAdapter
         CassetteBlockManager? manager = level.Tracker.GetEntity<CassetteBlockManager>();
         if (manager is not null)
         {
-            byte[] payload = new byte[PayloadSize];
-            payload[0] = ManagerType;
-            WatchEntityPayloadCodec.WriteInt32(payload, 4, manager.currentIndex);
-            WatchEntityPayloadCodec.WriteSingle(payload, 8, manager.beatTimer);
-            WatchEntityPayloadCodec.WriteInt32(payload, 12, manager.beatIndex);
-            WatchEntityPayloadCodec.WriteSingle(payload, 16, manager.tempoMult);
-            WatchEntityPayloadCodec.WriteInt32(payload, 20, manager.beatIndexOffset);
-            yield return new WatchEntityState(new WatchEntityKey(Kind, 0), payload);
+            var current = (
+                manager.currentIndex,
+                manager.beatTimer,
+                manager.beatIndex,
+                manager.tempoMult,
+                manager.beatIndexOffset
+            );
+            yield return WatchEntityState.FromTyped(
+                new(Kind, 0), current, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = ManagerType;
+                    WatchEntityPayloadCodec.WriteInt32(payload, 4, state.currentIndex);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 8, state.beatTimer);
+                    WatchEntityPayloadCodec.WriteInt32(payload, 12, state.beatIndex);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 16, state.tempoMult);
+                    WatchEntityPayloadCodec.WriteInt32(payload, 20, state.beatIndexOffset);
+                }
+            );
         }
 
         string room = level.Session.Level;
-        foreach (CassetteBlock block in level.Entities.OfType<CassetteBlock>())
+        foreach (CassetteBlock block in WatchRoomEntityIndex.Enumerate<CassetteBlock>(level))
         {
             if (!WatchEntityIDTable<CassetteBlock>.TryGet(block, room, out int id))
                 continue;
-            byte[] payload = new byte[PayloadSize];
-            payload[0] = BlockType;
-            payload[1] = (byte)((block.Activated ? 1 : 0)
+            byte flags = (byte)((block.Activated ? 1 : 0)
                 | (block.Visible ? 2 : 0)
                 | (block.Collidable ? 4 : 0));
-            payload[2] = (byte)block.Mode;
-            payload[3] = (byte)block.Index;
-            WatchEntityPayloadCodec.WriteVector2(payload, 4, block.Position);
-            WatchEntityPayloadCodec.WriteInt32(payload, 12, block.blockHeight);
-            yield return new WatchEntityState(new WatchEntityKey(Kind, id, 1), payload);
+            var current = (Flags: flags, Mode: (byte)block.Mode, Index: (byte)block.Index,
+                block.Position, Height: block.blockHeight);
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id, 1), current, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = BlockType;
+                    payload[1] = state.Flags;
+                    payload[2] = state.Mode;
+                    payload[3] = state.Index;
+                    WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+                    WatchEntityPayloadCodec.WriteInt32(payload, 12, state.Height);
+                }
+            );
         }
     }
 
@@ -112,7 +130,7 @@ internal sealed class WatchCassetteBlockAdapter : IWatchEntityAdapter
             changed |= ApplyRemoteManager(manager, managerPayload);
 
         string room = level.Session.Level;
-        foreach (CassetteBlock block in level.Entities.OfType<CassetteBlock>())
+        foreach (CassetteBlock block in WatchRoomEntityIndex.Enumerate<CassetteBlock>(level))
         {
             if (!WatchEntityIDTable<CassetteBlock>.TryGet(block, room, out int id)
                 || !remoteStates.TryGetValue(
@@ -182,7 +200,7 @@ internal sealed class WatchCassetteBlockAdapter : IWatchEntityAdapter
         if (level.Tracker.GetEntity<CassetteBlockManager>() is not null)
             yield return new WatchEntityKey(WatchEntityKind.CassetteBlock, 0);
         string room = level.Session.Level;
-        foreach (CassetteBlock block in level.Entities.OfType<CassetteBlock>())
+        foreach (CassetteBlock block in WatchRoomEntityIndex.Enumerate<CassetteBlock>(level))
         {
             if (WatchEntityIDTable<CassetteBlock>.TryGet(block, room, out int id))
                 yield return new WatchEntityKey(WatchEntityKind.CassetteBlock, id, 1);
@@ -288,7 +306,7 @@ internal sealed class WatchTouchSwitchAndSwitchGateAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        int[] activeTouchSwitchIDs = level.Entities.OfType<TouchSwitch>()
+        int[] activeTouchSwitchIDs = WatchRoomEntityIndex.Enumerate<TouchSwitch>(level)
             .Where(touchSwitch => touchSwitch.Switch.Activated)
             .Select(touchSwitch => WatchEntityIDTable<TouchSwitch>.TryGet(
                 touchSwitch,
@@ -298,34 +316,45 @@ internal sealed class WatchTouchSwitchAndSwitchGateAdapter : IWatchEntityAdapter
             .Where(id => id >= 0)
             .Order()
             .ToArray();
-        byte[] touchSwitchPayload = new byte[sizeof(int) * activeTouchSwitchIDs.Length];
-        for (int index = 0; index < activeTouchSwitchIDs.Length; index++)
-            WatchEntityPayloadCodec.WriteInt32(
-                touchSwitchPayload,
-                sizeof(int) * index,
-                activeTouchSwitchIDs[index]
-            );
-        yield return new WatchEntityState(
-            new WatchEntityKey(Kind, TouchSwitchStateEntityID, TouchSwitchSubID),
-            touchSwitchPayload
+        yield return WatchEntityState.FromTyped(
+            new(Kind, TouchSwitchStateEntityID, TouchSwitchSubID),
+            activeTouchSwitchIDs,
+            static ids =>
+            {
+                byte[] payload = new byte[sizeof(int) * ids.Length];
+                for (int index = 0; index < ids.Length; index++)
+                    WatchEntityPayloadCodec.WriteInt32(payload, sizeof(int) * index, ids[index]);
+                return payload;
+            },
+            WatchArrayEqualityComparer<int>.Instance
         );
 
-        foreach (SwitchGate gate in level.Entities.OfType<SwitchGate>())
+        foreach (SwitchGate gate in WatchRoomEntityIndex.Enumerate<SwitchGate>(level))
         {
             if (!WatchEntityIDTable<SwitchGate>.TryGet(gate, room, out int id))
                 continue;
-            byte[] payload = new byte[SwitchGatePayloadSize];
-            payload[0] = (byte)((gate.Visible ? 1 : 0)
+            byte flags = (byte)((gate.Visible ? 1 : 0)
                 | (gate.Collidable ? 2 : 0)
                 | (gate.persistent ? 4 : 0));
-            payload[1] = EncodeAnimation(gate.icon.CurrentAnimationID);
-            WatchEntityPayloadCodec.WriteUInt16(payload, 2, (ushort)Math.Max(0, gate.icon.CurrentAnimationFrame));
-            WatchEntityPayloadCodec.WriteVector2(payload, 4, gate.Position);
-            WatchEntityPayloadCodec.WriteSingle(payload, 12, gate.wiggler.Value);
-            WatchEntityPayloadCodec.WriteSingle(payload, 16, gate.icon.Rotation);
-            yield return new WatchEntityState(
-                new WatchEntityKey(Kind, id, SwitchGateSubID),
-                payload
+            var current = (
+                Flags: flags,
+                Animation: EncodeAnimation(gate.icon.CurrentAnimationID),
+                AnimationFrame: (ushort)Math.Max(0, gate.icon.CurrentAnimationFrame),
+                gate.Position,
+                Wiggle: gate.wiggler.Value,
+                Rotation: gate.icon.Rotation
+            );
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id, SwitchGateSubID), current, SwitchGatePayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[1] = state.Animation;
+                    WatchEntityPayloadCodec.WriteUInt16(payload, 2, state.AnimationFrame);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 12, state.Wiggle);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Rotation);
+                }
             );
         }
     }
@@ -368,7 +397,7 @@ internal sealed class WatchTouchSwitchAndSwitchGateAdapter : IWatchEntityAdapter
             ? ApplyRemoteTouchSwitches(level, isCompleteState)
             : WatchEntityApplyResult.None;
         bool changed = ApplyRemoteSwitchGates(level);
-        HashSet<int> local = level.Entities.OfType<SwitchGate>()
+        HashSet<int> local = WatchRoomEntityIndex.Enumerate<SwitchGate>(level)
             .Select(gate => WatchEntityIDTable<SwitchGate>.TryGet(gate, room, out int id) ? id : -1)
             .Where(id => id >= 0).ToHashSet();
         bool switchGateMismatch = isCompleteState
@@ -387,7 +416,7 @@ internal sealed class WatchTouchSwitchAndSwitchGateAdapter : IWatchEntityAdapter
             return WatchEntityApplyResult.None;
 
         string room = level.Session.Level;
-        TouchSwitch[] current = level.Entities.OfType<TouchSwitch>().ToArray();
+        TouchSwitch[] current = WatchRoomEntityIndex.Enumerate<TouchSwitch>(level).ToArray();
         HashSet<int> mapIDs = level.Session.LevelData.Entities
             .Where(data => data.Name == "touchSwitch")
             .Select(data => data.ID)
@@ -409,7 +438,7 @@ internal sealed class WatchTouchSwitchAndSwitchGateAdapter : IWatchEntityAdapter
             if (TryRecreateTouchSwitches(level, current, mapIDs.Count, out recreatedCount))
             {
                 changed = recreatedCount > 0;
-                current = level.Entities.OfType<TouchSwitch>().ToArray();
+                current = WatchRoomEntityIndex.Enumerate<TouchSwitch>(level).ToArray();
                 currentIDs = GetTouchSwitchIDs(current, room);
                 staleActivation = false;
                 entitySetMismatch = !mapIDs.SetEquals(currentIDs);
@@ -504,7 +533,7 @@ internal sealed class WatchTouchSwitchAndSwitchGateAdapter : IWatchEntityAdapter
     {
         bool changed = false;
         string room = level.Session.Level;
-        foreach (SwitchGate gate in level.Entities.OfType<SwitchGate>())
+        foreach (SwitchGate gate in WatchRoomEntityIndex.Enumerate<SwitchGate>(level))
         {
             if (!WatchEntityIDTable<SwitchGate>.TryGet(gate, room, out int id)
                 || !remoteSwitchGateStates.TryGetValue(id, out byte[]? payload))

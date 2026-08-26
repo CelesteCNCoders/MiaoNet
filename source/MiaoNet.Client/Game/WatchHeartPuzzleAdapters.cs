@@ -28,7 +28,7 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
     private readonly record struct ControllerState(
         byte Flags,
         byte InputCount,
-        byte[] Inputs,
+        ulong Inputs,
         Vector2 HeartPosition,
         uint PulseColor,
         uint ScreenColor,
@@ -84,22 +84,25 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
     {
         private bool hasState;
         private float nextAnchor;
+        private ControllerState previous;
         private WatchEntityState state;
 
-        public WatchEntityState Capture(int id, byte[] payload, float sceneTime, bool force)
+        public WatchEntityState Capture(int id, ControllerState current, float sceneTime, bool force)
         {
             bool signatureChanged = !hasState
-                || !payload.AsSpan(0, 8).SequenceEqual(state.Payload.Span[..8])
-                || !payload.AsSpan(16, 8).SequenceEqual(state.Payload.Span.Slice(16, 8));
+                || current.Flags != previous.Flags
+                || current.InputCount != previous.InputCount
+                || current.Inputs != previous.Inputs
+                || current.PulseColor != previous.PulseColor
+                || current.ScreenColor != previous.ScreenColor;
             bool continuousChanged = hasState
-                && (!payload.AsSpan(8, 8).SequenceEqual(state.Payload.Span.Slice(8, 8))
-                    || !payload.AsSpan(24, 8).SequenceEqual(state.Payload.Span.Slice(24, 8)));
+                && (current.HeartPosition != previous.HeartPosition
+                    || current.PulseBloomAlpha != previous.PulseBloomAlpha
+                    || current.ScreenBloomAlpha != previous.ScreenBloomAlpha);
             if (force || signatureChanged || (continuousChanged && sceneTime >= nextAnchor))
             {
-                state = new(new WatchEntityKey(
-                    WatchEntityKind.ForsakenCitySatellite,
-                    id
-                ), payload);
+                state = EncodeController(id, current);
+                previous = current;
                 hasState = true;
                 nextAnchor = sceneTime + BirdAnchorInterval;
             }
@@ -165,7 +168,7 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (ForsakenCitySatellite satellite in level.Entities.OfType<ForsakenCitySatellite>())
+        foreach (ForsakenCitySatellite satellite in WatchRoomEntityIndex.Enumerate<ForsakenCitySatellite>(level))
         {
             if (!WatchEntityIDTable<ForsakenCitySatellite>.TryGet(
                 satellite,
@@ -174,42 +177,27 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
             ))
                 continue;
 
-            byte[] controller = new byte[ControllerPayloadSize];
-            if (satellite.enabled) controller[0] |= EnabledFlag;
-            if (level.Session.GetFlag("unlocked_satellite")) controller[0] |= UnlockedFlag;
+            byte flags = 0;
+            if (satellite.enabled) flags |= EnabledFlag;
+            if (level.Session.GetFlag("unlocked_satellite")) flags |= UnlockedFlag;
             HeartGem? heart = FindSatelliteHeart(level, satellite);
             if (heart is not null)
-                controller[0] |= GemPresentFlag;
-            if (satellite.pulse?.Visible == true) controller[0] |= PulseVisibleFlag;
-            if (satellite.computerScreen?.Visible == true) controller[0] |= ScreenVisibleFlag;
-            if (satellite.computerScreenNoise?.Visible == true) controller[0] |= ScreenNoiseVisibleFlag;
-            if (satellite.computerScreenShine?.Visible == true) controller[0] |= ScreenShineVisibleFlag;
-            if (satellite.screenBloom?.Visible == true) controller[0] |= ScreenBloomVisibleFlag;
-            byte[] acceptedInputs = satellite.currentInputs
-                .Select(EncodeDirection)
-                .Where(static direction => direction != 0)
-                .Take(6)
-                .ToArray();
-            controller[1] = (byte)acceptedInputs.Length;
-            acceptedInputs.CopyTo(controller, 2);
+                flags |= GemPresentFlag;
+            if (satellite.pulse?.Visible == true) flags |= PulseVisibleFlag;
+            if (satellite.computerScreen?.Visible == true) flags |= ScreenVisibleFlag;
+            if (satellite.computerScreenNoise?.Visible == true) flags |= ScreenNoiseVisibleFlag;
+            if (satellite.computerScreenShine?.Visible == true) flags |= ScreenShineVisibleFlag;
+            if (satellite.screenBloom?.Visible == true) flags |= ScreenBloomVisibleFlag;
+            (byte inputCount, ulong acceptedInputs) = PackInputs(satellite.currentInputs);
             Vector2 heartPosition = heart?.Position ?? satellite.gemSpawnPosition;
-            WatchEntityPayloadCodec.WriteVector2(controller, 8, heartPosition);
-            BitConverter.TryWriteBytes(
-                controller.AsSpan(16),
-                satellite.pulse?.Color.PackedValue ?? Color.White.PackedValue
-            );
-            BitConverter.TryWriteBytes(
-                controller.AsSpan(20),
-                satellite.computerScreen?.Color.PackedValue ?? Color.White.PackedValue
-            );
-            WatchEntityPayloadCodec.WriteSingle(
-                controller,
-                24,
-                satellite.pulseBloom?.Alpha ?? 0f
-            );
-            WatchEntityPayloadCodec.WriteSingle(
-                controller,
-                28,
+            ControllerState controller = new(
+                flags,
+                inputCount,
+                acceptedInputs,
+                heartPosition,
+                satellite.pulse?.Color.PackedValue ?? Color.White.PackedValue,
+                satellite.computerScreen?.Color.PackedValue ?? Color.White.PackedValue,
+                satellite.pulseBloom?.Alpha ?? 0f,
                 satellite.screenBloom?.Alpha ?? 0f
             );
             yield return controllerSyncInfo.GetValue(satellite, static _ => new()).Capture(
@@ -258,7 +246,7 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        foreach (ForsakenCitySatellite satellite in level.Entities.OfType<ForsakenCitySatellite>())
+        foreach (ForsakenCitySatellite satellite in WatchRoomEntityIndex.Enumerate<ForsakenCitySatellite>(level))
         {
             if (!WatchEntityIDTable<ForsakenCitySatellite>.TryGet(satellite, room, out int id))
                 continue;
@@ -349,10 +337,14 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
             || payload.Length != ControllerPayloadSize
             || payload[1] > 6)
             return false;
-        byte[] inputs = payload.Slice(2, 6).ToArray();
-        if (inputs.Take(payload[1]).Any(input => input is 0 or > 5)
-            || inputs.Skip(payload[1]).Any(input => input != 0))
-            return false;
+        ulong inputs = 0;
+        for (int index = 0; index < 6; index++)
+        {
+            byte input = payload[2 + index];
+            if (index < payload[1] ? input is 0 or > 5 : input != 0)
+                return false;
+            inputs |= (ulong)input << (index * 8);
+        }
         Vector2 heartPosition = WatchEntityPayloadCodec.ReadVector2(payload, 8);
         if (!float.IsFinite(heartPosition.X) || !float.IsFinite(heartPosition.Y))
             return false;
@@ -430,20 +422,43 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState EncodeBird(int id, ushort subID, BirdState state)
-    {
-        byte[] payload = new byte[BirdPayloadSize];
-        payload[0] = state.Flags;
-        payload[1] = state.Animation;
-        payload[2] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
-        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Speed);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Timer);
-        WatchEntityPayloadCodec.WriteVector2(payload, 24, state.Scale);
-        WatchEntityPayloadCodec.WriteSingle(payload, 32, state.Rotation);
-        WatchEntityPayloadCodec.WriteVector2(payload, 36, state.HeartScale);
-        BitConverter.TryWriteBytes(payload.AsSpan(44), state.SpriteColor);
-        return new(new WatchEntityKey(WatchEntityKind.ForsakenCitySatellite, id, subID), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.ForsakenCitySatellite, id, subID),
+            state,
+            BirdPayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.Flags;
+                payload[1] = value.Animation;
+                payload[2] = value.AnimationFrame;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, value.Position);
+                WatchEntityPayloadCodec.WriteVector2(payload, 12, value.Speed);
+                WatchEntityPayloadCodec.WriteSingle(payload, 20, value.Timer);
+                WatchEntityPayloadCodec.WriteVector2(payload, 24, value.Scale);
+                WatchEntityPayloadCodec.WriteSingle(payload, 32, value.Rotation);
+                WatchEntityPayloadCodec.WriteVector2(payload, 36, value.HeartScale);
+                BitConverter.TryWriteBytes(payload[44..], value.SpriteColor);
+            }
+        );
+
+    private static WatchEntityState EncodeController(int id, ControllerState state)
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.ForsakenCitySatellite, id),
+            state,
+            ControllerPayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.Flags;
+                payload[1] = value.InputCount;
+                for (int index = 0; index < value.InputCount; index++)
+                    payload[2 + index] = (byte)(value.Inputs >> (index * 8));
+                WatchEntityPayloadCodec.WriteVector2(payload, 8, value.HeartPosition);
+                BitConverter.TryWriteBytes(payload[16..], value.PulseColor);
+                BitConverter.TryWriteBytes(payload[20..], value.ScreenColor);
+                WatchEntityPayloadCodec.WriteSingle(payload, 24, value.PulseBloomAlpha);
+                WatchEntityPayloadCodec.WriteSingle(payload, 28, value.ScreenBloomAlpha);
+            }
+        );
 
     private static void ApplyController(
         Level level,
@@ -456,7 +471,7 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
         DisableLocalPresentation(satellite);
         satellite.currentInputs.Clear();
         for (int i = 0; i < state.InputCount; i++)
-            satellite.currentInputs.Add(DecodeDirection(state.Inputs[i]));
+            satellite.currentInputs.Add(DecodeDirection((byte)(state.Inputs >> (i * 8))));
 
         bool pulseVisible = (state.Flags & PulseVisibleFlag) != 0;
         if (satellite.pulse is not null)
@@ -564,7 +579,7 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
     private static HeartGem? FindSatelliteHeart(
         Level level,
         ForsakenCitySatellite satellite
-    ) => level.Entities.OfType<HeartGem>().FirstOrDefault(heart =>
+    ) => WatchRoomEntityIndex.Enumerate<HeartGem>(level).FirstOrDefault(heart =>
         !heart.IsFake
         && (Vector2.DistanceSquared(heart.Position, satellite.gemSpawnPosition) <= 256f * 256f
             || Vector2.DistanceSquared(heart.Position, satellite.birdFlyPosition) <= 256f * 256f)
@@ -606,6 +621,22 @@ internal sealed class WatchForsakenCitySatelliteAdapter : IWatchEntityAdapter
         "UL" => 5,
         _ => 0,
     };
+
+    private static (byte Count, ulong Values) PackInputs(IEnumerable<string> inputs)
+    {
+        byte count = 0;
+        ulong values = 0;
+        foreach (string input in inputs)
+        {
+            byte direction = EncodeDirection(input);
+            if (direction == 0)
+                continue;
+            values |= (ulong)direction << (count * 8);
+            if (++count == 6)
+                break;
+        }
+        return (count, values);
+    }
 
     private static string DecodeDirection(byte direction) => direction switch
     {
@@ -826,6 +857,13 @@ internal sealed class WatchReflectionHeartStatueAdapter : IWatchEntityAdapter
     private const byte TorchEvent = 1;
     private const byte ActivateEvent = 2;
 
+    private readonly record struct StatueState(
+        byte Flags,
+        byte TorchMask,
+        byte InputCount,
+        ulong Inputs
+    );
+
     private sealed class TorchOwner
     {
         public int ParentID { get; init; }
@@ -865,7 +903,7 @@ internal sealed class WatchReflectionHeartStatueAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (ReflectionHeartStatue statue in level.Entities.OfType<ReflectionHeartStatue>())
+        foreach (ReflectionHeartStatue statue in WatchRoomEntityIndex.Enumerate<ReflectionHeartStatue>(level))
         {
             if (!WatchEntityIDTable<ReflectionHeartStatue>.TryGet(
                 statue,
@@ -875,9 +913,9 @@ internal sealed class WatchReflectionHeartStatueAdapter : IWatchEntityAdapter
                 continue;
             Vector2 heartPosition = statue.Position + HeartOffset;
             HeartGem? heart = FindHeart(level, heartPosition);
-            byte[] payload = new byte[PayloadSize];
-            if (statue.enabled) payload[0] |= EnabledFlag;
-            if (heart is not null) payload[0] |= GemPresentFlag;
+            byte flags = 0;
+            if (statue.enabled) flags |= EnabledFlag;
+            if (heart is not null) flags |= GemPresentFlag;
             byte mask = 0;
             foreach (ReflectionHeartStatue.Torch torch in statue.torches)
             {
@@ -885,16 +923,22 @@ internal sealed class WatchReflectionHeartStatueAdapter : IWatchEntityAdapter
                     mask |= (byte)(1 << torch.Index);
             }
             if (!statue.enabled && heart is null && !level.Session.HeartGem && mask == 0b1111)
-                payload[0] |= ActivatingFlag;
-            payload[1] = mask;
-            byte[] acceptedInputs = statue.currentInputs
-                .Select(EncodeDirection)
-                .Where(static direction => direction != 0)
-                .Take(6)
-                .ToArray();
-            payload[2] = (byte)acceptedInputs.Length;
-            acceptedInputs.CopyTo(payload, 4);
-            yield return new(new WatchEntityKey(Kind, id), payload);
+                flags |= ActivatingFlag;
+            (byte inputCount, ulong acceptedInputs) = PackInputs(statue.currentInputs);
+            StatueState current = new(flags, mask, inputCount, acceptedInputs);
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id),
+                current,
+                PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[1] = state.TorchMask;
+                    payload[2] = state.InputCount;
+                    for (int index = 0; index < state.InputCount; index++)
+                        payload[4 + index] = (byte)(state.Inputs >> (index * 8));
+                }
+            );
         }
     }
 
@@ -911,7 +955,7 @@ internal sealed class WatchReflectionHeartStatueAdapter : IWatchEntityAdapter
                 return WatchEntityApplyResult.None;
         }
         bool changed = false;
-        foreach (ReflectionHeartStatue statue in level.Entities.OfType<ReflectionHeartStatue>())
+        foreach (ReflectionHeartStatue statue in WatchRoomEntityIndex.Enumerate<ReflectionHeartStatue>(level))
         {
             if (!WatchEntityIDTable<ReflectionHeartStatue>.TryGet(
                 statue,
@@ -1015,7 +1059,7 @@ internal sealed class WatchReflectionHeartStatueAdapter : IWatchEntityAdapter
     }
 
     private static HeartGem? FindHeart(Level level, Vector2 position)
-        => level.Entities.OfType<HeartGem>().FirstOrDefault(heart =>
+        => WatchRoomEntityIndex.Enumerate<HeartGem>(level).FirstOrDefault(heart =>
             !heart.IsFake && Vector2.DistanceSquared(heart.Position, position) <= 64f
         );
 
@@ -1067,6 +1111,22 @@ internal sealed class WatchReflectionHeartStatueAdapter : IWatchEntityAdapter
     {
         "U" => 1, "L" => 2, "DR" => 3, "UR" => 4, "UL" => 5, _ => 0,
     };
+
+    private static (byte Count, ulong Values) PackInputs(IEnumerable<string> inputs)
+    {
+        byte count = 0;
+        ulong values = 0;
+        foreach (string input in inputs)
+        {
+            byte direction = EncodeDirection(input);
+            if (direction == 0)
+                continue;
+            values |= (ulong)direction << (count * 8);
+            if (++count == 6)
+                break;
+        }
+        return (count, values);
+    }
 
     private static string DecodeDirection(byte direction) => direction switch
     {

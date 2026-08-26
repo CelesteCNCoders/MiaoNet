@@ -27,14 +27,19 @@ internal sealed class WatchBumperAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (Bumper bumper in level.Entities.OfType<Bumper>())
+        foreach (Bumper bumper in WatchRoomEntityIndex.Enumerate<Bumper>(level))
         {
             if (!WatchEntityIDTable<Bumper>.TryGet(bumper, room, out int id))
                 continue;
 
-            yield return new WatchEntityState(
-                new WatchEntityKey(Kind, id),
-                [bumper.respawnTimer <= 0f ? (byte)1 : (byte)0, bumper.fireMode ? (byte)1 : (byte)0]
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id),
+                (Ready: bumper.respawnTimer <= 0f, FireMode: bumper.fireMode),
+                static state =>
+                [
+                    state.Ready ? (byte)1 : (byte)0,
+                    state.FireMode ? (byte)1 : (byte)0,
+                ]
             );
         }
     }
@@ -62,7 +67,7 @@ internal sealed class WatchBumperAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        foreach (Bumper bumper in level.Entities.OfType<Bumper>())
+        foreach (Bumper bumper in WatchRoomEntityIndex.Enumerate<Bumper>(level))
         {
             if (!WatchEntityIDTable<Bumper>.TryGet(bumper, room, out int id)
                 || !desiredByID.TryGetValue(id, out var desired))
@@ -182,17 +187,27 @@ internal sealed class WatchCloudAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (Cloud cloud in level.Entities.OfType<Cloud>())
+        foreach (Cloud cloud in WatchRoomEntityIndex.Enumerate<Cloud>(level))
         {
             if (!WatchEntityIDTable<Cloud>.TryGet(cloud, room, out int id))
                 continue;
 
-            byte[] payload = new byte[10];
-            payload[0] = (byte)GetPhase(cloud);
-            WatchEntityPayloadCodec.WriteSingle(payload, 1, cloud.Position.Y);
-            WatchEntityPayloadCodec.WriteSingle(payload, 5, cloud.speed);
-            payload[9] = cloud.Visible ? (byte)1 : (byte)0;
-            yield return new WatchEntityState(new WatchEntityKey(Kind, id), payload);
+            var current = (
+                Phase: (byte)GetPhase(cloud),
+                Y: cloud.Position.Y,
+                cloud.speed,
+                cloud.Visible
+            );
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id), current, 10,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Phase;
+                    WatchEntityPayloadCodec.WriteSingle(payload, 1, state.Y);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 5, state.speed);
+                    payload[9] = state.Visible ? (byte)1 : (byte)0;
+                }
+            );
         }
     }
 
@@ -216,7 +231,7 @@ internal sealed class WatchCloudAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        foreach (Cloud cloud in level.Entities.OfType<Cloud>())
+        foreach (Cloud cloud in WatchRoomEntityIndex.Enumerate<Cloud>(level))
         {
             if (!WatchEntityIDTable<Cloud>.TryGet(cloud, room, out int id)
                 || !desiredByID.TryGetValue(id, out WatchEntityState state))

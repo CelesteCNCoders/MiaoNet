@@ -52,11 +52,11 @@ internal sealed class WatchLavaAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        RisingLava? rising = level.Entities.OfType<RisingLava>().FirstOrDefault();
+        RisingLava? rising = WatchRoomEntityIndex.Enumerate<RisingLava>(level).FirstOrDefault();
         if (rising is not null)
             yield return Encode(RisingSubID, Capture(rising));
 
-        SandwichLava? sandwich = level.Entities.OfType<SandwichLava>().FirstOrDefault();
+        SandwichLava? sandwich = WatchRoomEntityIndex.Enumerate<SandwichLava>(level).FirstOrDefault();
         if (sandwich is not null)
             yield return Encode(SandwichSubID, Capture(sandwich));
     }
@@ -85,8 +85,8 @@ internal sealed class WatchLavaAdapter : IWatchEntityAdapter
 
         bool changed = false;
         bool requiresReload = false;
-        RisingLava? rising = level.Entities.OfType<RisingLava>().FirstOrDefault();
-        SandwichLava? sandwich = level.Entities.OfType<SandwichLava>().FirstOrDefault();
+        RisingLava? rising = WatchRoomEntityIndex.Enumerate<RisingLava>(level).FirstOrDefault();
+        SandwichLava? sandwich = WatchRoomEntityIndex.Enumerate<SandwichLava>(level).FirstOrDefault();
         if (remoteStates.TryGetValue(RisingSubID, out LavaState risingState))
         {
             if (rising is null)
@@ -165,17 +165,21 @@ internal sealed class WatchLavaAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(ushort subID, LavaState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = state.Flags;
-        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.EntityPosition);
-        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.BottomPosition);
-        WatchEntityPayloadCodec.WriteVector2(payload, 20, state.TopPosition);
-        WatchEntityPayloadCodec.WriteSingle(payload, 28, state.Lerp);
-        WatchEntityPayloadCodec.WriteSingle(payload, 32, state.Delay);
-        WatchEntityPayloadCodec.WriteSingle(payload, 36, state.TransitionStartY);
-        return new(new WatchEntityKey(WatchEntityKind.Lava, 0, subID), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.Lava, 0, subID),
+            state,
+            PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.Flags;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, value.EntityPosition);
+                WatchEntityPayloadCodec.WriteVector2(payload, 12, value.BottomPosition);
+                WatchEntityPayloadCodec.WriteVector2(payload, 20, value.TopPosition);
+                WatchEntityPayloadCodec.WriteSingle(payload, 28, value.Lerp);
+                WatchEntityPayloadCodec.WriteSingle(payload, 32, value.Delay);
+                WatchEntityPayloadCodec.WriteSingle(payload, 36, value.TransitionStartY);
+            }
+        );
 
     private static bool TryDecode(WatchEntityState state, out LavaState desired)
     {

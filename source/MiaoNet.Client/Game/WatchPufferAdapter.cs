@@ -188,7 +188,7 @@ internal sealed class WatchPufferAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (Puffer puffer in level.Entities.OfType<Puffer>())
+        foreach (Puffer puffer in WatchRoomEntityIndex.Enumerate<Puffer>(level))
         {
             if (!WatchEntityIDTable<Puffer>.TryGet(puffer, room, out int id))
                 continue;
@@ -218,7 +218,7 @@ internal sealed class WatchPufferAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        foreach (Puffer puffer in level.Entities.OfType<Puffer>())
+        foreach (Puffer puffer in WatchRoomEntityIndex.Enumerate<Puffer>(level))
         {
             if (!WatchEntityIDTable<Puffer>.TryGet(puffer, room, out int id))
                 continue;
@@ -303,21 +303,23 @@ internal sealed class WatchPufferAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, PufferState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = (byte)state.Phase;
-        payload[1] = state.Flags;
-        payload[2] = state.Animation;
-        payload[3] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
-        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.HitSpeed);
-        WatchEntityPayloadCodec.WriteVector2(payload, 20, state.Scale);
-        WatchEntityPayloadCodec.WriteSingle(payload, 28, state.GoneTimer);
-        WatchEntityPayloadCodec.WriteVector2(payload, 32, state.LastPlayerPosition);
-        WatchEntityPayloadCodec.WriteSingle(payload, 40, state.PlayerAliveFade);
-        WatchEntityPayloadCodec.WriteSingle(payload, 44, state.EyeSpin);
-        return new(new WatchEntityKey(WatchEntityKind.Puffer, id), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.Puffer, id), state, PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = (byte)value.Phase;
+                payload[1] = value.Flags;
+                payload[2] = value.Animation;
+                payload[3] = value.AnimationFrame;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, value.Position);
+                WatchEntityPayloadCodec.WriteVector2(payload, 12, value.HitSpeed);
+                WatchEntityPayloadCodec.WriteVector2(payload, 20, value.Scale);
+                WatchEntityPayloadCodec.WriteSingle(payload, 28, value.GoneTimer);
+                WatchEntityPayloadCodec.WriteVector2(payload, 32, value.LastPlayerPosition);
+                WatchEntityPayloadCodec.WriteSingle(payload, 40, value.PlayerAliveFade);
+                WatchEntityPayloadCodec.WriteSingle(payload, 44, value.EyeSpin);
+            }
+        );
 
     private static bool TryDecode(WatchEntityState state, out PufferState value)
     {

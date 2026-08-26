@@ -32,7 +32,7 @@ internal sealed class WatchDashBlockAdapter : IWatchEntityAdapter
     {
         string room = level.Session.Level;
         HashSet<int> liveIDs = new();
-        foreach (DashBlock block in level.Entities.OfType<DashBlock>())
+        foreach (DashBlock block in WatchRoomEntityIndex.Enumerate<DashBlock>(level))
         {
             if (block.id.Level != room)
                 continue;
@@ -70,7 +70,7 @@ internal sealed class WatchDashBlockAdapter : IWatchEntityAdapter
         string room = level.Session.Level;
         if (isCompleteState)
             changed |= RestoreMissingBlocks(level, desiredByID);
-        foreach (DashBlock block in level.Entities.OfType<DashBlock>().ToArray())
+        foreach (DashBlock block in WatchRoomEntityIndex.Enumerate<DashBlock>(level).ToArray())
         {
             if (block.id.Level != room)
                 continue;
@@ -117,7 +117,7 @@ internal sealed class WatchDashBlockAdapter : IWatchEntityAdapter
     )
     {
         string room = level.Session.Level;
-        HashSet<int> existing = level.Entities.OfType<DashBlock>()
+        HashSet<int> existing = WatchRoomEntityIndex.Enumerate<DashBlock>(level)
             .Where(block => block.id.Level == room)
             .Select(block => block.id.ID)
             .ToHashSet();
@@ -171,7 +171,7 @@ internal sealed class WatchDashBlockAdapter : IWatchEntityAdapter
         Vector2 direction = WatchEntityPayloadCodec.ReadVector2(payload, 8);
         bool playSound = payload[16] != 0;
         bool playDebrisSound = payload[17] != 0;
-        DashBlock? block = level.Entities.OfType<DashBlock>().FirstOrDefault(candidate =>
+        DashBlock? block = WatchRoomEntityIndex.Enumerate<DashBlock>(level).FirstOrDefault(candidate =>
             candidate.id.Level == level.Session.Level
             && candidate.id.ID == entityEvent.Key.EntityID
         );
@@ -184,7 +184,11 @@ internal sealed class WatchDashBlockAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, bool present)
-        => new(new WatchEntityKey(WatchEntityKind.DashBlock, id), [present ? Present : (byte)0]);
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.DashBlock, id),
+            present,
+            static value => [value ? Present : (byte)0]
+        );
 
     private static void DashBlock_ctor(
         On.Celeste.DashBlock.orig_ctor_EntityData_Vector2_EntityID orig,

@@ -4,9 +4,14 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed partial class MainComponent
 {
+    private static readonly long WatchEntityCaptureBudgetTicks =
+        System.Diagnostics.Stopwatch.Frequency * 3 / 2000;
+
     private readonly HashSet<int> watchProducerSessions = new();
+    private readonly WatchRoomEntityIndex watchRoomEntityIndex = new();
+    private readonly WatchEntityStateTable watchProducerEntityStates = new();
+    private readonly WatchEntityCaptureCursor watchProducerEntityCaptureCursor = new();
     private HashSet<string>? lastProducedFlags;
-    private Dictionary<WatchEntityKey, WatchEntityState>? lastProducedEntityStates;
     private readonly List<WatchEntityEvent> pendingProducedEntityEvents = new();
     private PlayerLocation watchProducerLocation;
     private int watchProducerSequence;
@@ -35,12 +40,16 @@ public sealed partial class MainComponent
             UpdateWatchSceneProducer(level);
 
         string[] flags = level.Session.Flags.Order(StringComparer.Ordinal).ToArray();
-        HashSet<WatchEntityKind> unavailableKinds = WatchEntitySyncRegistry.CaptureStates(
+        WatchEntityStateTable.Capture entityCapture = WatchEntitySyncRegistry.CaptureStates(
             level,
-            out Dictionary<WatchEntityKey, WatchEntityState> entityStates,
-            forceCurrent: true
+            watchRoomEntityIndex,
+            watchProducerEntityStates,
+            out HashSet<WatchEntityKind> unavailableKinds,
+            resetCurrent: initializeProducer,
+            forceCurrent: true,
+            watchProducerEntityCaptureCursor,
+            WatchEntityCaptureBudgetTicks
         );
-        PreserveUnavailableWatchEntityStates(location, unavailableKinds, entityStates);
         if (unavailableKinds.Count > 0)
             Logger.Warn(
                 LT.MiaoNetWatch,
@@ -52,7 +61,7 @@ public sealed partial class MainComponent
             location,
             sequence,
             flags,
-            WatchSceneDelta.OrderEntityStates(entityStates.Values)
+            WatchSceneDelta.OrderEntityStates(entityCapture.EnumerateCurrentStates())
         );
         if (!WatchPacketValidator.IsValid(snapshot))
         {
@@ -66,10 +75,10 @@ public sealed partial class MainComponent
 
         if (initializeProducer)
         {
+            entityCapture.Commit();
             watchProducerLocation = location;
             watchProducerSequence = 0;
             lastProducedFlags = new(level.Session.Flags, StringComparer.Ordinal);
-            lastProducedEntityStates = entityStates;
         }
 
         watchProducerSessions.Add(request.SessionID);
@@ -78,7 +87,7 @@ public sealed partial class MainComponent
         Logger.Info(
             LT.MiaoNetWatch,
             $"Captured watch snapshot for session {request.SessionID}; " +
-            $"flags={flags.Length}, entities={entityStates.Count}, " +
+            $"flags={flags.Length}, entities={entityCapture.CurrentCount}, " +
             $"sequence={watchProducerSequence}."
         );
     }
@@ -86,8 +95,7 @@ public sealed partial class MainComponent
     private void UpdateWatchSceneProducer(Level level)
     {
         if (watchProducerSessions.Count == 0
-            || lastProducedFlags is null
-            || lastProducedEntityStates is null)
+            || lastProducedFlags is null)
             return;
 
         PlayerLocation currentLocation = PlayerLocation.FetchFrom(level.Session);
@@ -107,27 +115,32 @@ public sealed partial class MainComponent
         IReadOnlyCollection<WatchEntityEvent> entityEvents = roomChanged || isDeathRespawn
             ? []
             : pendingProducedEntityEvents;
-        HashSet<WatchEntityKind> unavailableKinds = WatchEntitySyncRegistry.CaptureStates(
+        WatchEntityStateTable.Capture entityCapture = WatchEntitySyncRegistry.CaptureStates(
             level,
-            out Dictionary<WatchEntityKey, WatchEntityState> currentEntityStates,
-            forceCurrent: roomChanged || requiresRoomReload || isDeathRespawn
+            watchRoomEntityIndex,
+            watchProducerEntityStates,
+            out HashSet<WatchEntityKind> unavailableKinds,
+            resetCurrent: roomChanged,
+            forceCurrent: roomChanged || requiresRoomReload || isDeathRespawn,
+            watchProducerEntityCaptureCursor,
+            WatchEntityCaptureBudgetTicks
         );
-        PreserveUnavailableWatchEntityStates(currentLocation, unavailableKinds, currentEntityStates);
         if (unavailableKinds.Count > 0)
             Logger.Warn(
                 LT.MiaoNetWatch,
                 $"Skipped invalid watch entity updates; " +
                 $"quarantined={string.Join(",", unavailableKinds.Order())}."
             );
-        WatchSceneDelta? delta = WatchSceneDelta.Create(
+        bool forceEntityState = roomChanged || requiresRoomReload || isDeathRespawn;
+        WatchEntityStateMode entityStateMode = entityCapture.GetStateMode(forceEntityState);
+        WatchSceneDelta? delta = WatchSceneDelta.CreateFromChanges(
             watchProducerSequence + 1,
             currentLocation,
             lastProducedFlags,
             currentFlags,
-            lastProducedEntityStates,
-            currentEntityStates,
+            entityStateMode,
+            entityCapture.GetStates(entityStateMode),
             entityEvents,
-            roomChanged || isDeathRespawn,
             requiresRoomReload,
             isDeathRespawn,
             roomTransition
@@ -142,15 +155,14 @@ public sealed partial class MainComponent
                 "Discarded an invalid watch delta and retrying as an event-free complete state."
             );
             pendingProducedEntityEvents.Clear();
-            delta = WatchSceneDelta.Create(
+            delta = WatchSceneDelta.CreateFromChanges(
                 watchProducerSequence + 1,
                 currentLocation,
                 lastProducedFlags,
                 currentFlags,
-                lastProducedEntityStates,
-                currentEntityStates,
+                WatchEntityStateMode.Replace,
+                entityCapture.GetStates(WatchEntityStateMode.Replace),
                 [],
-                forceEntityState: true,
                 requiresRoomReload,
                 isDeathRespawn,
                 roomTransition
@@ -166,10 +178,10 @@ public sealed partial class MainComponent
         }
 
         PlayerLocation previousLocation = watchProducerLocation;
+        entityCapture.Commit();
         watchProducerSequence = delta.Sequence;
         watchProducerLocation = currentLocation;
         lastProducedFlags = currentFlags;
-        lastProducedEntityStates = currentEntityStates;
         pendingProducedEntityEvents.Clear();
         watchProducerRoomReloadPending = false;
         watchProducerEntityResyncPending = false;
@@ -184,7 +196,7 @@ public sealed partial class MainComponent
                 LT.MiaoNetWatch,
                 $"Emitted {(roomChanged ? "cross-room" : "lightweight")} post-respawn watch state " +
                 $"for {(roomChanged ? $"{previousLocation.Room} -> " : string.Empty)}{currentLocation.Room}; " +
-                $"entities={currentEntityStates.Count}, sequence={delta.Sequence}."
+                $"entities={entityCapture.CurrentCount}, sequence={delta.Sequence}."
             );
         }
     }
@@ -201,9 +213,10 @@ public sealed partial class MainComponent
 
     private void ClearWatchSceneProducer()
     {
+        watchProducerEntityStates.Clear();
+        watchProducerEntityCaptureCursor.Reset();
         watchProducerSessions.Clear();
         lastProducedFlags = null;
-        lastProducedEntityStates = null;
         pendingProducedEntityEvents.Clear();
         watchProducerLocation = default;
         watchProducerSequence = 0;
@@ -211,32 +224,13 @@ public sealed partial class MainComponent
         watchProducerEntityResyncPending = false;
         watchProducerDeathRespawnLocation = null;
         watchProducerPendingRoomTransition = null;
+        ReleaseWatchRoomEntityIndexIfUnused();
     }
 
-    private void PreserveUnavailableWatchEntityStates(
-        PlayerLocation location,
-        IReadOnlySet<WatchEntityKind> unavailableKinds,
-        IDictionary<WatchEntityKey, WatchEntityState> currentStates
-    )
+    private void ReleaseWatchRoomEntityIndexIfUnused()
     {
-        if (unavailableKinds.Count == 0
-            || location != watchProducerLocation
-            || lastProducedEntityStates is null)
-            return;
-
-        int preserved = 0;
-        foreach ((WatchEntityKey key, WatchEntityState state) in lastProducedEntityStates)
-        {
-            if (!unavailableKinds.Contains(key.Kind))
-                continue;
-            currentStates[key] = state;
-            preserved++;
-        }
-        if (preserved > 0)
-            Logger.Debug(
-                LT.MiaoNetWatch,
-                $"Preserved {preserved} last-known watch entity states after adapter quarantine."
-            );
+        if (!Watching && watchProducerSessions.Count == 0)
+            watchRoomEntityIndex.Detach();
     }
 
     private void MarkWatchProducerRoomReload(PlayerLocation location)

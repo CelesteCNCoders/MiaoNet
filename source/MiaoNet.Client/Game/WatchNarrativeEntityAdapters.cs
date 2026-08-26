@@ -206,7 +206,7 @@ internal sealed class WatchNarrativeNPCAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        List<NPC> npcs = level.Entities.OfType<NPC>().ToList();
+        List<NPC> npcs = WatchRoomEntityIndex.Enumerate<NPC>(level).ToList();
         WatchMapEntityMatcher.AssignIDs(level, npcs, "npc");
         AssignRuntimeIDs(level, npcs);
         foreach (NPC npc in npcs)
@@ -214,33 +214,49 @@ internal sealed class WatchNarrativeNPCAdapter : IWatchEntityAdapter
             if (!WatchEntityIDTable<NPC>.TryGet(npc, level.Session.Level, out int id)
                 || npc.Sprite is null)
                 continue;
-            byte[] p = new byte[PayloadSize];
-            if (npc.Visible) p[0] |= 1;
-            if (npc.Sprite.Visible) p[0] |= 2;
-            if (npc.Light?.Visible == true) p[0] |= 4;
-            if (npc.Collidable) p[0] |= 8;
-            if (npc.Active) p[0] |= 16;
-            if (npc.Light is not null) p[0] |= 32;
-            p[1] = (byte)Math.Max(0, npc.Sprite.CurrentAnimationFrame);
-            WatchEntityPayloadCodec.WriteUInt16(p, 2, WatchSpriteState.EncodeAnimation(npc.Sprite));
-            p[4] = (byte)GetVisualKind(npc);
-            WatchEntityPayloadCodec.WriteVector2(p, 8, npc.Position);
-            WatchEntityPayloadCodec.WriteVector2(p, 16, npc.Sprite.Scale);
-            WatchEntityPayloadCodec.WriteSingle(p, 24, npc.Light?.Alpha ?? 0f);
-            WatchEntityPayloadCodec.WriteInt32(p, 28, npc.Depth);
-            WatchEntityPayloadCodec.WriteSingle(p, 32, npc.Sprite.Rotation);
+            byte flags = 0;
+            if (npc.Visible) flags |= 1;
+            if (npc.Sprite.Visible) flags |= 2;
+            if (npc.Light?.Visible == true) flags |= 4;
+            if (npc.Collidable) flags |= 8;
+            if (npc.Active) flags |= 16;
+            if (npc.Light is not null) flags |= 32;
+            var current = (
+                Flags: flags,
+                AnimationFrame: (byte)Math.Max(0, npc.Sprite.CurrentAnimationFrame),
+                Animation: WatchSpriteState.EncodeAnimation(npc.Sprite),
+                VisualKind: (byte)GetVisualKind(npc),
+                npc.Position,
+                Scale: npc.Sprite.Scale,
+                LightAlpha: npc.Light?.Alpha ?? 0f,
+                npc.Depth,
+                Rotation: npc.Sprite.Rotation
+            );
             yield return sync.GetValue(npc, static _ => new()).Capture(
-                new(Kind, id), p, 1, level.TimeActive,
+                new(Kind, id), current, current.Flags, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[1] = state.AnimationFrame;
+                    WatchEntityPayloadCodec.WriteUInt16(payload, 2, state.Animation);
+                    payload[4] = state.VisualKind;
+                    WatchEntityPayloadCodec.WriteVector2(payload, 8, state.Position);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 16, state.Scale);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 24, state.LightAlpha);
+                    WatchEntityPayloadCodec.WriteInt32(payload, 28, state.Depth);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 32, state.Rotation);
+                },
+                level.TimeActive,
                 WatchEntitySyncRegistry.IsCapturingCurrentState);
         }
     }
 
     public WatchEntityApplyResult ApplyStates(Level level, IReadOnlyCollection<WatchEntityState> states, bool complete)
     {
-        List<NPC> npcs = level.Entities.OfType<NPC>().ToList();
+        List<NPC> npcs = WatchRoomEntityIndex.Enumerate<NPC>(level).ToList();
         WatchMapEntityMatcher.AssignIDs(level, npcs, "npc");
         AssignRuntimeIDs(level, npcs);
-        List<WatchNarrativeNpcProxy> proxies = level.Entities.OfType<WatchNarrativeNpcProxy>().ToList();
+        List<WatchNarrativeNpcProxy> proxies = WatchRoomEntityIndex.Enumerate<WatchNarrativeNpcProxy>(level).ToList();
         HashSet<int> desiredIDs = states.Select(state => state.Key.EntityID).ToHashSet();
         bool changed = false;
         if (complete)
@@ -369,42 +385,63 @@ internal sealed class WatchAscendManagerAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        List<AscendManager> managers = level.Entities.OfType<AscendManager>().ToList();
+        List<AscendManager> managers = WatchRoomEntityIndex.Enumerate<AscendManager>(level).ToList();
         WatchMapEntityMatcher.AssignIDs(level, managers, "SummitBackgroundManager");
         foreach (AscendManager manager in managers)
         {
             if (!WatchEntityIDTable<AscendManager>.TryGet(manager, level.Session.Level, out int id)) continue;
-            byte[] p = new byte[ManagerPayloadSize];
-            if (manager.Dark) p[0] |= 1;
-            if (manager.Ch9Ending) p[0] |= 2;
-            if (manager.introLaunch) p[0] |= 4;
-            if (manager.outTheTop) p[0] |= 8;
-            WatchEntityPayloadCodec.WriteInt32(p, 4, manager.index);
-            WatchEntityPayloadCodec.WriteSingle(p, 8, manager.fade);
-            WatchEntityPayloadCodec.WriteSingle(p, 12, manager.scroll);
-            BinaryPrimitives.WriteUInt32LittleEndian(p.AsSpan(16), manager.background.PackedValue);
-            yield return sync.GetValue(manager, static _ => new()).Capture(new(Kind, id), p, 8,
-                level.TimeActive, WatchEntitySyncRegistry.IsCapturingCurrentState);
+            byte flags = 0;
+            if (manager.Dark) flags |= 1;
+            if (manager.Ch9Ending) flags |= 2;
+            if (manager.introLaunch) flags |= 4;
+            if (manager.outTheTop) flags |= 8;
+            var current = (Flags: flags, manager.index, manager.fade, manager.scroll,
+                Background: manager.background.PackedValue);
+            yield return sync.GetValue(manager, static _ => new()).Capture(
+                new(Kind, id), current, (current.Flags, current.index), ManagerPayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    WatchEntityPayloadCodec.WriteInt32(payload, 4, state.index);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 8, state.fade);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 12, state.scroll);
+                    BinaryPrimitives.WriteUInt32LittleEndian(payload[16..], state.Background);
+                },
+                level.TimeActive,
+                WatchEntitySyncRegistry.IsCapturingCurrentState
+            );
         }
-        foreach (HeightDisplay display in level.Entities.OfType<HeightDisplay>())
+        foreach (HeightDisplay display in WatchRoomEntityIndex.Enumerate<HeightDisplay>(level))
         {
             if (display.index < 0)
                 continue;
-            byte[] p = new byte[HeightPayloadSize];
-            if (display.Visible) p[0] |= 1;
-            WatchEntityPayloadCodec.WriteInt32(p, 4, display.index);
-            WatchEntityPayloadCodec.WriteSingle(p, 8, Math.Clamp(display.ease, 0f, 1f));
-            WatchEntityPayloadCodec.WriteSingle(p, 12, display.approach);
-            WatchEntityPayloadCodec.WriteSingle(p, 16, display.pulse);
+            var current = (
+                display.Visible,
+                display.index,
+                Ease: Math.Clamp(display.ease, 0f, 1f),
+                display.approach,
+                display.pulse
+            );
             yield return heightSync.GetValue(display, static _ => new()).Capture(
-                new(Kind, display.index, HeightSubID), p, 8,
-                level.TimeActive, WatchEntitySyncRegistry.IsCapturingCurrentState);
+                new(Kind, display.index, HeightSubID), current,
+                (current.Visible, current.index), HeightPayloadSize,
+                static (payload, state) =>
+                {
+                    if (state.Visible) payload[0] = 1;
+                    WatchEntityPayloadCodec.WriteInt32(payload, 4, state.index);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 8, state.Ease);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 12, state.approach);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 16, state.pulse);
+                },
+                level.TimeActive,
+                WatchEntitySyncRegistry.IsCapturingCurrentState
+            );
         }
     }
 
     public WatchEntityApplyResult ApplyStates(Level level, IReadOnlyCollection<WatchEntityState> states, bool complete)
     {
-        List<AscendManager> managers = level.Entities.OfType<AscendManager>().ToList();
+        List<AscendManager> managers = WatchRoomEntityIndex.Enumerate<AscendManager>(level).ToList();
         WatchMapEntityMatcher.AssignIDs(level, managers, "SummitBackgroundManager");
         HashSet<AscendManager> desiredManagers = new();
         HashSet<int> desiredHeights = new();
@@ -446,7 +483,7 @@ internal sealed class WatchAscendManagerAdapter : IWatchEntityAdapter
 
         if (complete)
         {
-            foreach (HeightDisplay display in level.Entities.OfType<HeightDisplay>().ToArray())
+            foreach (HeightDisplay display in WatchRoomEntityIndex.Enumerate<HeightDisplay>(level).ToArray())
             {
                 if (display.index >= 0 && !desiredHeights.Contains(display.index))
                 {
@@ -476,7 +513,7 @@ internal sealed class WatchAscendManagerAdapter : IWatchEntityAdapter
             backgrounds.Add(manager, presentation);
         }
 
-        presentation.Streaks ??= level.Entities.OfType<AscendManager.Streaks>()
+        presentation.Streaks ??= WatchRoomEntityIndex.Enumerate<AscendManager.Streaks>(level)
             .FirstOrDefault(candidate => ReferenceEquals(candidate.manager, manager));
         if (presentation.Streaks is null)
         {
@@ -486,7 +523,7 @@ internal sealed class WatchAscendManagerAdapter : IWatchEntityAdapter
 
         if (manager.Dark)
             return;
-        presentation.Clouds ??= level.Entities.OfType<AscendManager.Clouds>()
+        presentation.Clouds ??= WatchRoomEntityIndex.Enumerate<AscendManager.Clouds>(level)
             .FirstOrDefault(candidate => ReferenceEquals(candidate.manager, manager));
         if (presentation.Clouds is null)
         {
@@ -505,7 +542,7 @@ internal sealed class WatchAscendManagerAdapter : IWatchEntityAdapter
             return remote.Display;
         }
 
-        HeightDisplay display = level.Entities.OfType<HeightDisplay>()
+        HeightDisplay display = WatchRoomEntityIndex.Enumerate<HeightDisplay>(level)
             .FirstOrDefault(candidate => candidate.index == index)
             ?? new HeightDisplay(index);
         NeutralizeHeightDisplay(display);
@@ -592,25 +629,33 @@ internal sealed class WatchIntroCarAdapter : IWatchEntityAdapter
     }
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        List<IntroCar> cars = level.Entities.OfType<IntroCar>().ToList();
+        List<IntroCar> cars = WatchRoomEntityIndex.Enumerate<IntroCar>(level).ToList();
         WatchMapEntityMatcher.AssignIDs(level, cars, "introCar");
         foreach (IntroCar car in cars)
         {
             if (!WatchEntityIDTable<IntroCar>.TryGet(car, level.Session.Level, out int id)) continue;
-            byte[] p = new byte[PayloadSize];
-            if (car.Visible) p[0] |= 1;
-            if (car.Collidable) p[0] |= 2;
-            if (car.didHaveRider) p[0] |= 4;
-            WatchEntityPayloadCodec.WriteVector2(p, 4, car.Position);
-            WatchEntityPayloadCodec.WriteSingle(p, 12, car.startY);
-            WatchEntityPayloadCodec.WriteInt32(p, 16, car.Depth);
-            yield return sync.GetValue(car, static _ => new()).Capture(new(Kind, id), p, 1,
-                level.TimeActive, WatchEntitySyncRegistry.IsCapturingCurrentState);
+            byte flags = 0;
+            if (car.Visible) flags |= 1;
+            if (car.Collidable) flags |= 2;
+            if (car.didHaveRider) flags |= 4;
+            var current = (Flags: flags, car.Position, car.startY, car.Depth);
+            yield return sync.GetValue(car, static _ => new()).Capture(
+                new(Kind, id), current, current.Flags, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 12, state.startY);
+                    WatchEntityPayloadCodec.WriteInt32(payload, 16, state.Depth);
+                },
+                level.TimeActive,
+                WatchEntitySyncRegistry.IsCapturingCurrentState
+            );
         }
     }
     public WatchEntityApplyResult ApplyStates(Level level, IReadOnlyCollection<WatchEntityState> states, bool complete)
     {
-        List<IntroCar> cars = level.Entities.OfType<IntroCar>().ToList();
+        List<IntroCar> cars = WatchRoomEntityIndex.Enumerate<IntroCar>(level).ToList();
         WatchMapEntityMatcher.AssignIDs(level, cars, "introCar");
         foreach (WatchEntityState state in states)
         {
@@ -642,36 +687,74 @@ internal sealed class WatchChapterPropAdapter : IWatchEntityAdapter
     public static void Unload() { WatchEntitySyncRegistry.Unregister(instance); WatchEntityIDTable<Bonfire>.Clear(); WatchEntityIDTable<Payphone>.Clear(); sync.Clear(); }
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        List<Bonfire> fires = level.Entities.OfType<Bonfire>().ToList();
-        List<Payphone> phones = level.Entities.OfType<Payphone>().ToList();
+        List<Bonfire> fires = WatchRoomEntityIndex.Enumerate<Bonfire>(level).ToList();
+        List<Payphone> phones = WatchRoomEntityIndex.Enumerate<Payphone>(level).ToList();
         WatchMapEntityMatcher.AssignIDs(level, fires, "bonfire");
         WatchMapEntityMatcher.AssignIDs(level, phones, "payphone");
         foreach (Bonfire fire in fires)
         {
             if (!WatchEntityIDTable<Bonfire>.TryGet(fire, level.Session.Level, out int id)) continue;
-            byte[] p = CreateBase(fire, fire.sprite, fire.light, fire.bloom);
-            p[1] = (byte)fire.mode;
-            p[2] = (byte)Math.Max(0, fire.sprite.CurrentAnimationFrame);
-            p[3] = fire.Activated ? (byte)1 : (byte)0;
-            WatchEntityPayloadCodec.WriteSingle(p, 20, fire.brightness);
-            WatchEntityPayloadCodec.WriteUInt16(p, 24, WatchSpriteState.EncodeAnimation(fire.sprite));
-            yield return sync.GetValue(fire, static _ => new()).Capture(new(Kind, id, 1), p, 4, level.TimeActive, WatchEntitySyncRegistry.IsCapturingCurrentState);
+            byte flags = 0;
+            if (fire.Visible) flags |= 1;
+            if (fire.sprite.Visible) flags |= 2;
+            if (fire.light.Visible) flags |= 4;
+            var current = (Flags: flags, Mode: (byte)fire.mode,
+                Frame: (byte)Math.Max(0, fire.sprite.CurrentAnimationFrame), fire.Activated,
+                fire.Position, LightAlpha: fire.light.Alpha, BloomAlpha: fire.bloom.Alpha,
+                fire.brightness, Animation: WatchSpriteState.EncodeAnimation(fire.sprite));
+            yield return sync.GetValue(fire, static _ => new()).Capture(
+                new(Kind, id, 1), current,
+                (current.Flags, current.Mode, current.Frame, current.Activated), PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[1] = state.Mode;
+                    payload[2] = state.Frame;
+                    payload[3] = state.Activated ? (byte)1 : (byte)0;
+                    WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 12, state.LightAlpha);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 16, state.BloomAlpha);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 20, state.brightness);
+                    WatchEntityPayloadCodec.WriteUInt16(payload, 24, state.Animation);
+                },
+                level.TimeActive,
+                WatchEntitySyncRegistry.IsCapturingCurrentState
+            );
         }
         foreach (Payphone phone in phones)
         {
             if (!WatchEntityIDTable<Payphone>.TryGet(phone, level.Session.Level, out int id)) continue;
-            byte[] p = CreateBase(phone, phone.Sprite, phone.light, phone.bloom);
-            p[1] = phone.Broken ? (byte)1 : (byte)0;
-            p[2] = (byte)Math.Max(0, phone.Sprite.CurrentAnimationFrame);
-            WatchEntityPayloadCodec.WriteSingle(p, 20, phone.lightFlickerFor);
-            WatchEntityPayloadCodec.WriteUInt16(p, 24, WatchSpriteState.EncodeAnimation(phone.Sprite));
-            yield return sync.GetValue(phone, static _ => new()).Capture(new(Kind, id, 2), p, 4, level.TimeActive, WatchEntitySyncRegistry.IsCapturingCurrentState);
+            byte flags = 0;
+            if (phone.Visible) flags |= 1;
+            if (phone.Sprite.Visible) flags |= 2;
+            if (phone.light.Visible) flags |= 4;
+            var current = (Flags: flags, phone.Broken,
+                Frame: (byte)Math.Max(0, phone.Sprite.CurrentAnimationFrame), phone.Position,
+                LightAlpha: phone.light.Alpha, BloomAlpha: phone.bloom.Alpha,
+                phone.lightFlickerFor, Animation: WatchSpriteState.EncodeAnimation(phone.Sprite));
+            yield return sync.GetValue(phone, static _ => new()).Capture(
+                new(Kind, id, 2), current,
+                (current.Flags, current.Broken, current.Frame), PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[1] = state.Broken ? (byte)1 : (byte)0;
+                    payload[2] = state.Frame;
+                    WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 12, state.LightAlpha);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 16, state.BloomAlpha);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 20, state.lightFlickerFor);
+                    WatchEntityPayloadCodec.WriteUInt16(payload, 24, state.Animation);
+                },
+                level.TimeActive,
+                WatchEntitySyncRegistry.IsCapturingCurrentState
+            );
         }
     }
     public WatchEntityApplyResult ApplyStates(Level level, IReadOnlyCollection<WatchEntityState> states, bool complete)
     {
-        List<Bonfire> fires = level.Entities.OfType<Bonfire>().ToList();
-        List<Payphone> phones = level.Entities.OfType<Payphone>().ToList();
+        List<Bonfire> fires = WatchRoomEntityIndex.Enumerate<Bonfire>(level).ToList();
+        List<Payphone> phones = WatchRoomEntityIndex.Enumerate<Payphone>(level).ToList();
         WatchMapEntityMatcher.AssignIDs(level, fires, "bonfire");
         WatchMapEntityMatcher.AssignIDs(level, phones, "payphone");
         foreach (WatchEntityState state in states)
@@ -709,12 +792,6 @@ internal sealed class WatchChapterPropAdapter : IWatchEntityAdapter
         }
         return states.Count > 0 ? WatchEntityApplyResult.SceneChanged : WatchEntityApplyResult.None;
     }
-    private static byte[] CreateBase(Entity entity, Sprite sprite, VertexLight light, BloomPoint bloom)
-    {
-        byte[] p = new byte[PayloadSize]; if (entity.Visible) p[0] |= 1; if (sprite.Visible) p[0] |= 2; if (light.Visible) p[0] |= 4;
-        WatchEntityPayloadCodec.WriteSingle(p, 4, entity.X); WatchEntityPayloadCodec.WriteSingle(p, 8, entity.Y);
-        WatchEntityPayloadCodec.WriteSingle(p, 12, light.Alpha); WatchEntityPayloadCodec.WriteSingle(p, 16, bloom.Alpha); return p;
-    }
     private static void ApplyBase(Entity entity, Sprite sprite, VertexLight light, BloomPoint bloom, ReadOnlySpan<byte> p)
     {
         entity.Position = WatchEntityPayloadCodec.ReadVector2(p, 4);
@@ -732,20 +809,32 @@ internal sealed class WatchLookoutAdapter : IWatchEntityAdapter
     public static void Unload() { WatchEntitySyncRegistry.Unregister(instance); On.Celeste.Lookout.Interact -= Interact; WatchEntityIDTable<Lookout>.Clear(); }
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        List<Lookout> lookouts = level.Entities.OfType<Lookout>().ToList(); WatchMapEntityMatcher.AssignIDs(level, lookouts, "towerviewer");
+        List<Lookout> lookouts = WatchRoomEntityIndex.Enumerate<Lookout>(level).ToList(); WatchMapEntityMatcher.AssignIDs(level, lookouts, "towerviewer");
         foreach (Lookout lookout in lookouts)
         {
             if (!WatchEntityIDTable<Lookout>.TryGet(lookout, level.Session.Level, out int id)) continue;
-            byte[] p = new byte[PayloadSize]; if (lookout.Visible) p[0] |= 1; if (lookout.interacting) p[0] |= 2;
-            p[1] = (byte)Math.Max(0, lookout.sprite.CurrentAnimationFrame); WatchEntityPayloadCodec.WriteUInt16(p, 2, WatchSpriteState.EncodeAnimation(lookout.sprite));
-            WatchEntityPayloadCodec.WriteSingle(p, 4, lookout.X); WatchEntityPayloadCodec.WriteSingle(p, 8, lookout.Y);
-            WatchEntityPayloadCodec.WriteInt32(p, 12, lookout.node); WatchEntityPayloadCodec.WriteSingle(p, 16, lookout.nodePercent);
-            yield return new WatchEntityState(new(Kind, id), p);
+            byte flags = (byte)((lookout.Visible ? 1 : 0) | (lookout.interacting ? 2 : 0));
+            var current = (Flags: flags,
+                Frame: (byte)Math.Max(0, lookout.sprite.CurrentAnimationFrame),
+                Animation: WatchSpriteState.EncodeAnimation(lookout.sprite),
+                lookout.Position, lookout.node, lookout.nodePercent);
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id), current, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[1] = state.Frame;
+                    WatchEntityPayloadCodec.WriteUInt16(payload, 2, state.Animation);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
+                    WatchEntityPayloadCodec.WriteInt32(payload, 12, state.node);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 16, state.nodePercent);
+                }
+            );
         }
     }
     public WatchEntityApplyResult ApplyStates(Level level, IReadOnlyCollection<WatchEntityState> states, bool complete)
     {
-        List<Lookout> lookouts = level.Entities.OfType<Lookout>().ToList(); WatchMapEntityMatcher.AssignIDs(level, lookouts, "towerviewer");
+        List<Lookout> lookouts = WatchRoomEntityIndex.Enumerate<Lookout>(level).ToList(); WatchMapEntityMatcher.AssignIDs(level, lookouts, "towerviewer");
         foreach (WatchEntityState state in states)
         {
             ReadOnlySpan<byte> p = state.Payload.Span;

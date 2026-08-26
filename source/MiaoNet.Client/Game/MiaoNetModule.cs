@@ -97,6 +97,7 @@ public sealed class MiaoNetModule : EverestModule
             Everest.Events.Level.OnTransitionTo += Level_OnTransitionTo;
             On.Celeste.Level.Update += Level_Update_After;
             IL.Celeste.Level.Update += Level_Update;
+            WatchRoomEntityIndex.Load();
             SpriteIDTracker.Load();
             WatchPersistentSessionAdapter.Load();
             WatchCheckpointAdapter.Load();
@@ -222,6 +223,7 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.Level.OnTransitionTo -= Level_OnTransitionTo;
         On.Celeste.Level.Update -= Level_Update_After;
         IL.Celeste.Level.Update -= Level_Update;
+        WatchRoomEntityIndex.Unload();
         SpriteIDTracker.Unload();
         WatchTempleBigEyeballAdapter.Unload();
         WatchTriggerFirewall.Unload();

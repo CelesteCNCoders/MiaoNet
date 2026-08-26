@@ -71,25 +71,40 @@ internal sealed class WatchDreamMirrorAdapter : IWatchEntityAdapter
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (DreamMirror mirror in level.Entities.OfType<DreamMirror>())
+        foreach (DreamMirror mirror in WatchRoomEntityIndex.Enumerate<DreamMirror>(level))
         {
             if (!WatchChapterEntityID.TryAssignFromMap(level, mirror, "dreammirror", out int id))
                 continue;
-            byte[] p = new byte[PayloadSize];
-            if (mirror.Visible) p[0] |= 1;
-            if (mirror.smashed) p[0] |= 2;
-            if (mirror.smashEnded) p[0] |= 4;
-            if (mirror.updateShine) p[0] |= 8;
-            if (mirror.autoUpdateReflection) p[0] |= 16;
-            if (mirror.breakingGlass?.Visible == true) p[0] |= 32;
-            if (mirror.reflection?.Visible == true) p[0] |= 64;
-            p[1] = WatchChapterAnimation.Encode(mirror.breakingGlass?.CurrentAnimationID);
-            p[2] = (byte)Math.Max(0, mirror.breakingGlass?.CurrentAnimationFrame ?? 0);
-            WatchEntityPayloadCodec.WriteSingle(p, 4, mirror.shineAlpha);
-            WatchEntityPayloadCodec.WriteSingle(p, 8, mirror.reflectionAlpha);
-            WatchEntityPayloadCodec.WriteVector2(p, 12, mirror.Position);
-            WatchEntityPayloadCodec.WriteSingle(p, 20, mirror.breakingGlass?.Rate ?? 0f);
-            yield return new(new(Kind, id), p);
+            byte flags = 0;
+            if (mirror.Visible) flags |= 1;
+            if (mirror.smashed) flags |= 2;
+            if (mirror.smashEnded) flags |= 4;
+            if (mirror.updateShine) flags |= 8;
+            if (mirror.autoUpdateReflection) flags |= 16;
+            if (mirror.breakingGlass?.Visible == true) flags |= 32;
+            if (mirror.reflection?.Visible == true) flags |= 64;
+            var current = (
+                Flags: flags,
+                Animation: WatchChapterAnimation.Encode(mirror.breakingGlass?.CurrentAnimationID),
+                AnimationFrame: (byte)Math.Max(0, mirror.breakingGlass?.CurrentAnimationFrame ?? 0),
+                ShineAlpha: mirror.shineAlpha,
+                ReflectionAlpha: mirror.reflectionAlpha,
+                mirror.Position,
+                Rate: mirror.breakingGlass?.Rate ?? 0f
+            );
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id), current, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[1] = state.Animation;
+                    payload[2] = state.AnimationFrame;
+                    WatchEntityPayloadCodec.WriteSingle(payload, 4, state.ShineAlpha);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 8, state.ReflectionAlpha);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Position);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Rate);
+                }
+            );
         }
     }
 
@@ -101,7 +116,7 @@ internal sealed class WatchDreamMirrorAdapter : IWatchEntityAdapter
             ReadOnlySpan<byte> p = state.Payload.Span;
             if (state.Key.SubID != 0 || p.Length != PayloadSize)
                 continue;
-            DreamMirror? mirror = level.Entities.OfType<DreamMirror>().FirstOrDefault(candidate =>
+            DreamMirror? mirror = WatchRoomEntityIndex.Enumerate<DreamMirror>(level).FirstOrDefault(candidate =>
                 WatchChapterEntityID.TryAssignFromMap(level, candidate, "dreammirror", out int id)
                 && id == state.Key.EntityID);
             if (mirror is null)
@@ -158,22 +173,37 @@ internal sealed class WatchResortMirrorAdapter : IWatchEntityAdapter
     }
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (ResortMirror mirror in level.Entities.OfType<ResortMirror>())
+        foreach (ResortMirror mirror in WatchRoomEntityIndex.Enumerate<ResortMirror>(level))
         {
             if (!WatchEntityIDTable<ResortMirror>.TryGet(mirror, level.Session.Level, out int id)) continue;
-            byte[] p = new byte[PayloadSize];
-            if (mirror.Visible) p[0] |= 1;
-            if (mirror.smashed) p[0] |= 2;
-            if (mirror.shardReflection) p[0] |= 4;
-            if (mirror.breakingGlass?.Visible == true) p[0] |= 8;
-            if (mirror.evil?.Visible == true) p[0] |= 16;
-            p[1] = WatchChapterAnimation.Encode(mirror.breakingGlass?.CurrentAnimationID);
-            p[2] = (byte)Math.Max(0, mirror.breakingGlass?.CurrentAnimationFrame ?? 0);
-            WatchEntityPayloadCodec.WriteSingle(p, 4, mirror.shineAlpha);
-            WatchEntityPayloadCodec.WriteSingle(p, 8, mirror.mirrorAlpha);
-            WatchEntityPayloadCodec.WriteVector2(p, 12, mirror.Position);
-            WatchEntityPayloadCodec.WriteSingle(p, 20, mirror.breakingGlass?.Rate ?? 0f);
-            yield return new(new(Kind, id), p);
+            byte flags = 0;
+            if (mirror.Visible) flags |= 1;
+            if (mirror.smashed) flags |= 2;
+            if (mirror.shardReflection) flags |= 4;
+            if (mirror.breakingGlass?.Visible == true) flags |= 8;
+            if (mirror.evil?.Visible == true) flags |= 16;
+            var current = (
+                Flags: flags,
+                Animation: WatchChapterAnimation.Encode(mirror.breakingGlass?.CurrentAnimationID),
+                AnimationFrame: (byte)Math.Max(0, mirror.breakingGlass?.CurrentAnimationFrame ?? 0),
+                ShineAlpha: mirror.shineAlpha,
+                MirrorAlpha: mirror.mirrorAlpha,
+                mirror.Position,
+                Rate: mirror.breakingGlass?.Rate ?? 0f
+            );
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id), current, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[1] = state.Animation;
+                    payload[2] = state.AnimationFrame;
+                    WatchEntityPayloadCodec.WriteSingle(payload, 4, state.ShineAlpha);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 8, state.MirrorAlpha);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Position);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Rate);
+                }
+            );
         }
     }
     public WatchEntityApplyResult ApplyStates(Level level, IReadOnlyCollection<WatchEntityState> states, bool isCompleteState)
@@ -226,29 +256,48 @@ internal sealed class WatchTempleMirrorPortalAdapter : IWatchEntityAdapter
     }
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (TempleMirrorPortal portal in level.Entities.OfType<TempleMirrorPortal>())
+        foreach (TempleMirrorPortal portal in WatchRoomEntityIndex.Enumerate<TempleMirrorPortal>(level))
         {
             if (!WatchEntityIDTable<TempleMirrorPortal>.TryGet(portal, level.Session.Level, out int id)) continue;
-            byte[] p = new byte[PayloadSize];
-            if (portal.Visible) p[0] |= 1;
-            if (portal.canTrigger) p[0] |= 2;
-            if (portal.curtain?.Visible == true) p[0] |= 4;
-            if (portal.leftTorch?.Visible == true) p[0] |= 8;
-            if (portal.rightTorch?.Visible == true) p[0] |= 16;
-            if (portal.buffer is not null || portal.bufferAlpha > 0f) p[3] |= 1;
-            if (portal.curtain?.Sprite.CurrentAnimationID == "fall") p[3] |= 2;
-            if (portal.leftTorch?.light is not null) p[3] |= 4;
-            if (portal.rightTorch?.light is not null) p[3] |= 8;
-            if (portal.curtain is not null) {
-                p[1] = WatchChapterAnimation.Encode(portal.curtain.Sprite.CurrentAnimationID);
-                p[2] = (byte)Math.Max(0, portal.curtain.Sprite.CurrentAnimationFrame);
-            }
-            WatchEntityPayloadCodec.WriteInt32(p, 4, portal.switchCounter);
-            WatchEntityPayloadCodec.WriteSingle(p, 8, portal.DistortionFade);
-            WatchEntityPayloadCodec.WriteSingle(p, 12, portal.bufferAlpha);
-            WatchEntityPayloadCodec.WriteSingle(p, 16, portal.bufferTimer);
-            WatchEntityPayloadCodec.WriteVector2(p, 20, portal.Position);
-            yield return new(new(Kind, id), p);
+            byte flags = 0;
+            if (portal.Visible) flags |= 1;
+            if (portal.canTrigger) flags |= 2;
+            if (portal.curtain?.Visible == true) flags |= 4;
+            if (portal.leftTorch?.Visible == true) flags |= 8;
+            if (portal.rightTorch?.Visible == true) flags |= 16;
+            byte extraFlags = 0;
+            if (portal.buffer is not null || portal.bufferAlpha > 0f) extraFlags |= 1;
+            if (portal.curtain?.Sprite.CurrentAnimationID == "fall") extraFlags |= 2;
+            if (portal.leftTorch?.light is not null) extraFlags |= 4;
+            if (portal.rightTorch?.light is not null) extraFlags |= 8;
+            var current = (
+                Flags: flags,
+                Animation: portal.curtain is null
+                    ? (byte)0
+                    : WatchChapterAnimation.Encode(portal.curtain.Sprite.CurrentAnimationID),
+                AnimationFrame: (byte)Math.Max(0, portal.curtain?.Sprite.CurrentAnimationFrame ?? 0),
+                ExtraFlags: extraFlags,
+                SwitchCounter: portal.switchCounter,
+                portal.DistortionFade,
+                portal.bufferAlpha,
+                portal.bufferTimer,
+                portal.Position
+            );
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id), current, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[1] = state.Animation;
+                    payload[2] = state.AnimationFrame;
+                    payload[3] = state.ExtraFlags;
+                    WatchEntityPayloadCodec.WriteInt32(payload, 4, state.SwitchCounter);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 8, state.DistortionFade);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 12, state.bufferAlpha);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 16, state.bufferTimer);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 20, state.Position);
+                }
+            );
         }
     }
     public WatchEntityApplyResult ApplyStates(Level level, IReadOnlyCollection<WatchEntityState> states, bool isCompleteState)
@@ -340,27 +389,46 @@ internal sealed class WatchGondolaAdapter : IWatchEntityAdapter
     }
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (Gondola gondola in level.Entities.OfType<Gondola>())
+        foreach (Gondola gondola in WatchRoomEntityIndex.Enumerate<Gondola>(level))
         {
             if (!WatchEntityIDTable<Gondola>.TryGet(gondola, level.Session.Level, out int id)) continue;
-            byte[] p = new byte[PayloadSize];
-            if (gondola.Visible) p[0] |= 1;
-            if (gondola.Collidable) p[0] |= 2;
-            if (gondola.brokenLever) p[0] |= 4;
-            if (gondola.inCliffside) p[0] |= 8;
-            if (gondola.front.Visible) p[0] |= 16;
-            if (gondola.Lever.Visible) p[0] |= 32;
-            p[1] = WatchChapterAnimation.Encode(gondola.front.CurrentAnimationID);
-            p[2] = (byte)Math.Max(0, gondola.front.CurrentAnimationFrame);
-            p[3] = WatchChapterAnimation.Encode(gondola.Lever.CurrentAnimationID);
-            p[4] = (byte)Math.Max(0, gondola.Lever.CurrentAnimationFrame);
-            WatchEntityPayloadCodec.WriteVector2(p, 8, gondola.Position);
-            WatchEntityPayloadCodec.WriteSingle(p, 16, gondola.Rotation);
-            WatchEntityPayloadCodec.WriteVector2(p, 20, gondola.Speed);
-            WatchEntityPayloadCodec.WriteSingle(p, 28, gondola.RotationSpeed);
-            WatchEntityPayloadCodec.WriteSingle(p, 32, gondola.front.Rate);
-            WatchEntityPayloadCodec.WriteSingle(p, 36, gondola.Lever.Rate);
-            yield return new(new(Kind, id), p);
+            byte flags = 0;
+            if (gondola.Visible) flags |= 1;
+            if (gondola.Collidable) flags |= 2;
+            if (gondola.brokenLever) flags |= 4;
+            if (gondola.inCliffside) flags |= 8;
+            if (gondola.front.Visible) flags |= 16;
+            if (gondola.Lever.Visible) flags |= 32;
+            var current = (
+                Flags: flags,
+                FrontAnimation: WatchChapterAnimation.Encode(gondola.front.CurrentAnimationID),
+                FrontFrame: (byte)Math.Max(0, gondola.front.CurrentAnimationFrame),
+                LeverAnimation: WatchChapterAnimation.Encode(gondola.Lever.CurrentAnimationID),
+                LeverFrame: (byte)Math.Max(0, gondola.Lever.CurrentAnimationFrame),
+                gondola.Position,
+                gondola.Rotation,
+                gondola.Speed,
+                gondola.RotationSpeed,
+                FrontRate: gondola.front.Rate,
+                LeverRate: gondola.Lever.Rate
+            );
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id), current, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[1] = state.FrontAnimation;
+                    payload[2] = state.FrontFrame;
+                    payload[3] = state.LeverAnimation;
+                    payload[4] = state.LeverFrame;
+                    WatchEntityPayloadCodec.WriteVector2(payload, 8, state.Position);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Rotation);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 20, state.Speed);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 28, state.RotationSpeed);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 32, state.FrontRate);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 36, state.LeverRate);
+                }
+            );
         }
     }
     public WatchEntityApplyResult ApplyStates(Level level, IReadOnlyCollection<WatchEntityState> states, bool isCompleteState)
@@ -425,26 +493,45 @@ internal sealed class WatchWaveDashTutorialAdapter : IWatchEntityAdapter
     }
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (WaveDashTutorialMachine machine in level.Entities.OfType<WaveDashTutorialMachine>())
+        foreach (WaveDashTutorialMachine machine in WatchRoomEntityIndex.Enumerate<WaveDashTutorialMachine>(level))
         {
             if (!WatchEntityIDTable<WaveDashTutorialMachine>.TryGet(machine, level.Session.Level, out int id)) continue;
-            byte[] p = new byte[PayloadSize];
-            if (machine.Visible) p[0] |= 1;
-            if (machine.playerInside) p[0] |= 2;
-            if (machine.inCutscene) p[0] |= 4;
-            if (machine.frontEntity?.Visible == true) p[0] |= 8;
-            if (machine.presentation?.Viewing == true) p[0] |= 16;
-            p[1] = WatchChapterAnimation.Encode(machine.noise.CurrentAnimationID);
-            p[2] = (byte)Math.Max(0, machine.noise.CurrentAnimationFrame);
-            p[3] = WatchChapterAnimation.Encode(machine.neon.CurrentAnimationID);
-            p[4] = (byte)Math.Max(0, machine.neon.CurrentAnimationFrame);
-            WatchEntityPayloadCodec.WriteSingle(p, 8, machine.insideEase);
-            WatchEntityPayloadCodec.WriteSingle(p, 12, machine.cameraEase);
-            WatchEntityPayloadCodec.WriteVector2(p, 16, machine.Position);
-            WatchEntityPayloadCodec.WriteSingle(p, 24, machine.presentation?.ease ?? 0f);
-            WatchEntityPayloadCodec.WriteInt32(p, 28, machine.presentation?.pageIndex ?? 0);
-            WatchEntityPayloadCodec.WriteSingle(p, 32, machine.presentation?.pageEase ?? 0f);
-            yield return new(new(Kind, id), p);
+            byte flags = 0;
+            if (machine.Visible) flags |= 1;
+            if (machine.playerInside) flags |= 2;
+            if (machine.inCutscene) flags |= 4;
+            if (machine.frontEntity?.Visible == true) flags |= 8;
+            if (machine.presentation?.Viewing == true) flags |= 16;
+            var current = (
+                Flags: flags,
+                NoiseAnimation: WatchChapterAnimation.Encode(machine.noise.CurrentAnimationID),
+                NoiseFrame: (byte)Math.Max(0, machine.noise.CurrentAnimationFrame),
+                NeonAnimation: WatchChapterAnimation.Encode(machine.neon.CurrentAnimationID),
+                NeonFrame: (byte)Math.Max(0, machine.neon.CurrentAnimationFrame),
+                machine.insideEase,
+                machine.cameraEase,
+                machine.Position,
+                PresentationEase: machine.presentation?.ease ?? 0f,
+                PageIndex: machine.presentation?.pageIndex ?? 0,
+                PageEase: machine.presentation?.pageEase ?? 0f
+            );
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id), current, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[1] = state.NoiseAnimation;
+                    payload[2] = state.NoiseFrame;
+                    payload[3] = state.NeonAnimation;
+                    payload[4] = state.NeonFrame;
+                    WatchEntityPayloadCodec.WriteSingle(payload, 8, state.insideEase);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 12, state.cameraEase);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 16, state.Position);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 24, state.PresentationEase);
+                    WatchEntityPayloadCodec.WriteInt32(payload, 28, state.PageIndex);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 32, state.PageEase);
+                }
+            );
         }
     }
     public WatchEntityApplyResult ApplyStates(Level level, IReadOnlyCollection<WatchEntityState> states, bool isCompleteState)
@@ -517,18 +604,25 @@ internal sealed class WatchPowerSourceNumberAdapter : IWatchEntityAdapter
     }
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
-        foreach (PowerSourceNumber number in level.Entities.OfType<PowerSourceNumber>())
+        foreach (PowerSourceNumber number in WatchRoomEntityIndex.Enumerate<PowerSourceNumber>(level))
         {
             if (!WatchChapterEntityID.TryAssignFromMap(level, number, "powerSourceNumber", out int id)) continue;
-            byte[] p = new byte[PayloadSize];
-            if (number.Visible) p[0] |= 1;
-            if (number.gotKey) p[0] |= 2;
-            if (number.image.Visible) p[0] |= 4;
-            if (number.glow.Visible) p[0] |= 8;
-            WatchEntityPayloadCodec.WriteSingle(p, 4, number.ease);
-            WatchEntityPayloadCodec.WriteSingle(p, 8, number.timer);
-            WatchEntityPayloadCodec.WriteVector2(p, 12, number.Position);
-            yield return new(new(Kind, id), p);
+            byte flags = 0;
+            if (number.Visible) flags |= 1;
+            if (number.gotKey) flags |= 2;
+            if (number.image.Visible) flags |= 4;
+            if (number.glow.Visible) flags |= 8;
+            var current = (Flags: flags, number.ease, number.timer, number.Position);
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id), current, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    WatchEntityPayloadCodec.WriteSingle(payload, 4, state.ease);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 8, state.timer);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Position);
+                }
+            );
         }
     }
     public WatchEntityApplyResult ApplyStates(Level level, IReadOnlyCollection<WatchEntityState> states, bool isCompleteState)
@@ -538,7 +632,7 @@ internal sealed class WatchPowerSourceNumberAdapter : IWatchEntityAdapter
         {
             ReadOnlySpan<byte> p = state.Payload.Span;
             if (state.Key.SubID != 0 || p.Length != PayloadSize) continue;
-            PowerSourceNumber? number = level.Entities.OfType<PowerSourceNumber>().FirstOrDefault(candidate => WatchChapterEntityID.TryAssignFromMap(level, candidate, "powerSourceNumber", out int id) && id == state.Key.EntityID);
+            PowerSourceNumber? number = WatchRoomEntityIndex.Enumerate<PowerSourceNumber>(level).FirstOrDefault(candidate => WatchChapterEntityID.TryAssignFromMap(level, candidate, "powerSourceNumber", out int id) && id == state.Key.EntityID);
             if (number is null) continue;
             number.Visible = (p[0] & 1) != 0;
             number.gotKey = (p[0] & 2) != 0;

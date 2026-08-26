@@ -46,33 +46,53 @@ internal sealed class WatchConditionalBlockAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (FakeWall wall in level.Entities.OfType<FakeWall>())
+        foreach (FakeWall wall in WatchRoomEntityIndex.Enumerate<FakeWall>(level))
         {
             if (!WatchEntityIDTable<FakeWall>.TryGet(wall, room, out int id))
                 continue;
-            byte[] payload = new byte[PayloadSize];
-            if (wall.Visible) payload[0] |= 1;
-            if (wall.transitionFade) payload[0] |= 4;
-            payload[1] = 0;
-            payload[2] = (byte)wall.mode;
-            WatchEntityPayloadCodec.WriteSingle(payload, 4, wall.tiles?.Alpha ?? 0f);
-            WatchEntityPayloadCodec.WriteSingle(payload, 8, wall.cutout?.Alpha ?? 0f);
-            WatchEntityPayloadCodec.WriteSingle(payload, 12, wall.transitionStartAlpha);
-            yield return new(new(Kind, id, FakeWallSubID), payload);
+            byte flags = (byte)((wall.Visible ? 1 : 0) | (wall.transitionFade ? 4 : 0));
+            var current = (
+                Flags: flags,
+                Mode: (byte)wall.mode,
+                TileAlpha: wall.tiles?.Alpha ?? 0f,
+                CutoutAlpha: wall.cutout?.Alpha ?? 0f,
+                wall.transitionStartAlpha
+            );
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id, FakeWallSubID), current, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[2] = state.Mode;
+                    WatchEntityPayloadCodec.WriteSingle(payload, 4, state.TileAlpha);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 8, state.CutoutAlpha);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 12, state.transitionStartAlpha);
+                }
+            );
         }
 
-        foreach (ExitBlock block in level.Entities.OfType<ExitBlock>())
+        foreach (ExitBlock block in WatchRoomEntityIndex.Enumerate<ExitBlock>(level))
         {
             if (!WatchEntityIDTable<ExitBlock>.TryGet(block, room, out int id))
                 continue;
-            byte[] payload = new byte[PayloadSize];
-            if (block.Visible) payload[0] |= 1;
-            if (block.Collidable) payload[0] |= 2;
-            payload[1] = 1;
-            WatchEntityPayloadCodec.WriteSingle(payload, 4, block.tiles?.Alpha ?? 0f);
-            WatchEntityPayloadCodec.WriteSingle(payload, 8, block.cutout?.Alpha ?? 0f);
-            WatchEntityPayloadCodec.WriteSingle(payload, 12, block.startAlpha);
-            yield return new(new(Kind, id, ExitBlockSubID), payload);
+            byte flags = (byte)((block.Visible ? 1 : 0) | (block.Collidable ? 2 : 0));
+            var current = (
+                Flags: flags,
+                TileAlpha: block.tiles?.Alpha ?? 0f,
+                CutoutAlpha: block.cutout?.Alpha ?? 0f,
+                block.startAlpha
+            );
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id, ExitBlockSubID), current, PayloadSize,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Flags;
+                    payload[1] = 1;
+                    WatchEntityPayloadCodec.WriteSingle(payload, 4, state.TileAlpha);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 8, state.CutoutAlpha);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 12, state.startAlpha);
+                }
+            );
         }
     }
 
@@ -86,7 +106,7 @@ internal sealed class WatchConditionalBlockAdapter : IWatchEntityAdapter
             .ToDictionary(state => (state.Key.EntityID, state.Key.SubID));
         bool changed = false;
 
-        foreach (FakeWall wall in level.Entities.OfType<FakeWall>().ToArray())
+        foreach (FakeWall wall in WatchRoomEntityIndex.Enumerate<FakeWall>(level).ToArray())
         {
             if (!WatchEntityIDTable<FakeWall>.TryGet(wall, level.Session.Level, out int id))
                 continue;
@@ -99,7 +119,7 @@ internal sealed class WatchConditionalBlockAdapter : IWatchEntityAdapter
             changed = true;
         }
 
-        foreach (ExitBlock block in level.Entities.OfType<ExitBlock>().ToArray())
+        foreach (ExitBlock block in WatchRoomEntityIndex.Enumerate<ExitBlock>(level).ToArray())
         {
             if (!WatchEntityIDTable<ExitBlock>.TryGet(block, level.Session.Level, out int id))
                 continue;

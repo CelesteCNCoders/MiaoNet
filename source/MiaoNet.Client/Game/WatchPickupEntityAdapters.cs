@@ -25,7 +25,7 @@ internal sealed class WatchRefillAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        Dictionary<int, Refill> entities = level.Entities.OfType<Refill>()
+        Dictionary<int, Refill> entities = WatchRoomEntityIndex.Enumerate<Refill>(level)
             .Where(entity => WatchEntityIDTable<Refill>.TryGet(entity, room, out _))
             .GroupBy(entity =>
             {
@@ -45,7 +45,11 @@ internal sealed class WatchRefillAdapter : IWatchEntityAdapter
                     ? WatchEntityPhase.Ready
                     : refill.oneUse ? WatchEntityPhase.Gone : WatchEntityPhase.Cooldown;
             }
-            yield return new WatchEntityState(new WatchEntityKey(Kind, id), [(byte)phase]);
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id),
+                (byte)phase,
+                static value => [value]
+            );
         }
     }
 
@@ -62,7 +66,7 @@ internal sealed class WatchRefillAdapter : IWatchEntityAdapter
         bool changed = false;
         bool requiresReload = false;
         string room = level.Session.Level;
-        Dictionary<int, Refill> entities = level.Entities.OfType<Refill>()
+        Dictionary<int, Refill> entities = WatchRoomEntityIndex.Enumerate<Refill>(level)
             .Where(entity => WatchEntityIDTable<Refill>.TryGet(entity, room, out _))
             .GroupBy(entity =>
             {
@@ -172,7 +176,7 @@ internal sealed class WatchFlyFeatherAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (FlyFeather feather in level.Entities.OfType<FlyFeather>())
+        foreach (FlyFeather feather in WatchRoomEntityIndex.Enumerate<FlyFeather>(level))
         {
             if (!WatchEntityIDTable<FlyFeather>.TryGet(feather, room, out int id))
                 continue;
@@ -180,7 +184,11 @@ internal sealed class WatchFlyFeatherAdapter : IWatchEntityAdapter
             WatchEntityPhase phase = feather.Collidable
                 ? WatchEntityPhase.Ready
                 : feather.singleUse ? WatchEntityPhase.Gone : WatchEntityPhase.Cooldown;
-            yield return new WatchEntityState(new WatchEntityKey(Kind, id), [(byte)phase]);
+            yield return WatchEntityState.FromTyped(
+                new(Kind, id),
+                (byte)phase,
+                static value => [value]
+            );
         }
     }
 
@@ -197,7 +205,7 @@ internal sealed class WatchFlyFeatherAdapter : IWatchEntityAdapter
         bool changed = false;
         bool requiresReload = false;
         string room = level.Session.Level;
-        Dictionary<int, FlyFeather> entities = level.Entities.OfType<FlyFeather>()
+        Dictionary<int, FlyFeather> entities = WatchRoomEntityIndex.Enumerate<FlyFeather>(level)
             .Where(entity => WatchEntityIDTable<FlyFeather>.TryGet(entity, room, out _))
             .GroupBy(entity =>
             {
@@ -443,20 +451,32 @@ internal sealed class WatchBoosterAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        foreach (Booster booster in level.Entities.OfType<Booster>())
+        foreach (Booster booster in WatchRoomEntityIndex.Enumerate<Booster>(level))
         {
             if (!infos.TryGetValue(booster, out BoosterInfo? info)
                 || !StringComparer.Ordinal.Equals(info.Level, room))
                 continue;
 
-            byte[] payload = new byte[16];
-            payload[0] = (byte)info.Phase;
-            WatchEntityPayloadCodec.WriteVector2(payload, 1, booster.sprite.RenderPosition);
-            payload[9] = booster.sprite.Visible ? (byte)1 : (byte)0;
-            payload[10] = booster.outline.Visible ? (byte)1 : (byte)0;
-            payload[11] = booster.sprite.FlipX ? (byte)1 : (byte)0;
-            WatchEntityPayloadCodec.WriteSingle(payload, 12, booster.respawnTimer);
-            yield return new WatchEntityState(new WatchEntityKey(Kind, info.ID), payload);
+            var current = (
+                Phase: (byte)info.Phase,
+                Position: booster.sprite.RenderPosition,
+                SpriteVisible: booster.sprite.Visible,
+                OutlineVisible: booster.outline.Visible,
+                booster.sprite.FlipX,
+                booster.respawnTimer
+            );
+            yield return WatchEntityState.FromTyped(
+                new(Kind, info.ID), current, 16,
+                static (payload, state) =>
+                {
+                    payload[0] = state.Phase;
+                    WatchEntityPayloadCodec.WriteVector2(payload, 1, state.Position);
+                    payload[9] = state.SpriteVisible ? (byte)1 : (byte)0;
+                    payload[10] = state.OutlineVisible ? (byte)1 : (byte)0;
+                    payload[11] = state.FlipX ? (byte)1 : (byte)0;
+                    WatchEntityPayloadCodec.WriteSingle(payload, 12, state.respawnTimer);
+                }
+            );
         }
     }
 
@@ -486,7 +506,7 @@ internal sealed class WatchBoosterAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        foreach (Booster booster in level.Entities.OfType<Booster>())
+        foreach (Booster booster in WatchRoomEntityIndex.Enumerate<Booster>(level))
         {
             if (!infos.TryGetValue(booster, out BoosterInfo? info)
                 || !StringComparer.Ordinal.Equals(info.Level, room)

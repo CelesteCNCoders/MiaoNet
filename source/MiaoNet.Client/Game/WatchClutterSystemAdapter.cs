@@ -17,6 +17,17 @@ internal sealed class WatchClutterSystemAdapter : IWatchEntityAdapter
     private const byte CollidableFlag = 1 << 1;
     private const byte BoolFlag = 1 << 2;
 
+    private readonly record struct ClutterState(
+        byte Type,
+        byte Flags,
+        byte Color,
+        byte Animation,
+        ushort AnimationFrame,
+        Vector2 Position,
+        float Value0,
+        float Value1
+    );
+
     private readonly record struct ContactInfo(
         int ID,
         ClutterBlock.Colors Color,
@@ -89,7 +100,7 @@ internal sealed class WatchClutterSystemAdapter : IWatchEntityAdapter
     {
         EnsureLocalRoom(level.Session.Level);
         string room = level.Session.Level;
-        foreach (ClutterSwitch entity in level.Entities.OfType<ClutterSwitch>())
+        foreach (ClutterSwitch entity in WatchRoomEntityIndex.Enumerate<ClutterSwitch>(level))
         {
             if (WatchEntityIDTable<ClutterSwitch>.TryGet(entity, room, out int id))
                 yield return Encode(
@@ -99,7 +110,7 @@ internal sealed class WatchClutterSystemAdapter : IWatchEntityAdapter
                     entity.Position, entity.atY, entity.speedY
                 );
         }
-        foreach (ClutterCabinet entity in level.Entities.OfType<ClutterCabinet>())
+        foreach (ClutterCabinet entity in WatchRoomEntityIndex.Enumerate<ClutterCabinet>(level))
         {
             if (WatchEntityIDTable<ClutterCabinet>.TryGet(entity, room, out int id))
                 yield return Encode(
@@ -109,7 +120,7 @@ internal sealed class WatchClutterSystemAdapter : IWatchEntityAdapter
                     entity.Position, 0f, 0f
                 );
         }
-        foreach (ClutterDoor entity in level.Entities.OfType<ClutterDoor>())
+        foreach (ClutterDoor entity in WatchRoomEntityIndex.Enumerate<ClutterDoor>(level))
         {
             if (WatchEntityIDTable<ClutterDoor>.TryGet(entity, room, out int id))
                 yield return Encode(
@@ -122,7 +133,7 @@ internal sealed class WatchClutterSystemAdapter : IWatchEntityAdapter
 
         foreach (ClutterBlock.Colors color in GroupColors())
         {
-            bool present = level.Entities.OfType<ClutterBlock>().Any(block => block.BlockColor == color);
+            bool present = WatchRoomEntityIndex.Enumerate<ClutterBlock>(level).Any(block => block.BlockColor == color);
             yield return Encode(
                 GroupKey(color), GroupType, present ? BoolFlag : (byte)0, (byte)color,
                 0, 0, Vector2.Zero, 0f, 0f
@@ -184,7 +195,7 @@ internal sealed class WatchClutterSystemAdapter : IWatchEntityAdapter
             foreach (ClutterBlock.Colors color in GroupColors())
             {
                 bool remotePresent = IsGroupPresent(color);
-                bool localPresent = level.Entities.OfType<ClutterBlock>()
+                bool localPresent = WatchRoomEntityIndex.Enumerate<ClutterBlock>(level)
                     .Any(block => block.BlockColor == color);
                 if (remotePresent && !localPresent && !remoteClearingGroups.Contains(color))
                     requiresReload = true;
@@ -205,10 +216,10 @@ internal sealed class WatchClutterSystemAdapter : IWatchEntityAdapter
             return;
 
         ClutterBlock.Colors color = (ClutterBlock.Colors)entityEvent.Key.EntityID;
-        ClutterBlock[] blocks = level.Entities.OfType<ClutterBlock>()
+        ClutterBlock[] blocks = WatchRoomEntityIndex.Enumerate<ClutterBlock>(level)
             .Where(block => block.BlockColor == color)
             .ToArray();
-        ClutterSwitch? clutterSwitch = level.Entities.OfType<ClutterSwitch>()
+        ClutterSwitch? clutterSwitch = WatchRoomEntityIndex.Enumerate<ClutterSwitch>(level)
             .FirstOrDefault(entity => entity.color == color);
         remoteClearingGroups.Add(color);
 
@@ -256,7 +267,7 @@ internal sealed class WatchClutterSystemAdapter : IWatchEntityAdapter
     private static bool DeactivateBlockBases(Level level, ClutterBlock.Colors color)
     {
         bool changed = false;
-        foreach (ClutterBlockBase blockBase in level.Entities.OfType<ClutterBlockBase>()
+        foreach (ClutterBlockBase blockBase in WatchRoomEntityIndex.Enumerate<ClutterBlockBase>(level)
             .Where(blockBase => blockBase.BlockColor == color))
         {
             if (!blockBase.enabled && !blockBase.Collidable)
@@ -326,7 +337,7 @@ internal sealed class WatchClutterSystemAdapter : IWatchEntityAdapter
                 continue;
             remoteClearingGroups.Remove(color);
             changed |= DeactivateBlockBases(level, color);
-            foreach (ClutterBlock block in level.Entities.OfType<ClutterBlock>()
+            foreach (ClutterBlock block in WatchRoomEntityIndex.Enumerate<ClutterBlock>(level)
                 .Where(block => block.BlockColor == color).ToArray())
             {
                 block.RemoveSelf();
@@ -340,7 +351,7 @@ internal sealed class WatchClutterSystemAdapter : IWatchEntityAdapter
                 && (pair.Value[1] & BoolFlag) != 0))
         {
             ClutterBlock.Colors color = (ClutterBlock.Colors)payload[2];
-            foreach (ClutterBlock block in level.Entities.OfType<ClutterBlock>()
+            foreach (ClutterBlock block in WatchRoomEntityIndex.Enumerate<ClutterBlock>(level)
                 .Where(block => block.BlockColor == color
                     && GetContactIdentity(block).ID == key.EntityID))
                 block.WeightDown();
@@ -351,13 +362,13 @@ internal sealed class WatchClutterSystemAdapter : IWatchEntityAdapter
     private static IEnumerable<(Entity Entity, WatchEntityKey Key)> EnumerateTracked(Level level)
     {
         string room = level.Session.Level;
-        foreach (ClutterSwitch entity in level.Entities.OfType<ClutterSwitch>())
+        foreach (ClutterSwitch entity in WatchRoomEntityIndex.Enumerate<ClutterSwitch>(level))
             if (WatchEntityIDTable<ClutterSwitch>.TryGet(entity, room, out int id))
                 yield return (entity, new WatchEntityKey(WatchEntityKind.ClutterSystem, id, SwitchType));
-        foreach (ClutterCabinet entity in level.Entities.OfType<ClutterCabinet>())
+        foreach (ClutterCabinet entity in WatchRoomEntityIndex.Enumerate<ClutterCabinet>(level))
             if (WatchEntityIDTable<ClutterCabinet>.TryGet(entity, room, out int id))
                 yield return (entity, new WatchEntityKey(WatchEntityKind.ClutterSystem, id, CabinetType));
-        foreach (ClutterDoor entity in level.Entities.OfType<ClutterDoor>())
+        foreach (ClutterDoor entity in WatchRoomEntityIndex.Enumerate<ClutterDoor>(level))
             if (WatchEntityIDTable<ClutterDoor>.TryGet(entity, room, out int id))
                 yield return (entity, new WatchEntityKey(WatchEntityKind.ClutterSystem, id, DoorType));
     }
@@ -385,18 +396,31 @@ internal sealed class WatchClutterSystemAdapter : IWatchEntityAdapter
         WatchEntityKey key, byte type, byte flags, byte color, byte animation,
         int frame, Vector2 position, float value0, float value1
     )
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = type;
-        payload[1] = flags;
-        payload[2] = color;
-        payload[3] = animation;
-        WatchEntityPayloadCodec.WriteUInt16(payload, 4, (ushort)Math.Max(0, frame));
-        WatchEntityPayloadCodec.WriteVector2(payload, 8, position);
-        WatchEntityPayloadCodec.WriteSingle(payload, 16, value0);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, value1);
-        return new WatchEntityState(key, payload);
-    }
+        => WatchEntityState.FromTyped(
+            key,
+            new ClutterState(
+                type,
+                flags,
+                color,
+                animation,
+                (ushort)Math.Max(0, frame),
+                position,
+                value0,
+                value1
+            ),
+            PayloadSize,
+            static (payload, state) =>
+            {
+                payload[0] = state.Type;
+                payload[1] = state.Flags;
+                payload[2] = state.Color;
+                payload[3] = state.Animation;
+                WatchEntityPayloadCodec.WriteUInt16(payload, 4, state.AnimationFrame);
+                WatchEntityPayloadCodec.WriteVector2(payload, 8, state.Position);
+                WatchEntityPayloadCodec.WriteSingle(payload, 16, state.Value0);
+                WatchEntityPayloadCodec.WriteSingle(payload, 20, state.Value1);
+            }
+        );
 
     private static bool TryValidate(WatchEntityState state)
     {
@@ -591,7 +615,7 @@ internal sealed class WatchClutterSystemAdapter : IWatchEntityAdapter
     private static void AssignContactIdentities(Level level)
     {
         int index = 0;
-        foreach (ClutterBlock block in level.Entities.OfType<ClutterBlock>()
+        foreach (ClutterBlock block in WatchRoomEntityIndex.Enumerate<ClutterBlock>(level)
             .Concat(level.Entities.ToAdd.OfType<ClutterBlock>())
             .Distinct()
             .OrderBy(block => block.BlockColor)

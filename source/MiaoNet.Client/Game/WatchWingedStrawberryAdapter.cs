@@ -21,8 +21,7 @@ internal sealed class WatchWingedStrawberryAdapter : IWatchEntityAdapter
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
         string room = level.Session.Level;
-        Dictionary<int, Strawberry> strawberriesByID = level.Entities
-            .OfType<Strawberry>()
+        Dictionary<int, Strawberry> strawberriesByID = WatchRoomEntityIndex.Enumerate<Strawberry>(level)
             .Where(strawberry => strawberry.ID.Level == room)
             .GroupBy(strawberry => strawberry.ID.ID)
             .ToDictionary(group => group.Key, group => group.First());
@@ -38,9 +37,10 @@ internal sealed class WatchWingedStrawberryAdapter : IWatchEntityAdapter
                     : WatchWingedStrawberryState.Present;
             }
 
-            yield return new WatchEntityState(
-                new WatchEntityKey(Kind, data.ID),
-                [(byte)state]
+            yield return WatchEntityState.FromTyped(
+                new(Kind, data.ID),
+                (byte)state,
+                static value => [value]
             );
         }
     }
@@ -71,8 +71,7 @@ internal sealed class WatchWingedStrawberryAdapter : IWatchEntityAdapter
         bool changed = false;
         bool requiresReload = false;
         string room = level.Session.Level;
-        Dictionary<int, Strawberry> strawberriesByID = level.Entities
-            .OfType<Strawberry>()
+        Dictionary<int, Strawberry> strawberriesByID = WatchRoomEntityIndex.Enumerate<Strawberry>(level)
             .Where(strawberry => strawberry.ID.Level == room)
             .GroupBy(strawberry => strawberry.ID.ID)
             .ToDictionary(group => group.Key, group => group.First());

@@ -198,7 +198,7 @@ internal sealed class WatchPlayerSeekerAdapter : IWatchEntityAdapter
     {
         string room = level.Session.Level;
         HashSet<int> captured = new();
-        foreach (PlayerSeeker seeker in level.Entities.OfType<PlayerSeeker>())
+        foreach (PlayerSeeker seeker in WatchRoomEntityIndex.Enumerate<PlayerSeeker>(level))
         {
             if (!WatchEntityIDTable<PlayerSeeker>.TryGet(seeker, room, out int id)
                 || !captured.Add(id))
@@ -229,7 +229,7 @@ internal sealed class WatchPlayerSeekerAdapter : IWatchEntityAdapter
 
         bool changed = false;
         string room = level.Session.Level;
-        Dictionary<int, PlayerSeeker> existing = level.Entities.OfType<PlayerSeeker>()
+        Dictionary<int, PlayerSeeker> existing = WatchRoomEntityIndex.Enumerate<PlayerSeeker>(level)
             .Select(entity => (
                 Entity: entity,
                 HasID: WatchEntityIDTable<PlayerSeeker>.TryGet(entity, room, out int id),
@@ -327,25 +327,27 @@ internal sealed class WatchPlayerSeekerAdapter : IWatchEntityAdapter
     }
 
     private static WatchEntityState Encode(int id, PlayerSeekerState state)
-    {
-        byte[] payload = new byte[PayloadSize];
-        payload[0] = state.Flags;
-        payload[1] = state.Animation;
-        payload[2] = state.AnimationFrame;
-        WatchEntityPayloadCodec.WriteVector2(payload, 4, state.Position);
-        WatchEntityPayloadCodec.WriteVector2(payload, 12, state.Speed);
-        WatchEntityPayloadCodec.WriteSingle(payload, 20, state.DashTimer);
-        WatchEntityPayloadCodec.WriteVector2(payload, 24, state.DashDirection);
-        WatchEntityPayloadCodec.WriteSingle(payload, 32, state.TrailTimerA);
-        WatchEntityPayloadCodec.WriteSingle(payload, 36, state.TrailTimerB);
-        WatchEntityPayloadCodec.WriteVector2(payload, 40, state.Scale);
-        WatchEntityPayloadCodec.WriteSingle(payload, 48, state.TimeRate);
-        WatchEntityPayloadCodec.WriteSingle(payload, 52, state.Glitch);
-        WatchEntityPayloadCodec.WriteSingle(payload, 56, state.Anxiety);
-        WatchEntityPayloadCodec.WriteVector2(payload, 60, state.AnxietyOrigin);
-        WatchEntityPayloadCodec.WriteInt32(payload, 68, state.Depth);
-        return new(new WatchEntityKey(WatchEntityKind.PlayerSeeker, id), payload);
-    }
+        => WatchEntityState.FromTyped(
+            new(WatchEntityKind.PlayerSeeker, id), state, PayloadSize,
+            static (payload, value) =>
+            {
+                payload[0] = value.Flags;
+                payload[1] = value.Animation;
+                payload[2] = value.AnimationFrame;
+                WatchEntityPayloadCodec.WriteVector2(payload, 4, value.Position);
+                WatchEntityPayloadCodec.WriteVector2(payload, 12, value.Speed);
+                WatchEntityPayloadCodec.WriteSingle(payload, 20, value.DashTimer);
+                WatchEntityPayloadCodec.WriteVector2(payload, 24, value.DashDirection);
+                WatchEntityPayloadCodec.WriteSingle(payload, 32, value.TrailTimerA);
+                WatchEntityPayloadCodec.WriteSingle(payload, 36, value.TrailTimerB);
+                WatchEntityPayloadCodec.WriteVector2(payload, 40, value.Scale);
+                WatchEntityPayloadCodec.WriteSingle(payload, 48, value.TimeRate);
+                WatchEntityPayloadCodec.WriteSingle(payload, 52, value.Glitch);
+                WatchEntityPayloadCodec.WriteSingle(payload, 56, value.Anxiety);
+                WatchEntityPayloadCodec.WriteVector2(payload, 60, value.AnxietyOrigin);
+                WatchEntityPayloadCodec.WriteInt32(payload, 68, value.Depth);
+            }
+        );
 
     private static bool TryDecode(WatchEntityState state, out PlayerSeekerState value)
     {
