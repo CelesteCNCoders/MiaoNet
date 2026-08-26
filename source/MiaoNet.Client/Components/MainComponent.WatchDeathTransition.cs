@@ -1,0 +1,241 @@
+using MiaoNet.Shared;
+
+namespace Celeste.Mod.MiaoNet;
+
+public sealed partial class MainComponent
+{
+    private enum WatchDeathTransitionPhase
+    {
+        None,
+        WaitingForRespawnState,
+        WipingOut,
+    }
+
+    private WatchDeathTransitionPhase watchDeathTransitionPhase;
+    private bool watchDeathWipeSignaled;
+    private bool watchDeathRespawnStateReady;
+    private bool watchDeathRespawnNotificationReady;
+    private Vector2 watchDeathRespawnPosition;
+    private bool watchDeathRespawnFromSaveState;
+    private PlayerLocation watchDeathSourceLocation;
+    private PlayerLocation watchDeathRespawnLocation;
+    private ScreenWipe? watchDeathWipe;
+
+    private void BeginWatchDeathTransition(Level level)
+    {
+        CancelWatchDeathTransition(level);
+        InvalidateBufferedWatchCamera(awaitFreshSample: true);
+        watchDeathTransitionPhase = WatchDeathTransitionPhase.WaitingForRespawnState;
+        watchDeathSourceLocation = PlayerLocation.FetchFrom(level.Session);
+        Logger.Debug(LT.MiaoNetWatch, "Started Watcher visual death lifecycle.");
+    }
+
+    private void SignalWatchDeathWipe(Level level)
+    {
+        if (watchDeathTransitionPhase == WatchDeathTransitionPhase.None)
+            BeginWatchDeathTransition(level);
+
+        watchDeathWipeSignaled = true;
+        if (watchDeathTransitionPhase == WatchDeathTransitionPhase.WaitingForRespawnState
+            && (level.Wipe is null || level.Wipe.Completed))
+            StartWatchDeathWipeOut(level);
+    }
+
+    private void BufferWatchRespawnNotification(Vector2 position, bool fromSaveState)
+    {
+        if (watchDeathTransitionPhase == WatchDeathTransitionPhase.None)
+            return;
+
+        watchDeathRespawnPosition = position;
+        watchDeathRespawnFromSaveState = fromSaveState;
+        watchDeathRespawnNotificationReady = true;
+    }
+
+    private void MarkWatchDeathRespawnStateReady(PlayerLocation location)
+    {
+        if (watchDeathTransitionPhase == WatchDeathTransitionPhase.None
+            || playerWatching is null
+            || playerWatching.Location.Map != location.Map)
+            return;
+
+        watchDeathRespawnLocation = location;
+        watchDeathRespawnStateReady = true;
+    }
+
+    private bool UpdateWatchDeathTransition(Level level)
+    {
+        if (watchDeathTransitionPhase == WatchDeathTransitionPhase.None)
+            return false;
+
+        PlayerLocation current = PlayerLocation.FetchFrom(level.Session);
+        if (playerWatching is null || playerWatching.Location.Map != current.Map)
+        {
+            CancelWatchDeathTransition(level);
+            return false;
+        }
+        if (playerWatching.Location != current)
+            // A PlayerSeeker Void ending is a death followed by a direct room
+            // load. Preserve the death state while the normal watch room
+            // transition catches up instead of discarding its respawn packet.
+            return false;
+
+        if (TryCompleteWatchCrossRoomRespawn(level))
+            return false;
+
+        if (watchDeathTransitionPhase == WatchDeathTransitionPhase.WaitingForRespawnState
+            && watchDeathWipeSignaled
+            && (level.Wipe is null || level.Wipe.Completed))
+            StartWatchDeathWipeOut(level);
+
+        if (watchDeathTransitionPhase == WatchDeathTransitionPhase.WipingOut
+            && watchDeathWipe is { Completed: false, Percent: >= 1f } wipe)
+        {
+            if (watchDeathRespawnStateReady && watchDeathRespawnNotificationReady)
+                wipe.EndTimer = 0f;
+            else
+                // ScreenWipe deliberately spends one update at Percent=1 before
+                // completing. Refresh EndTimer during that fully black frame so
+                // a delayed respawn snapshot cannot expose the stale room.
+                wipe.EndTimer = Math.Max(wipe.EndTimer, 0.05f);
+        }
+
+        // Before the screen is fully black, keep receiving state into the
+        // pending caches but do not expose the new lifecycle in the live scene.
+        return true;
+    }
+
+    private void StartWatchDeathWipeOut(Level level)
+    {
+        watchDeathTransitionPhase = WatchDeathTransitionPhase.WipingOut;
+        level.DoScreenWipe(false, () => CompleteWatchDeathWipeOut(level), false);
+        watchDeathWipe = level.Wipe;
+        Logger.Debug(LT.MiaoNetWatch, "Started Watcher death wipe at the Player wipe event.");
+    }
+
+    private void CompleteWatchDeathWipeOut(Level level)
+    {
+        if (watchDeathTransitionPhase != WatchDeathTransitionPhase.WipingOut
+            || Engine.Scene != level
+            || playerWatching is null
+            || !watchDeathRespawnStateReady
+            || !watchDeathRespawnNotificationReady)
+            return;
+
+        ApplyWatchDeathRespawnSceneState(level);
+        if (!SnapBufferedWatchCamera(level))
+            SnapWatchCamera(level, watchDeathRespawnPosition);
+        if (ghosts.TryGetValue(playerWatching.ID, out MiaoNetGhost? ghost))
+        {
+            ghost.OnRespawning(
+                watchDeathRespawnPosition,
+                watchDeathRespawnFromSaveState
+            );
+        }
+
+        ResetWatchDeathTransitionState();
+        Logger.Debug(
+            LT.MiaoNetWatch,
+            "Applied post-respawn scene state at the fully black frame and revealed it directly."
+        );
+    }
+
+    private bool TryCompleteWatchCrossRoomRespawn(Level level)
+    {
+        PlayerLocation current = PlayerLocation.FetchFrom(level.Session);
+        if (!watchDeathRespawnStateReady
+            || !watchDeathRespawnNotificationReady
+            || watchDeathRespawnLocation != current
+            || watchDeathSourceLocation == current)
+            return false;
+
+        ApplyWatchDeathRespawnSceneState(level);
+        if (!SnapBufferedWatchCamera(level))
+            SnapWatchCamera(level, watchDeathRespawnPosition);
+        if (playerWatching is not null
+            && ghosts.TryGetValue(playerWatching.ID, out MiaoNetGhost? ghost)
+            && ghost.Dead)
+        {
+            // The target room is already authoritative. Restore the Ghost
+            // immediately so no same-room death tween flashes after the Void
+            // room has disappeared.
+            ghost.OnRespawning(watchDeathRespawnPosition, fromSL: true);
+        }
+
+        string sourceRoom = watchDeathSourceLocation.Room;
+        CancelWatchDeathTransition(level);
+        Logger.Debug(
+            LT.MiaoNetWatch,
+            $"Completed cross-room watched death lifecycle " +
+            $"{sourceRoom} -> {current.Room}."
+        );
+        return true;
+    }
+
+    private void ApplyWatchDeathRespawnSceneState(Level level)
+    {
+        ApplyWatchTouchSwitchState(level, allowDuringTransition: true);
+        ApplyWatchEntityState(level, allowDuringTransition: true);
+        if (!watchLifecycleRoomReloadRequired)
+            return;
+
+        // Some one-way vanilla entities cannot be reconstructed by their
+        // adapter. The screen is fully black here, so rebuild exactly once and
+        // atomically reapply the authoritative Replace before revealing it.
+        watchLifecycleRoomReloadRequired = false;
+        watchTouchSwitchStateApplied = true;
+        watchTouchSwitchStatePending = watchActiveTouchSwitchIDs is not null;
+        watchEntityStateApplied = true;
+        if (watchEntityStates is not null)
+        {
+            watchPendingEntityStateKeys.Clear();
+            watchPendingEntityStateKeys.UnionWith(watchEntityStates.Keys);
+            watchPendingEntityStateMode = WatchEntityStateMode.Replace;
+            watchEntityLifecycleResetPending = true;
+        }
+
+        level.Reload();
+        NormalizeWatchRoomRendering(level);
+        if (level.Tracker.GetEntity<Player>() is { } localPlayer)
+        {
+            localPlayer.Visible = false;
+            localPlayer.StateMachine.State = Player.StFrozen;
+        }
+        ApplyWatchTouchSwitchState(level, allowDuringTransition: true);
+        ApplyWatchEntityState(level, allowDuringTransition: true);
+        if (watchLifecycleRoomReloadRequired)
+        {
+            Logger.Error(
+                LT.MiaoNetWatch,
+                $"A watch entity still required room reload after the black-frame " +
+                $"lifecycle rebuild for {watchEntityLocation.Room}; ignored the repeated request."
+            );
+            watchLifecycleRoomReloadRequired = false;
+        }
+        Logger.Info(
+            LT.MiaoNetWatch,
+            "Rebuilt the watched room once at the fully black death frame to restore one-way entities."
+        );
+    }
+
+    private void CancelWatchDeathTransition(Level? level)
+    {
+        if (watchDeathWipe is { Completed: false } wipe
+            && (level is null || ReferenceEquals(wipe.Scene, level)))
+            wipe.Cancel();
+
+        ResetWatchDeathTransitionState();
+    }
+
+    private void ResetWatchDeathTransitionState()
+    {
+        watchDeathTransitionPhase = WatchDeathTransitionPhase.None;
+        watchDeathWipeSignaled = false;
+        watchDeathRespawnStateReady = false;
+        watchDeathRespawnNotificationReady = false;
+        watchDeathRespawnPosition = Vector2.Zero;
+        watchDeathRespawnFromSaveState = false;
+        watchDeathSourceLocation = default;
+        watchDeathRespawnLocation = default;
+        watchDeathWipe = null;
+    }
+}

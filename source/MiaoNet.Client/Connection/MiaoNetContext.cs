@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using MiaoNet.ClientShared;
@@ -9,6 +10,9 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed partial class MiaoNetContext : IPacketSerializationContext
 {
+    private const int MaxPacketsPerUpdate = 64;
+    private static readonly long ReceiveQueueBudgetTicks = Stopwatch.Frequency / 1000;
+
     private int currentRequestID;
     // request id -> on response handler
     private readonly ConcurrentDictionary<int, Action<PacketResponse>> pendingRequests;
@@ -257,10 +261,16 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             while (mainThreadQueue.TryDequeue(out var item))
                 item();
 
-            while (receiveQueue.TryDequeue(out var received))
+            int packetsHandled = 0;
+            long receiveQueueStartedAt = Stopwatch.GetTimestamp();
+            while (packetsHandled < MaxPacketsPerUpdate
+                && receiveQueue.TryDequeue(out var received))
             {
                 if (connectionLifecycle.IsCurrent(received.Generation))
                     HandleQueuedPacket(received.Packet);
+                packetsHandled++;
+                if (Stopwatch.GetTimestamp() - receiveQueueStartedAt >= ReceiveQueueBudgetTicks)
+                    break;
             }
 
             if (!HasConnection)

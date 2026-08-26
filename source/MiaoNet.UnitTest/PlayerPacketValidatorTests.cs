@@ -41,6 +41,28 @@ public sealed class PlayerPacketValidatorTests
         Assert.AreEqual(expected, PlayerPacketValidator.HasValidFollowerCount(delta));
     }
 
+    [TestMethod]
+    public void CameraPosition_MustBeFinite_WhenPresent()
+    {
+        PlayerState state = CreatePlayerState(0);
+        Assert.IsTrue(PlayerPacketValidator.HasValidCameraPosition(state));
+
+        state.CameraPosition = new Vector2(12f, 34f);
+        Assert.IsTrue(PlayerPacketValidator.HasValidCameraPosition(state));
+        state.CameraPosition = new Vector2(float.NaN, 34f);
+        Assert.IsFalse(PlayerPacketValidator.HasValidCameraPosition(state));
+
+        PlayerStateDelta delta = CreateDelta(PlayerStateDelta.FrameFlags.None);
+        delta.CameraPosition = new Vector2(float.NaN, 1f);
+        Assert.IsTrue(PlayerPacketValidator.HasValidCameraPosition(delta));
+
+        delta = CreateDelta(PlayerStateDelta.FrameFlags.HasCameraPosition);
+        delta.CameraPosition = new Vector2(56f, 78f);
+        Assert.IsTrue(PlayerPacketValidator.HasValidCameraPosition(delta));
+        delta.CameraPosition = new Vector2(56f, float.PositiveInfinity);
+        Assert.IsFalse(PlayerPacketValidator.HasValidCameraPosition(delta));
+    }
+
     private static PlayerState CreatePlayerState(int followerCount)
         => new()
         {

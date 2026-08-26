@@ -53,6 +53,12 @@ public sealed partial class MiaoServerService
             await connection.DisconnectAsync(DisconnectReason.Kicked, "Too many followers");
             return;
         }
+        if (!PlayerPacketValidator.HasValidCameraPosition(delta))
+        {
+            logger.LogWarning(AppEvents.Game, "Player {p} sent a non-finite camera position.", player.Info);
+            await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
+            return;
+        }
 
         // TODO we can actually using one Task for one Map
         // to handle these updates lock-free
@@ -162,6 +168,12 @@ public sealed partial class MiaoServerService
         {
             logger.LogWarning(AppEvents.GameState, "Player {p} sent too many followers in its initial state.", player.Info);
             await connection.DisconnectAsync(DisconnectReason.Kicked, "Too many followers");
+            return;
+        }
+        if (!PlayerPacketValidator.HasValidCameraPosition(packet.InitialState))
+        {
+            logger.LogWarning(AppEvents.GameState, "Player {p} sent a non-finite initial camera position.", player.Info);
+            await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
             return;
         }
 

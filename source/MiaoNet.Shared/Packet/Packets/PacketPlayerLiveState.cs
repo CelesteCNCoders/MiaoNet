@@ -1,13 +1,22 @@
 namespace MiaoNet.Shared;
 
-public enum LiveStateType { Die, Respawn, RespawnFromSL }
+public enum LiveStateType
+{
+    Die,
+    Respawn,
+    RespawnFromSL,
+    DeathWipe,
+}
 
 public sealed class PacketPlayerLiveState : IContextlessPacket<PacketPlayerLiveState>
 {
 
     public LiveStateType Type { get; }
 
-    /// <summary>Die direction when <see cref="IsDie"/>, or respawn position.</summary>
+    /// <summary>
+    /// Death direction for <see cref="LiveStateType.Die"/>, respawn position for
+    /// the respawn variants, or zero for <see cref="LiveStateType.DeathWipe"/>.
+    /// </summary>
     public Vector2 Vector2 { get; }
 
     public PacketPlayerLiveState(LiveStateType type, Vector2 vector2)

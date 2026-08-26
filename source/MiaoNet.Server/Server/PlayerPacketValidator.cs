@@ -20,4 +20,15 @@ internal static class PlayerPacketValidator
 
         return count <= MaxFollowersCount;
     }
+
+    internal static bool HasValidCameraPosition(PlayerState state)
+        => state.CameraPosition is not { } position
+            || IsFinite(position);
+
+    internal static bool HasValidCameraPosition(PlayerStateDelta delta)
+        => !delta.HasCameraPosition
+            || IsFinite(delta.CameraPosition);
+
+    private static bool IsFinite(Vector2 value)
+        => float.IsFinite(value.X) && float.IsFinite(value.Y);
 }

@@ -18,7 +18,13 @@ public sealed class WatchPacketTests
     public async Task RequestAndSuccessfulResponseRoundTrip()
     {
         PacketWatchStart request = new(42) { RequestID = 7 };
-        WatchSceneSnapshot snapshot = new(Location, 3, ["flag-a", "flag-b"], [2, 9]);
+        WatchSceneSnapshot snapshot = new(
+            Location,
+            3,
+            ["flag-a", "flag-b"],
+            [2, 9],
+            [new(new(WatchEntityKind.Spring, 12), [1, 2])]
+        );
         PacketWatchStartResponse response = new(WatchStartResult.Success, 9, snapshot)
         {
             RequestID = 7,
@@ -65,9 +71,44 @@ public sealed class WatchPacketTests
     [TestMethod]
     public async Task DeltaAndLifecyclePacketsRoundTrip()
     {
-        WatchSceneDelta delta = new(8, Location, ["added"], ["removed"], true, true, [3, 7]);
+        WatchEntityKey key = new(WatchEntityKind.Spring, 12, 2);
+        WatchSceneDelta delta = new(
+            8,
+            Location,
+            ["added"],
+            ["removed"],
+            true,
+            true,
+            [3, 7],
+            WatchEntityStateMode.Replace,
+            [new(key, [4, 5])],
+            [new(key, 1, [6, 7])]
+        );
+        WatchRoomTransition roomTransition = new(
+            new PlayerLocation(Location.Map, "0"),
+            Location,
+            new Vector2(320f, 180f),
+            new Vector2(0f, 1f)
+        );
+        WatchSceneDelta transitionDelta = new(
+            9,
+            Location,
+            [],
+            [],
+            false,
+            true,
+            [],
+            WatchEntityStateMode.Replace,
+            [],
+            [],
+            false,
+            roomTransition
+        );
 
         PacketWatchSceneDelta readDelta = await RoundTripAsync(new PacketWatchSceneDelta(delta));
+        PacketWatchSceneDelta readTransitionDelta = await RoundTripAsync(
+            new PacketWatchSceneDelta(transitionDelta)
+        );
         PacketWatchSceneDeltaNotification readNotification = await RoundTripAsync(
             new PacketWatchSceneDeltaNotification(1, 2, delta)
         );
@@ -78,6 +119,7 @@ public sealed class WatchPacketTests
         );
 
         AssertDelta(delta, readDelta.Delta);
+        AssertDelta(transitionDelta, readTransitionDelta.Delta);
         Assert.AreEqual(1, readNotification.SessionID);
         Assert.AreEqual(2, readNotification.TargetPlayerID);
         AssertDelta(delta, readNotification.Delta);
@@ -85,6 +127,61 @@ public sealed class WatchPacketTests
         Assert.AreEqual(1, readProducerStop.SessionID);
         Assert.AreEqual(1, readEnded.SessionID);
         Assert.AreEqual(WatchEndReason.LocationChanged, readEnded.Reason);
+    }
+
+    [TestMethod]
+    public async Task DeathWipeNotificationRoundTripsWithoutPositionPayloadMeaning()
+    {
+        PacketPlayerLiveState packet = new(LiveStateType.DeathWipe, Vector2.Zero);
+
+        PacketPlayerLiveState read = await RoundTripAsync(packet);
+
+        Assert.AreEqual(LiveStateType.DeathWipe, read.Type);
+        Assert.AreEqual(Vector2.Zero, read.Vector2);
+    }
+
+    [TestMethod]
+    public async Task WatchedCameraPositionRoundTripsInInitialAndFrameState()
+    {
+        Vector2 initialCamera = new(123.5f, 456.25f);
+        PlayerState state = new()
+        {
+            Position = new Vector2(10f, 20f),
+            Animation = "idle",
+            AnimationFrame = 0,
+            Scale = Vector2.One,
+            StateFlags = PlayerStateFlags.None,
+            Dashes = 1,
+            DeltaTime = 1f / 60f,
+            PlayerSpriteMode = PlayerSpriteMode.Madeline,
+            HoldableInfo = default,
+            FollowerInfos = [],
+            WindDirection = Vector2.Zero,
+            CameraPosition = initialCamera,
+        };
+        PacketPlayerLocationChanged initial = new(Location, state);
+
+        PacketPlayerLocationChanged readInitial = await RoundTripAsync(initial);
+
+        Assert.AreEqual(initialCamera, readInitial.InitialState?.CameraPosition);
+
+        Vector2 frameCamera = new(130f, 460f);
+        PlayerStateDelta delta = new(
+            new Vector2(11f, 21f),
+            "runFast",
+            1,
+            Vector2.One,
+            PlayerStateDelta.FrameFlags.HasCameraPosition,
+            PlayerStateFlags.None
+        )
+        {
+            CameraPosition = frameCamera,
+        };
+
+        PacketPlayerFrame readFrame = await RoundTripAsync(new PacketPlayerFrame(delta));
+
+        Assert.IsTrue(readFrame.StateDelta.HasCameraPosition);
+        Assert.AreEqual(frameCamera, readFrame.StateDelta.CameraPosition);
     }
 
     private async Task<TPacket> RoundTripAsync<TPacket>(TPacket packet)
@@ -112,6 +209,7 @@ public sealed class WatchPacketTests
             expected.ActiveTouchSwitchIDs.ToArray(),
             actual.ActiveTouchSwitchIDs.ToArray()
         );
+        AssertEntityStates(expected.EntityStates, actual.EntityStates);
     }
 
     private static void AssertDelta(WatchSceneDelta expected, WatchSceneDelta actual)
@@ -121,11 +219,45 @@ public sealed class WatchPacketTests
         CollectionAssert.AreEqual(expected.AddedFlags.ToArray(), actual.AddedFlags.ToArray());
         CollectionAssert.AreEqual(expected.RemovedFlags.ToArray(), actual.RemovedFlags.ToArray());
         Assert.AreEqual(expected.RequiresRoomReload, actual.RequiresRoomReload);
+        Assert.AreEqual(expected.IsDeathRespawn, actual.IsDeathRespawn);
+        Assert.AreEqual(expected.RoomTransition, actual.RoomTransition);
         Assert.AreEqual(expected.HasTouchSwitchState, actual.HasTouchSwitchState);
         CollectionAssert.AreEqual(
             expected.ActiveTouchSwitchIDs.ToArray(),
             actual.ActiveTouchSwitchIDs.ToArray()
         );
+        Assert.AreEqual(expected.EntityStateMode, actual.EntityStateMode);
+        AssertEntityStates(expected.EntityStates, actual.EntityStates);
+        WatchEntityEvent[] expectedEvents = expected.EntityEvents.ToArray();
+        WatchEntityEvent[] actualEvents = actual.EntityEvents.ToArray();
+        Assert.HasCount(expectedEvents.Length, actualEvents);
+        for (int i = 0; i < expectedEvents.Length; i++)
+        {
+            Assert.AreEqual(expectedEvents[i].Key, actualEvents[i].Key);
+            Assert.AreEqual(expectedEvents[i].EventID, actualEvents[i].EventID);
+            CollectionAssert.AreEqual(
+                expectedEvents[i].Payload.ToArray(),
+                actualEvents[i].Payload.ToArray()
+            );
+        }
+    }
+
+    private static void AssertEntityStates(
+        IReadOnlyCollection<WatchEntityState> expected,
+        IReadOnlyCollection<WatchEntityState> actual
+    )
+    {
+        WatchEntityState[] expectedStates = expected.ToArray();
+        WatchEntityState[] actualStates = actual.ToArray();
+        Assert.HasCount(expectedStates.Length, actualStates);
+        for (int i = 0; i < expectedStates.Length; i++)
+        {
+            Assert.AreEqual(expectedStates[i].Key, actualStates[i].Key);
+            CollectionAssert.AreEqual(
+                expectedStates[i].Payload.ToArray(),
+                actualStates[i].Payload.ToArray()
+            );
+        }
     }
 
     private sealed class TestPacketSerializationContext : IPacketSerializationContext

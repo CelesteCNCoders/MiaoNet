@@ -13,6 +13,7 @@ public sealed class PlayerStateDelta : IContextualRefBinarySerializable<PlayerSt
         HasFollowerInitials = 1 << 2,
         HasFollowerDeltas = 1 << 3,
         HasWindDirection = 1 << 4,
+        HasCameraPosition = 1 << 5,
     }
 
     #region flags
@@ -28,6 +29,8 @@ public sealed class PlayerStateDelta : IContextualRefBinarySerializable<PlayerSt
     public bool HasFollowerDeltas => Flags.HasFlag(FrameFlags.HasFollowerDeltas);
 
     public bool HasWindDirection => Flags.HasFlag(FrameFlags.HasWindDirection);
+
+    public bool HasCameraPosition => Flags.HasFlag(FrameFlags.HasCameraPosition);
 
     #endregion
 
@@ -60,6 +63,11 @@ public sealed class PlayerStateDelta : IContextualRefBinarySerializable<PlayerSt
 
     /// <summary>Included only when <see cref="HasWindDirection"/>.</summary>
     public Vector2 WindDirection { get; set; }
+
+    /// <summary>
+    /// Final world-space camera position for a Player currently being watched.
+    /// </summary>
+    public Vector2 CameraPosition { get; set; }
 
     public PlayerStateDelta(
         Vector2 position,
@@ -97,6 +105,8 @@ public sealed class PlayerStateDelta : IContextualRefBinarySerializable<PlayerSt
             writer.WriteSmall(FollowerDeltas, pooledStringManager);
         if (HasWindDirection)
             writer.Write(WindDirection);
+        if (HasCameraPosition)
+            writer.Write(CameraPosition);
     }
 
     public static PlayerStateDelta Deserialize(ref RefBinaryReader reader, PooledStringManager pooledStringManager)
@@ -120,6 +130,8 @@ public sealed class PlayerStateDelta : IContextualRefBinarySerializable<PlayerSt
             packet.FollowerDeltas = reader.ReadSmallArray<FollowerInfoDelta, PooledStringManager>(pooledStringManager);
         if (packet.HasWindDirection)
             packet.WindDirection = reader.ReadVector2();
+        if (packet.HasCameraPosition)
+            packet.CameraPosition = reader.ReadVector2();
         return packet;
     }
 }

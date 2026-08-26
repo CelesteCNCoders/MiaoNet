@@ -156,7 +156,7 @@ partial class MiaoNetContext
         EnsureState();
         var p = packet.Packet;
         var player = ClientState.GetPlayer(packet.PlayerID);
-        if (p.Type is not LiveStateType.Die)
+        if (p.Type is LiveStateType.Respawn or LiveStateType.RespawnFromSL)
         {
             var state = player.State;
             if (state is not null)
