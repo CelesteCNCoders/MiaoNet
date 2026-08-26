@@ -60,7 +60,12 @@ internal static class BitsboltsCompat
         if (Engine.Scene is not Level level)
             return;
 
-        foreach (GhostDeadBody body in level.Tracker.GetEntities<GhostDeadBody>().ToArray())
+        // GhostDeadBody is tracked through MiaoNetGhostEntity's inherited tracker
+        // entry, so an exact GhostDeadBody entry does not necessarily exist.
+        foreach (GhostDeadBody body in level.Tracker
+            .GetEntities<MiaoNetGhostEntity>()
+            .OfType<GhostDeadBody>()
+            .ToArray())
             body.RemoveSelf();
     }
 }
