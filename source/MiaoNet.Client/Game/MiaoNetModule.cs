@@ -26,6 +26,11 @@ public sealed class MiaoNetModule : EverestModule
 
     public MiaoNetContext MiaoNetContext => miaoNetContext ??= new();
 
+    internal static bool IsWatching => Instance.miaoNetContext?.MainComponent.Watching == true;
+
+    internal static bool IsWatchedPlayerPaused =>
+        Instance.miaoNetContext?.MainComponent.WatchedPlayerPaused == true;
+
     // TODO this is ugly
     public static Vector2? NextPlayerSpawnPosition { get; set; }
 
@@ -39,8 +44,18 @@ public sealed class MiaoNetModule : EverestModule
     public delegate void PlayerDiedHandler(Player player, Vector2 direction);
     public static event PlayerDiedHandler? PlayerDied;
 
+    public static event Action? PlayerDeathWipeStarted;
+
     public delegate void PreviewPlayerRespawnHandler(Player player, Level level, bool fromSL);
     public static event PreviewPlayerRespawnHandler? PreviewPlayerRespawn;
+
+    public delegate void PlayerRoomTransitionHandler(
+        Level level,
+        LevelData next,
+        Player player,
+        Vector2 direction
+    );
+    public static event PlayerRoomTransitionHandler? PlayerRoomTransition;
 
     public MiaoNetModule()
     {
@@ -69,9 +84,56 @@ public sealed class MiaoNetModule : EverestModule
             IL.Monocle.Engine.RenderCore += Engine_RenderCore;
             Everest.Events.Level.OnExit += Level_OnExit;
             Everest.Events.Level.OnLoadLevel += Level_OnLoadLevel;
+            Everest.Events.Level.OnTransitionTo += Level_OnTransitionTo;
             IL.Celeste.Level.Update += Level_Update;
             SpriteIDTracker.Load();
             TouchSwitchIDTracker.Load();
+            WatchPersistentSessionAdapter.Load();
+            WatchCheckpointAdapter.Load();
+            WatchWingedStrawberryAdapter.Load();
+            WatchStrawberrySeedAdapter.Load();
+            WatchSpringAdapter.Load();
+            WatchRefillAdapter.Load();
+            WatchFlyFeatherAdapter.Load();
+            WatchFakeHeartAdapter.Load();
+            WatchBoosterAdapter.Load();
+            WatchBumperAdapter.Load();
+            WatchCloudAdapter.Load();
+            WatchDashSwitchAdapter.Load();
+            WatchTempleGateAdapter.Load();
+            WatchCrumblePlatformAdapter.Load();
+            WatchCoreModeAdapter.Load();
+            WatchHeartGemDoorAdapter.Load();
+            WatchMovingSolidAdapter.Load();
+            WatchDashBlockAdapter.Load();
+            WatchBounceBlockAdapter.Load();
+            WatchPeriodicPlatformAdapter.Load();
+            WatchStaticSpinnerAdapter.Load();
+            WatchTriggerSpikesAdapter.Load();
+            WatchFireBallAdapter.Load();
+            WatchLavaAdapter.Load();
+            WatchBadelineOldsiteAdapter.Load();
+            WatchSnowballAdapter.Load();
+            WatchPufferAdapter.Load();
+            WatchAngryOshiroAdapter.Load();
+            WatchSeekerSystemAdapter.Load();
+            WatchSeekerBarrierAdapter.Load();
+            WatchPlayerSeekerAdapter.Load();
+            WatchCassetteBlockAdapter.Load();
+            WatchSwitchGateAdapter.Load();
+            WatchClutterSystemAdapter.Load();
+            WatchDoorMechanismAdapter.Load();
+            WatchKeyAdapter.Load();
+            WatchLockBlockAdapter.Load();
+            WatchTheoCrystalAdapter.Load();
+            WatchGliderAdapter.Load();
+            WatchTheoCrystalPedestalAdapter.Load();
+            WatchBadelineBoostAdapter.Load();
+            WatchFlingBirdAdapter.Load();
+            WatchWallBoosterAdapter.Load();
+            WatchTorchAdapter.Load();
+            WatchTempleCrackedBlockAdapter.Load();
+            WatchTempleBigEyeballAdapter.Load();
             WatchSceneAudioSuppression.Load();
             IL.Celeste.Leader.GainFollower += Leader_GainFollower;
             On.Celeste.Overworld.Begin += Overworld_Begin;
@@ -79,6 +141,7 @@ public sealed class MiaoNetModule : EverestModule
             Everest.Events.LevelLoader.OnLoadingThread += LevelLoader_OnLoadingThread;
             On.Celeste.Player.Play += Player_Play;
             On.Celeste.Player.Die += Player_Die;
+            On.Celeste.PlayerDeadBody.End += PlayerDeadBody_End;
             On.Celeste.PlayerCollider.Check += PlayerCollider_Check;
             On.Celeste.Player.TransitionTo += Player_TransitionTo;
             IL.Celeste.LanguageSelectUI.SetNextLanguage += LanguageSelectUI_SetNextLanguage;
@@ -110,9 +173,56 @@ public sealed class MiaoNetModule : EverestModule
         IL.Monocle.Engine.RenderCore -= Engine_RenderCore;
         Everest.Events.Level.OnExit -= Level_OnExit;
         Everest.Events.Level.OnLoadLevel -= Level_OnLoadLevel;
+        Everest.Events.Level.OnTransitionTo -= Level_OnTransitionTo;
         IL.Celeste.Level.Update -= Level_Update;
         SpriteIDTracker.Unload();
         TouchSwitchIDTracker.Unload();
+        WatchTempleBigEyeballAdapter.Unload();
+        WatchTempleCrackedBlockAdapter.Unload();
+        WatchTorchAdapter.Unload();
+        WatchWallBoosterAdapter.Unload();
+        WatchFlingBirdAdapter.Unload();
+        WatchBadelineBoostAdapter.Unload();
+        WatchTheoCrystalPedestalAdapter.Unload();
+        WatchGliderAdapter.Unload();
+        WatchTheoCrystalAdapter.Unload();
+        WatchLockBlockAdapter.Unload();
+        WatchKeyAdapter.Unload();
+        WatchDoorMechanismAdapter.Unload();
+        WatchClutterSystemAdapter.Unload();
+        WatchSwitchGateAdapter.Unload();
+        WatchCassetteBlockAdapter.Unload();
+        WatchPlayerSeekerAdapter.Unload();
+        WatchSeekerBarrierAdapter.Unload();
+        WatchSeekerSystemAdapter.Unload();
+        WatchAngryOshiroAdapter.Unload();
+        WatchPufferAdapter.Unload();
+        WatchSnowballAdapter.Unload();
+        WatchBadelineOldsiteAdapter.Unload();
+        WatchLavaAdapter.Unload();
+        WatchFireBallAdapter.Unload();
+        WatchTriggerSpikesAdapter.Unload();
+        WatchStaticSpinnerAdapter.Unload();
+        WatchPeriodicPlatformAdapter.Unload();
+        WatchBounceBlockAdapter.Unload();
+        WatchDashBlockAdapter.Unload();
+        WatchMovingSolidAdapter.Unload();
+        WatchHeartGemDoorAdapter.Unload();
+        WatchCoreModeAdapter.Unload();
+        WatchCrumblePlatformAdapter.Unload();
+        WatchTempleGateAdapter.Unload();
+        WatchDashSwitchAdapter.Unload();
+        WatchCloudAdapter.Unload();
+        WatchBumperAdapter.Unload();
+        WatchBoosterAdapter.Unload();
+        WatchFakeHeartAdapter.Unload();
+        WatchFlyFeatherAdapter.Unload();
+        WatchRefillAdapter.Unload();
+        WatchSpringAdapter.Unload();
+        WatchStrawberrySeedAdapter.Unload();
+        WatchWingedStrawberryAdapter.Unload();
+        WatchCheckpointAdapter.Unload();
+        WatchPersistentSessionAdapter.Unload();
         WatchSceneAudioSuppression.Unload();
         IL.Celeste.Leader.GainFollower -= Leader_GainFollower;
         On.Celeste.Overworld.Begin -= Overworld_Begin;
@@ -120,6 +230,7 @@ public sealed class MiaoNetModule : EverestModule
         Everest.Events.LevelLoader.OnLoadingThread -= LevelLoader_OnLoadingThread;
         On.Celeste.Player.Play -= Player_Play;
         On.Celeste.Player.Die -= Player_Die;
+        On.Celeste.PlayerDeadBody.End -= PlayerDeadBody_End;
         On.Celeste.PlayerCollider.Check -= PlayerCollider_Check;
         On.Celeste.Player.TransitionTo -= Player_TransitionTo;
         IL.Celeste.LanguageSelectUI.SetNextLanguage -= LanguageSelectUI_SetNextLanguage;
@@ -361,6 +472,13 @@ public sealed class MiaoNetModule : EverestModule
     private static void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader)
         => PlayerLocationChanged?.Invoke(PlayerLocation.FetchFrom(level.Session), isFromLoader);
 
+    private static void Level_OnTransitionTo(Level level, LevelData next, Vector2 direction)
+    {
+        Player? player = level.Tracker.GetEntity<Player>();
+        if (player is not null)
+            PlayerRoomTransition?.Invoke(level, next, player, direction);
+    }
+
     private static void LevelLoader_OnLoadingThread(Level level)
     {
         level.Add(new GhostRenderLayerEntity(isHigh: false));
@@ -414,6 +532,20 @@ public sealed class MiaoNetModule : EverestModule
             PlayerDied?.Invoke(self, direction);
         }
         return body;
+    }
+
+    private static void PlayerDeadBody_End(
+        On.Celeste.PlayerDeadBody.orig_End orig,
+        PlayerDeadBody self
+    )
+    {
+        // PlayerDeadBody.End invokes Level.DoScreenWipe immediately after setting
+        // finished. Notify watchers before that call so both clients begin the
+        // same outgoing death wipe, rather than inferring it from the later
+        // Player.Added respawn notification.
+        if (!self.finished && self.Scene is Level)
+            PlayerDeathWipeStarted?.Invoke();
+        orig(self);
     }
 
     public static void OnLoadState(Level level)

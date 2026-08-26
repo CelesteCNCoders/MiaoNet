@@ -66,6 +66,8 @@ MiaoNet.Shared (包、数据结构、二进制序列化)
 | 连接线程内直接处理 | `HandleDirectPacket` | Ping 立即回复 Pong；可异步准备新玩家头像 |
 | 主线程内 | `pendingRequests` | 用 `RequestID` 分发 `PacketResponse` |
 
+普通收包在主线程每帧最多处理 64 个或约 1 ms，避免网络突发占满整帧；未处理的包保持原序留到下一帧。Debug 构建默认不执行逐包 JSON 追踪，需要诊断时显式设置 `EnablePacketTracing=true`。连续 Watch delta 会先合并到本帧待应用状态，不逐包写控制台。
+
 ## 组件
 
 所有组件继承 `MiaoNetComponent`，由上下文统一管理生命周期：
@@ -95,7 +97,7 @@ MiaoNet.Shared (包、数据结构、二进制序列化)
 
 ## 同步与 Ghost
 
-`MainComponent` 构造 `PlayerStateDelta` 并通过 `PacketPlayerFrame` 发送位置、动画、缩放、冲刺、Follower、持有物和风向的变化。服务端转发为 `PacketContextualPlayerNotification<PacketPlayerFrame>`，客户端据此更新对应 `MiaoNetGhost`。
+`MainComponent` 构造 `PlayerStateDelta` 并通过 `PacketPlayerFrame` 发送位置、动画、缩放、冲刺、Follower、持有物和风向的变化。存在 Watcher 时，同一帧包额外携带 Player 的最终 Camera 世界坐标；Watcher 在非转场阶段以该坐标作为唯一镜头目标，转场仍由原版 `Level.TransitionTo` 独占 Camera。服务端转发为 `PacketContextualPlayerNotification<PacketPlayerFrame>`，客户端据此更新对应 `MiaoNetGhost`。
 
 Ghost 由 `MiaoNetGhost` 和 `MiaoNetGhostEntity` 表示，并组合名称标签、表情、Follower、死亡体、头发和持有物渲染。地图切换或离开地图会创建/销毁 Ghost；`GroupPhotoPlatform`、`Fireworks`、`EmoteWheel` 等实体由对应组件按状态管理。
 
@@ -105,7 +107,8 @@ Ghost 由 `MiaoNetGhost` 和 `MiaoNetGhostEntity` 表示，并组合名称标签
 
 - `Engine.Update` 和 `Engine.RenderCore`：驱动上下文；
 - `Level.OnLoadLevel`、`Level.OnExit`：发送 `PacketPlayerLocationChanged`；
-- `Player.Die`、`Player.Added`：同步死亡和传送后的状态；
+- `Player.Die`、`PlayerDeadBody.End`、`Player.Added`：分别同步死亡表现、原版死亡 WipeOut 的真实起点和复活；普通死亡和 Retry 在 Player 重生后发送一次带生命周期标记的轻量完整实体 Replace，Watcher 与 Player 同时开始缩圈，在全黑帧等待并强制恢复实体与周期相位，随后直接整屏亮起而不额外播放 WipeIn；Touch Switch 完成态优先按地图 ID 原地重建，其他无法逆转的单向实体才在同一黑屏帧触发一次房间重建兜底；死亡后直接换房的特殊流程会把复活延迟到目标房间就绪后无动画应用；
+- `Everest.Events.Level.OnTransitionTo`：记录 Player 实际的 source、target、出口位置和原版方向，Watcher 等待目标房间 Replace 后驱动原版平滑转场；
 - `Player.Play`：同步玩家音频；
 - `PlayerCollider.Check`：互动/观战时调整碰撞；
 - 设置菜单、Debug 控制台命令和与其他 Mod 的兼容 Hook。
