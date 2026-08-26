@@ -64,8 +64,8 @@ public class ChatItem
                 RgbColor rgb = FoldCounter.GetColor(RepeatCount, counterAnimClock);
                 counterColor = new Color(rgb.R, rgb.G, rgb.B);
             }
-            // measure at the current (animated) scale so the background always covers the counter
-            lineWidth += counterGapWidth + textRenderer.Measure(counterText).X * counterScale;
+            // measure with pop scale and max shake so the box always covers the counter
+            lineWidth += counterGapWidth + textRenderer.Measure(counterText).X * counterScale + counterShakeAmplitude;
         }
 
         DrawSnappedRect(
