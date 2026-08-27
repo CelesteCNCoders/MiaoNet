@@ -79,6 +79,54 @@ public sealed class WatchSceneTransferTests
         );
     }
 
+    [TestMethod]
+    public void LifecycleCleanupPreservesRequiredStartResponseTransfer()
+    {
+        const int TargetPlayerID = 55;
+        PacketWatchStartResponse packet = new(
+            WatchStartResult.Success,
+            44,
+            CreateLargeSnapshot(),
+            TargetPlayerID
+        ) { RequestID = 19 };
+        Assert.IsTrue(WatchSceneFragmenter.TryFragment(packet, out var fragments));
+        WatchSceneTransferReceiver receiver = new();
+        receiver.TryAccept(fragments[0], out _);
+
+        receiver.ClearForTarget(TargetPlayerID);
+        receiver.ClearDiscardable();
+
+        IContextualPacket? logical = null;
+        foreach (IContextualPacket fragment in fragments.Skip(1))
+            receiver.TryAccept(fragment, out logical);
+        PacketWatchStartResponse rebuilt = (PacketWatchStartResponse)logical!;
+        Assert.AreEqual(packet.RequestID, rebuilt.RequestID);
+        Assert.AreEqual(TargetPlayerID, rebuilt.TargetPlayerID);
+    }
+
+    [TestMethod]
+    public void TargetCleanupRemovesDiscardableSceneTransfer()
+    {
+        const int TargetPlayerID = 55;
+        PacketWatchSceneDeltaNotification packet = new(
+            44,
+            TargetPlayerID,
+            CreateLargeDelta()
+        );
+        Assert.IsTrue(WatchSceneFragmenter.TryFragment(packet, out var fragments));
+        WatchSceneTransferReceiver receiver = new();
+        receiver.TryAccept(fragments[0], out _);
+
+        receiver.ClearForTarget(TargetPlayerID);
+
+        IContextualPacket? logical = null;
+        foreach (IContextualPacket fragment in fragments.Skip(1))
+        {
+            receiver.TryAccept(fragment, out logical);
+            Assert.IsNull(logical);
+        }
+    }
+
     private static WatchSceneSnapshot CreateLargeSnapshot()
         => new(Location, 7, [], CreateStates(), 12, 34);
 

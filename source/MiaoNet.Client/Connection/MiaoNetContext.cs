@@ -19,9 +19,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     //private int warningTimes;
 
     private readonly ConnectionLifecycleCoordinator connectionLifecycle;
-    private readonly WatchSceneTransferReceiver watchSceneTransferReceiver;
     private ConnectionOperation? activeConnectionOperation;
-    private readonly ConcurrentPacketPriorityQueue<ReceivedPacket> receiveQueue;
     private long currentReceivedPacketTimestamp;
 
     private readonly record struct ReceivedPacket(
@@ -116,11 +114,9 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     {
         RuntimeHelpers.RunClassConstructor(typeof(MiaoNetFont).TypeHandle);
 
-        receiveQueue = new();
         pendingRequests = new();
         mainThreadQueue = new();
         connectionLifecycle = new();
-        watchSceneTransferReceiver = new();
 
         var main = MainComponent = new MainComponent(this);
         var pl = new PlayerListComponent(this);
@@ -224,18 +220,14 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             new("cancel connection operation", operation.Cancel),
             new("drain receive queue", () =>
             {
-                while (TryDequeueReceivedPacket(
-                    out long receivedGeneration,
-                    out IContextualPacket receivedPacket,
-                    out _
-                ))
+                foreach (ReceivedPacket received in operation.ReceiveState.CloseAndDrain())
                 {
-                    if (receivedGeneration == generation.Value && receivedPacket is PacketDisconnected dc)
+                    if (received.Generation == generation.Value
+                        && received.Packet is PacketDisconnected dc)
                         (terminalPackets ??= []).Add(dc);
                 }
             }),
             new("clear pending requests", pendingRequests.Clear),
-            new("clear watch scene transfers", watchSceneTransferReceiver.Clear),
         ];
         if (components is not null)
         {
@@ -278,16 +270,22 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
             StatusComponent.Update();
 
-            if (!HasConnection)
+            if (!HasConnection || activeConnectionOperation is not { } operation)
                 return;
 
             while (mainThreadQueue.TryDequeue(out var item))
                 item();
 
+            if (!HasConnection
+                || activeConnectionOperation != operation
+                || !connectionLifecycle.IsCurrent(operation.Generation))
+                return;
+
             int packetsHandled = 0;
             long receiveQueueStartedAt = Stopwatch.GetTimestamp();
             while (packetsHandled < MaxPacketsPerUpdate
                 && TryDequeueReceivedPacket(
+                    operation,
                     out long receivedGeneration,
                     out IContextualPacket receivedPacket,
                     out long enqueuedAt
@@ -516,40 +514,21 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         connection.QueuePacket(packet);
     }
 
-    private void EnqueueReceivedPacket(long generation, IContextualPacket packet)
-    {
-        if (packet is PacketPlayerLocationChangedNotification locationChanged)
-            watchSceneTransferReceiver.ClearForTarget(locationChanged.PlayerID);
-        else if (packet is PacketPlayerChannelMovedNotification channelMoved)
-            watchSceneTransferReceiver.ClearForTarget(channelMoved.PlayerID);
-        else if (packet is PacketWatchProducerStop
-            or PacketWatchEnded)
-            watchSceneTransferReceiver.Clear();
+    private static void EnqueueReceivedPacket(ConnectionOperation operation, IContextualPacket packet)
+        => operation.ReceiveState.Enqueue(packet, Stopwatch.GetTimestamp());
 
-        if (watchSceneTransferReceiver.TryAccept(packet, out IContextualPacket? logicalPacket))
-        {
-            if (logicalPacket is null)
-                return;
-            packet = logicalPacket;
-        }
-        PacketPriority priority = PacketPriorityClassifier.Classify(packet);
-        receiveQueue.Enqueue(
-            priority,
-            new(generation, packet, Stopwatch.GetTimestamp()),
-            packet
-        );
-    }
-
-    private bool TryDequeueReceivedPacket(
+    private static bool TryDequeueReceivedPacket(
+        ConnectionOperation operation,
         out long generation,
         out IContextualPacket packet,
         out long enqueuedAt,
         bool includeWatchEntity = true
     )
     {
-        bool dequeued = includeWatchEntity
-            ? receiveQueue.TryDequeue(out ReceivedPacket received)
-            : receiveQueue.TryDequeueNonEntity(out received);
+        bool dequeued = operation.ReceiveState.TryDequeue(
+            out ReceivedPacket received,
+            includeWatchEntity
+        );
         if (dequeued)
         {
             generation = received.Generation;

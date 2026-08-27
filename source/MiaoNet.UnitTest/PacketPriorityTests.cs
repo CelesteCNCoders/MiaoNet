@@ -45,6 +45,14 @@ public sealed class PacketPriorityTests
                 new PacketWatchSceneDeltaNotification(1, 2, CreateDelta())
             )
         );
+        Assert.AreEqual(
+            PacketPriority.WatchScene,
+            PacketPriorityClassifier.Classify(CreateStartResponseTransfer(2))
+        );
+        Assert.AreEqual(
+            PacketPriority.WatchScene,
+            PacketPriorityClassifier.Classify(new PacketWatchSceneChunk(17, 0, [1]))
+        );
     }
 
     [TestMethod]
@@ -281,6 +289,237 @@ public sealed class PacketPriorityTests
         AssertDequeueSame(queue, scene);
     }
 
+    [TestMethod]
+    public void DrainAllBypassesSceneDependenciesAndResetsTimeline()
+    {
+        ConcurrentPacketPriorityQueue<IContextualPacket> queue = new();
+        PacketPlayerFrame frame = CreatePlayerFrame(100);
+        PacketWatchSceneDelta blockedScene = CreateEntityPacket(101);
+        PacketDisconnected disconnected = new(DisconnectReason.PlayerRequested);
+
+        queue.Enqueue(PacketPriority.PlayerTimeline, frame);
+        AssertDequeueSame(queue, frame);
+        Assert.AreEqual(1, queue.TimelineCount);
+        queue.Enqueue(PacketPriority.WatchScene, blockedScene);
+        queue.Enqueue(PacketPriority.ConnectionControl, disconnected);
+
+        IReadOnlyList<IContextualPacket> drained = queue.DrainAll();
+
+        CollectionAssert.Contains(drained.ToArray(), blockedScene);
+        CollectionAssert.Contains(drained.ToArray(), disconnected);
+        Assert.AreEqual(0, queue.Count);
+        Assert.AreEqual(0, queue.TimelineCount);
+
+        PacketWatchSceneDelta nextGenerationScene = CreateEntityPacket(1);
+        queue.Enqueue(PacketPriority.WatchScene, nextGenerationScene);
+        Assert.IsFalse(queue.TryDequeue(out _));
+    }
+
+    [TestMethod]
+    public void ForgetPlayerPurgesQueuedCausalPacketsAndRejectsLateFrames()
+    {
+        const int PlayerID = 7;
+        HashSet<int> activePlayers = [PlayerID];
+        ConcurrentPacketPriorityQueue<IContextualPacket> queue = new(activePlayers.Contains);
+        PacketContextualPlayerNotification<PacketPlayerFrame> firstFrame = new(
+            PlayerID,
+            CreatePlayerFrame(1)
+        );
+
+        queue.Enqueue(PacketPriority.PlayerTimeline, firstFrame);
+        AssertDequeueSame(queue, firstFrame);
+        Assert.AreEqual(1, queue.TimelineCount);
+
+        PacketContextualPlayerNotification<PacketPlayerFrame> queuedFrame = new(
+            PlayerID,
+            CreatePlayerFrame(2)
+        );
+        PacketWatchSceneDeltaNotification queuedScene = new(
+            1,
+            PlayerID,
+            CreateDelta(2)
+        );
+        queue.Enqueue(PacketPriority.PlayerTimeline, queuedFrame);
+        queue.Enqueue(PacketPriority.WatchScene, queuedScene);
+
+        activePlayers.Remove(PlayerID);
+        Assert.AreEqual(2, queue.ForgetPlayer(PlayerID));
+        Assert.AreEqual(0, queue.Count);
+        Assert.AreEqual(0, queue.TimelineCount);
+
+        PacketContextualPlayerNotification<PacketPlayerFrame> lateFrame = new(
+            PlayerID,
+            CreatePlayerFrame(3)
+        );
+        queue.Enqueue(PacketPriority.PlayerTimeline, lateFrame);
+        Assert.IsFalse(queue.TryDequeue(out _));
+        Assert.AreEqual(0, queue.Count);
+        Assert.AreEqual(0, queue.TimelineCount);
+    }
+
+    [TestMethod]
+    public void RemotePlayerClassifierCoversOrdinaryEventsButPreservesLifecyclePackets()
+    {
+        const int PlayerID = 7;
+        IContextualPacket[] packets =
+        [
+            new PacketEmoteText(PlayerID, "late"),
+            new PacketPlayerNotification<PacketUpdateGlobalFlag>(
+                PlayerID,
+                new(PlayerGlobalFlags.None)
+            ),
+            new PacketPlayerNotification<PacketCreateFireworks>(
+                PlayerID,
+                new(Color.White, 1f)
+            ),
+            new PacketContextualPlayerNotification<PacketPlayerPlayedAudio>(
+                PlayerID,
+                new(new PlayerPlayedAudio("event:/char/madeline/dash_red_right"))
+            ),
+            new PacketPlayerGrabPlayer(PlayerID),
+            new PacketPlayerGrabJumpOut(PlayerID),
+            new PacketChatMessage(DateTime.UnixEpoch, ChatMessageType.Chat, PlayerID, "late"),
+        ];
+
+        foreach (IContextualPacket packet in packets)
+        {
+            Assert.AreEqual(
+                InactivePlayerPacketDisposition.Discard,
+                RemotePlayerPacket.GetInactiveDisposition(packet, out int playerKey)
+            );
+            Assert.AreEqual(PlayerID, playerKey);
+        }
+
+        Assert.AreEqual(
+            InactivePlayerPacketDisposition.Unrelated,
+            RemotePlayerPacket.GetInactiveDisposition(new PacketPlayerLeft(PlayerID), out _)
+        );
+        Assert.AreEqual(
+            InactivePlayerPacketDisposition.Unrelated,
+            RemotePlayerPacket.GetInactiveDisposition(
+                new PacketChatMessage(DateTime.UnixEpoch, ChatMessageType.Server, null, "notice"),
+                out _
+            )
+        );
+        Assert.AreEqual(
+            InactivePlayerPacketDisposition.Deliver,
+            RemotePlayerPacket.GetInactiveDisposition(
+                CreateStartResponse(PlayerID, 2),
+                out int responsePlayerKey
+            )
+        );
+        Assert.AreEqual(PlayerID, responsePlayerKey);
+        Assert.AreEqual(
+            InactivePlayerPacketDisposition.Deliver,
+            RemotePlayerPacket.GetInactiveDisposition(
+                CreateStartResponseTransfer(PlayerID),
+                out int transferPlayerKey
+            )
+        );
+        Assert.AreEqual(PlayerID, transferPlayerKey);
+        Assert.AreEqual(
+            InactivePlayerPacketDisposition.Unrelated,
+            RemotePlayerPacket.GetInactiveDisposition(
+                new PacketWatchSceneChunk(17, 0, [1]),
+                out _
+            )
+        );
+    }
+
+    [TestMethod]
+    public void RequiredWatchStartResponseWaitsWhileActiveAndSurvivesDeparture()
+    {
+        const int PlayerID = 7;
+        HashSet<int> activePlayers = [PlayerID];
+        ConcurrentPacketPriorityQueue<IContextualPacket> queue = new(activePlayers.Contains);
+        PacketWatchStartResponse response = CreateStartResponse(PlayerID, 2);
+
+        queue.Enqueue(PacketPriority.ConnectionControl, response);
+        Assert.IsFalse(queue.TryDequeue(out _));
+
+        activePlayers.Remove(PlayerID);
+        Assert.AreEqual(0, queue.ForgetPlayer(PlayerID));
+        AssertDequeueSame(queue, response);
+        Assert.IsTrue(queue.IsEmpty);
+    }
+
+    [TestMethod]
+    public void RequiredWatchStartResponseStillHonorsActiveTimelineDependency()
+    {
+        const int PlayerID = 7;
+        HashSet<int> activePlayers = [PlayerID];
+        ConcurrentPacketPriorityQueue<IContextualPacket> queue = new(activePlayers.Contains);
+        PacketWatchStartResponse response = CreateStartResponse(PlayerID, 2);
+        PacketContextualPlayerNotification<PacketPlayerFrame> frame = new(
+            PlayerID,
+            CreatePlayerFrame(2)
+        );
+
+        queue.Enqueue(PacketPriority.ConnectionControl, response);
+        queue.Enqueue(PacketPriority.PlayerTimeline, frame);
+
+        AssertDequeueSame(queue, frame);
+        AssertDequeueSame(queue, response);
+    }
+
+    [TestMethod]
+    public void ForgetPlayerPurgesOrdinaryEventsWithoutAffectingOtherPlayers()
+    {
+        const int DepartedPlayerID = 7;
+        const int ActivePlayerID = 8;
+        HashSet<int> activePlayers = [DepartedPlayerID, ActivePlayerID];
+        ConcurrentPacketPriorityQueue<IContextualPacket> queue = new(activePlayers.Contains);
+        IContextualPacket[] departedPackets =
+        [
+            new PacketEmoteText(DepartedPlayerID, "late"),
+            new PacketPlayerNotification<PacketUpdateGlobalFlag>(
+                DepartedPlayerID,
+                new(PlayerGlobalFlags.None)
+            ),
+            new PacketPlayerGrabJumpOut(DepartedPlayerID),
+        ];
+        PacketEmoteText activePacket = new(ActivePlayerID, "active");
+
+        foreach (IContextualPacket packet in departedPackets)
+            queue.Enqueue(PacketPriorityClassifier.Classify(packet), packet);
+        queue.Enqueue(PacketPriorityClassifier.Classify(activePacket), activePacket);
+
+        activePlayers.Remove(DepartedPlayerID);
+        Assert.AreEqual(departedPackets.Length, queue.ForgetPlayer(DepartedPlayerID));
+        Assert.AreEqual(1, queue.Count);
+        AssertDequeueSame(queue, activePacket);
+
+        PacketChatMessage latePacket = new(
+            DateTime.UnixEpoch,
+            ChatMessageType.Chat,
+            DepartedPlayerID,
+            "late"
+        );
+        queue.Enqueue(PacketPriorityClassifier.Classify(latePacket), latePacket);
+        Assert.IsFalse(queue.TryDequeue(out _));
+        Assert.AreEqual(0, queue.Count);
+    }
+
+    [TestMethod]
+    public void InactiveSnapshotBaselineDoesNotRestoreTimeline()
+    {
+        const int PlayerID = 7;
+        HashSet<int> activePlayers = [PlayerID];
+        ConcurrentPacketPriorityQueue<IContextualPacket> queue = new(activePlayers.Contains);
+        PacketPlayerLocationChangedResponse response = new(
+            [new PlayerMovedInitialDataWithID(
+                PlayerID,
+                new PlayerMovedInitialData(4, 20, CreateState(Vector2.One, 1))
+            )]
+        );
+
+        activePlayers.Remove(PlayerID);
+        queue.Enqueue(PacketPriority.PlayerTimeline, response);
+
+        AssertDequeueSame(queue, response);
+        Assert.AreEqual(0, queue.TimelineCount);
+    }
+
     private static void AssertDequeueSame(
         ConcurrentPacketPriorityQueue<IContextualPacket> queue,
         IContextualPacket expected
@@ -306,10 +545,41 @@ public sealed class PacketPriorityTests
             PlayerStateFlags.None
         ));
 
-    private static PacketWatchSceneDelta CreateEntityPacket()
-        => new(CreateDelta());
+    private static PacketWatchSceneDelta CreateEntityPacket(uint playerSequenceWatermark = 1)
+        => new(CreateDelta(playerSequenceWatermark));
 
-    private static WatchSceneDelta CreateDelta()
+    private static PacketWatchStartResponse CreateStartResponse(
+        int targetPlayerID,
+        uint playerSequenceWatermark
+    ) => new(
+        WatchStartResult.Success,
+        9,
+        new WatchSceneSnapshot(
+            Location,
+            1,
+            [],
+            [],
+            playerEpoch: 1,
+            playerSequenceWatermark: playerSequenceWatermark
+        ),
+        targetPlayerID
+    ) { RequestID = 10 };
+
+    private static PacketWatchSceneTransferStart CreateStartResponseTransfer(int targetPlayerID)
+        => new(new WatchSceneTransferDescriptor(
+            17,
+            WatchSceneTransferKind.StartResponse,
+            WatchSceneFragmenter.FragmentSize + 1,
+            2,
+            1,
+            1,
+            2,
+            10,
+            9,
+            targetPlayerID
+        ));
+
+    private static WatchSceneDelta CreateDelta(uint playerSequenceWatermark = 1)
         => new(
             1,
             Location,
@@ -320,7 +590,7 @@ public sealed class PacketPriorityTests
             [],
             [],
             playerEpoch: 1,
-            playerSequenceWatermark: 1
+            playerSequenceWatermark: playerSequenceWatermark
         );
 
     private static PacketPlayerFrame CreateCoalescibleFrame(

@@ -56,6 +56,9 @@ internal static class PlayerTimelinePacket
 {
     private const int SelfPlayerKey = int.MinValue;
 
+    internal static bool IsSelfPlayerKey(int playerKey)
+        => playerKey == SelfPlayerKey;
+
     internal static bool TryGetFrame(
         IContextualPacket packet,
         out int playerKey,
@@ -278,8 +281,84 @@ internal static class PlayerTimelinePacket
     }
 }
 
+internal enum InactivePlayerPacketDisposition : byte
+{
+    Unrelated,
+    Discard,
+    Deliver,
+}
+
+internal static class RemotePlayerPacket
+{
+    internal static InactivePlayerPacketDisposition GetInactiveDisposition(
+        IContextualPacket packet,
+        out int playerKey
+    )
+    {
+        switch (packet)
+        {
+        case PacketWatchStartResponse { IsSuccess: true } response:
+            playerKey = response.TargetPlayerID;
+            return InactivePlayerPacketDisposition.Deliver;
+        case PacketWatchSceneTransferStart
+            { Descriptor.Kind: WatchSceneTransferKind.StartResponse } start:
+            playerKey = start.Descriptor.TargetPlayerID;
+            return InactivePlayerPacketDisposition.Deliver;
+        }
+
+        if (PlayerTimelinePacket.TryGetTimelinePosition(packet, out playerKey, out _, out _)
+            && !PlayerTimelinePacket.IsSelfPlayerKey(playerKey))
+            return InactivePlayerPacketDisposition.Discard;
+        if (PlayerTimelinePacket.TryGetSceneDependency(packet, out playerKey, out _, out _)
+            && !PlayerTimelinePacket.IsSelfPlayerKey(playerKey))
+            return InactivePlayerPacketDisposition.Discard;
+
+        switch (packet)
+        {
+        case PacketPlayerLeft:
+            break;
+        case PacketPlayerNotification notification:
+            playerKey = notification.PlayerID;
+            return InactivePlayerPacketDisposition.Discard;
+        case PacketPlayerNotification<PacketUpdateGlobalFlag> notification:
+            playerKey = notification.PlayerID;
+            return InactivePlayerPacketDisposition.Discard;
+        case PacketPlayerNotification<PacketCreateFireworks> notification:
+            playerKey = notification.PlayerID;
+            return InactivePlayerPacketDisposition.Discard;
+        case PacketContextualPlayerNotification<PacketPlayerPlayedAudio> notification:
+            playerKey = notification.PlayerID;
+            return InactivePlayerPacketDisposition.Discard;
+        case PacketPlayerGrabPlayer grab:
+            playerKey = grab.PlayerID;
+            return InactivePlayerPacketDisposition.Discard;
+        case PacketPlayerGrabJumpOut jumpOut:
+            playerKey = jumpOut.PlayerID;
+            return InactivePlayerPacketDisposition.Discard;
+        case PacketChatMessage { SourcePlayer: int sourcePlayer }:
+            playerKey = sourcePlayer;
+            return InactivePlayerPacketDisposition.Discard;
+        }
+
+        playerKey = 0;
+        return InactivePlayerPacketDisposition.Unrelated;
+    }
+
+    internal static bool IsDiscardableForPlayer(IContextualPacket packet, int playerKey)
+        => GetInactiveDisposition(packet, out int referencedPlayerKey)
+            == InactivePlayerPacketDisposition.Discard
+            && referencedPlayerKey == playerKey;
+}
+
 internal sealed class ConcurrentPacketPriorityQueue<T>
 {
+    private enum EntryEligibility
+    {
+        Ready,
+        Waiting,
+        Obsolete,
+    }
+
     private sealed class QueueEntry(T item, IContextualPacket? semanticPacket)
     {
         internal T Item { get; set; } = item;
@@ -296,8 +375,14 @@ internal sealed class ConcurrentPacketPriorityQueue<T>
     ];
     private readonly Dictionary<int, LinkedListNode<QueueEntry>> tailFrames = new();
     private readonly Dictionary<int, (uint Epoch, uint Sequence)> sentTimeline = new();
+    private readonly Func<int, bool>? isPlayerActive;
     private int count;
     private int nextLane;
+
+    internal ConcurrentPacketPriorityQueue(Func<int, bool>? isPlayerActive = null)
+    {
+        this.isPlayerActive = isPlayerActive;
+    }
 
     internal int Count
     {
@@ -305,6 +390,11 @@ internal sealed class ConcurrentPacketPriorityQueue<T>
     }
 
     internal bool IsEmpty => Count == 0;
+
+    internal int TimelineCount
+    {
+        get { lock (sync) return sentTimeline.Count; }
+    }
 
     internal bool Enqueue(PacketPriority priority, T item)
         => Enqueue(
@@ -368,33 +458,96 @@ internal sealed class ConcurrentPacketPriorityQueue<T>
         }
     }
 
+    internal IReadOnlyList<T> DrainAll()
+    {
+        lock (sync)
+        {
+            List<T> drained = new(count);
+            foreach (LinkedList<QueueEntry> lane in lanes)
+            {
+                foreach (QueueEntry entry in lane)
+                    drained.Add(entry.Item);
+                lane.Clear();
+            }
+
+            tailFrames.Clear();
+            sentTimeline.Clear();
+            count = 0;
+            nextLane = 0;
+            return drained;
+        }
+    }
+
+    internal int ForgetPlayer(int playerKey)
+    {
+        if (PlayerTimelinePacket.IsSelfPlayerKey(playerKey))
+            return 0;
+
+        lock (sync)
+        {
+            sentTimeline.Remove(playerKey);
+            tailFrames.Remove(playerKey);
+
+            int removed = 0;
+            foreach (LinkedList<QueueEntry> lane in lanes)
+            {
+                LinkedListNode<QueueEntry>? node = lane.First;
+                while (node is not null)
+                {
+                    LinkedListNode<QueueEntry>? next = node.Next;
+                    if (node.Value.SemanticPacket is { } packet
+                        && RemotePlayerPacket.IsDiscardableForPlayer(packet, playerKey))
+                    {
+                        lane.Remove(node);
+                        count--;
+                        removed++;
+                    }
+                    node = next;
+                }
+            }
+            return removed;
+        }
+    }
+
     private bool TryDequeueCore(int laneCount, out T item)
     {
         lock (sync)
         {
-            for (int offset = 0; offset < laneCount; offset++)
+            while (true)
             {
-                int laneIndex = (nextLane + offset) % laneCount;
-                LinkedList<QueueEntry> lane = lanes[laneIndex];
-                LinkedListNode<QueueEntry>? first = lane.First;
-                if (first is null)
-                    continue;
-                if (first.Value.SemanticPacket is { } candidate
-                    && !SceneDependencySatisfied(candidate))
-                    continue;
+                bool discardedObsolete = false;
+                for (int offset = 0; offset < laneCount; offset++)
+                {
+                    int laneIndex = (nextLane + offset) % laneCount;
+                    LinkedList<QueueEntry> lane = lanes[laneIndex];
+                    LinkedListNode<QueueEntry>? first = lane.First;
+                    if (first is null)
+                        continue;
 
-                lane.RemoveFirst();
-                count--;
-                nextLane = (laneIndex + 1) % lanes.Length;
-                if (first.Value.SemanticPacket is not null
-                    && PlayerTimelinePacket.TryGetFrame(first.Value.SemanticPacket, out int key, out _)
-                    && tailFrames.TryGetValue(key, out LinkedListNode<QueueEntry>? tail)
-                    && ReferenceEquals(tail, first))
-                    tailFrames.Remove(key);
-                if (first.Value.SemanticPacket is { } dequeuedPacket)
-                    TrackDequeuedTimeline(dequeuedPacket);
-                item = first.Value.Item;
-                return true;
+                    EntryEligibility eligibility = first.Value.SemanticPacket is { } candidate
+                        ? GetEligibility(candidate)
+                        : EntryEligibility.Ready;
+                    if (eligibility == EntryEligibility.Waiting)
+                        continue;
+
+                    lane.RemoveFirst();
+                    count--;
+                    nextLane = (laneIndex + 1) % lanes.Length;
+                    RemoveTailFrame(first);
+                    if (eligibility == EntryEligibility.Obsolete)
+                    {
+                        discardedObsolete = true;
+                        break;
+                    }
+
+                    if (first.Value.SemanticPacket is { } dequeuedPacket)
+                        TrackDequeuedTimeline(dequeuedPacket);
+                    item = first.Value.Item;
+                    return true;
+                }
+
+                if (!discardedObsolete)
+                    break;
             }
         }
 
@@ -402,16 +555,30 @@ internal sealed class ConcurrentPacketPriorityQueue<T>
         return false;
     }
 
-    private bool SceneDependencySatisfied(IContextualPacket packet)
+    private EntryEligibility GetEligibility(IContextualPacket packet)
     {
+        InactivePlayerPacketDisposition inactiveDisposition =
+            RemotePlayerPacket.GetInactiveDisposition(packet, out int playerKey);
+        if (inactiveDisposition != InactivePlayerPacketDisposition.Unrelated
+            && !IsPlayerActive(playerKey))
+        {
+            return inactiveDisposition == InactivePlayerPacketDisposition.Deliver
+                ? EntryEligibility.Ready
+                : EntryEligibility.Obsolete;
+        }
+
         if (!PlayerTimelinePacket.TryGetSceneDependency(
             packet,
-            out int playerKey,
+            out playerKey,
             out uint epoch,
             out uint sequence))
-            return true;
+            return EntryEligibility.Ready;
+        if (!IsPlayerActive(playerKey))
+            return EntryEligibility.Obsolete;
         return sentTimeline.TryGetValue(playerKey, out var sent)
-            && (sent.Epoch > epoch || (sent.Epoch == epoch && sent.Sequence >= sequence));
+            && (sent.Epoch > epoch || (sent.Epoch == epoch && sent.Sequence >= sequence))
+                ? EntryEligibility.Ready
+                : EntryEligibility.Waiting;
     }
 
     private void TrackDequeuedTimeline(IContextualPacket packet)
@@ -421,9 +588,28 @@ internal sealed class ConcurrentPacketPriorityQueue<T>
             out int playerKey,
             out uint epoch,
             out uint sequence))
-            sentTimeline[playerKey] = (epoch, sequence);
+            TrackTimeline(playerKey, epoch, sequence);
         foreach (var baseline in PlayerTimelinePacket.GetSnapshotBaselines(packet))
-            sentTimeline[baseline.PlayerKey] = (baseline.Epoch, baseline.Sequence);
+            TrackTimeline(baseline.PlayerKey, baseline.Epoch, baseline.Sequence);
+    }
+
+    private void TrackTimeline(int playerKey, uint epoch, uint sequence)
+    {
+        if (IsPlayerActive(playerKey))
+            sentTimeline[playerKey] = (epoch, sequence);
+    }
+
+    private bool IsPlayerActive(int playerKey)
+        => PlayerTimelinePacket.IsSelfPlayerKey(playerKey)
+            || isPlayerActive?.Invoke(playerKey) is not false;
+
+    private void RemoveTailFrame(LinkedListNode<QueueEntry> node)
+    {
+        if (node.Value.SemanticPacket is not null
+            && PlayerTimelinePacket.TryGetFrame(node.Value.SemanticPacket, out int key, out _)
+            && tailFrames.TryGetValue(key, out LinkedListNode<QueueEntry>? tail)
+            && ReferenceEquals(tail, node))
+            tailFrames.Remove(key);
     }
 
     private static bool TryReplaceItem(T original, IContextualPacket packet, out T replaced)

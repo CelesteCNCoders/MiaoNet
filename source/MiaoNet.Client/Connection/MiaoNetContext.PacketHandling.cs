@@ -143,7 +143,8 @@ partial class MiaoNetContext
     private void HandlePacket(PacketPlayerLocationChangedNotification packet)
     {
         EnsureState();
-        var player = ClientState.GetPlayer(packet.PlayerID);
+        if (!ClientState.TryGetPlayer(packet.PlayerID, out OnlinePlayer? player))
+            return;
         if (packet.PlayerEpoch < player.PlayerEpoch)
             return;
         player.Location = packet.Location;
@@ -160,7 +161,10 @@ partial class MiaoNetContext
     {
         EnsureState();
         foreach (var playerInMap in packet.Players)
-            ClientState.ApplyPlayerMovedInitialData(playerInMap);
+        {
+            if (ClientState.TryGetPlayer(playerInMap.PlayerID, out OnlinePlayer? player))
+                ClientState.ApplyPlayerMovedInitialData(player, playerInMap.InitialData);
+        }
         PlayerLocationChangeResponded?.Invoke(packet);
     }
 
@@ -168,22 +172,25 @@ partial class MiaoNetContext
     {
         EnsureState();
         OnlinePlayer? player = null;
-        if (packet.SourcePlayer is not null)
-            player = ClientState.GetPlayerOrSelf((int)packet.SourcePlayer);
+        if (packet.SourcePlayer is int sourcePlayer
+            && !ClientState.TryGetPlayerOrSelf(sourcePlayer, out player))
+            return;
         ChatMessageReceived?.Invoke(player, packet);
     }
 
     private void HandlePacket(PacketEmote packet)
     {
         EnsureState();
-        var player = ClientState.GetPlayer(packet.PlayerID);
+        if (!ClientState.TryGetPlayer(packet.PlayerID, out OnlinePlayer? player))
+            return;
         EmoteReceived?.Invoke(player, packet.Emote);
     }
 
     private void HandlePacket(PacketEmoteText packet)
     {
         EnsureState();
-        var player = ClientState.GetPlayer(packet.PlayerID);
+        if (!ClientState.TryGetPlayer(packet.PlayerID, out OnlinePlayer? player))
+            return;
         EmoteTextReceived?.Invoke(player, packet.Text);
     }
 
@@ -191,7 +198,8 @@ partial class MiaoNetContext
     {
         EnsureState();
         var p = packet.Packet;
-        var player = ClientState.GetPlayer(packet.PlayerID);
+        if (!ClientState.TryGetPlayer(packet.PlayerID, out OnlinePlayer? player))
+            return;
         if (p.PlayerEpoch != player.PlayerEpoch
             || p.PlayerSequence != PlayerTimelineSequence.Next(player.LastPlayerSequence)
             || player.AwaitingPlayerKeyframe)
@@ -219,7 +227,8 @@ partial class MiaoNetContext
     private void HandlePacket(PacketPlayerNotification<PacketUpdateGlobalFlag> packet)
     {
         EnsureState();
-        var player = ClientState.GetPlayer(packet.PlayerID);
+        if (!ClientState.TryGetPlayer(packet.PlayerID, out OnlinePlayer? player))
+            return;
         var p = player.GlobalFlags;
         player.GlobalFlags = packet.Packet.Flags;
         PlayerGlobalFlagsChanged?.Invoke(player, p);
@@ -266,26 +275,30 @@ partial class MiaoNetContext
     private void HandlePacket(PacketPlayerGrabPlayer packet)
     {
         EnsureState();
-        PlayerGrabPlayer?.Invoke(ClientState.GetPlayer(packet.PlayerID), packet.IsRelease ? packet.Force : null);
+        if (!ClientState.TryGetPlayer(packet.PlayerID, out OnlinePlayer? player))
+            return;
+        PlayerGrabPlayer?.Invoke(player, packet.IsRelease ? packet.Force : null);
     }
 
     private void HandlePacket(PacketPlayerGrabJumpOut packet)
     {
         EnsureState();
-        PlayerGrabJumpOut?.Invoke(ClientState.GetPlayer(packet.PlayerID));
+        if (ClientState.TryGetPlayer(packet.PlayerID, out OnlinePlayer? player))
+            PlayerGrabJumpOut?.Invoke(player);
     }
 
     private void HandlePacket(PacketContextualPlayerNotification<PacketPlayerPlayedAudio> packet)
     {
         EnsureState();
-        PlayerAudioPlayed?.Invoke(ClientState.GetPlayer(packet.PlayerID), packet.Packet.PlayerPlayedAudio);
+        if (ClientState.TryGetPlayer(packet.PlayerID, out OnlinePlayer? player))
+            PlayerAudioPlayed?.Invoke(player, packet.Packet.PlayerPlayedAudio);
     }
 
     private void HandlePacket(PacketPlayerNotification<PacketCreateFireworks> packet)
     {
         EnsureState();
-        var player = ClientState.Players[packet.PlayerID];
-        PlayerCreatedFireworks?.Invoke(player, packet.Packet.Color, packet.Packet.InitialSpeed);
+        if (ClientState.TryGetPlayer(packet.PlayerID, out OnlinePlayer? player))
+            PlayerCreatedFireworks?.Invoke(player, packet.Packet.Color, packet.Packet.InitialSpeed);
     }
 
     private void HandlePacket(PacketPlayerChannelMovedResponse packet)
@@ -298,7 +311,10 @@ partial class MiaoNetContext
         if (packet.Players is not null)
         {
             foreach (var playerInMap in packet.Players)
-                ClientState.ApplyPlayerMovedInitialData(playerInMap);
+            {
+                if (ClientState.TryGetPlayer(playerInMap.PlayerID, out OnlinePlayer? player))
+                    ClientState.ApplyPlayerMovedInitialData(player, playerInMap.InitialData);
+            }
         }
         SelfChannelMoved?.Invoke(packet);
     }
@@ -306,7 +322,8 @@ partial class MiaoNetContext
     private void HandlePacket(PacketPlayerChannelMovedNotification packet)
     {
         EnsureState();
-        OnlinePlayer existing = ClientState.GetPlayer(packet.PlayerID);
+        if (!ClientState.TryGetPlayer(packet.PlayerID, out OnlinePlayer? existing))
+            return;
         if (packet.PlayerEpoch < existing.PlayerEpoch)
             return;
         ClientState.OnPlayerChannelMove(packet.PlayerID, packet.ChannelID, packet.Presence, out var pl);

@@ -97,7 +97,7 @@ MiaoNet.Shared (包、数据结构、二进制序列化)
 
 ## 同步与 Ghost
 
-`MainComponent` 在每次位置/频道生命周期边界建立新的 Player Epoch，并在该世代内递增 Player Sequence。普通 `PacketPlayerFrame` 发送 `PlayerStateDelta`，发送队列合并同世代尾帧时会把最新状态提升为完整 Keyframe，因此冲刺数、Follower、持有物和风向不会因跳过中间 Delta 而失真。位置、频道、死亡/复活事件和帧共用 PlayerTimeline，不能跨屏障重排；Watch Scene 使用独立公平通道并受 Player Sequence 水位约束。三方能力协商成功且存在 Watcher 时，帧仍可携带最终 Camera 世界坐标，转场继续由原版 `Level.TransitionTo` 独占 Camera。
+`MainComponent` 在每次位置/频道生命周期边界建立新的 Player Epoch，并在该世代内递增 Player Sequence。普通 `PacketPlayerFrame` 发送 `PlayerStateDelta`，发送队列合并同世代尾帧时会把最新状态提升为完整 Keyframe，因此冲刺数、Follower、持有物和风向不会因跳过中间 Delta 而失真。位置、频道、死亡/复活事件和帧共用 PlayerTimeline，不能跨屏障重排；Watch Scene 使用独立公平通道并受 Player Sequence 水位约束。玩家离线时，接收队列会清除其尚未应用的帧、场景与普通表现事件，但保留成功的 WatchStartResponse 及其分片，使连接仍有效时 `pendingRequests` 能完成并由现有回调拒绝已经无效的目标。三方能力协商成功且存在 Watcher 时，帧仍可携带最终 Camera 世界坐标，转场继续由原版 `Level.TransitionTo` 独占 Camera。
 
 Ghost 由 `MiaoNetGhost` 和 `MiaoNetGhostEntity` 表示，并组合名称标签、表情、Follower、死亡体、头发和持有物渲染。地图切换或离开地图会创建/销毁 Ghost；`GroupPhotoPlatform`、`Fireworks`、`EmoteWheel` 等实体由对应组件按状态管理。
 

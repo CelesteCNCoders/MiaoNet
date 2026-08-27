@@ -709,8 +709,8 @@ public sealed partial class MainComponent : MiaoNetComponent
         CleanUpGhosts(level);
         foreach (var item in packet.Players)
         {
-            OnlinePlayer player = ClientState.GetPlayer(item.PlayerID);
-            HandleLocationChanging(level, player);
+            if (ClientState.TryGetPlayer(item.PlayerID, out OnlinePlayer? player))
+                HandleLocationChanging(level, player);
         }
     }
 
@@ -1023,7 +1023,10 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (response.Players is not null)
         {
             foreach (var p in response.Players)
-                HandleLocationChanging(level, ClientState.GetPlayer(p.PlayerID));
+            {
+                if (ClientState.TryGetPlayer(p.PlayerID, out OnlinePlayer? player))
+                    HandleLocationChanging(level, player);
+            }
         }
     }
 

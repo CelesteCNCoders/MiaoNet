@@ -148,6 +148,18 @@ public sealed class WatchPacketTests
     }
 
     [TestMethod]
+    public async Task SceneTransferChunkRoundTrips()
+    {
+        PacketWatchSceneChunk chunk = new(17, 3, [1, 2, 3, 4]);
+
+        PacketWatchSceneChunk read = await RoundTripAsync(chunk);
+
+        Assert.AreEqual(17, read.TransferID);
+        Assert.AreEqual((ushort)3, read.FragmentIndex);
+        CollectionAssert.AreEqual(chunk.Data, read.Data);
+    }
+
+    [TestMethod]
     public async Task DeathWipeNotificationRoundTripsWithoutPositionPayloadMeaning()
     {
         PacketPlayerLiveState packet = new(3, 9, LiveStateType.DeathWipe, Vector2.Zero);

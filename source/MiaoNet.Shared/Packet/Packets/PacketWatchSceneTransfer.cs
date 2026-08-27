@@ -98,8 +98,11 @@ public sealed class PacketWatchSceneChunk : IContextlessPacket<PacketWatchSceneC
     public ushort FragmentIndex { get; }
     public byte[] Data { get; }
 
-    public PacketWatchSceneChunk(int transferID, ushort fragmentIndex, byte[] data)
-        => (TransferID, FragmentIndex, Data) = (transferID, fragmentIndex, data);
+    public PacketWatchSceneChunk(
+        int transferID,
+        ushort fragmentIndex,
+        byte[] data
+    ) => (TransferID, FragmentIndex, Data) = (transferID, fragmentIndex, data);
 
     public void Serialize(ref RefBinaryWriter writer)
     {
@@ -114,7 +117,11 @@ public sealed class PacketWatchSceneChunk : IContextlessPacket<PacketWatchSceneC
         int transferID = reader.ReadInt32();
         ushort fragmentIndex = reader.ReadUInt16();
         int length = reader.ReadUInt16();
-        return new(transferID, fragmentIndex, reader.ReadSpan(length).ToArray());
+        return new(
+            transferID,
+            fragmentIndex,
+            reader.ReadSpan(length).ToArray()
+        );
     }
 }
 
@@ -341,7 +348,20 @@ internal sealed class WatchSceneTransferReceiver
         lock (sync)
         {
             foreach (int transferID in pending
-                .Where(pair => pair.Value.Descriptor.TargetPlayerID == targetPlayerID)
+                .Where(pair => pair.Value.Descriptor.TargetPlayerID == targetPlayerID
+                    && !IsRequiredCompletion(pair.Value.Descriptor))
+                .Select(pair => pair.Key)
+                .ToArray())
+                pending.Remove(transferID);
+        }
+    }
+
+    internal void ClearDiscardable()
+    {
+        lock (sync)
+        {
+            foreach (int transferID in pending
+                .Where(pair => !IsRequiredCompletion(pair.Value.Descriptor))
                 .Select(pair => pair.Key)
                 .ToArray())
                 pending.Remove(transferID);
@@ -411,6 +431,9 @@ internal sealed class WatchSceneTransferReceiver
             throw new InvalidDataException("Watch scene transfer has trailing bytes.");
         return result;
     }
+
+    private static bool IsRequiredCompletion(WatchSceneTransferDescriptor descriptor)
+        => descriptor.Kind == WatchSceneTransferKind.StartResponse;
 
     private static IContextualPacket Reconstruct(
         WatchSceneTransferDescriptor descriptor,

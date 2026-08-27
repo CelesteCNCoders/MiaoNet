@@ -115,7 +115,10 @@ public sealed class ClientState
         if (channelPlayers is not null)
         {
             foreach (var info in channelPlayers)
-                ApplyPlayerPresenceData(info);
+            {
+                if (TryGetPlayer(info.PlayerID, out OnlinePlayer? player))
+                    ApplyPlayerPresenceData(player, info.Data);
+            }
         }
 
         if (previous != target)
@@ -140,7 +143,10 @@ public sealed class ClientState
         if (target.IsPrivate && channelPlayers is not null)
         {
             foreach (var info in channelPlayers)
-                MovePlayerToChannel(GetPlayer(info.PlayerID), target);
+            {
+                if (TryGetPlayer(info.PlayerID, out OnlinePlayer? player))
+                    MovePlayerToChannel(player, target);
+            }
         }
     }
 
