@@ -634,12 +634,8 @@ internal sealed class WatchGliderAdapter : IWatchEntityAdapter
             WatchHoldableSyncInfo info = new(level.Session.Level, id) { Phase = phase };
             infos.AddOrUpdate(glider, info);
             phases[(info.Level, id)] = phase;
-            if (phase == WatchHoldablePhase.Carried)
-            {
-                remoteDriven.Add(glider);
-                glider.OnPickup();
-                remoteDriven.Remove(glider);
-            }
+            // A carried spectator replica is reconstructed from authoritative state;
+            // it did not undergo a local pickup.
             ApplyRemoteTarget(glider, phase, animation, position, speed, rotation);
             bool held = phase == WatchHoldablePhase.Carried;
             glider.Active = !held;
