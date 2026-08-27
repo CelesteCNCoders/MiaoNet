@@ -12,6 +12,17 @@ public sealed partial class MainComponent
         WaitingForRespawnLoad,
     }
 
+    private readonly record struct WatchDeathReloadLocalStats(
+        Session Session,
+        Level Level,
+        long Time,
+        int Deaths,
+        int Dashes,
+        int DashesAtLevelStart,
+        bool TimerStarted,
+        bool TimerStatsWillReset
+    );
+
     private WatchDeathTransitionPhase watchDeathTransitionPhase;
     private bool watchDeathWipeSignaled;
     private bool watchDeathRespawnStateReady;
@@ -23,6 +34,7 @@ public sealed partial class MainComponent
     private ScreenWipe? watchDeathWipe;
     private float watchDeathFreshCameraWait;
     private bool watchDeathRoomUnloaded;
+    private WatchDeathReloadLocalStats? watchDeathReloadLocalStats;
 
     private bool IsWatchDeathRoomUnloaded
         => watchDeathTransitionPhase == WatchDeathTransitionPhase.WaitingForRespawnLoad
@@ -207,38 +219,110 @@ public sealed partial class MainComponent
         }
 
         Session session = level.Session;
-        if (session.FirstLevel
+        bool resetTimerStats = session.FirstLevel
             && session.Strawberries.Count == 0
             && !session.Cassette
             && !session.HeartGem
-            && !session.HitCheckpoint)
+            && !session.HitCheckpoint;
+        CaptureWatchDeathReloadLocalStats(level, resetTimerStats);
+        try
         {
-            session.Time = 0L;
-            session.Deaths = 0;
-            level.TimerStarted = false;
+            if (resetTimerStats)
+            {
+                session.Time = 0L;
+                session.Deaths = 0;
+                level.TimerStarted = false;
+            }
+
+            session.Dashes = session.DashesAtLevelStart;
+            Glitch.Value = 0f;
+#pragma warning disable CS0618 // Match Celeste.Level.Reload exactly.
+            Engine.TimeRate = 1f;
+#pragma warning restore CS0618
+            Distort.Anxiety = 0f;
+            Distort.GameRate = 1f;
+            Audio.SetMusicParam("fade", 1f);
+            level.ParticlesBG.Clear();
+            level.Particles.Clear();
+            level.ParticlesFG.Clear();
+            TrailManager.Clear();
+
+            level.UnloadLevel();
+            watchDeathRoomUnloaded = true;
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            Logger.Debug(
+                LT.MiaoNetWatch,
+                "Unloaded the watched death room while waiting for its post-respawn snapshot."
+            );
+        }
+        catch
+        {
+            RestoreWatchDeathReloadLocalStats();
+            throw;
+        }
+    }
+
+    private void CaptureWatchDeathReloadLocalStats(Level level, bool timerStatsWillReset)
+    {
+        if (watchDeathReloadLocalStats is not null)
+        {
+            Logger.Error(
+                LT.MiaoNetWatch,
+                "Recovered an unrestored local run-stat snapshot before a watched death reload."
+            );
+            RestoreWatchDeathReloadLocalStats();
         }
 
-        session.Dashes = session.DashesAtLevelStart;
-        Glitch.Value = 0f;
-#pragma warning disable CS0618 // Match Celeste.Level.Reload exactly.
-        Engine.TimeRate = 1f;
-#pragma warning restore CS0618
-        Distort.Anxiety = 0f;
-        Distort.GameRate = 1f;
-        Audio.SetMusicParam("fade", 1f);
-        level.ParticlesBG.Clear();
-        level.Particles.Clear();
-        level.ParticlesFG.Clear();
-        TrailManager.Clear();
-
-        level.UnloadLevel();
-        watchDeathRoomUnloaded = true;
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
+        Session session = level.Session;
+        watchDeathReloadLocalStats = new(
+            session,
+            level,
+            session.Time,
+            session.Deaths,
+            session.Dashes,
+            session.DashesAtLevelStart,
+            level.TimerStarted,
+            timerStatsWillReset
+        );
         Logger.Debug(
             LT.MiaoNetWatch,
-            "Unloaded the watched death room while waiting for its post-respawn snapshot."
+            $"Captured local run stats before watched death reload: time={session.Time}, " +
+            $"deaths={session.Deaths}, dashes={session.Dashes}, " +
+            $"levelStartDashes={session.DashesAtLevelStart}, timerStarted={level.TimerStarted}, " +
+            $"timerStatsWillReset={timerStatsWillReset}."
         );
+    }
+
+    private void RestoreWatchDeathReloadLocalStats()
+    {
+        if (watchDeathReloadLocalStats is not { } stats)
+            return;
+
+        watchDeathReloadLocalStats = null;
+        if (!ReferenceEquals(stats.Level.Session, stats.Session))
+        {
+            Logger.Warn(
+                LT.MiaoNetWatch,
+                "The watched death reload Level no longer references its captured local Session."
+            );
+        }
+
+        // Later rooms keep accumulating Session.Time while the watched room is
+        // unloaded. Only roll timer statistics back when this reload explicitly
+        // applied the first-room reset above.
+        if (stats.TimerStatsWillReset)
+        {
+            stats.Session.Time = stats.Time;
+            stats.Session.Deaths = stats.Deaths;
+            stats.Level.TimerStarted = stats.TimerStarted;
+        }
+
+        // LoadLevel updates DashesAtLevelStart from the temporary Reload value,
+        // so both dash counters must be restored together.
+        stats.Session.Dashes = stats.Dashes;
+        stats.Session.DashesAtLevelStart = stats.DashesAtLevelStart;
+        Logger.Debug(LT.MiaoNetWatch, "Restored local run stats after watched death reload.");
     }
 
     private void LoadWatchDeathRespawnSceneState(Level level)
@@ -320,7 +404,14 @@ public sealed partial class MainComponent
         if (!watchDeathRoomUnloaded)
             return;
 
-        level.LoadLevel(Player.IntroTypes.Respawn, false);
+        try
+        {
+            level.LoadLevel(Player.IntroTypes.Respawn, false);
+        }
+        finally
+        {
+            RestoreWatchDeathReloadLocalStats();
+        }
         level.strawberriesDisplay.DrawLerp = 0f;
         if (level.Entities.FindFirst<WindController>() is { } windController)
             windController.SnapWind();
@@ -356,6 +447,7 @@ public sealed partial class MainComponent
 
     private void ResetWatchDeathTransitionState()
     {
+        RestoreWatchDeathReloadLocalStats();
         watchDeathTransitionPhase = WatchDeathTransitionPhase.None;
         watchDeathWipeSignaled = false;
         watchDeathRespawnStateReady = false;
