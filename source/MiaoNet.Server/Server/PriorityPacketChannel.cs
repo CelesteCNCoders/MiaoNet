@@ -12,7 +12,9 @@ internal sealed class PriorityPacketChannel
         private readonly bool coalescePlayerFrames;
         private readonly LinkedList<IContextualPacket> packets = new();
         private readonly Dictionary<int, LinkedListNode<IContextualPacket>> tailFrames = new();
-        private readonly Channel<byte> spaceAvailable = Channel.CreateUnbounded<byte>();
+        // Created only when writers observe a full lane. All writers waiting on
+        // the same full state share one generation and retry after it is signalled.
+        private TaskCompletionSource<bool>? spaceAvailableWaiters;
         private bool completed;
 
         internal BoundedLane(int capacity, bool coalescePlayerFrames)
@@ -66,6 +68,7 @@ internal sealed class PriorityPacketChannel
 
         internal bool TryRead(out IContextualPacket packet)
         {
+            TaskCompletionSource<bool>? waiters;
             lock (sync)
             {
                 LinkedListNode<IContextualPacket>? first = packets.First;
@@ -81,8 +84,10 @@ internal sealed class PriorityPacketChannel
                     && ReferenceEquals(tail, first))
                     tailFrames.Remove(key);
                 packet = first.Value;
+                waiters = spaceAvailableWaiters;
+                spaceAvailableWaiters = null;
             }
-            spaceAvailable.Writer.TryWrite(0);
+            waiters?.TrySetResult(true);
             return true;
         }
 
@@ -101,13 +106,37 @@ internal sealed class PriorityPacketChannel
         }
 
         internal async ValueTask WaitForSpaceAsync(CancellationToken token)
-            => await spaceAvailable.Reader.ReadAsync(token);
+        {
+            token.ThrowIfCancellationRequested();
+            Task<bool> waitTask;
+            lock (sync)
+            {
+                if (completed)
+                    throw new ChannelClosedException();
+                if (packets.Count < capacity)
+                    return;
+
+                spaceAvailableWaiters ??= new(
+                    TaskCreationOptions.RunContinuationsAsynchronously
+                );
+                waitTask = spaceAvailableWaiters.Task;
+            }
+            if (!await waitTask.WaitAsync(token))
+                throw new ChannelClosedException();
+        }
 
         internal void Complete()
         {
+            TaskCompletionSource<bool>? waiters;
             lock (sync)
+            {
+                if (completed)
+                    return;
                 completed = true;
-            spaceAvailable.Writer.TryComplete();
+                waiters = spaceAvailableWaiters;
+                spaceAvailableWaiters = null;
+            }
+            waiters?.TrySetResult(false);
         }
     }
 

@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Threading.Channels;
 using MiaoNet.Server;
 using MiaoNet.Shared;
 
@@ -108,6 +110,119 @@ public sealed class PacketPriorityTests
         AssertReadSame(queue, general);
         AssertReadSame(queue, entity);
         Assert.IsFalse(queue.TryRead(out _));
+    }
+
+    [TestMethod]
+    public async Task BoundedChannelWaiterResumesOnlyAfterSpaceIsFreed()
+    {
+        PriorityPacketChannel queue = new(1, 1, 1, 1);
+        PacketPing first = new();
+        PacketPing second = new();
+
+        Assert.IsTrue(queue.TryWrite(first));
+        Task<bool> pending = queue.WriteAsync(second, CancellationToken.None).AsTask();
+        Assert.IsFalse(pending.IsCompleted);
+
+        AssertReadSame(queue, first);
+        Assert.IsFalse(await pending.WaitAsync(TimeSpan.FromSeconds(2)));
+        AssertReadSame(queue, second);
+    }
+
+    [TestMethod]
+    public async Task BoundedChannelDoesNotLoseWakeupsWithMultipleWriters()
+    {
+        PriorityPacketChannel queue = new(1, 1, 1, 1);
+        PacketPing first = new();
+        Assert.IsTrue(queue.TryWrite(first));
+
+        Task<bool>[] pending = Enumerable.Range(0, 4)
+            .Select(_ => queue.WriteAsync(new PacketPing(), CancellationToken.None).AsTask())
+            .ToArray();
+        Assert.IsTrue(pending.All(task => !task.IsCompleted));
+
+        for (int completed = 0; completed < pending.Length; completed++)
+        {
+            Task<bool>[] remaining = pending.Where(task => !task.IsCompleted).ToArray();
+            Assert.IsTrue(queue.TryRead(out _));
+            Task<bool> winner = await Task.WhenAny(remaining).WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.IsFalse(await winner);
+            Assert.AreEqual(completed + 1, pending.Count(task => task.IsCompleted));
+        }
+
+        Assert.IsTrue(queue.TryRead(out _));
+        Assert.IsFalse(queue.TryRead(out _));
+    }
+
+    [TestMethod]
+    public async Task CancellingOneBoundedChannelWaiterDoesNotCancelOthers()
+    {
+        PriorityPacketChannel queue = new(1, 1, 1, 1);
+        PacketPing first = new();
+        PacketPing livePacket = new();
+        Assert.IsTrue(queue.TryWrite(first));
+
+        using CancellationTokenSource cancellation = new();
+        Task<bool> cancelled = queue.WriteAsync(new PacketPing(), cancellation.Token).AsTask();
+        Task<bool> live = queue.WriteAsync(livePacket, CancellationToken.None).AsTask();
+        Assert.IsFalse(cancelled.IsCompleted);
+        Assert.IsFalse(live.IsCompleted);
+
+        cancellation.Cancel();
+        try
+        {
+            await cancelled;
+            Assert.Fail("The cancelled queue writer unexpectedly completed.");
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        Assert.IsFalse(live.IsCompleted);
+        AssertReadSame(queue, first);
+        Assert.IsFalse(await live.WaitAsync(TimeSpan.FromSeconds(2)));
+        AssertReadSame(queue, livePacket);
+    }
+
+    [TestMethod]
+    public async Task CompletingBoundedChannelReleasesBlockedWriters()
+    {
+        PriorityPacketChannel queue = new(1, 1, 1, 1);
+        Assert.IsTrue(queue.TryWrite(new PacketPing()));
+        Task<bool> pending = queue.WriteAsync(new PacketPing(), CancellationToken.None).AsTask();
+        Assert.IsFalse(pending.IsCompleted);
+
+        queue.Complete();
+        try
+        {
+            await pending.WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.Fail("The blocked queue writer unexpectedly completed.");
+        }
+        catch (ChannelClosedException)
+        {
+        }
+    }
+
+    [TestMethod]
+    public void NonSaturatedTrafficDoesNotRetainSpaceSignals()
+    {
+        PriorityPacketChannel queue = new(1, 1, 1, 1);
+        for (int i = 0; i < 1000; i++)
+        {
+            Assert.IsTrue(queue.TryWrite(new PacketPing()));
+            Assert.IsTrue(queue.TryRead(out _));
+        }
+
+        const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
+        FieldInfo? lanesField = typeof(PriorityPacketChannel).GetField("lanes", PrivateInstance);
+        Assert.IsNotNull(lanesField);
+        Array lanes = (Array)lanesField.GetValue(queue)!;
+        object generalLane = lanes.GetValue((int)PacketPriority.General)!;
+        FieldInfo? waitersField = generalLane.GetType().GetField(
+            "spaceAvailableWaiters",
+            PrivateInstance
+        );
+        Assert.IsNotNull(waitersField);
+        Assert.IsNull(waitersField.GetValue(generalLane));
     }
 
     [TestMethod]
