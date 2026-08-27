@@ -104,11 +104,26 @@ internal sealed class WatchCassetteBlockAdapter : IWatchEntityAdapter
             remoteStates[state.Key] = state.Payload.ToArray();
         }
 
-        bool changed = ApplyRemote(level);
+        WatchEntityKey managerKey = new(WatchEntityKind.CassetteBlock, 0);
+        bool managerRemovalQueued = false;
+        if (isCompleteState
+            && !remoteStates.ContainsKey(managerKey)
+            && remoteStates.Keys.Any(key => key.SubID == 1)
+            && level.Tracker.GetEntity<CassetteBlockManager>() is { } manager)
+        {
+            manager.StopBlocks();
+            manager.Finish();
+            managerRemovalQueued = true;
+        }
+
+        bool changed = managerRemovalQueued;
+        changed |= ApplyRemote(level);
         bool requiresReload = false;
         if (isCompleteState)
         {
             HashSet<WatchEntityKey> localKeys = EnumerateKeys(level).ToHashSet();
+            if (managerRemovalQueued)
+                localKeys.Remove(managerKey);
             requiresReload = remoteStates.Keys.Any(key => !localKeys.Contains(key))
                 || localKeys.Any(key => !remoteStates.ContainsKey(key));
         }
