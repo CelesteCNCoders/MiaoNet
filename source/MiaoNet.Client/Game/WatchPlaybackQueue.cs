@@ -1,3 +1,5 @@
+using MiaoNet.Shared;
+
 namespace Celeste.Mod.MiaoNet;
 
 internal enum WatchPlaybackEnqueueResult
@@ -27,6 +29,24 @@ internal static class WatchPlaybackTiming
             return 1f;
         return Math.Clamp((playbackTime - from) / (float)(to - from), 0f, 1f);
     }
+}
+
+internal struct WatchReceivedEpochTracker
+{
+    internal uint Value { get; private set; }
+
+    internal readonly bool CanAccept(uint playerEpoch, WatchEntityStateMode stateMode)
+        => playerEpoch >= Value
+            && (playerEpoch == Value || stateMode == WatchEntityStateMode.Replace);
+
+    internal void RecordAccepted(uint playerEpoch, WatchEntityStateMode stateMode)
+    {
+        if (stateMode == WatchEntityStateMode.Replace && playerEpoch > Value)
+            Value = playerEpoch;
+    }
+
+    internal void Reset(uint playerEpoch = 0)
+        => Value = playerEpoch;
 }
 
 internal sealed class WatchPlaybackQueue<T>

@@ -24,14 +24,12 @@ public static class WatchPacketValidator
             || !TryGetEntityStatesSerializedSize(snapshot.EntityStates, out int entityStatesSize))
             return false;
 
-        // A successful snapshot is first returned in PacketWatchSnapshotResponse,
-        // then forwarded in PacketWatchStartResponse or PacketWatchResyncSnapshot.
-        // The start response is the larger envelope, so validating against it also
-        // keeps the resync notification within the payload limit.
-        long packetSize = sizeof(int) * 2L + sizeof(byte)
-            + GetLocationSerializedSize(snapshot.Location)
-            + sizeof(int) + flagsSize + entityStatesSize;
-        return packetSize <= Connection.MaxPayloadSize;
+        // Large scene states are fragmented after serialization. Keep the logical
+        // state itself within the protocol's aggregate cap; each physical chunk
+        // has a much smaller envelope and therefore remains below the frame cap.
+        long logicalSize = GetLocationSerializedSize(snapshot.Location)
+            + sizeof(int) + sizeof(uint) * 2L + flagsSize + entityStatesSize;
+        return logicalSize <= Connection.MaxPayloadSize;
     }
     public static bool IsValid(WatchEntityState state)
         => IsValidEntityKey(state.Key)
@@ -80,12 +78,12 @@ public static class WatchPacketValidator
                 + GetLocationSerializedSize(delta.RoomTransition.Value.TargetLocation)
                 + sizeof(float) * 4
             : 0;
-        long notificationSize = sizeof(int) * 3L
+        long logicalSize = sizeof(int) + sizeof(uint) * 2L
             + GetLocationSerializedSize(delta.Location)
             + addedSize + removedSize
             + sizeof(bool) * 3L + roomTransitionSize
             + sizeof(byte) + entityStatesSize + entityEventsSize;
-        return notificationSize <= Connection.MaxPayloadSize;
+        return logicalSize <= Connection.MaxPayloadSize;
     }
 
     private static bool IsValidRoomTransition(

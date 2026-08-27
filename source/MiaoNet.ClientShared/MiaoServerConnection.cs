@@ -243,9 +243,10 @@ public sealed partial class MiaoServerConnection : IDisposable
     public int QueuePacket(IContextualPacket packet)
     {
         PacketPriority priority = PacketPriorityClassifier.Classify(packet);
-        sendQueue.Enqueue(priority, packet);
+        bool added = sendQueue.Enqueue(priority, packet);
         int count = sendQueue.Count;
-        sendSemaphore.Release();
+        if (added)
+            sendSemaphore.Release();
         return count;
     }
 

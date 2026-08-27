@@ -18,6 +18,8 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
     private const int Port = 21473;
 
     private Vector2 position;
+    private uint playerSequence;
+    private const uint PlayerEpoch = 1;
 
     public readonly string Name;
 
@@ -44,7 +46,13 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
         {
             position = new(position.X + Random.Shared.Next(0, 30) / 60f, position.Y);
             PlayerStateDelta d = new(position, "idle", 0, Vector2.One, PlayerStateDelta.FrameFlags.None, PlayerStateFlags.FacingLeft);
-            connection.QueuePacket(new PacketPlayerFrame(d));
+            playerSequence++;
+            connection.QueuePacket(new PacketPlayerFrame(
+                PlayerEpoch,
+                playerSequence,
+                d,
+                CreateState()
+            ));
 
             await Task.Delay((int)(1f / 60f * 1000f));
         }
@@ -81,21 +89,10 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
 
         connection.QueuePacket(
             new PacketPlayerLocationChanged(
+                PlayerEpoch,
+                0,
                 new PlayerLocation("Celeste/LostLevels", AreaMode.Normal, "intro-00-past"),
-                new PlayerState()
-                {
-                    Position = position,
-                    Animation = "idle",
-                    AnimationFrame = 0,
-                    Scale = Vector2.One,
-                    StateFlags = PlayerStateFlags.FacingLeft,
-                    Dashes = 1,
-                    DeltaTime = 0f,
-                    PlayerSpriteMode = PlayerSpriteMode.Madeline,
-                    HoldableInfo = new HoldableInfo(),
-                    FollowerInfos = Array.Empty<FollowerInfo>(),
-                    WindDirection = Vector2.Zero
-                }
+                CreateState()
             )
         );
         _ = FrameLoop();
@@ -119,6 +116,22 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
 
         return;
     }
+
+    private PlayerState CreateState()
+        => new()
+        {
+            Position = position,
+            Animation = "idle",
+            AnimationFrame = 0,
+            Scale = Vector2.One,
+            StateFlags = PlayerStateFlags.FacingLeft,
+            Dashes = 1,
+            DeltaTime = 0f,
+            PlayerSpriteMode = PlayerSpriteMode.Madeline,
+            HoldableInfo = new HoldableInfo(),
+            FollowerInfos = Array.Empty<FollowerInfo>(),
+            WindDirection = Vector2.Zero
+        };
 
     private async Task HandlePacketsAsync(IAsyncEnumerable<IContextualPacket> packets, CancellationToken token)
     {

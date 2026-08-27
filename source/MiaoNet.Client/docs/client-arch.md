@@ -97,7 +97,7 @@ MiaoNet.Shared (包、数据结构、二进制序列化)
 
 ## 同步与 Ghost
 
-`MainComponent` 构造 `PlayerStateDelta` 并通过 `PacketPlayerFrame` 发送位置、动画、缩放、冲刺、Follower、持有物和风向的变化。三方能力协商成功且存在 Watcher 时，同一帧包额外携带 Player 的最终 Camera 世界坐标；Watcher 在非转场阶段以该坐标作为唯一镜头目标，转场仍由原版 `Level.TransitionTo` 独占 Camera。服务端转发为 `PacketContextualPlayerNotification<PacketPlayerFrame>`，客户端据此更新对应 `MiaoNetGhost`。任一方不支持时，`/watch` 不发送 Watch 会话包，仅使用旧式 Ghost、切房和基于 Player 位置的本地镜头跟随。
+`MainComponent` 在每次位置/频道生命周期边界建立新的 Player Epoch，并在该世代内递增 Player Sequence。普通 `PacketPlayerFrame` 发送 `PlayerStateDelta`，发送队列合并同世代尾帧时会把最新状态提升为完整 Keyframe，因此冲刺数、Follower、持有物和风向不会因跳过中间 Delta 而失真。位置、频道、死亡/复活事件和帧共用 PlayerTimeline，不能跨屏障重排；Watch Scene 使用独立公平通道并受 Player Sequence 水位约束。三方能力协商成功且存在 Watcher 时，帧仍可携带最终 Camera 世界坐标，转场继续由原版 `Level.TransitionTo` 独占 Camera。
 
 Ghost 由 `MiaoNetGhost` 和 `MiaoNetGhostEntity` 表示，并组合名称标签、表情、Follower、死亡体、头发和持有物渲染。地图切换或离开地图会创建/销毁 Ghost；`GroupPhotoPlatform`、`Fireworks`、`EmoteWheel` 等实体由对应组件按状态管理。
 

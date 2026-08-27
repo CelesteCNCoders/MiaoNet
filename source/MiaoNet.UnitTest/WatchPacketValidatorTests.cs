@@ -641,7 +641,7 @@ public sealed class WatchPacketValidatorTests
     }
 
     [TestMethod]
-    public void SnapshotBoundaryAccountsForWatchStartResponseEnvelope()
+    public void SnapshotBoundaryAccountsForFragmentedLogicalPayload()
     {
         List<WatchEntityState> states = Enumerable.Range(0, 63)
             .Select(index => new WatchEntityState(
@@ -651,9 +651,8 @@ public sealed class WatchPacketValidatorTests
             .ToList();
         WatchSceneSnapshot partial = new(Location, 0, [], states);
         int remainingPayloadSize = Connection.MaxPayloadSize
-            - sizeof(int) * 2 - sizeof(byte)
             - GetSerializedSize(partial)
-            - sizeof(ushort) * 3 - sizeof(int);
+            - sizeof(ushort) * 2 - sizeof(int) - sizeof(ushort);
         Assert.IsInRange(
             4,
             WatchPacketValidator.MaxEntityPayloadBytes,
@@ -667,7 +666,7 @@ public sealed class WatchPacketValidatorTests
         WatchSceneSnapshot boundary = new(Location, 0, [], states);
         Assert.AreEqual(
             Connection.MaxPayloadSize,
-            sizeof(int) * 2 + sizeof(byte) + GetSerializedSize(boundary)
+            GetSerializedSize(boundary)
         );
         Assert.IsTrue(WatchPacketValidator.IsValid(boundary));
 

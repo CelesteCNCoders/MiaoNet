@@ -6,6 +6,10 @@ public sealed class WatchSceneSnapshot : IRefBinarySerializable<WatchSceneSnapsh
 
     public int Sequence { get; }
 
+    public uint PlayerEpoch { get; }
+
+    public uint PlayerSequenceWatermark { get; }
+
     public IReadOnlyCollection<string> Flags { get; }
 
     public IReadOnlyCollection<WatchEntityState> EntityStates { get; }
@@ -14,11 +18,15 @@ public sealed class WatchSceneSnapshot : IRefBinarySerializable<WatchSceneSnapsh
         PlayerLocation location,
         int sequence,
         IReadOnlyCollection<string> flags,
-        IReadOnlyCollection<WatchEntityState> entityStates
+        IReadOnlyCollection<WatchEntityState> entityStates,
+        uint playerEpoch = 0,
+        uint playerSequenceWatermark = 0
     )
     {
         Location = location;
         Sequence = sequence;
+        PlayerEpoch = playerEpoch;
+        PlayerSequenceWatermark = playerSequenceWatermark;
         Flags = flags;
         EntityStates = entityStates;
     }
@@ -35,17 +43,27 @@ public sealed class WatchSceneSnapshot : IRefBinarySerializable<WatchSceneSnapsh
     {
         writer.Write(Location);
         writer.Write(Sequence);
+        writer.Write(PlayerEpoch);
+        writer.Write(PlayerSequenceWatermark);
         writer.Write(Flags);
         writer.Write(EntityStates);
     }
 
     public static WatchSceneSnapshot Deserialize(ref RefBinaryReader reader)
-        => new(
-            reader.Read<PlayerLocation>(),
-            reader.ReadInt32(),
+    {
+        PlayerLocation location = reader.Read<PlayerLocation>();
+        int sequence = reader.ReadInt32();
+        uint playerEpoch = reader.ReadUInt32();
+        uint playerSequenceWatermark = reader.ReadUInt32();
+        return new(
+            location,
+            sequence,
             reader.ReadStringArray(),
-            reader.ReadArray<WatchEntityState>()
+            reader.ReadArray<WatchEntityState>(),
+            playerEpoch,
+            playerSequenceWatermark
         );
+    }
 }
 
 public static class WatchSceneLifecyclePolicy
@@ -57,6 +75,10 @@ public static class WatchSceneLifecyclePolicy
 public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
 {
     public int Sequence { get; }
+
+    public uint PlayerEpoch { get; }
+
+    public uint PlayerSequenceWatermark { get; }
 
     public PlayerLocation Location { get; }
 
@@ -86,10 +108,14 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
         IReadOnlyCollection<WatchEntityState> entityStates,
         IReadOnlyCollection<WatchEntityEvent> entityEvents,
         bool isDeathRespawn = false,
-        WatchRoomTransition? roomTransition = null
+        WatchRoomTransition? roomTransition = null,
+        uint playerEpoch = 0,
+        uint playerSequenceWatermark = 0
     )
     {
         Sequence = sequence;
+        PlayerEpoch = playerEpoch;
+        PlayerSequenceWatermark = playerSequenceWatermark;
         Location = location;
         AddedFlags = addedFlags;
         RemovedFlags = removedFlags;
@@ -123,6 +149,8 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
     public void Serialize(ref RefBinaryWriter writer)
     {
         writer.Write(Sequence);
+        writer.Write(PlayerEpoch);
+        writer.Write(PlayerSequenceWatermark);
         writer.Write(Location);
         writer.Write(AddedFlags);
         writer.Write(RemovedFlags);
@@ -139,6 +167,8 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
     public static WatchSceneDelta Deserialize(ref RefBinaryReader reader)
     {
         int sequence = reader.ReadInt32();
+        uint playerEpoch = reader.ReadUInt32();
+        uint playerSequenceWatermark = reader.ReadUInt32();
         PlayerLocation location = reader.Read<PlayerLocation>();
         string[] addedFlags = reader.ReadStringArray();
         string[] removedFlags = reader.ReadStringArray();
@@ -160,7 +190,9 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
             entityStates,
             entityEvents,
             isDeathRespawn,
-            roomTransition
+            roomTransition,
+            playerEpoch,
+            playerSequenceWatermark
         );
     }
 
@@ -193,7 +225,9 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
         bool forceEntityState,
         bool requiresRoomReload,
         bool isDeathRespawn = false,
-        WatchRoomTransition? roomTransition = null
+        WatchRoomTransition? roomTransition = null,
+        uint playerEpoch = 0,
+        uint playerSequenceWatermark = 0
     )
     {
         WatchEntityStateMode entityStateMode;
@@ -226,7 +260,9 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
             entityEvents,
             requiresRoomReload,
             isDeathRespawn,
-            roomTransition
+            roomTransition,
+            playerEpoch,
+            playerSequenceWatermark
         );
     }
 
@@ -240,7 +276,9 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
         IReadOnlyCollection<WatchEntityEvent> entityEvents,
         bool requiresRoomReload,
         bool isDeathRespawn = false,
-        WatchRoomTransition? roomTransition = null
+        WatchRoomTransition? roomTransition = null,
+        uint playerEpoch = 0,
+        uint playerSequenceWatermark = 0
     )
     {
         string[] added = currentFlags.Except(previousFlags, StringComparer.Ordinal)
@@ -269,7 +307,9 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
                 orderedEntityStates,
                 entityEvents.ToArray(),
                 isDeathRespawn,
-                roomTransition
+                roomTransition,
+                playerEpoch,
+                playerSequenceWatermark
             );
     }
 

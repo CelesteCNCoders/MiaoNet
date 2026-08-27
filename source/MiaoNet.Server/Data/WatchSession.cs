@@ -28,6 +28,8 @@ public sealed class WatchSession
 
     public int LastSequence { get; private set; }
 
+    public uint PlayerEpoch { get; private set; }
+
     public bool IsActive { get; private set; }
 
     public bool IsResyncPending { get; private set; }
@@ -41,19 +43,31 @@ public sealed class WatchSession
         StartRequestID = startRequestID;
     }
 
-    public void Activate(int baselineSequence)
+    public void Activate(int baselineSequence, uint playerEpoch = 0)
     {
         SafeGuard.Assert(!IsActive);
         IsActive = true;
         LastSequence = baselineSequence;
+        PlayerEpoch = playerEpoch;
     }
 
-    public WatchSequenceResult AcceptSequence(int sequence)
+    public WatchSequenceResult AcceptSequence(
+        int sequence,
+        uint playerEpoch = 0,
+        bool isEpochReplace = false
+    )
     {
         if (!IsActive)
             return WatchSequenceResult.Inactive;
         if (IsResyncPending)
             return WatchSequenceResult.ResyncPending;
+        if (playerEpoch < PlayerEpoch)
+            return WatchSequenceResult.Duplicate;
+        if (playerEpoch > PlayerEpoch && !isEpochReplace)
+        {
+            IsResyncPending = true;
+            return WatchSequenceResult.Gap;
+        }
         if (sequence <= LastSequence)
             return WatchSequenceResult.Duplicate;
         if (sequence != LastSequence + 1)
@@ -63,6 +77,7 @@ public sealed class WatchSession
         }
 
         LastSequence = sequence;
+        PlayerEpoch = playerEpoch;
         return WatchSequenceResult.Next;
     }
 
@@ -87,10 +102,11 @@ public sealed class WatchSession
         return true;
     }
 
-    public void CompleteResync(int baselineSequence)
+    public void CompleteResync(int baselineSequence, uint playerEpoch = 0)
     {
         SafeGuard.Assert(IsActive && IsResyncPending && baselineSequence >= LastSequence);
         LastSequence = baselineSequence;
+        PlayerEpoch = playerEpoch;
         lastWatcherResyncBaselineSequence = baselineSequence;
         IsResyncPending = false;
     }

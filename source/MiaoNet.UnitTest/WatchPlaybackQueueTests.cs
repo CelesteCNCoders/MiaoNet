@@ -1,4 +1,5 @@
 using Celeste.Mod.MiaoNet;
+using MiaoNet.Shared;
 
 namespace MiaoNet.UnitTest;
 
@@ -84,5 +85,29 @@ public sealed class WatchPlaybackQueueTests
     {
         Assert.AreEqual(15L, WatchPlaybackTiming.GetDelayTicks(60));
         Assert.AreEqual(2_500_000L, WatchPlaybackTiming.GetDelayTicks(10_000_000));
+    }
+
+    [TestMethod]
+    public void ReceivedReplaceAllowsSameEpochPatchBeforePlaybackAdvances()
+    {
+        WatchReceivedEpochTracker tracker = new();
+        tracker.Reset(22);
+
+        Assert.IsTrue(tracker.CanAccept(23, WatchEntityStateMode.Replace));
+        tracker.RecordAccepted(23, WatchEntityStateMode.Replace);
+
+        Assert.AreEqual(23u, tracker.Value);
+        Assert.IsTrue(tracker.CanAccept(23, WatchEntityStateMode.Patch));
+    }
+
+    [TestMethod]
+    public void FutureEpochPatchStillRequiresReceivedReplace()
+    {
+        WatchReceivedEpochTracker tracker = new();
+        tracker.Reset(22);
+
+        Assert.IsFalse(tracker.CanAccept(23, WatchEntityStateMode.Patch));
+        Assert.IsTrue(tracker.CanAccept(23, WatchEntityStateMode.Replace));
+        Assert.IsFalse(tracker.CanAccept(21, WatchEntityStateMode.Replace));
     }
 }

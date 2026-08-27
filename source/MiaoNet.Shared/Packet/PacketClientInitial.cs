@@ -12,11 +12,16 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
 
         public PlayerLocation Location { get; }
 
+        public uint PlayerEpoch { get; }
+
+        public uint PlayerSequence { get; }
+
         public PlayerGlobalFlags GlobalFlags { get; }
 
         public Player(
             int channelID, int playerID,
             PlayerInfo playerInfo, PlayerLocation location,
+            uint playerEpoch, uint playerSequence,
             PlayerGlobalFlags globalFlags
         )
         {
@@ -24,6 +29,8 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
             PlayerID = playerID;
             PlayerInfo = playerInfo;
             Location = location;
+            PlayerEpoch = playerEpoch;
+            PlayerSequence = playerSequence;
             GlobalFlags = globalFlags;
         }
 
@@ -33,6 +40,8 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
             writer.Write(PlayerID);
             writer.Write(PlayerInfo);
             writer.Write(Location);
+            writer.Write(PlayerEpoch);
+            writer.Write(PlayerSequence);
             writer.Write((ushort)GlobalFlags);
         }
 
@@ -41,6 +50,7 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
             return new(
                 reader.ReadInt32(), reader.ReadInt32(),
                 reader.Read<PlayerInfo>(), reader.Read<PlayerLocation>(),
+                reader.ReadUInt32(), reader.ReadUInt32(),
                 (PlayerGlobalFlags)reader.ReadUInt16()
             );
         }

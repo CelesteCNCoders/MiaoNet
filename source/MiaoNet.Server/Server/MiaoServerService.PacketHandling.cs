@@ -33,6 +33,29 @@ public sealed partial class MiaoServerService
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerFrame packet)
     {
         var player = connection.Player;
+        if (packet.PlayerEpoch < player.PlayerEpoch)
+        {
+            miaoMetricsService.RecordPlayerFrameDropped();
+            return;
+        }
+        if (packet.PlayerEpoch > player.PlayerEpoch)
+        {
+            logger.LogWarning(
+                AppEvents.Game,
+                "Dropping future PlayerFrame epoch {epoch} from {p}; current epoch is {currentEpoch}.",
+                packet.PlayerEpoch,
+                player.Info,
+                player.PlayerEpoch
+            );
+            miaoMetricsService.RecordPlayerFrameDropped();
+            return;
+        }
+        if (packet.PlayerSequence <= player.LastPlayerSequence)
+        {
+            miaoMetricsService.RecordPlayerFrameDropped();
+            return;
+        }
+
         if (player.State is null)
         {
             logger.LogError(AppEvents.Game, "Packet frame received but no initial state for {p}.", player.Info);
@@ -46,15 +69,37 @@ public sealed partial class MiaoServerService
             return;
         }
 
-        var delta = packet.StateDelta;
+        if (player.AwaitingPlayerKeyframe && packet.Kind != PlayerFrameKind.Keyframe)
+        {
+            miaoMetricsService.RecordPlayerFrameDropped();
+            return;
+        }
+        if (packet.Kind == PlayerFrameKind.Delta
+            && packet.PlayerSequence != PlayerTimelineSequence.Next(player.LastPlayerSequence))
+        {
+            player.AwaitingPlayerKeyframe = true;
+            miaoMetricsService.RecordPlayerFrameGap();
+            miaoMetricsService.RecordPlayerFrameDropped();
+            logger.LogWarning(
+                AppEvents.Game,
+                "PlayerFrame gap from {p}: expected {expected}, received {actual}; waiting for Keyframe.",
+                player.Info,
+                PlayerTimelineSequence.Next(player.LastPlayerSequence),
+                packet.PlayerSequence
+            );
+            return;
+        }
 
-        if (!PlayerPacketValidator.HasValidFollowerCount(delta))
+        bool validFollowerCount = packet.Kind == PlayerFrameKind.Delta
+            ? PlayerPacketValidator.HasValidFollowerCount(packet.StateDelta!)
+            : PlayerPacketValidator.HasValidFollowerCount(packet.KeyframeState!);
+        if (!validFollowerCount)
         {
             logger.LogWarning(AppEvents.Game, "Player {p} sent too many followers in a frame.", player.Info);
             await connection.DisconnectAsync(DisconnectReason.Kicked, "Too many followers");
             return;
         }
-        if (!PlayerPacketValidator.HasValidCameraPosition(delta))
+        if (!PlayerPacketValidator.HasValidCameraPosition(packet))
         {
             logger.LogWarning(AppEvents.Game, "Player {p} sent a non-finite camera position.", player.Info);
             await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
@@ -64,13 +109,22 @@ public sealed partial class MiaoServerService
         // TODO we can actually using one Task for one Map
         // to handle these updates lock-free
         ServerMap u = player.Channel.Maps[player.Location.Map];
-        using (u.StateLock.AcquireReadLock())
+        using (u.StateLock.AcquireWriteLock())
         {
-            var state = player.State;
-            state.ApplyDelta(delta);
+            if (packet.Kind == PlayerFrameKind.Keyframe)
+            {
+                player.State = packet.KeyframeState!.Clone();
+                player.AwaitingPlayerKeyframe = false;
+            }
+            else
+            {
+                player.State.ApplyDelta(packet.StateDelta!);
+            }
+            player.LastPlayerSequence = packet.PlayerSequence;
         }
-        PacketContextualPlayerNotification<PacketPlayerFrame> notification = new(connection.ID, packet);
-        if (!delta.HasCameraPosition)
+        PacketPlayerFrame routedPacket = packet.WithCoalescingState(player.State);
+        PacketContextualPlayerNotification<PacketPlayerFrame> notification = new(connection.ID, routedPacket);
+        if (!packet.HasCameraPosition)
         {
             await BroadcastToScopeExceptAsync(notification, u, connection.ID);
             return;
@@ -102,7 +156,7 @@ public sealed partial class MiaoServerService
             );
             if (hasOtherPlayers)
             {
-                PacketPlayerFrame strippedFrame = PlayerFrameRouting.CreateWithoutCamera(packet);
+                PacketPlayerFrame strippedFrame = PlayerFrameRouting.CreateWithoutCamera(routedPacket);
                 PacketContextualPlayerNotification<PacketPlayerFrame> strippedNotification =
                     new(connection.ID, strippedFrame);
                 otherPlayersTask = BroadcastToScopeExceptAsync(
@@ -126,6 +180,20 @@ public sealed partial class MiaoServerService
         var player = connection.Player;
         var oldLocation = player.Location;
         var newLocation = packet.Location;
+
+        if (packet.PlayerEpoch <= player.PlayerEpoch)
+            return;
+        if (packet.PlayerSequence != 0)
+        {
+            logger.LogWarning(
+                AppEvents.GameState,
+                "Player {p} sent a location barrier with non-zero baseline sequence {sequence}.",
+                player.Info,
+                packet.PlayerSequence
+            );
+            await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
+            return;
+        }
 
         if (oldLocation != newLocation)
         {
@@ -154,7 +222,13 @@ public sealed partial class MiaoServerService
             using (stateLock.AcquireWriteLock())
             {
                 othersTask = BroadcastToScopeExceptAsync(
-                    new PacketPlayerLocationChangedNotification(player.ID, newLocation, null),
+                    new PacketPlayerLocationChangedNotification(
+                        player.ID,
+                        packet.PlayerEpoch,
+                        packet.PlayerSequence,
+                        newLocation,
+                        null
+                    ),
                     player.Channel,
                     connection.ID
                 );
@@ -179,22 +253,13 @@ public sealed partial class MiaoServerService
                 player.Channel.OnPlayerMapMove(connection, oldLocation.Map, newLocation.Map);
                 player.Location = newLocation;
                 player.State = null;
+                player.PlayerEpoch = packet.PlayerEpoch;
+                player.LastPlayerSequence = packet.PlayerSequence;
+                player.AwaitingPlayerKeyframe = false;
             }
 
             await othersTask;
             await debugSnapshotTask;
-            return;
-        }
-
-        // just changed room, no need to send state
-        if (oldLocation.IsInMap && oldLocation.Map == newLocation.Map && packet.InitialState is null)
-        {
-            player.Location = newLocation;
-            await BroadcastToScopeExceptAsync(
-                new PacketPlayerLocationChangedNotification(player.ID, newLocation, null),
-                player.Channel,
-                connection.ID
-            );
             return;
         }
 
@@ -228,8 +293,20 @@ public sealed partial class MiaoServerService
             mapTo?.StateLock.EnterWriteLock();
             try
             {
-                var generalPacket = new PacketPlayerLocationChangedNotification(player.ID, newLocation, null);
-                var withStatePacket = new PacketPlayerLocationChangedNotification(player.ID, newLocation, packet.InitialState);
+                var generalPacket = new PacketPlayerLocationChangedNotification(
+                    player.ID,
+                    packet.PlayerEpoch,
+                    packet.PlayerSequence,
+                    newLocation,
+                    null
+                );
+                var withStatePacket = new PacketPlayerLocationChangedNotification(
+                    player.ID,
+                    packet.PlayerEpoch,
+                    packet.PlayerSequence,
+                    newLocation,
+                    packet.InitialState
+                );
 
                 var mapPlayers = mapTo?.GetPlayerMovedInitialDatas(connection) ?? [];
                 var responsePacket = new PacketPlayerLocationChangedResponse(mapPlayers);
@@ -246,6 +323,9 @@ public sealed partial class MiaoServerService
                 c.OnPlayerMapMove(connection, oldLocation.Map, newLocation.Map);
                 player.Location = newLocation;
                 player.State = packet.InitialState;
+                player.PlayerEpoch = packet.PlayerEpoch;
+                player.LastPlayerSequence = packet.PlayerSequence;
+                player.AwaitingPlayerKeyframe = false;
             }
             finally
             {
@@ -261,6 +341,22 @@ public sealed partial class MiaoServerService
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerChannelMove packet)
     {
         var player = connection.Player;
+
+        if (packet.PlayerEpoch <= player.PlayerEpoch)
+            return;
+        if (packet.PlayerSequence != 0
+            || (player.Location.IsInMap && packet.InitialState is null)
+            || (packet.InitialState is not null
+                && !PlayerPacketValidator.HasValidFollowerCount(packet.InitialState)))
+        {
+            logger.LogWarning(
+                AppEvents.GameState,
+                "Player {p} sent an invalid channel-change timeline barrier.",
+                player.Info
+            );
+            await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
+            return;
+        }
 
         ValueTask responseTask;
         Task sameMapTask;
@@ -315,13 +411,24 @@ public sealed partial class MiaoServerService
             mapTo?.StateLock.EnterWriteLock();
             try
             {
+                player.PlayerEpoch = packet.PlayerEpoch;
+                player.LastPlayerSequence = packet.PlayerSequence;
+                player.AwaitingPlayerKeyframe = false;
+                player.State = packet.InitialState;
+
                 var channelPlayers = new List<PlayerPresenceDataWithID>(targetChannel.Players.Count);
                 foreach (var c in targetChannel.Players)
                 {
                     if (c.ID == connection.ID)
                         continue;
                     channelPlayers.Add(new PlayerPresenceDataWithID(
-                        c.ID, new PlayerPresenceData(c.Player.Location, c.Player.GlobalFlags)
+                        c.ID,
+                        new PlayerPresenceData(
+                            c.Player.Location,
+                            c.Player.PlayerEpoch,
+                            c.Player.LastPlayerSequence,
+                            c.Player.GlobalFlags
+                        )
                     ));
                 }
                 var mapPlayers = mapTo?.GetPlayerMovedInitialDatas(connection);
@@ -329,15 +436,34 @@ public sealed partial class MiaoServerService
                 if (notifyChannelCreated)
                     createdTask = connection.QueuePacketAsync(new PacketChannelCreated(targetChannel.ID, targetChannel.Info));
 
-                var responsePacket = new PacketPlayerChannelMovedResponse(targetChannel.ID, mapPlayers, channelPlayers);
+                var responsePacket = new PacketPlayerChannelMovedResponse(
+                    targetChannel.ID,
+                    player.PlayerEpoch,
+                    player.LastPlayerSequence,
+                    mapPlayers,
+                    channelPlayers
+                );
                 responseTask = connection.QueuePacketAsync(responsePacket);
 
                 // same-map players in the target channel get state + presence
                 var sameMapNotification = new PacketPlayerChannelMovedNotification(
                     connection.ID,
                     targetChannel.ID,
-                    player.State is null ? null : new PlayerMovedInitialData(player.State),
-                    new PlayerPresenceData(player.Location, player.GlobalFlags)
+                    player.PlayerEpoch,
+                    player.LastPlayerSequence,
+                    player.State is null
+                        ? null
+                        : new PlayerMovedInitialData(
+                            player.PlayerEpoch,
+                            player.LastPlayerSequence,
+                            player.State
+                        ),
+                    new PlayerPresenceData(
+                        player.Location,
+                        player.PlayerEpoch,
+                        player.LastPlayerSequence,
+                        player.GlobalFlags
+                    )
                 );
                 sameMapTask = mapTo is not null
                     ? BroadcastToScopeExceptAsync(sameMapNotification, mapTo, connection.ID)
@@ -346,8 +472,15 @@ public sealed partial class MiaoServerService
                 var sameChannelNotification = new PacketPlayerChannelMovedNotification(
                     connection.ID,
                     targetChannel.ID,
+                    player.PlayerEpoch,
+                    player.LastPlayerSequence,
                     null,
-                    new PlayerPresenceData(player.Location, player.GlobalFlags)
+                    new PlayerPresenceData(
+                        player.Location,
+                        player.PlayerEpoch,
+                        player.LastPlayerSequence,
+                        player.GlobalFlags
+                    )
                 );
                 sameChannelTask = BroadcastToScopeExceptAsync(
                     sameChannelNotification,
@@ -360,7 +493,9 @@ public sealed partial class MiaoServerService
                 // and for private channels, the virtual id is used instead of the real channel id
                 var crossChannelNotification = new PacketPlayerChannelMovedNotification(
                     connection.ID,
-                    targetChannel.IsPrivate ? ChannelInfo.PrivateChannelVirtualID : targetChannel.ID
+                    targetChannel.IsPrivate ? ChannelInfo.PrivateChannelVirtualID : targetChannel.ID,
+                    player.PlayerEpoch,
+                    player.LastPlayerSequence
                 );
                 crossChannelTask = BroadcastToScopeExceptAsync(
                     crossChannelNotification,
@@ -452,6 +587,40 @@ public sealed partial class MiaoServerService
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerLiveState packet)
     {
+        ServerPlayer player = connection.Player;
+        if (packet.PlayerEpoch < player.PlayerEpoch)
+            return;
+        if (packet.PlayerEpoch > player.PlayerEpoch
+            || packet.PlayerSequence != PlayerTimelineSequence.Next(player.LastPlayerSequence)
+            || player.AwaitingPlayerKeyframe)
+        {
+            if (packet.PlayerEpoch == player.PlayerEpoch
+                && packet.PlayerSequence > player.LastPlayerSequence)
+                player.AwaitingPlayerKeyframe = true;
+            logger.LogWarning(
+                AppEvents.GameState,
+                "Dropped out-of-order live-state event from {p}: epoch {epoch}, sequence {sequence}.",
+                player.Info,
+                packet.PlayerEpoch,
+                packet.PlayerSequence
+            );
+            return;
+        }
+        if (player.State is null || !player.Location.IsInMap)
+        {
+            await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
+            return;
+        }
+
+        player.LastPlayerSequence = packet.PlayerSequence;
+        if (packet.Type == LiveStateType.Die)
+            player.State.StateFlags |= PlayerStateFlags.Dead;
+        else if (packet.Type is LiveStateType.Respawn or LiveStateType.RespawnFromSL)
+        {
+            player.State.StateFlags &= ~PlayerStateFlags.Dead;
+            player.State.Position = packet.Vector2;
+        }
+
         if (packet.Type == LiveStateType.DeathWipe)
         {
             List<MiaoClientConnection> watchers = new();
@@ -824,9 +993,11 @@ public sealed partial class MiaoServerService
                 && response.IsSuccess
                 && response.Snapshot.Location == target.Player.Location
                 && response.Snapshot.Location.Map == session.Map
+                && response.Snapshot.PlayerEpoch == target.Player.PlayerEpoch
+                && response.Snapshot.PlayerSequenceWatermark <= target.Player.LastPlayerSequence
                 && WatchPacketValidator.IsValid(response.Snapshot))
             {
-                session.Activate(response.Snapshot.Sequence);
+                session.Activate(response.Snapshot.Sequence, response.Snapshot.PlayerEpoch);
                 result = WatchStartResult.Success;
             }
             else
@@ -847,7 +1018,12 @@ public sealed partial class MiaoServerService
                 target!.ID,
                 response.Snapshot!.Sequence
             );
-            PacketWatchStartResponse startResponse = new(result, sessionID, response.Snapshot)
+            PacketWatchStartResponse startResponse = new(
+                result,
+                sessionID,
+                response.Snapshot,
+                target!.ID
+            )
             {
                 RequestID = startRequestID
             };
@@ -877,7 +1053,9 @@ public sealed partial class MiaoServerService
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketWatchSceneDelta packet)
     {
-        if (!WatchPacketValidator.IsValid(packet.Delta))
+        if (!WatchPacketValidator.IsValid(packet.Delta)
+            || packet.Delta.PlayerEpoch != connection.Player.PlayerEpoch
+            || packet.Delta.PlayerSequenceWatermark > connection.Player.LastPlayerSequence)
         {
             logger.LogWarning(AppEvents.Watch, "Player {target} sent an invalid watch scene delta.", connection.ID);
             await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
@@ -901,7 +1079,11 @@ public sealed partial class MiaoServerService
                         || !session.IsActive)
                         continue;
 
-                    WatchSequenceResult sequenceResult = session.AcceptSequence(packet.Delta.Sequence);
+                    WatchSequenceResult sequenceResult = session.AcceptSequence(
+                        packet.Delta.Sequence,
+                        packet.Delta.PlayerEpoch,
+                        packet.Delta.EntityStateMode == WatchEntityStateMode.Replace
+                    );
                     if (sequenceResult == WatchSequenceResult.Gap)
                     {
                         requestResync = true;
@@ -1119,6 +1301,8 @@ public sealed partial class MiaoServerService
                 && response.IsSuccess
                 && snapshot is not null
                 && snapshot.Location == target.Player.Location
+                && snapshot.PlayerEpoch == target.Player.PlayerEpoch
+                && snapshot.PlayerSequenceWatermark <= target.Player.LastPlayerSequence
                 && WatchPacketValidator.IsValid(snapshot);
 
             if (validSnapshot)
@@ -1131,7 +1315,7 @@ public sealed partial class MiaoServerService
                         || snapshot.Sequence < session.LastSequence)
                         continue;
 
-                    session.CompleteResync(snapshot.Sequence);
+                    session.CompleteResync(snapshot.Sequence, snapshot.PlayerEpoch);
                     if (serverState.Players.TryGetValue(session.WatcherID, out MiaoClientConnection? watcher))
                         recipients.Add((watcher, session));
                 }

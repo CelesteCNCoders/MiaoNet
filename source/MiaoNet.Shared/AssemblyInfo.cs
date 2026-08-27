@@ -63,5 +63,8 @@ using MiaoNet.Shared;
     typeof(PacketWatchProducerStop),
     typeof(PacketWatchEnded),
     typeof(PacketWatchResyncRequest),
-    typeof(PacketWatchResyncSnapshot)
+    typeof(PacketWatchResyncSnapshot),
+    typeof(PacketWatchSceneTransferStart),
+    typeof(PacketWatchSceneChunk),
+    typeof(PacketWatchSceneCancel)
 ])]

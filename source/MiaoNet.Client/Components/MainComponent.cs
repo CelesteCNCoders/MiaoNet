@@ -15,6 +15,8 @@ public sealed partial class MainComponent : MiaoNetComponent
     private float sendFireworksTimer;
 
     private bool pendingMapChanged;
+    private uint playerEpoch;
+    private uint playerSequence;
     private readonly Dictionary<int, MiaoNetGhost> ghosts;
 
     private GhostNameTag? selfNameTag;
@@ -84,6 +86,8 @@ public sealed partial class MainComponent : MiaoNetComponent
 
     public override void OnDisconnected()
     {
+        playerEpoch = 0;
+        playerSequence = 0;
         foreach (var pair in ghosts)
             pair.Value.RemoveSelf();
         ghosts.Clear();
@@ -357,7 +361,23 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (stateDelta.HasCameraPosition)
             stateDelta.CameraPosition = level.Camera.Position;
 
-        context.QueuePacket(new PacketPlayerFrame(stateDelta));
+        selfState.Position = player.Position;
+        selfState.Animation = player.Sprite.CurrentAnimationID;
+        selfState.AnimationFrame = (ushort)player.Sprite.CurrentAnimationFrame;
+        selfState.Scale = player.Sprite.Scale;
+        selfState.DeltaTime = Engine.DeltaTime;
+        selfState.PlayerSpriteMode = player.Sprite.Mode;
+        if (currentDashing)
+            selfState.LastDashDirection = stateDelta.DashDirection
+                / (float)byte.MaxValue * MathF.Tau;
+
+        uint sequence = NextPlayerSequence();
+        context.QueuePacket(new PacketPlayerFrame(
+            playerEpoch,
+            sequence,
+            stateDelta,
+            selfState
+        ));
     }
 
     #region holdable & follower info fetching
@@ -522,13 +542,43 @@ public sealed partial class MainComponent : MiaoNetComponent
             FollowerInfos = FetchFollowerInitials(player.Leader.Entity, player.Leader.Followers, MaxFollowersCount),
             WindDirection = player.windDirection,
             HoldableInfo = player.Holding is not null ? FetchHoldableInfo(player.Holding, new()) : new(),
-            StateFlags = stateFlags
+            StateFlags = stateFlags,
+            LastDashDirection = (byte)(player.DashDir.Angle() / MathF.Tau * byte.MaxValue)
+                / (float)byte.MaxValue * MathF.Tau,
         };
 
         ClientState.SelfState = initialState;
-        PacketPlayerLocationChanged p = new(location, initialState);
+        PacketPlayerLocationChanged p = new(playerEpoch, playerSequence, location, initialState);
         context.QueuePacket(p);
         return true;
+    }
+
+    private void BeginPlayerEpoch()
+    {
+        unchecked
+        {
+            playerEpoch++;
+            if (playerEpoch == 0)
+                playerEpoch++;
+        }
+        playerSequence = 0;
+        ClientState.Self.PlayerEpoch = playerEpoch;
+        ClientState.Self.LastPlayerSequence = 0;
+        ClientState.Self.AwaitingPlayerKeyframe = false;
+    }
+
+    private uint NextPlayerSequence()
+    {
+        playerSequence = PlayerTimelineSequence.Next(playerSequence);
+        ClientState.Self.LastPlayerSequence = playerSequence;
+        return playerSequence;
+    }
+
+    internal PacketPlayerChannelMove CreateChannelMovePacket(string channelName)
+    {
+        BeginPlayerEpoch();
+        PlayerState? state = ClientState.SelfState?.Clone();
+        return new PacketPlayerChannelMove(channelName, playerEpoch, playerSequence, state);
     }
 
     #region event handlers
@@ -545,6 +595,8 @@ public sealed partial class MainComponent : MiaoNetComponent
         bool fullSync = forceFullChange || changeResult is PlayerLocation.ChangeResult.FullSync;
         if (changeResult is PlayerLocation.ChangeResult.None && !fullSync)
             return;
+
+        BeginPlayerEpoch();
 
         TryDisableGroupPhotoModeAndTip();
 
@@ -581,7 +633,12 @@ public sealed partial class MainComponent : MiaoNetComponent
             }
             else
             {
-                context.QueuePacket(new PacketPlayerLocationChanged(location, null));
+                context.QueuePacket(new PacketPlayerLocationChanged(
+                    playerEpoch,
+                    playerSequence,
+                    location,
+                    null
+                ));
             }
 
             foreach (var pair in ClientState.Players)
@@ -589,7 +646,17 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
         else
         {
-            context.QueuePacket(new PacketPlayerLocationChanged(location, null));
+            Level? level = Engine.Scene as Level;
+            if (level is null || !TryGetAndSendState(level, location))
+            {
+                if (level is null)
+                    throw new InvalidOperationException("A room transition barrier requires an active Level.");
+                level.OnEndOfFrame += () =>
+                {
+                    bool sentState = TryGetAndSendState(level, location);
+                    SafeGuard.Assert(sentState);
+                };
+            }
         }
 
         void TryDisableGroupPhotoModeAndTip()
@@ -616,6 +683,13 @@ public sealed partial class MainComponent : MiaoNetComponent
     {
         Logger.Debug(LT.MiaoNet, $"LocationChanging: {player.Info.Name} to {packet.Location}");
         if (Engine.Scene is not Level level)
+            return;
+
+        // A watched Player's new generation is not visible until the matching
+        // Scene Replace establishes the room/entity baseline.
+        if (WatchSceneSyncActive
+            && playerWatching?.ID == player.ID
+            && packet.PlayerEpoch > watchPlayerEpoch)
             return;
 
         bool roomOnly = packet.InitialState is null
@@ -645,15 +719,50 @@ public sealed partial class MainComponent : MiaoNetComponent
         if (Engine.Scene is not Level level)
             return;
 
-        var delta = packet.StateDelta;
+        PlayerStateDelta delta = packet.Kind == PlayerFrameKind.Delta
+            ? packet.StateDelta!
+            : CreatePresentationDelta(packet.KeyframeState!, packet);
 
         if (WatchSceneSyncActive && playerWatching?.ID == player.ID)
         {
-            BufferWatchPlayerFrame(player, delta);
+            BufferWatchPlayerFrame(player, packet, delta);
             return;
         }
 
         ApplyPlayerFrame(level, player, delta, delta.Position);
+    }
+
+    private static PlayerStateDelta CreatePresentationDelta(
+        PlayerState state,
+        PacketPlayerFrame frame
+    )
+    {
+        PlayerStateDelta.FrameFlags flags =
+            PlayerStateDelta.FrameFlags.DashesChange
+            | PlayerStateDelta.FrameFlags.HasHoldable
+            | PlayerStateDelta.FrameFlags.HasFollowerInitials
+            | PlayerStateDelta.FrameFlags.HasWindDirection;
+        if (frame.HasCameraPosition)
+            flags |= PlayerStateDelta.FrameFlags.HasCameraPosition;
+
+        PlayerStateDelta delta = new(
+            state.Position,
+            state.Animation,
+            state.AnimationFrame,
+            state.Scale,
+            flags,
+            state.StateFlags
+        )
+        {
+            Dashes = state.Dashes,
+            HoldableInfo = state.HoldableInfo,
+            FollowerInitials = state.FollowerInfos,
+            WindDirection = state.WindDirection,
+            CameraPosition = frame.CameraPosition,
+        };
+        if (state.StateFlags.HasFlag(PlayerStateFlags.Dashing))
+            delta.DashDirection = (byte)(state.LastDashDirection / MathF.Tau * byte.MaxValue);
+        return delta;
     }
 
     private void ApplyPlayerFrame(
@@ -748,7 +857,12 @@ public sealed partial class MainComponent : MiaoNetComponent
             MarkWatchProducerEntityResync(PlayerLocation.FetchFrom(level.Session));
             state.StateFlags &= ~PlayerStateFlags.Dead;
             var type = fromSL ? LiveStateType.RespawnFromSL : LiveStateType.Respawn;
-            PacketPlayerLiveState packet = new(type, player.Position);
+            PacketPlayerLiveState packet = new(
+                playerEpoch,
+                NextPlayerSequence(),
+                type,
+                player.Position
+            );
             context.QueuePacket(packet);
         }
     }
@@ -763,7 +877,12 @@ public sealed partial class MainComponent : MiaoNetComponent
         {
             watchProducerDeathRespawnLocation = null;
             state.StateFlags |= PlayerStateFlags.Dead;
-            PacketPlayerLiveState packet = new(LiveStateType.Die, direction);
+            PacketPlayerLiveState packet = new(
+                playerEpoch,
+                NextPlayerSequence(),
+                LiveStateType.Die,
+                direction
+            );
             context.QueuePacket(packet);
         }
     }
@@ -776,19 +895,24 @@ public sealed partial class MainComponent : MiaoNetComponent
             || watchProducerSessions.Count == 0)
             return;
 
-        context.QueuePacket(new PacketPlayerLiveState(LiveStateType.DeathWipe, Vector2.Zero));
+        context.QueuePacket(new PacketPlayerLiveState(
+            playerEpoch,
+            NextPlayerSequence(),
+            LiveStateType.DeathWipe,
+            Vector2.Zero
+        ));
         Logger.Debug(LT.MiaoNetWatch, "Emitted Player death-wipe start notification.");
     }
 
-    private void Context_PlayerLiveStateNotification(OnlinePlayer player, LiveStateType flag, Vector2 vector2)
+    private void Context_PlayerLiveStateNotification(OnlinePlayer player, PacketPlayerLiveState packet)
     {
         if (WatchSceneSyncActive && playerWatching?.ID == player.ID)
         {
-            BufferWatchPlayerLiveState(flag, vector2);
+            BufferWatchPlayerLiveState(packet);
             return;
         }
 
-        ApplyPlayerLiveState(Engine.Scene as Level, player, flag, vector2);
+        ApplyPlayerLiveState(Engine.Scene as Level, player, packet.Type, packet.Vector2);
     }
 
     private void ApplyPlayerLiveState(

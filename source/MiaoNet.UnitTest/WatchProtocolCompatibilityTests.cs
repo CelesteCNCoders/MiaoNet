@@ -37,6 +37,9 @@ public sealed class WatchProtocolCompatibilityTests
             typeof(PacketWatchEnded),
             typeof(PacketWatchResyncRequest),
             typeof(PacketWatchResyncSnapshot),
+            typeof(PacketWatchSceneTransferStart),
+            typeof(PacketWatchSceneChunk),
+            typeof(PacketWatchSceneCancel),
         ];
         int lastUpstreamPacket = Array.IndexOf(registry.Types, typeof(PacketChannelCreated));
 
@@ -118,6 +121,39 @@ public sealed class WatchProtocolCompatibilityTests
         PacketClientInitial actual = PacketClientInitial.Deserialize(ref reader);
 
         Assert.AreEqual(ServerFeatureFlags.WatchSceneSync, actual.ServerFeatures);
+        Assert.AreEqual(0, reader.BytesLeft);
+    }
+
+    [TestMethod]
+    public void PacketClientInitialRoundTripsPlayerTimelinePosition()
+    {
+        PacketClientInitial expected = new(
+            1,
+            2,
+            new PlayerInfo(3, "self", string.Empty, string.Empty, Color.White),
+            [new PacketClientInitial.Channel(1, new ChannelInfo("main"))],
+            [new PacketClientInitial.Player(
+                1,
+                4,
+                new PlayerInfo(5, "remote", string.Empty, string.Empty, Color.White),
+                new PlayerLocation("Celeste/1-ForsakenCity", AreaMode.Normal, "1"),
+                9,
+                27,
+                PlayerGlobalFlags.None
+            )],
+            new PlayerPresenceMessage("joined", "left"),
+            "hello"
+        );
+        using MemoryStream stream = new();
+        RefBinaryWriter writer = new(stream);
+        expected.Serialize(ref writer);
+
+        RefBinaryReader reader = new(stream.ToArray());
+        PacketClientInitial actual = PacketClientInitial.Deserialize(ref reader);
+
+        PacketClientInitial.Player player = actual.Players.Single();
+        Assert.AreEqual((uint)9, player.PlayerEpoch);
+        Assert.AreEqual((uint)27, player.PlayerSequence);
         Assert.AreEqual(0, reader.BytesLeft);
     }
 

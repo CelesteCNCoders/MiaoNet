@@ -16,7 +16,7 @@ partial class MiaoNetContext
     public event Action<OnlinePlayer?, PacketChatMessage>? ChatMessageReceived;
     public event Action<OnlinePlayer, EmoteData>? EmoteReceived;
     public event Action<OnlinePlayer, string>? EmoteTextReceived;
-    public event Action<OnlinePlayer, LiveStateType, Vector2>? PlayerLiveStateNotification;
+    public event PacketPlayerNotificationHandler<PacketPlayerLiveState>? PlayerLiveStateNotification;
     public event Action<OnlinePlayer, PlayerGlobalFlags>? PlayerGlobalFlagsChanged;
     public event Action<OnlinePlayer, Color, float>? PlayerCreatedFireworks;
     public event Action? PingDataReceived;
@@ -93,31 +93,65 @@ partial class MiaoNetContext
         EnsureState();
         if (!ClientState.TryGetPlayer(packet.PlayerID, out OnlinePlayer? player))
             return;
-        var state = player.State;
-        if (state is not null)
+
+        PacketPlayerFrame frame = packet.Packet;
+        if (frame.PlayerEpoch < player.PlayerEpoch)
+            return;
+        if (frame.PlayerEpoch > player.PlayerEpoch)
         {
-            state.ApplyDelta(packet.Packet.StateDelta);
+            Logger.Warn(
+                LT.MiaoNetSync,
+                $"Ignored future PlayerFrame epoch {frame.PlayerEpoch} for {player.Info}; current epoch is {player.PlayerEpoch}."
+            );
+            return;
+        }
+        if (frame.PlayerSequence <= player.LastPlayerSequence)
+            return;
+
+        if (frame.Kind == PlayerFrameKind.Keyframe)
+        {
+            player.State = frame.KeyframeState!.Clone();
+            player.LastPlayerSequence = frame.PlayerSequence;
+            player.AwaitingPlayerKeyframe = false;
         }
         else
         {
-            Logger.Warn(LT.MiaoNetSync, $"No initial state but received frame notification for {player.Info}!");
-            return;
+            if (player.AwaitingPlayerKeyframe
+                || frame.PlayerSequence != PlayerTimelineSequence.Next(player.LastPlayerSequence))
+            {
+                player.AwaitingPlayerKeyframe = true;
+                Logger.Warn(
+                    LT.MiaoNetSync,
+                    $"PlayerFrame gap for {player.Info}: expected {PlayerTimelineSequence.Next(player.LastPlayerSequence)}, received {frame.PlayerSequence}; waiting for Keyframe."
+                );
+                return;
+            }
+
+            PlayerState? state = player.State;
+            if (state is null)
+            {
+                Logger.Warn(LT.MiaoNetSync, $"No initial state but received frame notification for {player.Info}!");
+                player.AwaitingPlayerKeyframe = true;
+                return;
+            }
+            state.ApplyDelta(frame.StateDelta!);
+            player.LastPlayerSequence = frame.PlayerSequence;
         }
-        PlayerFrameNotification?.Invoke(player, packet.Packet);
+        PlayerFrameNotification?.Invoke(player, frame);
     }
 
     private void HandlePacket(PacketPlayerLocationChangedNotification packet)
     {
         EnsureState();
         var player = ClientState.GetPlayer(packet.PlayerID);
+        if (packet.PlayerEpoch < player.PlayerEpoch)
+            return;
         player.Location = packet.Location;
-
-        bool roomOnly = packet.InitialState is null
-            && packet.Location.IsInMap
-            && ClientState.Self.Location.Map == packet.Location.Map;
-
-        if (!roomOnly)
-            player.State = packet.InitialState;
+        player.PlayerEpoch = packet.PlayerEpoch;
+        player.LastPlayerSequence = packet.PlayerSequence;
+        player.AwaitingPlayerKeyframe = false;
+        player.State = packet.InitialState;
+        player.EpochBaselineState = packet.InitialState?.Clone();
 
         PlayerLocationChanged?.Invoke(player, packet);
     }
@@ -158,6 +192,15 @@ partial class MiaoNetContext
         EnsureState();
         var p = packet.Packet;
         var player = ClientState.GetPlayer(packet.PlayerID);
+        if (p.PlayerEpoch != player.PlayerEpoch
+            || p.PlayerSequence != PlayerTimelineSequence.Next(player.LastPlayerSequence)
+            || player.AwaitingPlayerKeyframe)
+        {
+            if (p.PlayerEpoch == player.PlayerEpoch && p.PlayerSequence > player.LastPlayerSequence)
+                player.AwaitingPlayerKeyframe = true;
+            return;
+        }
+        player.LastPlayerSequence = p.PlayerSequence;
         if (p.Type is LiveStateType.Respawn or LiveStateType.RespawnFromSL)
         {
             var state = player.State;
@@ -170,7 +213,7 @@ partial class MiaoNetContext
                 Logger.Warn(LT.MiaoNetSync, $"No initial state but received live state notification for {player.Info}!");
             }
         }
-        PlayerLiveStateNotification?.Invoke(player, packet.Packet.Type, packet.Packet.Vector2);
+        PlayerLiveStateNotification?.Invoke(player, packet.Packet);
     }
 
     private void HandlePacket(PacketPlayerNotification<PacketUpdateGlobalFlag> packet)
@@ -249,6 +292,9 @@ partial class MiaoNetContext
     {
         EnsureState();
         ClientState.OnSelfChannelMove(packet.ChannelID, packet.ChannelPlayers);
+        ClientState.Self.PlayerEpoch = packet.PlayerEpoch;
+        ClientState.Self.LastPlayerSequence = packet.PlayerSequence;
+        ClientState.Self.AwaitingPlayerKeyframe = false;
         if (packet.Players is not null)
         {
             foreach (var playerInMap in packet.Players)
@@ -260,7 +306,15 @@ partial class MiaoNetContext
     private void HandlePacket(PacketPlayerChannelMovedNotification packet)
     {
         EnsureState();
+        OnlinePlayer existing = ClientState.GetPlayer(packet.PlayerID);
+        if (packet.PlayerEpoch < existing.PlayerEpoch)
+            return;
         ClientState.OnPlayerChannelMove(packet.PlayerID, packet.ChannelID, packet.Presence, out var pl);
+        if (packet.PlayerEpoch < pl.PlayerEpoch)
+            return;
+        pl.PlayerEpoch = packet.PlayerEpoch;
+        pl.LastPlayerSequence = packet.PlayerSequence;
+        pl.AwaitingPlayerKeyframe = false;
         if (packet.InitialData is not null)
             ClientState.ApplyPlayerMovedInitialData(packet.PlayerID, packet.InitialData.Value);
         PlayerChannelMoved?.Invoke(pl, packet);

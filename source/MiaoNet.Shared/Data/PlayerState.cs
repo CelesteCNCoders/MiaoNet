@@ -61,6 +61,9 @@ public sealed class PlayerState : IContextualRefBinarySerializable<PlayerState, 
 
         if (delta.HasHoldable)
             ApplyHoldableInfo(delta.HoldableInfo);
+
+        if (delta.StateFlags.HasFlag(PlayerStateFlags.Dashing))
+            LastDashDirection = delta.DashDirection / (float)byte.MaxValue * MathF.Tau;
     }
 
     public void ApplyFollowersInitials(FollowerInfo[] followerInitials)

@@ -46,7 +46,10 @@ public sealed class ServerMap : IPlayerScope
             // players that in debug map can cause null state
             if (con == except || p.State is null)
                 continue;
-            list.Add(new PlayerMovedInitialDataWithID(p.ID, new PlayerMovedInitialData(p.State!.Clone())));
+            list.Add(new PlayerMovedInitialDataWithID(
+                p.ID,
+                new PlayerMovedInitialData(p.PlayerEpoch, p.LastPlayerSequence, p.State!.Clone())
+            ));
         }
         return list;
     }

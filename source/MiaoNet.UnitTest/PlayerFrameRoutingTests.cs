@@ -63,13 +63,13 @@ public sealed class PlayerFrameRoutingTests
             WindDirection = new Vector2(6f, 7f),
             CameraPosition = new Vector2(130f, 460f),
         };
-        PacketPlayerFrame original = new(source);
+        PacketPlayerFrame original = new(7, 11, source);
 
         PacketPlayerFrame result = PlayerFrameRouting.CreateWithoutCamera(original);
-        PlayerStateDelta stripped = result.StateDelta;
+        PlayerStateDelta stripped = result.StateDelta!;
 
         Assert.AreNotSame(original, result);
-        Assert.IsTrue(original.StateDelta.HasCameraPosition);
+        Assert.IsTrue(original.StateDelta!.HasCameraPosition);
         Assert.IsFalse(stripped.HasCameraPosition);
         Assert.AreEqual(flags & ~PlayerStateDelta.FrameFlags.HasCameraPosition, stripped.Flags);
         Assert.AreEqual(source.Position, stripped.Position);
@@ -88,7 +88,7 @@ public sealed class PlayerFrameRoutingTests
     [TestMethod]
     public void FrameWithoutCameraUsesExistingPacket()
     {
-        PacketPlayerFrame packet = new(new PlayerStateDelta(
+        PacketPlayerFrame packet = new(1, 1, new PlayerStateDelta(
             Vector2.Zero,
             string.Empty,
             0,
@@ -107,7 +107,7 @@ public sealed class PlayerFrameRoutingTests
         [
             new("spin", 8, new Vector2S(5, 6)),
         ];
-        PacketPlayerFrame packet = new(new PlayerStateDelta(
+        PacketPlayerFrame packet = new(1, 1, new PlayerStateDelta(
             new Vector2(1f, 2f),
             "idle",
             3,
@@ -121,7 +121,7 @@ public sealed class PlayerFrameRoutingTests
             CameraPosition = new Vector2(7f, 8f),
         });
 
-        PlayerStateDelta stripped = PlayerFrameRouting.CreateWithoutCamera(packet).StateDelta;
+        PlayerStateDelta stripped = PlayerFrameRouting.CreateWithoutCamera(packet).StateDelta!;
 
         Assert.IsTrue(stripped.HasFollowerDeltas);
         Assert.AreSame(followerDeltas, stripped.FollowerDeltas);

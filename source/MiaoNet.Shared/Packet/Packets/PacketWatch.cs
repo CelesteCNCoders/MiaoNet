@@ -65,16 +65,24 @@ public sealed class PacketWatchStartResponse :
 
     public int SessionID { get; }
 
+    public int TargetPlayerID { get; }
+
     public WatchSceneSnapshot? Snapshot { get; }
 
     [MemberNotNullWhen(true, nameof(Snapshot))]
     public bool IsSuccess => Result == WatchStartResult.Success;
 
-    public PacketWatchStartResponse(WatchStartResult result, int sessionID, WatchSceneSnapshot? snapshot)
+    public PacketWatchStartResponse(
+        WatchStartResult result,
+        int sessionID,
+        WatchSceneSnapshot? snapshot,
+        int targetPlayerID = 0
+    )
     {
         Result = result;
         SessionID = sessionID;
         Snapshot = snapshot;
+        TargetPlayerID = targetPlayerID;
     }
 
     public override void Serialize(ref RefBinaryWriter writer)
@@ -84,6 +92,7 @@ public sealed class PacketWatchStartResponse :
         if (IsSuccess)
         {
             writer.Write(SessionID);
+            writer.Write(TargetPlayerID);
             writer.Write(Snapshot);
         }
     }
@@ -93,8 +102,20 @@ public sealed class PacketWatchStartResponse :
         int requestID = reader.ReadInt32();
         WatchStartResult result = (WatchStartResult)reader.ReadByte();
         return result == WatchStartResult.Success
-            ? new(result, reader.ReadInt32(), reader.Read<WatchSceneSnapshot>()) { RequestID = requestID }
+            ? DeserializeSuccess(ref reader, requestID, result)
             : new(result, 0, null) { RequestID = requestID };
+    }
+
+    private static PacketWatchStartResponse DeserializeSuccess(
+        ref RefBinaryReader reader,
+        int requestID,
+        WatchStartResult result
+    )
+    {
+        int sessionID = reader.ReadInt32();
+        int targetPlayerID = reader.ReadInt32();
+        WatchSceneSnapshot snapshot = reader.Read<WatchSceneSnapshot>();
+        return new(result, sessionID, snapshot, targetPlayerID) { RequestID = requestID };
     }
 }
 

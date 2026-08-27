@@ -710,7 +710,7 @@ partial class MiaoNetCommand
     {
         string channelName = context.Segments[0];
         // the name is resolved server-side
-        context.QueuePacket(new PacketPlayerChannelMove(channelName));
+        context.QueuePacket(context.MiaoNetContext.MainComponent.CreateChannelMovePacket(channelName));
         return null;
     }
 

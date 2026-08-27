@@ -25,6 +25,9 @@ internal static class PlayerPacketValidator
         => !delta.HasCameraPosition
             || IsFinite(delta.CameraPosition);
 
+    internal static bool HasValidCameraPosition(PacketPlayerFrame frame)
+        => !frame.HasCameraPosition || IsFinite(frame.CameraPosition);
+
     private static bool IsFinite(Vector2 value)
         => float.IsFinite(value.X) && float.IsFinite(value.Y);
 }

@@ -24,7 +24,7 @@ public sealed class MiaoClientConnectionTests
         for (int i = 0; i < MiaoClientConnection.PacketChannelSize; i++)
             Assert.IsTrue(connection.TryQueuePacket(new PacketPing()));
 
-        PacketPlayerFrame frame = new(new PlayerStateDelta(
+        PacketPlayerFrame frame = new(1, 1, new PlayerStateDelta(
             Vector2.Zero,
             string.Empty,
             0,

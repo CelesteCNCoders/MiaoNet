@@ -19,6 +19,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     //private int warningTimes;
 
     private readonly ConnectionLifecycleCoordinator connectionLifecycle;
+    private readonly WatchSceneTransferReceiver watchSceneTransferReceiver;
     private ConnectionOperation? activeConnectionOperation;
     private readonly ConcurrentPacketPriorityQueue<ReceivedPacket> receiveQueue;
     private long currentReceivedPacketTimestamp;
@@ -119,6 +120,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         pendingRequests = new();
         mainThreadQueue = new();
         connectionLifecycle = new();
+        watchSceneTransferReceiver = new();
 
         var main = MainComponent = new MainComponent(this);
         var pl = new PlayerListComponent(this);
@@ -233,6 +235,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                 }
             }),
             new("clear pending requests", pendingRequests.Clear),
+            new("clear watch scene transfers", watchSceneTransferReceiver.Clear),
         ];
         if (components is not null)
         {
@@ -504,13 +507,37 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     public void QueuePacket(IContextualPacket packet)
     {
         SafeGuard.Assert(HasConnection);
+        if (WatchSceneFragmenter.TryFragment(packet, out IReadOnlyList<IContextualPacket> fragments))
+        {
+            foreach (IContextualPacket fragment in fragments)
+                connection.QueuePacket(fragment);
+            return;
+        }
         connection.QueuePacket(packet);
     }
 
     private void EnqueueReceivedPacket(long generation, IContextualPacket packet)
     {
+        if (packet is PacketPlayerLocationChangedNotification locationChanged)
+            watchSceneTransferReceiver.ClearForTarget(locationChanged.PlayerID);
+        else if (packet is PacketPlayerChannelMovedNotification channelMoved)
+            watchSceneTransferReceiver.ClearForTarget(channelMoved.PlayerID);
+        else if (packet is PacketWatchProducerStop
+            or PacketWatchEnded)
+            watchSceneTransferReceiver.Clear();
+
+        if (watchSceneTransferReceiver.TryAccept(packet, out IContextualPacket? logicalPacket))
+        {
+            if (logicalPacket is null)
+                return;
+            packet = logicalPacket;
+        }
         PacketPriority priority = PacketPriorityClassifier.Classify(packet);
-        receiveQueue.Enqueue(priority, new(generation, packet, Stopwatch.GetTimestamp()));
+        receiveQueue.Enqueue(
+            priority,
+            new(generation, packet, Stopwatch.GetTimestamp()),
+            packet
+        );
     }
 
     private bool TryDequeueReceivedPacket(

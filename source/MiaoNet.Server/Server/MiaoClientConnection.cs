@@ -57,6 +57,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     public PooledStringManager PooledStringManager { get; }
 
     private readonly PriorityPacketChannel sendChannel;
+    private readonly WatchSceneTransferReceiver watchSceneTransferReceiver;
     private int outgoingQueueOverflowed;
 
     // TODO refactor
@@ -85,6 +86,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
             PacketChannelSize,
             WatchEntityPacketChannelSize
         );
+        watchSceneTransferReceiver = new();
         PooledStringManager = new(KnownPooledStrings.All);
     }
 
@@ -118,6 +120,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         finally
         {
             sendChannel.Complete();
+            watchSceneTransferReceiver.Clear();
             await CancelPendingRequestsAsync();
             networkConnection.Dispose();
             logger.LogInformation(AppEvents.Connection, "Connection id {id} closed.", ID);
@@ -134,14 +137,29 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
     public ValueTask QueuePacketAsync(IContextualPacket packet)
     {
-        if (sendChannel.TryWrite(packet))
+        if (WatchSceneFragmenter.TryFragment(packet, out IReadOnlyList<IContextualPacket> fragments))
+            return QueueFragmentsAsync(fragments);
+        if (sendChannel.TryWrite(packet, out bool coalesced))
+        {
+            if (coalesced)
+                metricsService.RecordPlayerFrameCoalesced();
             return ValueTask.CompletedTask;
-        if (PacketPriorityClassifier.Classify(packet) == PacketPriority.WatchEntity)
+        }
+        if (PacketPriorityClassifier.Classify(packet) == PacketPriority.WatchScene)
         {
             DisconnectSlowClient();
             return ValueTask.CompletedTask;
         }
+        if (PlayerTimelinePacket.TryGetFrame(packet, out _, out _)
+            && PlayerTimelinePacket.TryPromoteFrame(packet, out IContextualPacket promoted))
+            packet = promoted;
         return WaitToQueuePacketAsync(packet);
+    }
+
+    private async ValueTask QueueFragmentsAsync(IReadOnlyList<IContextualPacket> fragments)
+    {
+        foreach (IContextualPacket fragment in fragments)
+            await QueuePacketAsync(fragment);
     }
 
     private async ValueTask WaitToQueuePacketAsync(IContextualPacket packet)
@@ -150,7 +168,8 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         timeout.CancelAfter(server.DisconnectTimeout);
         try
         {
-            await sendChannel.WriteAsync(packet, timeout.Token);
+            if (await sendChannel.WriteAsync(packet, timeout.Token))
+                metricsService.RecordPlayerFrameCoalesced();
         }
         catch (OperationCanceledException)
         {
@@ -184,7 +203,22 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     }
 
     public bool TryQueuePacket(IContextualPacket packet)
-        => sendChannel.TryWrite(packet);
+    {
+        if (WatchSceneFragmenter.TryFragment(packet, out _)
+            || !sendChannel.TryWrite(packet, out bool coalesced))
+            return false;
+        if (coalesced)
+            metricsService.RecordPlayerFrameCoalesced();
+        return true;
+    }
+
+    internal bool TryAcceptWatchSceneTransfer(
+        IContextualPacket packet,
+        out IContextualPacket? logicalPacket
+    ) => watchSceneTransferReceiver.TryAccept(packet, out logicalPacket);
+
+    internal void ClearWatchSceneTransfers()
+        => watchSceneTransferReceiver.Clear();
 
     // TODO maybe we can add a UserParam parameter to avoid closure
     public async ValueTask<bool> RequestAsync<TResponse>(

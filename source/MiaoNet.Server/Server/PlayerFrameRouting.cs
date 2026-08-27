@@ -21,9 +21,17 @@ internal static class PlayerFrameRouting
 
     internal static PacketPlayerFrame CreateWithoutCamera(PacketPlayerFrame packet)
     {
-        PlayerStateDelta source = packet.StateDelta;
-        if (!source.HasCameraPosition)
+        if (!packet.HasCameraPosition)
             return packet;
+
+        if (packet.Kind == PlayerFrameKind.Keyframe)
+            return new PacketPlayerFrame(
+                packet.PlayerEpoch,
+                packet.PlayerSequence,
+                packet.KeyframeState!
+            );
+
+        PlayerStateDelta source = packet.StateDelta!;
 
         PlayerStateDelta stripped = new(
             source.Position,
@@ -41,6 +49,11 @@ internal static class PlayerFrameRouting
             FollowerDeltas = source.FollowerDeltas,
             WindDirection = source.WindDirection,
         };
-        return new(stripped);
+        return new PacketPlayerFrame(
+            packet.PlayerEpoch,
+            packet.PlayerSequence,
+            stripped,
+            packet.CoalescingSourceState
+        );
     }
 }

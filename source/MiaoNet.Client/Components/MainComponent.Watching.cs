@@ -10,8 +10,12 @@ public sealed partial class MainComponent
         WatchPlaybackTiming.GetDelayTicks(System.Diagnostics.Stopwatch.Frequency);
 
     private readonly record struct WatchPlayerFrameSample(
+        uint PlayerEpoch,
+        uint PlayerSequence,
         PlayerLocation Location,
-        PlayerStateDelta Delta
+        PlayerFrameKind Kind,
+        PlayerStateDelta Delta,
+        PlayerState? KeyframeState
     );
 
     private enum WatchPlayerPresentationEventKind
@@ -22,6 +26,8 @@ public sealed partial class MainComponent
 
     private readonly record struct WatchPlayerPresentationEvent(
         WatchPlayerPresentationEventKind Kind,
+        uint PlayerEpoch,
+        uint PlayerSequence,
         bool Paused,
         LiveStateType LiveState,
         Vector2 Value
@@ -57,6 +63,10 @@ public sealed partial class MainComponent
         new(WatchPlaybackQueueCapacity);
     private WatchPlaybackEntry<WatchPlayerFrameSample>? watchCurrentPlayerFrame;
     private PlayerState? watchPlaybackPlayerState;
+    private uint watchPlayerEpoch;
+    private WatchReceivedEpochTracker watchReceivedPlayerEpoch;
+    private uint watchPlaybackPlayerSequence;
+    private bool watchPlaybackAwaitingKeyframe;
     private PlayerLocation watchPlaybackLocation;
     private bool watchPlaybackPaused;
     private readonly WatchPlaybackQueue<WatchSceneDelta> watchSceneDeltaBuffer =
@@ -276,12 +286,18 @@ public sealed partial class MainComponent
         watchMap = snapshot.Location.Map;
         lastWatchSequence = snapshot.Sequence;
         lastWatchReceivedSequence = snapshot.Sequence;
+        watchReceivedPlayerEpoch.Reset(snapshot.PlayerEpoch);
         watchEntityLocation = snapshot.Location;
         watchReceivedEntityLocation = snapshot.Location;
         watchSceneDeltaBuffer.Clear();
         watchPlayerEventBuffer.Clear();
         if (playerWatching is { } watchedPlayer)
-            ResetWatchPlayerPlayback(watchedPlayer, snapshot.Location);
+            ResetWatchPlayerPlayback(
+                watchedPlayer,
+                snapshot.Location,
+                snapshot.PlayerEpoch,
+                snapshot.PlayerSequenceWatermark
+            );
         watchEntityStates = snapshot.EntityStates.ToDictionary(state => state.Key);
         watchPendingEntityStateKeys.Clear();
         watchPendingEntityStateKeys.UnionWith(watchEntityStates.Keys);
@@ -330,6 +346,7 @@ public sealed partial class MainComponent
         watchSessionID = null;
         lastWatchSequence = 0;
         lastWatchReceivedSequence = 0;
+        watchReceivedPlayerEpoch.Reset();
         watchResyncPending = false;
         pendingWatchResyncSnapshot = null;
         watchMap = default;
@@ -395,6 +412,15 @@ public sealed partial class MainComponent
         if (packet.Delta.Sequence <= lastWatchReceivedSequence || watchResyncPending)
             return;
 
+        if (!watchReceivedPlayerEpoch.CanAccept(
+            packet.Delta.PlayerEpoch,
+            packet.Delta.EntityStateMode
+        ))
+        {
+            BeginWatchResync(packet.Delta.Sequence, "player epoch mismatch");
+            return;
+        }
+
         if (packet.Delta.Sequence != lastWatchReceivedSequence + 1)
         {
             BeginWatchResync(packet.Delta.Sequence, "sequence gap");
@@ -423,11 +449,36 @@ public sealed partial class MainComponent
 
         lastWatchReceivedSequence = packet.Delta.Sequence;
         if (packet.Delta.EntityStateMode == WatchEntityStateMode.Replace)
+        {
+            watchReceivedPlayerEpoch.RecordAccepted(
+                packet.Delta.PlayerEpoch,
+                packet.Delta.EntityStateMode
+            );
             watchReceivedEntityLocation = packet.Delta.Location;
+        }
     }
 
     private void ApplyBufferedWatchSceneDelta(Level level, WatchSceneDelta delta)
     {
+        if (delta.PlayerEpoch > watchPlayerEpoch)
+        {
+            if (delta.EntityStateMode != WatchEntityStateMode.Replace
+                || playerWatching is not { } watchedPlayer)
+            {
+                BeginWatchResync(delta.Sequence, "epoch changed without Replace");
+                return;
+            }
+
+            watchPlayerEpoch = delta.PlayerEpoch;
+            watchPlaybackPlayerSequence = 0;
+            watchPlaybackAwaitingKeyframe = false;
+            watchCurrentPlayerFrame = null;
+            watchPlaybackPlayerState = watchedPlayer.EpochBaselineState?.Clone();
+            watchPlayerEventBuffer.Clear();
+            InvalidateBufferedWatchCamera(awaitFreshSample: true);
+            HandleLocationChanging(level, watchedPlayer);
+        }
+
         delta.ApplyTo(level.Session.Flags);
         if (watchRoomReloadPending && watchRoomReloadLocation != delta.Location)
         {
@@ -496,6 +547,7 @@ public sealed partial class MainComponent
         watchPlayerEventBuffer.Clear();
         watchPlayerFrameBuffer.Clear();
         watchCurrentPlayerFrame = null;
+        watchReceivedPlayerEpoch.Reset(watchPlayerEpoch);
         context.QueuePacket(new PacketWatchResyncRequest(sessionID, lastWatchSequence));
         Logger.Warn(
             LT.MiaoNetWatch,
@@ -882,14 +934,25 @@ public sealed partial class MainComponent
         WatchRoomEnvironmentAdapter.ApplyFrame(level);
     }
 
-    private void BufferWatchPlayerFrame(OnlinePlayer player, PlayerStateDelta delta)
+    private void BufferWatchPlayerFrame(
+        OnlinePlayer player,
+        PacketPlayerFrame packet,
+        PlayerStateDelta delta
+    )
     {
         if (!WatchSceneSyncActive || watchResyncPending || playerWatching?.ID != player.ID)
             return;
 
         WatchPlaybackEnqueueResult result = watchPlayerFrameBuffer.Enqueue(
             context.CurrentReceivedPacketTimestamp,
-            new(player.Location, delta)
+            new(
+                packet.PlayerEpoch,
+                packet.PlayerSequence,
+                player.Location,
+                packet.Kind,
+                delta,
+                packet.KeyframeState?.Clone()
+            )
         );
         if (result != WatchPlaybackEnqueueResult.Success)
             BeginWatchResync(lastWatchSequence, $"player playback buffer {result}");
@@ -904,6 +967,8 @@ public sealed partial class MainComponent
             context.CurrentReceivedPacketTimestamp,
             new(
                 WatchPlayerPresentationEventKind.PauseChanged,
+                0,
+                0,
                 paused,
                 default,
                 Vector2.Zero
@@ -913,7 +978,7 @@ public sealed partial class MainComponent
             BeginWatchResync(lastWatchSequence, $"player event playback buffer {result}");
     }
 
-    private void BufferWatchPlayerLiveState(LiveStateType liveState, Vector2 value)
+    private void BufferWatchPlayerLiveState(PacketPlayerLiveState packet)
     {
         if (!WatchSceneSyncActive || watchResyncPending)
             return;
@@ -922,9 +987,11 @@ public sealed partial class MainComponent
             context.CurrentReceivedPacketTimestamp,
             new(
                 WatchPlayerPresentationEventKind.LiveState,
+                packet.PlayerEpoch,
+                packet.PlayerSequence,
                 false,
-                liveState,
-                value
+                packet.Type,
+                packet.Vector2
             )
         );
         if (result != WatchPlaybackEnqueueResult.Success)
@@ -990,7 +1057,8 @@ public sealed partial class MainComponent
         bool found = false;
 
         if (watchPlayerFrameBuffer.TryPeek(out WatchPlaybackEntry<WatchPlayerFrameSample> frame)
-            && frame.ReceivedAt <= playbackTime)
+            && frame.ReceivedAt <= playbackTime
+            && frame.Value.PlayerEpoch <= watchPlayerEpoch)
         {
             earliest = frame.ReceivedAt;
             kind = WatchPlaybackKind.PlayerFrame;
@@ -1008,6 +1076,8 @@ public sealed partial class MainComponent
             out WatchPlaybackEntry<WatchPlayerPresentationEvent> playerEvent
         )
             && playerEvent.ReceivedAt <= playbackTime
+            && (playerEvent.Value.Kind == WatchPlayerPresentationEventKind.PauseChanged
+                || playerEvent.Value.PlayerEpoch <= watchPlayerEpoch)
             && playerEvent.ReceivedAt < earliest)
         {
             kind = WatchPlaybackKind.PlayerEvent;
@@ -1023,10 +1093,31 @@ public sealed partial class MainComponent
         WatchPlaybackEntry<WatchPlayerFrameSample> entry
     )
     {
+        if (entry.Value.PlayerEpoch < watchPlayerEpoch
+            || entry.Value.PlayerSequence <= watchPlaybackPlayerSequence)
+            return;
+        if (entry.Value.PlayerEpoch > watchPlayerEpoch)
+            return;
+
         watchCurrentPlayerFrame = entry;
         PlayerStateDelta delta = entry.Value.Delta;
-        watchPlaybackPlayerState ??= player.State?.Clone();
-        watchPlaybackPlayerState?.ApplyDelta(delta);
+        if (entry.Value.Kind == PlayerFrameKind.Keyframe)
+        {
+            watchPlaybackPlayerState = entry.Value.KeyframeState!.Clone();
+            watchPlaybackAwaitingKeyframe = false;
+        }
+        else
+        {
+            if (watchPlaybackAwaitingKeyframe
+                || entry.Value.PlayerSequence != PlayerTimelineSequence.Next(watchPlaybackPlayerSequence))
+            {
+                watchPlaybackAwaitingKeyframe = true;
+                watchCurrentPlayerFrame = null;
+                return;
+            }
+            watchPlaybackPlayerState?.ApplyDelta(delta);
+        }
+        watchPlaybackPlayerSequence = entry.Value.PlayerSequence;
 
         PlayerLocation localLocation = PlayerLocation.FetchFrom(level.Session);
         if (entry.Value.Location == watchPlaybackLocation
@@ -1052,6 +1143,17 @@ public sealed partial class MainComponent
             return;
         }
 
+        if (playerEvent.PlayerEpoch != watchPlayerEpoch
+            || playerEvent.PlayerSequence <= watchPlaybackPlayerSequence)
+            return;
+        if (watchPlaybackAwaitingKeyframe
+            || playerEvent.PlayerSequence != PlayerTimelineSequence.Next(watchPlaybackPlayerSequence))
+        {
+            watchPlaybackAwaitingKeyframe = true;
+            return;
+        }
+        watchPlaybackPlayerSequence = playerEvent.PlayerSequence;
+
         ApplyPlayerLiveState(level, player, playerEvent.LiveState, playerEvent.Value);
     }
 
@@ -1070,7 +1172,8 @@ public sealed partial class MainComponent
             : null;
         bool hasNextFrame = watchPlayerFrameBuffer.TryPeek(
             out WatchPlaybackEntry<WatchPlayerFrameSample> next
-        ) && next.Value.Location == current.Value.Location;
+        ) && next.Value.PlayerEpoch == current.Value.PlayerEpoch
+            && next.Value.Location == current.Value.Location;
         if (hasNextFrame)
         {
             float amount = WatchPlaybackTiming.GetInterpolationAmount(
@@ -1097,12 +1200,23 @@ public sealed partial class MainComponent
         }
     }
 
-    private void ResetWatchPlayerPlayback(OnlinePlayer player, PlayerLocation location)
+    private void ResetWatchPlayerPlayback(
+        OnlinePlayer player,
+        PlayerLocation location,
+        uint playerEpoch,
+        uint playerSequenceWatermark
+    )
     {
         watchPlayerFrameBuffer.Clear();
         watchPlayerEventBuffer.Clear();
         watchCurrentPlayerFrame = null;
         watchPlaybackPlayerState = player.State?.Clone();
+        watchPlayerEpoch = playerEpoch;
+        watchPlaybackPlayerSequence = Math.Max(
+            playerSequenceWatermark,
+            player.PlayerEpoch == playerEpoch ? player.LastPlayerSequence : 0
+        );
+        watchPlaybackAwaitingKeyframe = false;
         watchPlaybackLocation = location;
         watchPlaybackPaused = player.IsPaused;
         if (ghosts.TryGetValue(player.ID, out MiaoNetGhost? ghost))
@@ -1115,6 +1229,9 @@ public sealed partial class MainComponent
         watchPlayerEventBuffer.Clear();
         watchCurrentPlayerFrame = null;
         watchPlaybackPlayerState = null;
+        watchPlayerEpoch = 0;
+        watchPlaybackPlayerSequence = 0;
+        watchPlaybackAwaitingKeyframe = false;
         watchPlaybackLocation = default;
         watchPlaybackPaused = false;
     }

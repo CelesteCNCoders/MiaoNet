@@ -150,10 +150,12 @@ public sealed class WatchPacketTests
     [TestMethod]
     public async Task DeathWipeNotificationRoundTripsWithoutPositionPayloadMeaning()
     {
-        PacketPlayerLiveState packet = new(LiveStateType.DeathWipe, Vector2.Zero);
+        PacketPlayerLiveState packet = new(3, 9, LiveStateType.DeathWipe, Vector2.Zero);
 
         PacketPlayerLiveState read = await RoundTripAsync(packet);
 
+        Assert.AreEqual((uint)3, read.PlayerEpoch);
+        Assert.AreEqual((uint)9, read.PlayerSequence);
         Assert.AreEqual(LiveStateType.DeathWipe, read.Type);
         Assert.AreEqual(Vector2.Zero, read.Vector2);
     }
@@ -174,10 +176,48 @@ public sealed class WatchPacketTests
             CameraPosition = frameCamera,
         };
 
-        PacketPlayerFrame readFrame = await RoundTripAsync(new PacketPlayerFrame(delta));
+        PacketPlayerFrame readFrame = await RoundTripAsync(new PacketPlayerFrame(3, 10, delta));
 
-        Assert.IsTrue(readFrame.StateDelta.HasCameraPosition);
+        Assert.AreEqual((uint)3, readFrame.PlayerEpoch);
+        Assert.AreEqual((uint)10, readFrame.PlayerSequence);
+        Assert.IsTrue(readFrame.StateDelta!.HasCameraPosition);
         Assert.AreEqual(frameCamera, readFrame.StateDelta.CameraPosition);
+    }
+
+    [TestMethod]
+    public async Task PlayerKeyframeRoundTripsCompleteRecoveryState()
+    {
+        PlayerState state = new()
+        {
+            Position = new Vector2(4f, 5f),
+            Animation = "dash",
+            AnimationFrame = 2,
+            Scale = Vector2.One,
+            StateFlags = PlayerStateFlags.Dashing,
+            Dashes = 2,
+            LastDashDirection = 1.25f,
+            DeltaTime = 1f / 60f,
+            PlayerSpriteMode = PlayerSpriteMode.Madeline,
+            HoldableInfo = new(HoldableType.Theo, new Vector2(1f, 2f)),
+            FollowerInfos = [new(FollowerType.Key, "key", "idle", 0, new Vector2S(2, 3))],
+            WindDirection = new Vector2(1f, 0f),
+        };
+
+        PacketPlayerFrame read = await RoundTripAsync(new PacketPlayerFrame(
+            8,
+            17,
+            state,
+            new Vector2(100f, 200f)
+        ));
+
+        Assert.AreEqual(PlayerFrameKind.Keyframe, read.Kind);
+        Assert.AreEqual((uint)8, read.PlayerEpoch);
+        Assert.AreEqual((uint)17, read.PlayerSequence);
+        Assert.AreEqual(state.Position, read.KeyframeState!.Position);
+        Assert.AreEqual(state.Dashes, read.KeyframeState.Dashes);
+        Assert.HasCount(1, read.KeyframeState.FollowerInfos);
+        Assert.IsTrue(read.HasCameraPosition);
+        Assert.AreEqual(new Vector2(100f, 200f), read.CameraPosition);
     }
 
     private async Task<TPacket> RoundTripAsync<TPacket>(TPacket packet)

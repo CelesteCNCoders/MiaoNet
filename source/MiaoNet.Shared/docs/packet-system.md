@@ -50,8 +50,8 @@ IContextualPacket
 
 | 包 | 方向 | 作用 |
 |---|---|---|
-| `PacketPlayerFrame` | C->S | `PlayerStateDelta` 帧增量 |
-| `PacketPlayerLocationChanged` | C->S | 进入/离开地图或切换房间，进入地图时附带初始状态 |
+| `PacketPlayerFrame` | C->S | 带 Player Epoch/Sequence 的 Delta 或完整 Keyframe |
+| `PacketPlayerLocationChanged` | C->S | PlayerTimeline 世代屏障；进入地图和切换房间均附带完整基线 |
 | `PacketPlayerLocationChangedNotification` | S->C | 位置 presence，或同地图带初始状态的通知 |
 | `PacketPlayerLocationChangedResponse` | S->C | 请求者进入地图/Debug Map 时的同地图初始状态 |
 | `PacketPlayerChannelMove` | C->S | 按名称切换频道；不存在时由服务端创建 |
@@ -76,7 +76,7 @@ IContextualPacket
 
 `PacketClientInitial` 在旧字段之后可选附加 `ServerFeatureFlags`；新客户端在尾部不存在时将其视为 `None`，旧客户端则忽略尾字段。客户端通过 `PlayerGlobalFlags.WatchSceneSyncSupported` 公告能力。只有 Server、Watcher 和 Player 三方都支持 `WatchSceneSync` 时，Watcher 才发送 `PacketWatchStart`；否则使用原始本地观看流程，不向旧服务端发送未注册的 Watch 包。
 
-`PacketWatchStart` / `Response` 建立由服务端确认的观战会话。服务端通过 `PacketWatchSnapshotRequest` / `Response` 向被观看方取得场景快照，随后将 `PacketWatchSceneDelta` 定向转发给该玩家的观看方。同一地图内切换房间不会结束会话；Player 实际触发原版 `Level.TransitionTo` 时，生产端记录 source、target、出口位置和原版方向，Watcher 等待同序目标房间完整状态后以这些元数据启动平滑转场，不再通过房间矩形边界猜测方向。没有原版转场事件的生命周期跳转才使用传送兜底。每次进入房间都会发送可为空的已适配实体完整状态，防止沿用上次进入该房间时的缓存；Touch Switch 的激活 ID 也作为其中一个聚合实体状态传输。场景增量携带产生它的 `PlayerLocation`；服务端丢弃重复序号，正常只转发与生产者当前位置一致且序号连续的数据。发现缺序时不结束观看，而是暂停受影响 Session、合并同一 Player 的快照请求，并通过 `PacketWatchResyncSnapshot` 为 Watcher 建立新基线；Watcher 若发现本地应用进度落后，也可用 `PacketWatchResyncRequest` 触发同一恢复流程。Target 同时只运行一个重同步捕获；请求超时或明确失败会有限退避重试，迟到 generation 不得完成新操作。Watcher 主动请求另有服务端冷却，不能随着每个增量反复放大为完整快照。
+`PacketWatchStart` / `Response` 建立由服务端确认的观战会话。服务端通过 `PacketWatchSnapshotRequest` / `Response` 向被观看方取得场景快照，随后将 `PacketWatchSceneDelta` 定向转发给该玩家的观看方。Snapshot/Delta 同时携带 Player Epoch 与 Player Sequence 水位；新世代只有在对应的 Scene Replace 到达后才允许 Watcher 应用该世代 Player 帧。同一地图内切换房间不会结束会话；Player 实际触发原版 `Level.TransitionTo` 时，生产端记录 source、target、出口位置和原版方向，Watcher 等待同序目标房间完整状态后以这些元数据启动平滑转场。超过 8 KiB 的 Scene 状态先发送 `PacketWatchSceneTransferStart`，再拆成最多 8 个 8 KiB `PacketWatchSceneChunk`；接收方只在完整重组并核对长度、Scene Sequence、Player Epoch 和水位后发布逻辑包，超时、冲突、重复和越界分片不会应用半包。发现 Scene 缺序时暂停受影响 Session 并请求共享快照；Player 帧缺序则等待同 Epoch Keyframe 恢复。
 
 `WatchSceneSnapshot` 包含 Session string flags 和已注册实体适配器的完整状态；`WatchSceneDelta` 包含 flags 增删、实体状态补丁或完整替换，以及有序的瞬时实体事件。Player 在 `PlayerDeadBody.End` 即将调用原版 `DoScreenWipe` 时先向实际 Watcher 定向发送 `DeathWipe`，Watcher 据此同步开始 WipeOut，旧客户端不会收到该新枚举值。生产端在普通死亡或 Retry 后等待 Player 重生，再发送带 `IsDeathRespawn`、不带 `RequiresRoomReload` 的完整状态；若死亡流程直接进入另一个房间，目标房间的完整 `Replace` 本身携带该标记。Watcher 在缩圈过程中继续接收并缓存状态；如果快照略晚，WipeOut 会停在完全黑屏帧，直到能够原子应用完整实体状态和周期相位，然后直接整屏亮起，不额外播放 WipeIn。正常情况保留当前 Level、Camera、背景和音乐；Touch Switch、Temple Cracked Block、Final Boss Moving Block 及其地图 Spikes 等单向状态在黑屏帧由对应适配器定向重建。适配器无法逆转的局部状态只按实体类型记录诊断，不能把轻量死亡升级为整房重载。生产端只有实际发生 F5、读档或其他显式完整生命周期时才设置 `RequiresRoomReload`，Watcher 也只有收到该标记后才调用 `Level.Reload()`。真实切房继续使用原版 `Level.TransitionTo` 的 Camera 动画；目标房间加载完成后即在转场过程中应用完整快照，隐藏的本地 Player 不参与原版转场移动完成判定。死亡后直接换房的特殊流程会保留死亡与复活通知，等目标房间就绪后立即恢复 Ghost。正常同房观看时，Player 将最终 `Camera.Position` 作为可选字段附加到现有 `PacketPlayerFrame`，Watcher 只对该权威坐标做短时插值，不再同时运行基于 Player 坐标的独立镜头控制；服务端只向该 Player 的活动 Watcher 保留 Camera 字段，其他同地图客户端仍接收去除 Camera 字段的普通 PlayerFrame；转场期间只缓存 Camera，完全黑屏帧允许直接重锚。实体状态只有在存在观看者时才采集和上传；单个适配器失败或一次聚合增量无效时，生产端会隔离、沿用最后有效状态或跳过该次更新，不再主动结束 Watch 会话。`PacketWatchStop`、`PacketWatchProducerStop` 和 `PacketWatchEnded` 只负责双方主动停止、无法继续生产的生命周期失败和服务端终止通知。所有场景状态包仍受协议 payload 上限约束。
 

@@ -61,7 +61,9 @@ public sealed partial class MainComponent
             location,
             sequence,
             flags,
-            WatchSceneDelta.OrderEntityStates(entityCapture.EnumerateCurrentStates())
+            WatchSceneDelta.OrderEntityStates(entityCapture.EnumerateCurrentStates()),
+            playerEpoch,
+            playerSequence
         );
         if (!WatchPacketValidator.IsValid(snapshot))
         {
@@ -143,7 +145,9 @@ public sealed partial class MainComponent
             entityEvents,
             requiresRoomReload,
             isDeathRespawn,
-            roomTransition
+            roomTransition,
+            playerEpoch,
+            playerSequence
         );
         if (delta is null)
             return;
@@ -165,7 +169,9 @@ public sealed partial class MainComponent
                 [],
                 requiresRoomReload,
                 isDeathRespawn,
-                roomTransition
+                roomTransition,
+                playerEpoch,
+                playerSequence
             );
             if (delta is null || !WatchPacketValidator.IsValid(delta))
             {
