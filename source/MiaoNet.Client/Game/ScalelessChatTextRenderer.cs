@@ -23,6 +23,9 @@ internal sealed class ScalelessChatTextRenderer : IScalelessTextRenderer
     public void Draw(string text, Vector2 position, Vector2 justify, Color color)
         => MiaoNetFont.Draw(text, position, justify, Vector2.One * Scale, color);
 
+    public void Draw(string text, Vector2 position, Vector2 justify, Vector2 scale, Color color)
+        => MiaoNetFont.Draw(text, position, justify, Vector2.One * Scale * scale, color);
+
     public void DrawOutline(string text, Vector2 position, Vector2 justify, Color color)
         => MiaoNetFont.DrawOutline(
             text, position, justify,
