@@ -690,6 +690,8 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     private void UpdateHairCount(int count)
     {
         playerSprite.HairCount = count;
+        while (playerHair.Nodes.Count < count)
+            playerHair.Nodes.Add(playerHair.Nodes.Count > 0 ? playerHair.Nodes[^1] : Vector2.Zero);
     }
 
     private void UpdateHairCount()
