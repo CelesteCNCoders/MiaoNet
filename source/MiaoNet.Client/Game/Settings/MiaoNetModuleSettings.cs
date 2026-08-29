@@ -182,6 +182,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     [YamlIgnore]
     public bool Fireworks { get; set; } = true;
 
+    // This will be saved into MiaoNet-Emotes.txt in the future
+    //[YamlIgnore]
     public List<string> Emotes
     {
         get => field ??= [];

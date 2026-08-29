@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using FMOD.Studio;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Graphics;
@@ -147,6 +148,62 @@ public sealed class MiaoNetModule : EverestModule
     {
         foreach (var item in Settings.GetButtonBindings())
             item.Button?.Deregister();
+    }
+
+    public override void LoadSettings()
+    {
+        base.LoadSettings();
+        try
+        {
+            LoadEmotes();
+        }
+        catch (Exception e)
+        {
+            Logger.Error("MiaoNet", $"Error occurred while loading extra settings.");
+            Logger.LogDetailed(e);
+        }
+    }
+
+    public override void SaveSettings()
+    {
+        base.SaveSettings();
+        try
+        {
+            SaveEmotes();
+        }
+        catch (Exception e)
+        {
+            Logger.Error("MiaoNet", $"Error occurred while saving extra settings.");
+            Logger.LogDetailed(e);
+        }
+    }
+
+    public void LoadEmotes()
+    {
+        string path = GetEmotesFilePath();
+        if (!File.Exists(path))
+            return;
+        ((MiaoNetModuleSettings)_Settings).Emotes = new(File.ReadAllLines(path));
+    }
+
+    private void SaveEmotes()
+    {
+        File.WriteAllLines(GetEmotesFilePath(), ((MiaoNetModuleSettings)_Settings).Emotes);
+    }
+
+    private static string GetEmotesFilePath()
+        => Path.Combine(Everest.PathSettings, "MiaoNet-Emotes.txt");
+
+    public void OpenEmotesFile()
+    {
+        string path = GetEmotesFilePath();
+        if (!File.Exists(path))
+            SaveEmotes();
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = path,
+            UseShellExecute = true
+        });
     }
 
     private static void Level_OnAfterUpdate(Level level)

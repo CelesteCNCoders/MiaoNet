@@ -69,11 +69,10 @@ miaonet_options_fireworks_tip=
 	是否开启烟花功能。
 	开启后可以发送烟花以及接收来自其他玩家的烟花。
 	此选项不会被保存。
-miaonet_options_open_settings_file= 打开设置文件
-miaonet_options_open_settings_file_tip= 
-	使用默认打开方式打开本 Mod 的设置文件，
+miaonet_options_open_emotes_file= 打开表情文件
+miaonet_options_open_emotes_file_tip= 
+	使用默认打开方式打开本 Mod 的表情文件，
 	有需要时请选择文本编辑器作为打开方式。
-	该功能在非 Windows 系统上可能不会起效。
 miaonet_options_reload_emote_settings= 重载表情设置
 miaonet_options_key_bindings= 按键设置
 
