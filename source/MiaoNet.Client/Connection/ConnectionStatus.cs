@@ -27,6 +27,8 @@ public static class ConnectionStatus
 
     public static string InvalidTokenData => Dialog.Get($"{Base}invalid_token_data");
 
+    public static string Suspended => Dialog.Get($"{Base}suspended");
+
     public static string InternalServerError => Dialog.Get($"{Base}internal_server_error");
 
     public static string ConnectFailedWithReason(string reason)

@@ -217,6 +217,7 @@ partial class MiaoNetContext
                     {
                         AuthenticationResultType.InvalidTokenData => ConnectionStatus.InvalidTokenData,
                         AuthenticationResultType.InternalServerError => ConnectionStatus.InternalServerError,
+                        AuthenticationResultType.Suspended when reason is null => ConnectionStatus.Suspended,
                         _ => reason ?? ConnectionStatus.DisconnectedExceptionally,
                     };
                     QueueDisconnectStatus(status);
