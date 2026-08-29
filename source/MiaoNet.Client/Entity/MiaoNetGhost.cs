@@ -772,11 +772,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
         if (OnlinePlayer.IsPaused)
         {
-            // only keep the position
-            // yes this is kinda hacky
-            Vector2 offset = playerHair.Sprite.HairOffset * new Vector2((float)playerHair.Facing, 1f);
-            Vector2 expectedNode0Position = playerHair.Sprite.RenderPosition + new Vector2(0f, -9f * playerHair.Sprite.Scale.Y) + offset;
-            playerHair.MoveHairBy(expectedNode0Position - playerHair.Nodes[0]);
+            bool simulateMotion = playerHair.SimulateMotion;
+            playerHair.SimulateMotion = false;
+            playerHair.AfterUpdate();
+            playerHair.SimulateMotion = simulateMotion;
         }
         else
         {
