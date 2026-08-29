@@ -106,6 +106,26 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
         set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
     } = 8;
 
+    // repeating messages within the window sharing the same fold key collapse into one line with a counter
+    public bool MessageFolding
+    {
+        get;
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
+    }
+
+    // whether the fold counter animates; off for a plain static label
+    public bool FancyFoldCounter
+    {
+        get;
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
+    } = true;
+
+    public int FoldWindowSeconds
+    {
+        get;
+        set { field = Math.Clamp(value, 1, 60); NotifySettingsChanged(SettingsCategory.VisualsUI); }
+    } = 10;
+
     #endregion
 
     public int PlayerOpacity { get; set; } = 8;

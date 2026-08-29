@@ -200,6 +200,31 @@ public static class MenuMiaoNetOptions
         ).Change(v => settings.ActiveChatHeight = v);
         uiSubMenu.Add(item);
 
+        // folding details follow the master switch
+        var foldWindow = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_fold_window"), 1, 60, settings.FoldWindowSeconds
+        ).Change(v => settings.FoldWindowSeconds = v);
+        foldWindow.Disabled = !settings.MessageFolding;
+
+        var foldCounter = new TextMenu.Option<bool>(Dialog.Get("miaonet_options_fold_counter"))
+            .Change(v => settings.FancyFoldCounter = v);
+        foldCounter.Add(Dialog.Get("miaonet_options_fold_counter_fancy"), true, settings.FancyFoldCounter);
+        foldCounter.Add(Dialog.Get("miaonet_options_fold_counter_subtle"), false, !settings.FancyFoldCounter);
+        foldCounter.Disabled = !settings.MessageFolding;
+
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_message_folding"), settings.MessageFolding
+        ).Change(v =>
+        {
+            settings.MessageFolding = v;
+            foldWindow.Disabled = !v;
+            foldCounter.Disabled = !v;
+        });
+
+        uiSubMenu.Add(item);
+        uiSubMenu.Add(foldWindow);
+        uiSubMenu.Add(foldCounter);
+
         menu.Add(uiSubMenu);
 
         #endregion
