@@ -237,6 +237,7 @@ miaonet_commands_teleport_failed_tip= 传送失败，(0)
 miaonet_commands_teleport_failed_nosuchplayer= 对方玩家不存在
 miaonet_commands_teleport_failed_otherdenied= 对方拒绝了传送
 miaonet_commands_teleport_failed_otherdoesnotresponse= 对方无响应
+miaonet_commands_teleport_failed_exceed_limit= 传送频率过高已达上限
 miaonet_commands_teleport_success= 已传送到 (0)
 miaonet_commands_teleport_success_nosession= 已传送到 (0) 的所在位置
 miaonet_commands_teleport_back_notice= 正在使用临时存档，输入 "/back" 返回你的存档

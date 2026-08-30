@@ -242,6 +242,7 @@ miaonet_commands_teleport_failed_tip= Teleport failed, (0)
 miaonet_commands_teleport_failed_nosuchplayer= no such player
 miaonet_commands_teleport_failed_otherdenied= the other denied
 miaonet_commands_teleport_failed_otherdoesnotresponse= the other does not response
+miaonet_commands_teleport_failed_exceed_limit= teleport frequency limit exceeded
 miaonet_commands_teleport_success= Teleported to (0)
 miaonet_commands_teleport_success_nosession= Teleported to (0)'s location
 miaonet_commands_teleport_back_notice= You're currently using a temporary save. Type "/back" to return to your original save.
