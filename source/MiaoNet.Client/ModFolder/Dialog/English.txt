@@ -268,6 +268,11 @@ miaonet_chat_whisper_received= {+ miaonet_lb}whisper{+ miaonet_rb} (0)
 miaonet_chat_map_chat= {+ miaonet_lb}Map Chat{+ miaonet_rb}
 miaonet_chat_channel_chat= {+ miaonet_lb}Channel Chat{+ miaonet_rb}
 
+miaonet_initial_chat_tab_name= All
+miaonet_chat_channel_name_global= Global
+miaonet_chat_channel_name_channel= Channel
+miaonet_chat_channel_name_map= Map
+
 miaonet_oui_conflict_title= MiaoNet Mod Conflict
 miaonet_oui_conflict_description=
 	It appears that you have installed both MiaoNet and CelesteNet simultaneously.
