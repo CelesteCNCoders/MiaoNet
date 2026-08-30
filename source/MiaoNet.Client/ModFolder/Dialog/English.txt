@@ -105,7 +105,6 @@ miaonet_options_new_messages_showing_mode_tip=
 	- Show All: Show all the new messages.
 	- With Tab: Maintain new messages filtering consistency with tabs.
 	- Hide All: No new messages showing.
-	This option will not be saved.
 
 miaonet_options_new_messages_showing_mode_showall= Show All
 miaonet_options_new_messages_showing_mode_withtab= With Tab
