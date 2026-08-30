@@ -100,6 +100,7 @@ miaonet_options_new_messages_showing_mode_tip=
 	- 全部显示：显示所有新消息。
 	- 当前标签页：显示与所选标签页一致的新消息。
 	- 全不显示：不显示新消息。
+	此选项不会被保存。
 miaonet_options_new_messages_showing_mode_showall= 全部显示
 miaonet_options_new_messages_showing_mode_withtab= 当前标签页
 miaonet_options_new_messages_showing_mode_hideall= 全不显示
