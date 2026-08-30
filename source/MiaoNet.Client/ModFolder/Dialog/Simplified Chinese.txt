@@ -263,8 +263,8 @@ miaonet_chat_whisper_received= {+ miaonet_lb}私聊{+ miaonet_rb} (0)
 miaonet_chat_map_chat= {+ miaonet_lb}地图聊天{+ miaonet_rb}
 miaonet_chat_channel_chat= {+ miaonet_lb}频道聊天{+ miaonet_rb}
 
-miaonet_initial_chat_tab_name= 综合
-miaonet_chat_channel_name_global= 全局
+miaonet_initial_chat_tab_name= 全部
+miaonet_chat_channel_name_global= 公屏
 miaonet_chat_channel_name_channel= 频道
 miaonet_chat_channel_name_map= 地图
 
