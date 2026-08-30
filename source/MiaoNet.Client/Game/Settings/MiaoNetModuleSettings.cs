@@ -224,7 +224,6 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 
     public bool PlayerPresenceMessages { get; set; } = true;
 
-    [YamlIgnore]
     public NewMessageShowingMode NewMessagesShowing
     {
         get;
