@@ -42,6 +42,8 @@ public sealed class ChatMessageListView
 
     // drives the rainbow color of the fold counter
     private float counterAnimClock;
+    
+    public float MessageYPadding { get; set; } = 8f;
 
     public string? ActiveTabName => chatMessageManager.ActiveTabName;
 
@@ -159,8 +161,6 @@ public sealed class ChatMessageListView
 
         const float Margin = 16f;
         const float Padding = 8f;
-        const float MessageXPadding = 8f;
-        const float MessageYPadding = 8f;
         
         float inputBoxTopY = Engine.Height - Margin - textRenderer.LineHeight - Padding * 2f;
         float tabViewTopY = inputBoxTopY - textRenderer.LineHeight - Padding * 2f;
@@ -229,7 +229,7 @@ public sealed class ChatMessageListView
         else if (fade == 0f)
             return false;
         fade *= alpha;
-        chatItem.render(x, curY, fade, BackgroundOpacity, TextOpacity, textRenderer,
+        chatItem.render(x, curY, fade, BackgroundOpacity, TextOpacity, MessageYPadding, textRenderer,
             FancyFoldCounter, counterAnimClock,
             1f - state.CounterPopTimer / FoldCounter.PopDuration);
         return true;

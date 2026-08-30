@@ -7,10 +7,7 @@ public class ChatItem
     private string? dateTimeText;
     private ChatText messageText;
 
-    private const float Margin = 16f;
-    private const float Padding = 8f;
     private const float MessageXPadding = 8f;
-    private const float MessageYPadding = 8f;
 
     // width of "00:00:00", the max width of the time text, though we need to avoid hardcoding...
     private const float TimeTextWidthRatio = 3.5625f;
@@ -34,12 +31,13 @@ public class ChatItem
     }
     public void render(
         float x, float y, float fade, float backgroundOpacity, float textOpacity,
+        float messageYPadding,
         IScalelessTextRenderer textRenderer,
         bool fancyCounter, float counterAnimClock, float counterPopProgress
     )
     {
         float lineHeight = textRenderer.LineHeight;
-        float messageLineHeight = lineHeight + 2 * MessageYPadding;
+        float messageLineHeight = lineHeight + 2 * messageYPadding;
         float timeTextMaxWidth = TimeTextWidthRatio * lineHeight + 2 * TimeTextXPadding;
         float messageWidth = MeasureSingleMessage(messageText, textRenderer);
         float lineWidth = messageWidth;
@@ -79,7 +77,7 @@ public class ChatItem
         float drawAlpha = fade * textOpacity;
 
         float curX = x + MessageXPadding;
-        float curY = y - MessageYPadding;
+        float curY = y - messageYPadding;
 
         if (dateTimeText is not null)
         {
@@ -87,7 +85,7 @@ public class ChatItem
             curX += timeTextMaxWidth;
         }
 
-        textRenderer.Draw(messageText, new Vector2(curX, y - MessageYPadding), 1f, drawAlpha);
+        textRenderer.Draw(messageText, new Vector2(curX, y - messageYPadding), 1f, drawAlpha);
 
         if (counterText is not null)
         {
