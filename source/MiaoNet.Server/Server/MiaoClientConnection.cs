@@ -16,7 +16,7 @@ namespace MiaoNet.Server;
 public sealed class MiaoClientConnection : IPacketSerializationContext
 {
     public const int TcpBufferSize = 2048;
-    public const int PacketChannelSize = 256;
+    public const int PacketBatchSize = 1344;
     public const int MaxPendingRequests = 64;
 
     public delegate Task ResponseHandler(PacketResponse response);
@@ -75,12 +75,8 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         pipe = new();
         pendingRequests = new();
 
-        BoundedChannelOptions options = new(PacketChannelSize)
-        {
-            SingleReader = true,
-            FullMode = BoundedChannelFullMode.Wait
-        };
-        sendChannel = Channel.CreateBounded<IContextualPacket>(options);
+        UnboundedChannelOptions options = new() { SingleReader = true };
+        sendChannel = Channel.CreateUnbounded<IContextualPacket>(options);
         PooledStringManager = new(KnownPooledStrings.All);
     }
 
@@ -129,37 +125,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     #region Packet
 
     public ValueTask QueuePacketAsync(IContextualPacket packet)
-    {
-        if (sendChannel.Writer.TryWrite(packet))
-            return ValueTask.CompletedTask;
-        return WaitToQueuePacketAsync(packet);
-    }
-
-    private async ValueTask WaitToQueuePacketAsync(IContextualPacket packet)
-    {
-        using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
-        timeout.CancelAfter(server.DisconnectTimeout);
-        try
-        {
-            await sendChannel.Writer.WriteAsync(packet, timeout.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            if (!cts.IsCancellationRequested)
-            {
-                logger.LogWarning(
-                    AppEvents.Connection,
-                    "Disconnecting slow client {id}: outgoing packet queue stayed full.",
-                    ID
-                );
-                await cts.CancelAsync();
-            }
-        }
-        catch (ChannelClosedException)
-        {
-            // The connection is already shutting down; there is no receiver for this packet.
-        }
-    }
+        => sendChannel.Writer.WriteAsync(packet);
 
     public bool TryQueuePacket(IContextualPacket packet)
         => sendChannel.Writer.TryWrite(packet);
@@ -390,60 +356,18 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         // TODO avoid using MemoryStream
         MemoryStream ms = new(512);
         var channelReader = sendChannel.Reader;
-        TimeSpan batchInterval = server.SendBatchInterval;
-        int batchSize = server.SendBatchSize;
-        TimeProvider timeProvider = TimeProvider.System;
-
-        // TODO yes obviously client should handle batching too
-
-        // wait for data
         while (await channelReader.WaitToReadAsync(token))
         {
             int packetsCount = 0;
-            Task? window = null;
-            while (true)
+            while (channelReader.TryRead(out var packet) && ms.Position < PacketBatchSize)
             {
-                // then read them
-                bool flush = false;
-                while (channelReader.TryRead(out var packet))
-                {
-                    WritePacket(ms, packet, this);
-                    packetsCount++;
-                    if (!packet.CanBatch || ms.Position >= batchSize)
-                    {
-                        flush = true;
-                        break;
-                    }
-                }
-
-                if (flush) break;
-
-                // not full, wait for more data
-                // and also start a timer, we'll flush when the timer elapses or the batch size is reached
-                window ??= Task.Delay(batchInterval, timeProvider, token);
-                Task<bool> waitTask = channelReader.WaitToReadAsync(token).AsTask();
-                if (await Task.WhenAny(waitTask, window) == window)
-                {
-                    // timer elapsed or cancelled, flush it
-                    await window;
-                    break;
-                }
-                else
-                {
-                    // if channel completed, flush the remaining data and exit
-                    // else, continue the loop to read more data
-                    bool channelCompleted = !await waitTask;
-                    if (channelCompleted)
-                        break;
-                    else
-                        continue;
-                }
+                WritePacket(ms, packet, this);
+                packetsCount++;
             }
 
             int size = checked((int)ms.Position);
-            Debug.Assert(size > 0);
-
             var mem = ms.GetBuffer().AsMemory(0, size);
+
             await networkConnection.Stream.WriteAsync(mem, token);
             metricsService.RecordPacketTcpUpload(packetsCount, size);
 

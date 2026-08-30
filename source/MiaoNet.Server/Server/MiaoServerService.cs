@@ -47,10 +47,6 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
     public int DisconnectTimeout => options.DisconnectTimeout;
 
-    public TimeSpan SendBatchInterval => TimeSpan.FromSeconds(1.0 / options.SendBatchFrequency);
-
-    public int SendBatchSize => options.SendBatchSize;
-
     public TimeSpan RequestTimeout => TimeSpan.FromMilliseconds(options.RequestTimeout);
 
     public MiaoServerService(

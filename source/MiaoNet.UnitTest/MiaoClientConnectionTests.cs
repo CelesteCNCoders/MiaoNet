@@ -8,16 +8,6 @@ namespace MiaoNet.UnitTest;
 public sealed class MiaoClientConnectionTests
 {
     [TestMethod]
-    public void OutgoingQueueIsBounded()
-    {
-        var connection = CreateConnection();
-        for (int i = 0; i < MiaoClientConnection.PacketChannelSize; i++)
-            Assert.IsTrue(connection.TryQueuePacket(new PacketPing()), $"Packet {i} should fit.");
-
-        Assert.IsFalse(connection.TryQueuePacket(new PacketPing()), "The queue must apply backpressure at its configured capacity.");
-    }
-
-    [TestMethod]
     public async Task PendingRequestIsRemovedAfterTimeout()
     {
         var connection = CreateConnection();
