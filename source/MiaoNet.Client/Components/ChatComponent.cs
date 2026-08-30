@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Celeste.Mod.ChatInputBox;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Input;
@@ -77,6 +78,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     {
         if (category is not SettingsCategory.VisualsUI)
             return;
+        chatMessageBox.ChatMessageListView.MessageYPadding = settings.ChatMessagePadding;
         chatMessageBox.ChatMessageListView.BackgroundOpacity = settings.ChatBackgroundOpacityValue;
         chatMessageBox.ChatMessageListView.TextOpacity = settings.ChatTextOpacityValue;
         chatMessageBox.ChatMessageListView.ShowDuration = settings.ChatDisplayDuration;
@@ -129,7 +131,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
                 ChatMessageType.MapChat => ChatChannel.Map,
                 _ => null
             };
-            string? tabName = ChatChannelMatcher.GetName(chatChannel);
+            string? tabName = ChatChannelMatcher.GetLocalizedName(chatChannel);
 
             string? foldKey = null;
             ChatText? foldedText = null;
@@ -147,8 +149,8 @@ public sealed partial class ChatComponent : MiaoNetComponent
     
     private void SyncChatChannelWithTab()
     {
-        var chatTabName = chatMessageBox.ActiveTabName ?? ChatChannelMatcher.GetName(ChatChannel.Global);
-        var chatChannel = ChatChannelMatcher.Match(chatTabName!);
+        var chatTabName = chatMessageBox.ActiveTabName ?? ChatChannelMatcher.GetLocalizedName(ChatChannel.Global);
+        var chatChannel = ChatChannelMatcher.MatchLocalized(chatTabName!);
         if (chatChannel != (ChatChannel)(-1))
         {
             MiaoNetModule.Settings.ChatChannel = chatChannel;
@@ -330,10 +332,13 @@ public sealed partial class ChatComponent : MiaoNetComponent
     private void ChatMessageBoxSetup()
     {
         chatMessageBox.CleanUp();
-        List<string> tabNames = ["Global", "Channel", "Map"];
-        foreach (var tabName in tabNames)
+        chatMessageBox.ChatTabListView.InitialTabTitle = Dialog.Get("miaonet_initial_chat_tab_name");
+        foreach (ChatChannel type in Enum.GetValues(typeof(ChatChannel)))
         {
-            chatMessageBox.AddTab(tabName);
+            string? localizedTabName = ChatChannelMatcher.GetLocalizedName(type); 
+            if (localizedTabName == null)
+                throw new UnreachableException();
+            chatMessageBox.AddTab(localizedTabName);
         }
     }
 

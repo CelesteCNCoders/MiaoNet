@@ -84,12 +84,12 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         logger.LogInformation("MiaoNet Server v{v} starting...", Connection.Version.ToString(3));
         logger.LogInformation("Start to listen on {ep}.", options.Network.ListenEndPoint);
         networkListener.Listen();
-        _ = HandleConnectionsHeartbeats(cancellationToken);
         return base.StartAsync(cancellationToken);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        _ = HandleConnectionsHeartbeats(stoppingToken);
         while (true)
         {
             IPendingNetworkConnection pending = await networkListener.AcceptAsync(stoppingToken);
@@ -293,9 +293,15 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
                     async Task OnTimeout()
                     {
-                        logger.LogInformation(AppEvents.Connection, "{p} timed out heartbeat.", connection.Player.Info);
-                        await connection.DisconnectAsync(DisconnectReason.Timeout);
-                        responseTcs.TrySetResult(null);
+                        try
+                        {
+                            logger.LogInformation(AppEvents.Connection, "{p} timed out heartbeat.", connection.Player.Info);
+                            await connection.DisconnectAsync(DisconnectReason.Timeout);
+                        }
+                        finally
+                        {
+                            responseTcs.TrySetResult(null);
+                        }
                     }
                 }
 

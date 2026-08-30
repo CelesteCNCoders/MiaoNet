@@ -33,6 +33,7 @@ miaonet_options_player_light= Add Lights To Other Players
 miaonet_options_ui= UI
 miaonet_options_player_list_ui_scale= Player List UI Scale
 miaonet_options_chat_ui_scale= Chat UI Scale
+miaonet_options_chat_message_padding= Chat Message Padding Height
 miaonet_options_chat_background_opacity= Chat Background Opacity
 miaonet_options_chat_text_opacity= Chat Text Opacity
 miaonet_options_chat_display_duration= Chat Display Duration
@@ -241,6 +242,7 @@ miaonet_commands_teleport_failed_tip= Teleport failed, (0)
 miaonet_commands_teleport_failed_nosuchplayer= no such player
 miaonet_commands_teleport_failed_otherdenied= the other denied
 miaonet_commands_teleport_failed_otherdoesnotresponse= the other does not response
+miaonet_commands_teleport_failed_exceed_limit= teleport frequency limit exceeded
 miaonet_commands_teleport_success= Teleported to (0)
 miaonet_commands_teleport_success_nosession= Teleported to (0)'s location
 miaonet_commands_teleport_back_notice= You're currently using a temporary save. Type "/back" to return to your original save.
@@ -265,6 +267,11 @@ miaonet_chat_whisper_sent= {+ miaonet_lb}whisper to (0){+ miaonet_rb} (1)
 miaonet_chat_whisper_received= {+ miaonet_lb}whisper{+ miaonet_rb} (0)
 miaonet_chat_map_chat= {+ miaonet_lb}Map Chat{+ miaonet_rb}
 miaonet_chat_channel_chat= {+ miaonet_lb}Channel Chat{+ miaonet_rb}
+
+miaonet_initial_chat_tab_name= All
+miaonet_chat_channel_name_global= Global
+miaonet_chat_channel_name_channel= Channel
+miaonet_chat_channel_name_map= Map
 
 miaonet_oui_conflict_title= MiaoNet Mod Conflict
 miaonet_oui_conflict_description=

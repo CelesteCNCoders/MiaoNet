@@ -32,6 +32,7 @@ miaonet_options_player_light= 为其他玩家添加光照
 miaonet_options_ui= 界面
 miaonet_options_player_list_ui_scale= 玩家列表界面大小
 miaonet_options_chat_ui_scale= 聊天界面大小
+miaonet_options_chat_message_padding= 聊天消息间隔高度
 miaonet_options_chat_background_opacity= 聊天背景不透明度
 miaonet_options_chat_text_opacity= 聊天文本不透明度
 miaonet_options_chat_display_duration= 聊天显示时间
@@ -236,6 +237,7 @@ miaonet_commands_teleport_failed_tip= 传送失败，(0)
 miaonet_commands_teleport_failed_nosuchplayer= 对方玩家不存在
 miaonet_commands_teleport_failed_otherdenied= 对方拒绝了传送
 miaonet_commands_teleport_failed_otherdoesnotresponse= 对方无响应
+miaonet_commands_teleport_failed_exceed_limit= 传送频率过高已达上限
 miaonet_commands_teleport_success= 已传送到 (0)
 miaonet_commands_teleport_success_nosession= 已传送到 (0) 的所在位置
 miaonet_commands_teleport_back_notice= 正在使用临时存档，输入 "/back" 返回你的存档
@@ -260,6 +262,11 @@ miaonet_chat_whisper_sent= {+ miaonet_lb}私聊 (0){+ miaonet_rb} (1)
 miaonet_chat_whisper_received= {+ miaonet_lb}私聊{+ miaonet_rb} (0)
 miaonet_chat_map_chat= {+ miaonet_lb}地图聊天{+ miaonet_rb}
 miaonet_chat_channel_chat= {+ miaonet_lb}频道聊天{+ miaonet_rb}
+
+miaonet_initial_chat_tab_name= 全部
+miaonet_chat_channel_name_global= 公屏
+miaonet_chat_channel_name_channel= 频道
+miaonet_chat_channel_name_map= 地图
 
 miaonet_oui_conflict_title= MiaoNet Mod 冲突
 miaonet_oui_conflict_description= 

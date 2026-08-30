@@ -215,6 +215,11 @@ partial class MiaoNetCommand
         if (NotifyTeleportBehaviourOnce(context))
             return null;
 
+        if (!TryConsumeTeleport(context))
+        {
+            return PFormat.Format(Dialog.Get("miaonet_commands_teleport_failed_exceed_limit"));
+        }
+
         string? error;
 
         error = GetSameChannelPlayer(context, context.Segments[0], out var player);
@@ -226,6 +231,11 @@ partial class MiaoNetCommand
 
     private static string? TeleportNoSessionTo(Context context, OnlinePlayer player)
     {
+        if (!TryConsumeTeleport(context))
+        {
+            return PFormat.Format(Dialog.Get("miaonet_commands_teleport_failed_exceed_limit"));
+        }
+
         string? error = EnsurePlayerInExistedMap(player!, out AreaData? area);
         if (error is not null)
             return error;
@@ -258,6 +268,11 @@ partial class MiaoNetCommand
 
     private static string? TeleportWithSessionTo(Context context, OnlinePlayer player)
     {
+        if (!TryConsumeTeleport(context))
+        {
+            return PFormat.Format(Dialog.Get("miaonet_commands_teleport_failed_exceed_limit"));
+        }
+
         string? error = EnsurePlayerInExistedMap(player!, out AreaData? area);
         if (error is not null)
             return error;
@@ -713,6 +728,10 @@ partial class MiaoNetCommand
         player = candidates[index];
         return null;
     }
+
+    private static bool TryConsumeTeleport(Context context)
+        => context.MiaoNetContext.MainComponent.TryConsumeTeleport();
+
     #endregion
 
 #pragma warning restore CA1305
