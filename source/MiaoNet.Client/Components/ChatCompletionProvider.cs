@@ -59,7 +59,7 @@ public sealed class ChatCompletionProvider : ICompletionProvider
         var state = context.ClientState!;
         return from p in state.AllPlayers
                let name = p.Info.Name
-               where name.StartsWith(partial, sc)
+               where name.Contains(partial, sc)
                select new Completion(name, name, remove);
 
         static int FindLastMentionAtIndex(string input)
