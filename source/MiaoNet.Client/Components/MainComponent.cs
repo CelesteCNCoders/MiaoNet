@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
 using MonoMod.Utils;
+using YamlDotNet.Core.Tokens;
 using FFlags = MiaoNet.Shared.PlayerStateDelta.FrameFlags;
 
 namespace Celeste.Mod.MiaoNet;
@@ -13,6 +14,8 @@ public sealed partial class MainComponent : MiaoNetComponent
     private const int MaxFollowersCount = 12;
     private const float SendFireworksCooldown = 0.5f;
     private float sendFireworksTimer;
+
+    private readonly TokenBucket teleportBucket = new(4f, 3);
 
     private bool pendingMapChanged;
     private readonly Dictionary<int, MiaoNetGhost> ghosts;
@@ -181,12 +184,17 @@ public sealed partial class MainComponent : MiaoNetComponent
             }
         }
 
+        // teleport
+        {
+            teleportBucket.Update(Engine.RawDeltaTime);
+        }
+
         // group photo platform
         {
             var pf = level.Tracker.GetEntity<GroupPhotoPlatform>();
             if (MiaoNetModule.Settings.GroupPhotoMode)
             {
-                if (pf is null)
+                if (pf is null) 
                     level.Add(new GroupPhotoPlatform());
             }
             else
@@ -776,4 +784,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             return false;
         }
     }
+
+    public bool TryConsumeTeleport()
+        => teleportBucket.TryConsume();
 }
