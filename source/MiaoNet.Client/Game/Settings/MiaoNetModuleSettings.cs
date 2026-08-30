@@ -79,11 +79,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     public int ChatMessagePadding
     {
         get;
-        set
-        {
-            field = value;
-            NotifySettingsChanged(SettingsCategory.VisualsUI);
-        }
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
     } = 4;
 
     public int ChatBackgroundOpacity

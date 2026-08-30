@@ -168,7 +168,7 @@ public sealed class ChatMessageListView
         float lineHeight = textRenderer.LineHeight;
         float messageLineHeight = lineHeight + 2 * MessageYPadding;
 
-        float baseY = tabViewTopY;
+        float baseY = active ? tabViewTopY : inputBoxTopY;
         Vector2 baseLoc = new Vector2(Margin, baseY);
 
         float curY = baseLoc.Y;
