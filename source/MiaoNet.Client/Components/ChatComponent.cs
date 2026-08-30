@@ -77,6 +77,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     {
         if (category is not SettingsCategory.VisualsUI)
             return;
+        chatMessageBox.ChatMessageListView.MessageYPadding = settings.ChatMessagePadding;
         chatMessageBox.ChatMessageListView.BackgroundOpacity = settings.ChatBackgroundOpacityValue;
         chatMessageBox.ChatMessageListView.TextOpacity = settings.ChatTextOpacityValue;
         chatMessageBox.ChatMessageListView.ShowDuration = settings.ChatDisplayDuration;

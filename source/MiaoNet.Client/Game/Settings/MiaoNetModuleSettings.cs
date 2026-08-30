@@ -68,9 +68,15 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     {
         get;
         set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
-    } = 4;
+    } = 6;
 
     public int ChatUIScale
+    {
+        get;
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
+    } = 6;
+
+    public int ChatMessagePadding
     {
         get;
         set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
@@ -154,9 +160,9 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 
     #region Calculated
 
-    [YamlIgnore] public float PlayerListUIScaleValue => GetScaleValue(PlayerListUIScale);
+    [YamlIgnore] public float PlayerListUIScaleValue => GetPowSmoothScaleValue(PlayerListUIScale);
 
-    [YamlIgnore] public float ChatUIScaleValue => GetScaleValue(ChatUIScale);
+    [YamlIgnore] public float ChatUIScaleValue => GetPowSmoothScaleValue(ChatUIScale);
 
     [YamlIgnore] public float PlayerOpacityValue => PlayerOpacity / 10f;
 
@@ -343,6 +349,21 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
         5 => 12f,
         6 => 20f,
     } / 24f;
+
+    private static float GetPowSmoothScaleValue(int scale)
+    {
+        const int range = 20;
+        const float minScale = 0.25f;
+        const float maxScale = 0.8f;
+        float t = Math.Clamp(
+            (scale - 1) / (float)(range - 1),
+            0f,
+            1f
+        );
+
+        return minScale * (float)Math.Pow(maxScale / minScale, t);
+    }
+
 
     private void NotifySettingsChanged(SettingsCategory category)
         => SettingsChanged?.Invoke(this, category);

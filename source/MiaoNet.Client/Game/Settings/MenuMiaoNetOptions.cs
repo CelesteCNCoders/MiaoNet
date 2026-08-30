@@ -166,15 +166,20 @@ public static class MenuMiaoNetOptions
         var uiSubMenu = new TextMenuExt.SubMenu(Dialog.Get("miaonet_options_ui"), false);
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_player_list_ui_scale"), 1, 6, settings.PlayerListUIScale
+            Dialog.Get("miaonet_options_player_list_ui_scale"), 1, 20, settings.PlayerListUIScale
         ).Change(v => settings.PlayerListUIScale = v);
         uiSubMenu.Add(item);
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_chat_ui_scale"), 1, 6, settings.ChatUIScale
+            Dialog.Get("miaonet_options_chat_ui_scale"), 1, 20, settings.ChatUIScale
         ).Change(v => settings.ChatUIScale = v);
         uiSubMenu.Add(item);
 
+        item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_chat_message_padding"), 0, 8, settings.ChatUIScale    
+        ).Change(v => settings.ChatMessagePadding = v);
+        uiSubMenu.Add(item);
+        
         item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_chat_background_opacity"), 0, 10, settings.ChatBackgroundOpacity
         ).Change(v => settings.ChatBackgroundOpacity = v);
