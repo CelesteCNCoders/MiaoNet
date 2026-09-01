@@ -474,6 +474,18 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         }
     }
 
+    internal GhostFollower? SuppressFirstKeyFollowerForRemoteUse()
+    {
+        // Vanilla LockBlock selects the first unused Key follower. The networked
+        // follower list preserves that order even though it does not carry EntityIDs.
+        GhostFollower? follower = followers.FirstOrDefault(candidate =>
+            candidate.FollowerType == FollowerType.Key
+            && !candidate.RemotePresentationSuppressed
+        );
+        follower?.SetRemotePresentationSuppressed(true);
+        return follower;
+    }
+
     private void CleanUpFollowers()
     {
         foreach (var follower in followers)

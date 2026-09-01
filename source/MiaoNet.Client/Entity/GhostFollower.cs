@@ -10,6 +10,10 @@ public sealed class GhostFollower : MiaoNetGhostEntity
     private readonly Sprite sprite;
     private readonly BloomPoint? bloomPoint;
     private readonly VertexLight? vertexLight;
+    private bool remotePresentationSuppressed;
+
+    internal FollowerType FollowerType { get; }
+    internal bool RemotePresentationSuppressed => remotePresentationSuppressed;
 
     public override bool WatchPresentationFocus => owner.WatchFocus;
 
@@ -17,6 +21,7 @@ public sealed class GhostFollower : MiaoNetGhostEntity
         : base(ghost.Position + offset)
     {
         owner = ghost;
+        FollowerType = type;
         Tag |= ghost.Tag;
         Depth = Depths.Player + 1;
 
@@ -49,10 +54,13 @@ public sealed class GhostFollower : MiaoNetGhostEntity
     public override void Update()
     {
         base.Update();
-        float v = EffectiveOpacity;
+        float v = remotePresentationSuppressed ? 0f : EffectiveOpacity;
         bloomPoint?.Alpha = v;
         vertexLight?.Alpha = v;
     }
+
+    internal void SetRemotePresentationSuppressed(bool suppressed)
+        => remotePresentationSuppressed = suppressed;
 
     public void UpdateSprite(string animationID, int animationFrame)
     {
@@ -67,5 +75,8 @@ public sealed class GhostFollower : MiaoNetGhostEntity
     }
 
     public override void GhostRender()
-        => BaseRender();
+    {
+        if (!remotePresentationSuppressed)
+            BaseRender();
+    }
 }

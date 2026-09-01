@@ -29,6 +29,7 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
     {
         public int Generation { get; set; }
         public bool Active { get; set; }
+        public WatchRemoteCompletionGate Completion { get; } = new();
     }
 
     private static readonly WatchKeyAdapter instance = new();
@@ -133,16 +134,19 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
 
             info.Phase = phase;
             phases[(room, info.ID)] = phase;
+            if (phase == WatchEntityPhase.Gone)
+            {
+                RemoveRemoteKeyAuthoritatively(key);
+                changed = true;
+                continue;
+            }
+
             key.Position = position;
             key.Turning = turning;
             key.Collidable = phase == WatchEntityPhase.Ready && collidable;
             key.Visible = phase is WatchEntityPhase.Ready or WatchEntityPhase.Returning && visible;
             key.sprite.Visible = key.Visible;
-            if (phase == WatchEntityPhase.Gone)
-            {
-                CancelRemoteUse(key);
-                key.RemoveSelf();
-            }
+            key.Depth = phase == WatchEntityPhase.Ready ? Depths.Player : Depths.Top;
             changed = true;
         }
 
@@ -218,6 +222,7 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
                 key.Collidable = false;
                 key.Visible = false;
                 key.sprite.Visible = false;
+                key.Depth = Depths.Top;
                 level.Particles.Emit(Key.P_Collect, 10, key.Position, Vector2.One * 3f);
                 Audio.Play("event:/game/general/key_get", key.Position);
                 break;
@@ -230,14 +235,11 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
                 key.Visible = true;
                 key.sprite.Visible = true;
                 key.Collidable = false;
-                StartRemoteUse(key, target, removeWhenFinished: true);
+                StartRemoteUse(key, target);
                 break;
 
             case GoneEvent when entityEvent.Payload.Length == 0:
-                CancelRemoteUse(key);
-                key.Visible = false;
-                key.Collidable = false;
-                key.RemoveSelf();
+                RemoveRemoteKeyAuthoritatively(key);
                 break;
         }
     }
@@ -254,8 +256,10 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
         RemoteUseState state = remoteUses.GetValue(key, static _ => new());
         state.Generation++;
         state.Active = true;
+        state.Completion.Reset();
         key.StartedUsing = true;
         key.Collidable = false;
+        key.Depth = Depths.Top;
         if (infos.TryGetValue(key, out KeyInfo? info))
             info.Phase = phases[(info.Level, info.ID)] = WatchEntityPhase.Returning;
         return state.Generation;
@@ -266,17 +270,21 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
             && state.Active
             && state.Generation == generation;
 
-    internal static void CancelRemoteUse(Key key, bool remove = false)
+    internal static void RemoveRemoteKeyAuthoritatively(Key key)
     {
-        if (remoteUses.TryGetValue(key, out RemoteUseState? state))
+        if (infos.TryGetValue(key, out KeyInfo? info))
+            info.Phase = phases[(info.Level, info.ID)] = WatchEntityPhase.Gone;
+        if (remoteUses.TryGetValue(key, out RemoteUseState? state) && state.Active)
         {
-            state.Generation++;
-            state.Active = false;
+            state.Completion.MarkAuthoritativeGone();
+            key.Collidable = false;
+            return;
         }
-        key.StartedUsing = false;
-        key.Turning = false;
-        if (remove)
-            key.RemoveSelf();
+
+        key.Visible = false;
+        key.sprite.Visible = false;
+        key.Collidable = false;
+        key.RemoveSelf();
     }
 
     internal static IEnumerator PlayRemoteUse(Key key, Vector2 target, int generation)
@@ -303,12 +311,16 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
         Vector2 start = key.Position;
         Vector2 control = (start + target) / 2f + new Vector2(0f, -48f);
         float elapsed = 0f;
-        while (elapsed < 1f)
+        while (elapsed < WatchLockBlockTiming.KeyTravelDuration)
         {
             if (!IsRemoteUseCurrent(key, generation) || key.Scene is not Level)
                 yield break;
-            elapsed = Math.Min(1f, elapsed + Engine.DeltaTime);
-            float progress = 1f - MathF.Pow(1f - elapsed, 3f);
+            elapsed = Math.Min(
+                WatchLockBlockTiming.KeyTravelDuration,
+                elapsed + Engine.DeltaTime
+            );
+            float progress = elapsed / WatchLockBlockTiming.KeyTravelDuration;
+            progress = 1f - MathF.Pow(1f - progress, 3f);
             Vector2 first = Vector2.Lerp(start, control, progress);
             Vector2 second = Vector2.Lerp(control, target, progress);
             key.Position = Vector2.Lerp(first, second, progress);
@@ -319,20 +331,34 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
         if (!IsRemoteUseCurrent(key, generation) || key.Scene is not Level level)
             yield break;
         key.Position = target;
-        key.shimmerParticles?.RemoveSelf();
+        while (key.sprite.CurrentAnimationFrame != 4)
+        {
+            if (!IsRemoteUseCurrent(key, generation) || key.Scene is not Level)
+                yield break;
+            yield return null;
+        }
+
+        if (key.shimmerParticles is { } shimmerParticles)
+            shimmerParticles.Active = false;
         for (int i = 0; i < 16; i++)
             level.ParticlesFG.Emit(Key.P_Insert, key.Center, MathF.PI / 8f * i);
         key.sprite.Play("enter");
 
+        yield return WatchLockBlockTiming.InsertPauseDuration;
+        if (!IsRemoteUseCurrent(key, generation) || key.Scene is not Level)
+            yield break;
+
         elapsed = 0f;
-        float startRotation = key.sprite.Rotation;
-        while (elapsed < 0.3f)
+        while (elapsed < WatchLockBlockTiming.KeyTurnDuration)
         {
             if (!IsRemoteUseCurrent(key, generation) || key.Scene is not Level)
                 yield break;
-            elapsed = Math.Min(0.3f, elapsed + Engine.DeltaTime);
-            float progress = elapsed / 0.3f;
-            key.sprite.Rotation = startRotation + progress * MathF.PI / 2f;
+            elapsed = Math.Min(
+                WatchLockBlockTiming.KeyTurnDuration,
+                elapsed + Engine.DeltaTime
+            );
+            float progress = elapsed / WatchLockBlockTiming.KeyTurnDuration;
+            key.sprite.Rotation = MathF.Pow(progress, 3f) * MathF.PI / 2f;
             yield return null;
         }
 
@@ -340,11 +366,15 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
             yield break;
         for (int i = 0; i < 8; i++)
             finalLevel.ParticlesFG.Emit(Key.P_Insert, key.Center, MathF.PI / 4f * i);
+
+        yield return WatchLockBlockTiming.FinishPauseDuration;
+        if (!IsRemoteUseCurrent(key, generation) || key.Scene is not Level)
+            yield break;
         key.sprite.Visible = false;
         key.Turning = false;
     }
 
-    internal static void CompleteRemoteUse(Key key, int generation, bool remove)
+    internal static void CompleteRemoteUse(Key key, int generation)
     {
         if (!IsRemoteUseCurrent(key, generation))
             return;
@@ -352,30 +382,31 @@ internal sealed class WatchKeyAdapter : IWatchEntityAdapter
         state.Active = false;
         key.StartedUsing = false;
         key.Turning = false;
-        if (infos.TryGetValue(key, out KeyInfo? info))
-            info.Phase = phases[(info.Level, info.ID)] = WatchEntityPhase.Gone;
-        if (remove)
+        if (state.Completion.MarkVisualComplete())
+        {
+            key.Visible = false;
+            key.sprite.Visible = false;
+            key.Collidable = false;
             key.RemoveSelf();
+        }
     }
 
     private static bool IsRemoteUsing(Key key)
         => remoteUses.TryGetValue(key, out RemoteUseState? state) && state.Active;
 
-    private static void StartRemoteUse(Key key, Vector2 target, bool removeWhenFinished)
+    private static void StartRemoteUse(Key key, Vector2 target)
     {
         int generation = BeginRemoteUse(key);
-        key.Add(new Coroutine(RunRemoteUse(key, target, generation, removeWhenFinished)));
+        StartRemoteUse(key, target, generation);
     }
 
-    private static IEnumerator RunRemoteUse(
-        Key key,
-        Vector2 target,
-        int generation,
-        bool removeWhenFinished
-    )
+    internal static void StartRemoteUse(Key key, Vector2 target, int generation)
+        => key.Add(new Coroutine(RunRemoteUse(key, target, generation)));
+
+    private static IEnumerator RunRemoteUse(Key key, Vector2 target, int generation)
     {
         yield return PlayRemoteUse(key, target, generation);
-        CompleteRemoteUse(key, generation, removeWhenFinished);
+        CompleteRemoteUse(key, generation);
     }
 
     internal static Key CreateRemoteKey(Level level, int id, Vector2 position)
@@ -548,7 +579,18 @@ internal sealed class WatchLockBlockAdapter : IWatchEntityAdapter
 {
     private const byte UnlockEvent = 1;
 
-    private sealed record RemoteUnlockInfo(Key Key, int Generation);
+    private sealed class RemoteUnlockInfo
+    {
+        public Key? Key { get; }
+        public int KeyGeneration { get; }
+        public WatchRemoteCompletionGate Completion { get; } = new();
+
+        public RemoteUnlockInfo(Key? key, int keyGeneration)
+        {
+            Key = key;
+            KeyGeneration = keyGeneration;
+        }
+    }
 
     private static readonly WatchLockBlockAdapter instance = new();
     private static readonly Dictionary<(string Level, int ID), WatchEntityPhase> phases = new();
@@ -632,14 +674,16 @@ internal sealed class WatchLockBlockAdapter : IWatchEntityAdapter
             ReadOnlySpan<byte> payload = state.Payload.Span;
             WatchEntityPhase phase = (WatchEntityPhase)payload[0];
             phases[(block.ID.Level, block.ID.ID)] = phase;
-            block.opening = phase == WatchEntityPhase.Active;
-            block.Visible = phase != WatchEntityPhase.Gone && (payload[1] & 1) != 0;
-            block.Collidable = phase == WatchEntityPhase.Ready && (payload[1] & 2) != 0;
             if (phase == WatchEntityPhase.Gone)
             {
-                CancelRemoteUnlock(block);
-                block.RemoveSelf();
+                RemoveRemoteUnlockAuthoritatively(block);
+                changed = true;
+                continue;
             }
+
+            block.opening = phase == WatchEntityPhase.Active;
+            block.Visible = (payload[1] & 1) != 0;
+            block.Collidable = phase == WatchEntityPhase.Ready && (payload[1] & 2) != 0;
             changed = true;
         }
 
@@ -665,82 +709,129 @@ internal sealed class WatchLockBlockAdapter : IWatchEntityAdapter
 
         int keyID = WatchEntityPayloadCodec.ReadInt32(entityEvent.Payload.Span, 0);
         Key? key = WatchKeyAdapter.Find(level, keyID);
+        GhostFollower? ghostFollower = MiaoNetModule.WatchedGhost is { } ghost
+            && ReferenceEquals(ghost.Scene, level)
+                ? ghost.SuppressFirstKeyFollowerForRemoteUse()
+                : null;
         block.opening = true;
         block.Collidable = false;
         remoteUnlocks.Add(block);
         if (key is null && keyID >= 0)
-            key = WatchKeyAdapter.CreateRemoteKey(level, keyID, block.Center - Vector2.UnitX * 24f);
+        {
+            Vector2 start = ghostFollower?.Position ?? block.Center - Vector2.UnitX * 24f;
+            key = WatchKeyAdapter.CreateRemoteKey(level, keyID, start);
+        }
         if (key is not null)
         {
+            if (ghostFollower is not null)
+                key.Position = ghostFollower.Position;
             int generation = WatchKeyAdapter.BeginRemoteUse(key);
             remoteUnlockInfo.AddOrUpdate(block, new RemoteUnlockInfo(key, generation));
-            block.Add(new Coroutine(RemoteUnlockRoutine(block, key, generation)));
+            WatchKeyAdapter.StartRemoteUse(
+                key,
+                block.Center + new Vector2(0f, 2f),
+                generation
+            );
+            block.Add(new Coroutine(RemoteUnlockRoutine(block)));
         }
         else
         {
+            ghostFollower?.SetRemotePresentationSuppressed(false);
+            remoteUnlockInfo.AddOrUpdate(block, new RemoteUnlockInfo(null, 0));
             block.Add(new Coroutine(FallbackUnlockRoutine(block)));
         }
     }
 
-    private static IEnumerator RemoteUnlockRoutine(LockBlock block, Key key, int generation)
+    private static IEnumerator RemoteUnlockRoutine(LockBlock block)
     {
+        if (!remoteUnlockInfo.TryGetValue(block, out RemoteUnlockInfo? info))
+            yield break;
+
         if (MiaoNetModule.Settings.PlayerAudioSyncMode.HasReceive)
             Audio.Play(block.unlockSfxName, block.Center);
 
-        yield return WatchKeyAdapter.PlayRemoteUse(
-            key,
-            block.Center + new Vector2(0f, 2f),
-            generation
-        );
-        if (!WatchKeyAdapter.IsRemoteUseCurrent(key, generation)
-            || block.Scene is not Level level)
-        {
-            remoteUnlocks.Remove(block);
-            remoteUnlockInfo.Remove(block);
+        yield return WatchLockBlockTiming.RegisterUsedDelay;
+        if (!IsRemoteUnlockCurrent(block, info) || block.Scene is not Level level)
             yield break;
-        }
 
         block.UnlockingRegistered = true;
         block.Tag |= Tags.TransitionUpdate;
         block.Collidable = false;
-        yield return block.sprite.PlayRoutine("open", restart: false);
-        if (!WatchKeyAdapter.IsRemoteUseCurrent(key, generation)
-            || block.Scene is not Level)
+
+        while (info.Key is not null
+            && WatchKeyAdapter.IsRemoteUseCurrent(info.Key, info.KeyGeneration))
         {
-            remoteUnlocks.Remove(block);
-            remoteUnlockInfo.Remove(block);
-            yield break;
+            if (!IsRemoteUnlockCurrent(block, info) || block.Scene is not Level)
+                yield break;
+            yield return null;
         }
+
+        yield return block.sprite.PlayRoutine("open", restart: false);
+        if (!IsRemoteUnlockCurrent(block, info) || block.Scene is not Level)
+            yield break;
 
         level.Shake();
         yield return block.sprite.PlayRoutine("burst", restart: false);
-        WatchKeyAdapter.CompleteRemoteUse(key, generation, remove: true);
-        remoteUnlocks.Remove(block);
-        remoteUnlockInfo.Remove(block);
-        phases[(block.ID.Level, block.ID.ID)] = WatchEntityPhase.Gone;
-        block.RemoveSelf();
+        CompleteRemoteUnlockVisual(block, info);
     }
 
     private static IEnumerator FallbackUnlockRoutine(LockBlock block)
     {
-        Audio.Play(block.unlockSfxName, block.Center);
+        if (!remoteUnlockInfo.TryGetValue(block, out RemoteUnlockInfo? info))
+            yield break;
+        if (MiaoNetModule.Settings.PlayerAudioSyncMode.HasReceive)
+            Audio.Play(block.unlockSfxName, block.Center);
+
+        yield return WatchLockBlockTiming.MinimumKeyUseDuration;
+        if (!IsRemoteUnlockCurrent(block, info) || block.Scene is not Level)
+            yield break;
+
+        block.UnlockingRegistered = true;
+        block.Tag |= Tags.TransitionUpdate;
         yield return block.sprite.PlayRoutine("open", restart: false);
-        if (block.Scene is Level level)
-            level.Shake();
+        if (!IsRemoteUnlockCurrent(block, info) || block.Scene is not Level level)
+            yield break;
+
+        level.Shake();
         yield return block.sprite.PlayRoutine("burst", restart: false);
-        phases[(block.ID.Level, block.ID.ID)] = WatchEntityPhase.Gone;
+        CompleteRemoteUnlockVisual(block, info);
+    }
+
+    private static bool IsRemoteUnlockCurrent(LockBlock block, RemoteUnlockInfo info)
+        => remoteUnlocks.Contains(block)
+            && remoteUnlockInfo.TryGetValue(block, out RemoteUnlockInfo? current)
+            && ReferenceEquals(current, info);
+
+    private static void CompleteRemoteUnlockVisual(LockBlock block, RemoteUnlockInfo info)
+    {
+        if (!IsRemoteUnlockCurrent(block, info))
+            return;
+        if (info.Completion.MarkVisualComplete())
+            FinalizeRemoteUnlock(block, info);
+    }
+
+    private static void RemoveRemoteUnlockAuthoritatively(LockBlock block)
+    {
+        if (remoteUnlockInfo.TryGetValue(block, out RemoteUnlockInfo? info))
+        {
+            block.Collidable = false;
+            if (!info.Completion.MarkAuthoritativeGone())
+                return;
+            FinalizeRemoteUnlock(block, info);
+            return;
+        }
+
         remoteUnlocks.Remove(block);
         block.RemoveSelf();
     }
 
-    private static void CancelRemoteUnlock(LockBlock block)
+    private static void FinalizeRemoteUnlock(LockBlock block, RemoteUnlockInfo info)
     {
-        if (remoteUnlockInfo.TryGetValue(block, out RemoteUnlockInfo? info))
-        {
-            WatchKeyAdapter.CancelRemoteUse(info.Key, remove: true);
-            remoteUnlockInfo.Remove(block);
-        }
+        if (info.Key is not null)
+            WatchKeyAdapter.RemoveRemoteKeyAuthoritatively(info.Key);
+        remoteUnlockInfo.Remove(block);
         remoteUnlocks.Remove(block);
+        block.RemoveSelf();
     }
 
     private static WatchEntityState Encode(int id, WatchEntityPhase phase, LockBlock? block)
