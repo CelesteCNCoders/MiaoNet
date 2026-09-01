@@ -1,4 +1,5 @@
 using MiaoNet.Shared;
+using System.Runtime.CompilerServices;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -68,6 +69,8 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
 
     private static readonly WatchPersistentSessionAdapter instance = new();
     private static readonly WatchEntityKey StateKey = new(WatchEntityKind.PersistentSession, 0);
+    private static readonly ConditionalWeakTable<Level, WatchRemoteHeartGemAppearance>
+        remoteHeartGemAppearances = new();
 
     public WatchEntityKind Kind => WatchEntityKind.PersistentSession;
 
@@ -76,10 +79,17 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
     }
 
     public static void Load()
-        => WatchEntitySyncRegistry.Register(instance);
+    {
+        On.Celeste.HeartGem.Awake += HeartGem_Awake;
+        WatchEntitySyncRegistry.Register(instance);
+    }
 
     public static void Unload()
-        => WatchEntitySyncRegistry.Unregister(instance);
+    {
+        WatchEntitySyncRegistry.Unregister(instance);
+        On.Celeste.HeartGem.Awake -= HeartGem_Awake;
+        remoteHeartGemAppearances.Clear();
+    }
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
     {
@@ -122,7 +132,11 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
             flags |= WatchPersistentSceneFlags.CassetteGhost;
         HeartGem? heartGem = WatchRoomEntityIndex.Enumerate<HeartGem>(level)
             .FirstOrDefault(heart => !heart.IsFake);
-        if (heartGem?.IsGhost == true)
+        bool heartGemGhost = WatchRemoteHeartGemAppearance.ResolveCapture(
+            heartGem?.IsGhost,
+            IsAreaHeartGemCollected(session.Area)
+        );
+        if (heartGemGhost)
             flags |= WatchPersistentSceneFlags.HeartGemGhost;
 
         byte summitGems = 0;
@@ -170,6 +184,7 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
         }
 
         WatchPersistentSceneState persistentState = state!;
+        RememberRemoteHeartGemAppearance(level, persistentState);
         Session session = level.Session;
         string room = session.Level;
         HashSet<EntityID> desiredDoNotLoad = persistentState.DoNotLoadIDs
@@ -282,6 +297,7 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
 
         string room = level.Session.Level;
         WatchPersistentSceneState persistentState = state!;
+        RememberRemoteHeartGemAppearance(level, persistentState);
         ApplySessionState(
             level.Session,
             room,
@@ -291,6 +307,9 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
         );
         return true;
     }
+
+    internal static void ResetRemoteState(Level level)
+        => remoteHeartGemAppearances.Remove(level);
 
     private static bool TryParseState(
         WatchEntityState entityState,
@@ -428,6 +447,47 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
         }
 
         heart.RemoveSelf();
+    }
+
+    private static void RememberRemoteHeartGemAppearance(
+        Level level,
+        WatchPersistentSceneState state
+    ) => remoteHeartGemAppearances
+        .GetValue(level, static _ => new())
+        .Apply(state.Flags.HasFlag(WatchPersistentSceneFlags.HeartGemGhost));
+
+    private static bool IsAreaHeartGemCollected(AreaKey area)
+    {
+        if (SaveData.Instance is not { } saveData)
+            return false;
+        List<AreaStats> areas = saveData.Areas_Safe;
+        int mode = (int)area.Mode;
+        return area.ID >= 0
+            && area.ID < areas.Count
+            && mode >= 0
+            && mode < areas[area.ID].Modes.Length
+            && areas[area.ID].Modes[mode].HeartGem;
+    }
+
+    private static void HeartGem_Awake(
+        On.Celeste.HeartGem.orig_Awake orig,
+        HeartGem self,
+        Scene scene
+    )
+    {
+        orig(self, scene);
+        if (!MiaoNetModule.IsWatching
+            || self.IsFake
+            || scene is not Level level
+            || !remoteHeartGemAppearances.TryGetValue(
+                level,
+                out WatchRemoteHeartGemAppearance? appearance
+            )
+            || !appearance.TryGet(out bool isGhost)
+            || self.IsGhost == isGhost)
+            return;
+
+        ReplaceHeartGemSprite(self, isGhost, level.Session.Area.Mode);
     }
 
     private static bool ApplyGhostAppearances(

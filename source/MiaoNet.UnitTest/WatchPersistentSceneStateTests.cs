@@ -10,9 +10,11 @@ public sealed class WatchPersistentSceneStateTests
     {
         WatchPersistentSceneState expected = new(
             WatchPersistentSceneFlags.Cassette
+                | WatchPersistentSceneFlags.HeartGem
                 | WatchPersistentSceneFlags.HitCheckpoint
                 | WatchPersistentSceneFlags.HasRespawnPoint
                 | WatchPersistentSceneFlags.CassetteGhost
+                | WatchPersistentSceneFlags.HeartGemGhost
                 | WatchPersistentSceneFlags.FakeHeart,
             0b0010_0101,
             new Vector2(24f, -8f),

@@ -260,6 +260,7 @@ public sealed partial class MainComponent
 
         watchBaselineFlags = new(level.Session.Flags, StringComparer.Ordinal);
         watchPersistentSessionBaseline = WatchPersistentSessionBaseline.Capture(level.Session);
+        WatchPersistentSessionAdapter.ResetRemoteState(level);
         WatchRoomEnvironmentAdapter.CaptureBaseline(level);
         watchSessionID = sessionID;
         playerWatching = player;
@@ -332,6 +333,8 @@ public sealed partial class MainComponent
         WatchBadelineOldsiteAdapter.ResetRemotePlayerHistory();
         WatchAngryOshiroAdapter.ResetRemotePlayerState();
         WatchPlayerSeekerAdapter.ResetRemoteState();
+        if (level is not null)
+            WatchPersistentSessionAdapter.ResetRemoteState(level);
 
         if (watchSessionID is int sessionID)
         {
