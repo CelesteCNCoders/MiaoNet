@@ -59,7 +59,7 @@ public readonly struct PlayerLocation
 
 `PersistentSession` 实体状态集中保存当前房间的 `DoNotLoad`、已收集草莓 ID、Cassette、HeartGem、第九章 `fake_heart`、Summit Gems、检查点命中状态和复活点，并保存草莓、Cassette 与 HeartGem 的幽灵外观。它覆盖普通、幽灵、梦境与第九章假结局 Crystal Heart，草莓、Golden Berry、Key、Lock Block、Summit Gem，以及永久 Dash Block、Fake Wall、Temple Cracked Block 和 Crumble Wall 的最终存在状态。草莓籽不再写入虚假的父草莓 `DoNotLoad`，而由独立状态同步 ghost 精灵、待机、跟随、返回、合并和最终清除；草莓、种子和 Key 正在跟随玩家时仍使用原有 Ghost Follower 表现，Sprite ID 改变时会重建对应跟随物，不会在观看端给隐藏的本地 Player 创建重复 follower。普通“消失”变化直接移除本地实体；状态回退要求实体重新出现或条件实体重新求值时，由对应适配器执行定向重建，失败仅留下类型化诊断并等待后续权威状态收敛。`Checkpoint` 与 `SummitCheckpoint` 另用按 Entity ID 标识的布尔状态同步亮起结果。
 
-`WingedStrawberry` 使用地图 `EntityData.ID` 同步 `Present`、`FlyingAway` 和 `Absent` 三态。冲刺时观看端复用原版飞走逻辑；实体飞出房间后仍保留 `Absent` 状态，直到被观看玩家的房间生命周期重新创建该草莓。正在作为 Player Follower 的草莓由 `PersistentSession` 与原有 Ghost Follower 处理。
+`WingedStrawberry` 使用地图 `EntityData.ID` 同步 Winged Strawberry 与 Golden Berry 的 `Present`、`FlyingAway` 和 `Absent` 生命周期。Golden Berry 只产生 `Present`/`Absent`，其存在性以 Player 场景中的实际实体为准，不读取 Watcher 的本地解锁进度；Watcher 缺失权威存在的 Golden Berry 时直接从当前房间 `EntityData` 原位恢复。Winged Strawberry 冲刺时观看端复用原版飞走逻辑；实体飞出房间后仍保留 `Absent` 状态，直到被观看玩家的房间生命周期重新创建该草莓。正在作为 Player Follower 的草莓由 `PersistentSession` 与原有 Ghost Follower 处理。
 
 短周期互动实体分别同步 Spring 的启用与弹跳事件，Refill 的可用生命周期，Fly Feather 的收集、护盾碰撞与重生事件，可重复 `FakeHeart` 的碰撞、击碎与重生事件，以及 Booster 的进入、随玩家冲出、破裂和重生阶段；Bumper 同步冷热模式、冷却与碰撞方向，Cloud 同步运动阶段。机关适配同步 Dash Switch 和 Temple Gate 的按压/开门进度、Crumble Platform 的起始震动、砖块出入事件与最终可见状态、Level Core Mode，以及 Heart Gem Door 的计数、可见性和完整开门渲染进度。
 

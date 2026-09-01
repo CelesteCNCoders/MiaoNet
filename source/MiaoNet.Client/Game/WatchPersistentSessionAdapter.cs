@@ -71,6 +71,8 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
     private static readonly WatchEntityKey StateKey = new(WatchEntityKind.PersistentSession, 0);
     private static readonly ConditionalWeakTable<Level, WatchRemoteHeartGemAppearance>
         remoteHeartGemAppearances = new();
+    private static readonly ConditionalWeakTable<Level, WatchRemoteStrawberryAppearances>
+        remoteStrawberryAppearances = new();
 
     public WatchEntityKind Kind => WatchEntityKind.PersistentSession;
 
@@ -89,6 +91,7 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
         WatchEntitySyncRegistry.Unregister(instance);
         On.Celeste.HeartGem.Awake -= HeartGem_Awake;
         remoteHeartGemAppearances.Clear();
+        remoteStrawberryAppearances.Clear();
     }
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
@@ -185,6 +188,7 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
 
         WatchPersistentSceneState persistentState = state!;
         RememberRemoteHeartGemAppearance(level, persistentState);
+        RememberRemoteStrawberryAppearances(level, persistentState);
         Session session = level.Session;
         string room = session.Level;
         HashSet<EntityID> desiredDoNotLoad = persistentState.DoNotLoadIDs
@@ -298,6 +302,7 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
         string room = level.Session.Level;
         WatchPersistentSceneState persistentState = state!;
         RememberRemoteHeartGemAppearance(level, persistentState);
+        RememberRemoteStrawberryAppearances(level, persistentState);
         ApplySessionState(
             level.Session,
             room,
@@ -309,7 +314,27 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
     }
 
     internal static void ResetRemoteState(Level level)
-        => remoteHeartGemAppearances.Remove(level);
+    {
+        remoteHeartGemAppearances.Remove(level);
+        remoteStrawberryAppearances.Remove(level);
+    }
+
+    internal static void ApplyRemoteStrawberryAppearance(Level level, Strawberry strawberry)
+    {
+        if (!remoteStrawberryAppearances.TryGetValue(
+                level,
+                out WatchRemoteStrawberryAppearances? appearances
+            )
+            || !appearances.TryGet(
+                level.Session.Level,
+                strawberry.ID.ID,
+                out bool isGhost
+            )
+            || IsGhostSprite(strawberry.sprite) == isGhost)
+            return;
+
+        ReplaceStrawberrySprite(strawberry, isGhost);
+    }
 
     private static bool TryParseState(
         WatchEntityState entityState,
@@ -455,6 +480,13 @@ internal sealed class WatchPersistentSessionAdapter : IWatchEntityAdapter
     ) => remoteHeartGemAppearances
         .GetValue(level, static _ => new())
         .Apply(state.Flags.HasFlag(WatchPersistentSceneFlags.HeartGemGhost));
+
+    private static void RememberRemoteStrawberryAppearances(
+        Level level,
+        WatchPersistentSceneState state
+    ) => remoteStrawberryAppearances
+        .GetValue(level, static _ => new())
+        .Apply(level.Session.Level, state.GhostStrawberryIDs);
 
     private static bool IsAreaHeartGemCollected(AreaKey area)
     {

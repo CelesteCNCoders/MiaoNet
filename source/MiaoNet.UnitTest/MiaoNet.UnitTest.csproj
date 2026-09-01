@@ -26,6 +26,8 @@
     <Compile Include="..\MiaoNet.Client\Game\WatchLockBlockTiming.cs" LinkBase="0-Shared/Game" />
     <Compile Include="..\MiaoNet.Client\Game\WatchRemoteCompletionGate.cs" LinkBase="0-Shared/Game" />
     <Compile Include="..\MiaoNet.Client\Game\WatchRemoteHeartGemAppearance.cs" LinkBase="0-Shared/Game" />
+    <Compile Include="..\MiaoNet.Client\Game\WatchRemoteStrawberryAppearances.cs" LinkBase="0-Shared/Game" />
+    <Compile Include="..\MiaoNet.Client\Game\WatchStrawberryLifecycle.cs" LinkBase="0-Shared/Game" />
     <Compile Include="..\MiaoNet.Client\Misc\SR.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Misc\PFormat.cs" LinkBase="0-Shared" />
     <Compile Include="..\MiaoNet.ClientShared\ConnectionLifecycleCoordinator.cs" LinkBase="0-Shared" />
