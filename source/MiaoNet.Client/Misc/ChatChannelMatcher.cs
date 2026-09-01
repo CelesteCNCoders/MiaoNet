@@ -22,12 +22,37 @@ public static class ChatChannelMatcher
         return (ChatChannel)(-1);
     }
 
+    // Use this method for ChatTab localization
+    public static ChatChannel MatchLocalized(string name)
+    {
+        StringComparison sc = StringComparison.CurrentCultureIgnoreCase;
+        if (name.Equals(Dialog.Get("miaonet_chat_channel_name_global"), sc))
+            return ChatChannel.Global;
+
+        if (name.Equals(Dialog.Get("miaonet_chat_channel_name_channel"), sc))
+            return ChatChannel.Channel;
+
+        if (name.Equals(Dialog.Get("miaonet_chat_channel_name_map"), sc))
+            return ChatChannel.Map;
+
+        return (ChatChannel)(-1);
+    }
+
     public static string? GetName(ChatChannel? channel) =>
         channel switch
         {
             ChatChannel.Global => "Global",
             ChatChannel.Channel => "Channel",
             ChatChannel.Map => "Map",
+            null => null,
+        };
+
+    public static string? GetLocalizedName(ChatChannel? channel) =>
+        channel switch
+        {
+            ChatChannel.Global => Dialog.Get("miaonet_chat_channel_name_global"),
+            ChatChannel.Channel => Dialog.Get("miaonet_chat_channel_name_channel"),
+            ChatChannel.Map => Dialog.Get("miaonet_chat_channel_name_map"),
             null => null,
         };
 

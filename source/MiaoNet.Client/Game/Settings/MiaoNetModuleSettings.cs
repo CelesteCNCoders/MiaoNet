@@ -68,9 +68,15 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     {
         get;
         set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
-    } = 4;
+    } = 6;
 
     public int ChatUIScale
+    {
+        get;
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
+    } = 6;
+
+    public int ChatMessagePadding
     {
         get;
         set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
@@ -106,6 +112,26 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
         set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
     } = 8;
 
+    // repeating messages within the window sharing the same fold key collapse into one line with a counter
+    public bool MessageFolding
+    {
+        get;
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
+    }
+
+    // whether the fold counter animates; off for a plain static label
+    public bool FancyFoldCounter
+    {
+        get;
+        set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
+    } = true;
+
+    public int FoldWindowSeconds
+    {
+        get;
+        set { field = Math.Clamp(value, 1, 60); NotifySettingsChanged(SettingsCategory.VisualsUI); }
+    } = 10;
+
     #endregion
 
     public int PlayerOpacity { get; set; } = 8;
@@ -134,9 +160,9 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 
     #region Calculated
 
-    [YamlIgnore] public float PlayerListUIScaleValue => GetScaleValue(PlayerListUIScale);
+    [YamlIgnore] public float PlayerListUIScaleValue => GetPowSmoothScaleValue(PlayerListUIScale);
 
-    [YamlIgnore] public float ChatUIScaleValue => GetScaleValue(ChatUIScale);
+    [YamlIgnore] public float ChatUIScaleValue => GetPowSmoothScaleValue(ChatUIScale);
 
     [YamlIgnore] public float PlayerOpacityValue => PlayerOpacity / 10f;
 
@@ -204,7 +230,6 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 
     public bool PlayerPresenceMessages { get; set; } = true;
 
-    [YamlIgnore]
     public NewMessageShowingMode NewMessagesShowing
     {
         get;
@@ -323,6 +348,21 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
         5 => 12f,
         6 => 20f,
     } / 24f;
+
+    private static float GetPowSmoothScaleValue(int scale)
+    {
+        const int range = 20;
+        const float minScale = 0.25f;
+        const float maxScale = 0.8f;
+        float t = Math.Clamp(
+            (scale - 1) / (float)(range - 1),
+            0f,
+            1f
+        );
+
+        return minScale * (float)Math.Pow(maxScale / minScale, t);
+    }
+
 
     private void NotifySettingsChanged(SettingsCategory category)
         => SettingsChanged?.Invoke(this, category);

@@ -166,13 +166,18 @@ public static class MenuMiaoNetOptions
         var uiSubMenu = new TextMenuExt.SubMenu(Dialog.Get("miaonet_options_ui"), false);
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_player_list_ui_scale"), 1, 6, settings.PlayerListUIScale
+            Dialog.Get("miaonet_options_player_list_ui_scale"), 1, 20, settings.PlayerListUIScale
         ).Change(v => settings.PlayerListUIScale = v);
         uiSubMenu.Add(item);
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_chat_ui_scale"), 1, 6, settings.ChatUIScale
+            Dialog.Get("miaonet_options_chat_ui_scale"), 1, 20, settings.ChatUIScale
         ).Change(v => settings.ChatUIScale = v);
+        uiSubMenu.Add(item);
+
+        item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_chat_message_padding"), 0, 8, settings.ChatUIScale
+        ).Change(v => settings.ChatMessagePadding = v);
         uiSubMenu.Add(item);
 
         item = new TextMenuExt.IntSlider(
@@ -199,6 +204,31 @@ public static class MenuMiaoNetOptions
             Dialog.Get("miaonet_options_active_chat_height"), 1, 10, settings.ActiveChatHeight
         ).Change(v => settings.ActiveChatHeight = v);
         uiSubMenu.Add(item);
+
+        // folding details follow the master switch
+        var foldWindow = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_fold_window"), 1, 60, settings.FoldWindowSeconds
+        ).Change(v => settings.FoldWindowSeconds = v);
+        foldWindow.Disabled = !settings.MessageFolding;
+
+        var foldCounter = new TextMenu.Option<bool>(Dialog.Get("miaonet_options_fold_counter"))
+            .Change(v => settings.FancyFoldCounter = v);
+        foldCounter.Add(Dialog.Get("miaonet_options_fold_counter_fancy"), true, settings.FancyFoldCounter);
+        foldCounter.Add(Dialog.Get("miaonet_options_fold_counter_subtle"), false, !settings.FancyFoldCounter);
+        foldCounter.Disabled = !settings.MessageFolding;
+
+        item = new TextMenu.OnOff(
+            Dialog.Get("miaonet_options_message_folding"), settings.MessageFolding
+        ).Change(v =>
+        {
+            settings.MessageFolding = v;
+            foldWindow.Disabled = !v;
+            foldCounter.Disabled = !v;
+        });
+
+        uiSubMenu.Add(item);
+        uiSubMenu.Add(foldWindow);
+        uiSubMenu.Add(foldCounter);
 
         menu.Add(uiSubMenu);
 

@@ -33,11 +33,17 @@ miaonet_options_player_light= Add Lights To Other Players
 miaonet_options_ui= UI
 miaonet_options_player_list_ui_scale= Player List UI Scale
 miaonet_options_chat_ui_scale= Chat UI Scale
+miaonet_options_chat_message_padding= Chat Message Padding Height
 miaonet_options_chat_background_opacity= Chat Background Opacity
 miaonet_options_chat_text_opacity= Chat Text Opacity
 miaonet_options_chat_display_duration= Chat Display Duration
 miaonet_options_idle_chat_height= Chat Height
 miaonet_options_active_chat_height= Active Chat Height
+miaonet_options_message_folding= Fold Repeated Messages
+miaonet_options_fold_counter= Fold Counter
+miaonet_options_fold_counter_fancy= Fancy
+miaonet_options_fold_counter_subtle= Plain
+miaonet_options_fold_window= Fold Window (Seconds)
 miaonet_options_player_opacity= Player Opacity
 miaonet_options_self_name_opactiy= Self Name Opacity
 miaonet_options_player_name_opacity= Name Opacity
@@ -99,7 +105,6 @@ miaonet_options_new_messages_showing_mode_tip=
 	- Show All: Show all the new messages.
 	- With Tab: Maintain new messages filtering consistency with tabs.
 	- Hide All: No new messages showing.
-	This option will not be saved.
 
 miaonet_options_new_messages_showing_mode_showall= Show All
 miaonet_options_new_messages_showing_mode_withtab= With Tab
@@ -138,6 +143,7 @@ miaonet_connection_status_connecting= Connecting...
 miaonet_connection_status_authenticating= Authenticating...
 miaonet_connection_status_version_not_match= Local version (0) mismatches server version (1)
 miaonet_connection_status_invalid_token_data= Login session not valid. Please log in again
+miaonet_connection_status_suspended= You are suspended from this server
 miaonet_connection_status_internal_server_error= Internal server error. Please report this issue
 miaonet_connection_status_connected= Connected
 miaonet_connection_status_disconnecting= Disconnecting...
@@ -235,6 +241,7 @@ miaonet_commands_teleport_failed_tip= Teleport failed, (0)
 miaonet_commands_teleport_failed_nosuchplayer= no such player
 miaonet_commands_teleport_failed_otherdenied= the other denied
 miaonet_commands_teleport_failed_otherdoesnotresponse= the other does not response
+miaonet_commands_teleport_failed_exceed_limit= teleport frequency limit exceeded
 miaonet_commands_teleport_success= Teleported to (0)
 miaonet_commands_teleport_success_nosession= Teleported to (0)'s location
 miaonet_commands_teleport_back_notice= You're currently using a temporary save. Type "/back" to return to your original save.
@@ -274,6 +281,11 @@ miaonet_chat_whisper_sent= {+ miaonet_lb}whisper to (0){+ miaonet_rb} (1)
 miaonet_chat_whisper_received= {+ miaonet_lb}whisper{+ miaonet_rb} (0)
 miaonet_chat_map_chat= {+ miaonet_lb}Map Chat{+ miaonet_rb}
 miaonet_chat_channel_chat= {+ miaonet_lb}Channel Chat{+ miaonet_rb}
+
+miaonet_initial_chat_tab_name= All
+miaonet_chat_channel_name_global= Global
+miaonet_chat_channel_name_channel= Channel
+miaonet_chat_channel_name_map= Map
 
 miaonet_oui_conflict_title= MiaoNet Mod Conflict
 miaonet_oui_conflict_description=
