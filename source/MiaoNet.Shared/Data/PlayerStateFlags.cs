@@ -10,5 +10,6 @@ public enum PlayerStateFlags : byte
     Interactions = 1 << 3,
     Ducking = 1 << 4,
     Tired = 1 << 5,
-    Dead = 1 << 6
+    Dead = 1 << 6,
+    RedBoosted = 1 << 7
 }

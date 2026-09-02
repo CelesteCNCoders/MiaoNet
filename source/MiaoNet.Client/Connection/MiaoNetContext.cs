@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using MiaoNet.ClientShared;
@@ -9,6 +10,9 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed partial class MiaoNetContext : IPacketSerializationContext
 {
+    private const int MaxPacketsPerUpdate = 64;
+    private static readonly long ReceiveQueueBudgetTicks = Stopwatch.Frequency / 1000;
+
     private int currentRequestID;
     // request id -> on response handler
     private readonly ConcurrentDictionary<int, Action<PacketResponse>> pendingRequests;
@@ -16,7 +20,14 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     private readonly ConnectionLifecycleCoordinator connectionLifecycle;
     private ConnectionOperation? activeConnectionOperation;
-    private readonly ConcurrentQueue<(long Generation, IContextualPacket Packet)> receiveQueue;
+    private long currentReceivedPacketTimestamp;
+
+    private readonly record struct ReceivedPacket(
+        long Generation,
+        IContextualPacket Packet,
+        long EnqueuedAt
+    );
+
     private readonly ConcurrentQueue<Action> mainThreadQueue;
 
     private readonly List<MiaoNetComponent> components;
@@ -84,7 +95,14 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public ClientState? ClientState => clientState;
 
+    public ServerFeatureFlags ServerFeatures { get; private set; }
+
     public MainComponent MainComponent { get; }
+
+    internal long CurrentReceivedPacketTimestamp
+        => currentReceivedPacketTimestamp != 0
+            ? currentReceivedPacketTimestamp
+            : Stopwatch.GetTimestamp();
 
     public EmoteComponent EmoteComponent { get; }
 
@@ -96,7 +114,6 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     {
         RuntimeHelpers.RunClassConstructor(typeof(MiaoNetFont).TypeHandle);
 
-        receiveQueue = new();
         pendingRequests = new();
         mainThreadQueue = new();
         connectionLifecycle = new();
@@ -193,6 +210,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         connection = null;
         clientState = null;
         PlayerPresenceMessage = null;
+        ServerFeatures = ServerFeatureFlags.None;
         hasComponentFocus = false;
         PooledStringManager = null;
 
@@ -202,9 +220,10 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             new("cancel connection operation", operation.Cancel),
             new("drain receive queue", () =>
             {
-                while (receiveQueue.TryDequeue(out var received))
+                foreach (ReceivedPacket received in operation.ReceiveState.CloseAndDrain())
                 {
-                    if (received.Generation == generation.Value && received.Packet is PacketDisconnected dc)
+                    if (received.Generation == generation.Value
+                        && received.Packet is PacketDisconnected dc)
                         (terminalPackets ??= []).Add(dc);
                 }
             }),
@@ -251,16 +270,42 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
             StatusComponent.Update();
 
-            if (!HasConnection)
+            if (!HasConnection || activeConnectionOperation is not { } operation)
                 return;
 
             while (mainThreadQueue.TryDequeue(out var item))
                 item();
 
-            while (receiveQueue.TryDequeue(out var received))
+            if (!HasConnection
+                || activeConnectionOperation != operation
+                || !connectionLifecycle.IsCurrent(operation.Generation))
+                return;
+
+            int packetsHandled = 0;
+            long receiveQueueStartedAt = Stopwatch.GetTimestamp();
+            while (packetsHandled < MaxPacketsPerUpdate
+                && TryDequeueReceivedPacket(
+                    operation,
+                    out long receivedGeneration,
+                    out IContextualPacket receivedPacket,
+                    out long enqueuedAt
+                ))
             {
-                if (connectionLifecycle.IsCurrent(received.Generation))
-                    HandleQueuedPacket(received.Packet);
+                if (connectionLifecycle.IsCurrent(receivedGeneration))
+                {
+                    currentReceivedPacketTimestamp = enqueuedAt;
+                    try
+                    {
+                        HandleQueuedPacket(receivedPacket);
+                    }
+                    finally
+                    {
+                        currentReceivedPacketTimestamp = 0;
+                    }
+                }
+                packetsHandled++;
+                if (Stopwatch.GetTimestamp() - receiveQueueStartedAt >= ReceiveQueueBudgetTicks)
+                    break;
             }
 
             if (!HasConnection)
@@ -289,6 +334,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             Logger.Info(LT.MiaoNetConnection, "Server sent new auth data, accepted.");
         }
 #endif
+        ServerFeatures = packetClientInitial.ServerFeatures;
         clientState = new(packetClientInitial);
         PlayerPresenceMessage = packetClientInitial.PlayerPresenceMessage;
         PooledStringManager = operation.PooledStringManager;
@@ -299,6 +345,9 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             ChatComponent.AddLocalChat(MiaoNetChatText.CreateAnnouncement(line.ToString()));
         OnConnected();
     }
+
+    public bool CanUseWatchSceneSync(OnlinePlayer target)
+        => WatchProtocolCompatibility.SupportsWatchSceneSync(ServerFeatures, target.GlobalFlags);
 
     // warn: this is called on Connection Thread
     private bool HandleDirectPacket(ConnectionOperation operation, MiaoServerConnection connection, IContextualPacket packet)
@@ -456,8 +505,43 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     public void QueuePacket(IContextualPacket packet)
     {
         SafeGuard.Assert(HasConnection);
+        if (WatchSceneFragmenter.TryFragment(packet, out IReadOnlyList<IContextualPacket> fragments))
+        {
+            foreach (IContextualPacket fragment in fragments)
+                connection.QueuePacket(fragment);
+            return;
+        }
         connection.QueuePacket(packet);
     }
+
+    private static void EnqueueReceivedPacket(ConnectionOperation operation, IContextualPacket packet)
+        => operation.ReceiveState.Enqueue(packet, Stopwatch.GetTimestamp());
+
+    private static bool TryDequeueReceivedPacket(
+        ConnectionOperation operation,
+        out long generation,
+        out IContextualPacket packet,
+        out long enqueuedAt,
+        bool includeWatchEntity = true
+    )
+    {
+        bool dequeued = operation.ReceiveState.TryDequeue(
+            out ReceivedPacket received,
+            includeWatchEntity
+        );
+        if (dequeued)
+        {
+            generation = received.Generation;
+            packet = received.Packet;
+            enqueuedAt = received.EnqueuedAt;
+            return true;
+        }
+        generation = 0;
+        packet = null!;
+        enqueuedAt = 0;
+        return false;
+    }
+
 
     public void Request<TResponse>(PacketRequest<TResponse> request, Action<TResponse> callback)
         where TResponse : PacketResponse

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Authentication;
@@ -11,6 +12,110 @@ namespace Celeste.Mod.MiaoNet;
 // TODO this is ugly, we need a refactor on this
 partial class MiaoNetContext
 {
+    private sealed class ConnectionReceiveState
+    {
+        private readonly object sync = new();
+        private readonly long generation;
+        private readonly ConcurrentDictionary<int, byte> activePlayers = new();
+        private readonly ConcurrentPacketPriorityQueue<ReceivedPacket> queue;
+        private readonly WatchSceneTransferReceiver watchSceneTransferReceiver = new();
+        private bool closed;
+
+        internal ConnectionReceiveState(long generation)
+        {
+            this.generation = generation;
+            queue = new(IsPlayerActive);
+        }
+
+        internal void InitializePlayers(PacketClientInitial initial)
+        {
+            lock (sync)
+            {
+                if (closed)
+                    return;
+                activePlayers.TryAdd(initial.PlayerID, 0);
+                foreach (PacketClientInitial.Player player in initial.Players)
+                    activePlayers.TryAdd(player.PlayerID, 0);
+            }
+        }
+
+        internal void Enqueue(IContextualPacket packet, long enqueuedAt)
+        {
+            lock (sync)
+            {
+                if (closed)
+                    return;
+
+                if (packet is PacketPlayerJoined joined)
+                    activePlayers.TryAdd(joined.PlayerID, 0);
+                else if (packet is PacketPlayerLeft left)
+                {
+                    activePlayers.TryRemove(left.PlayerID, out _);
+                    queue.ForgetPlayer(left.PlayerID);
+                    watchSceneTransferReceiver.ClearForTarget(left.PlayerID);
+                }
+
+                if (packet is PacketPlayerLocationChangedNotification locationChanged)
+                    watchSceneTransferReceiver.ClearForTarget(locationChanged.PlayerID);
+                else if (packet is PacketPlayerChannelMovedNotification channelMoved)
+                    watchSceneTransferReceiver.ClearForTarget(channelMoved.PlayerID);
+                else if (packet is PacketWatchProducerStop
+                    or PacketWatchEnded)
+                    watchSceneTransferReceiver.ClearDiscardable();
+
+                if (IsObsolete(packet))
+                    return;
+
+                if (watchSceneTransferReceiver.TryAccept(packet, out IContextualPacket? logicalPacket))
+                {
+                    if (logicalPacket is null)
+                        return;
+                    packet = logicalPacket;
+                }
+
+                queue.Enqueue(
+                    PacketPriorityClassifier.Classify(packet),
+                    new(generation, packet, enqueuedAt),
+                    packet
+                );
+            }
+        }
+
+        internal bool TryDequeue(out ReceivedPacket packet, bool includeWatchEntity)
+        {
+            lock (sync)
+            {
+                if (closed)
+                {
+                    packet = default;
+                    return false;
+                }
+                return includeWatchEntity
+                    ? queue.TryDequeue(out packet)
+                    : queue.TryDequeueNonEntity(out packet);
+            }
+        }
+
+        internal IReadOnlyList<ReceivedPacket> CloseAndDrain()
+        {
+            lock (sync)
+            {
+                closed = true;
+                watchSceneTransferReceiver.Clear();
+                activePlayers.Clear();
+                return queue.DrainAll();
+            }
+        }
+
+        private bool IsPlayerActive(int playerID)
+            => activePlayers.ContainsKey(playerID);
+
+        private bool IsObsolete(IContextualPacket packet)
+            => RemotePlayerPacket.GetInactiveDisposition(packet, out int playerID)
+                == InactivePlayerPacketDisposition.Discard
+                && !IsPlayerActive(playerID);
+    }
+
     private sealed class ConnectionOperation : IPacketSerializationContext
     {
         private const int EndedFlag = 1;
@@ -26,6 +131,7 @@ partial class MiaoNetContext
         internal int TargetPort { get; }
         internal CancellationToken Token => cancellation.Token;
         internal PooledStringManager PooledStringManager { get; } = new(KnownPooledStrings.All);
+        internal ConnectionReceiveState ReceiveState { get; }
 #if USE_CELEMIAO_AUTH
         internal string? AuthenticationCode { get; }
         internal byte[]? TokenData { get; }
@@ -40,6 +146,7 @@ partial class MiaoNetContext
             ShowAvatar = showAvatar;
             TargetServer = targetServer;
             TargetPort = targetPort;
+            ReceiveState = new(generation);
         }
 
 #if USE_CELEMIAO_AUTH
@@ -247,6 +354,7 @@ partial class MiaoNetContext
                 else
                 {
                     Logger.Info(LT.MiaoNetConnection, $"Connected to {ep}.");
+                    operation.ReceiveState.InitializePlayers(clientInitial);
                     TaskCompletionSource ackTaskSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
                     mainThreadQueue.Enqueue(() =>
                     {
@@ -350,7 +458,7 @@ partial class MiaoNetContext
                         var packet = packets.Current;
 
                         if (!HandleDirectPacket(operation, connection, packet))
-                            receiveQueue.Enqueue((operation.Generation, packet));
+                            EnqueueReceivedPacket(operation, packet);
 #if PACKET_TRACING
                         string typeName = packet.GetType().ToString();
                         if (

@@ -176,10 +176,10 @@ public static class MenuMiaoNetOptions
         uiSubMenu.Add(item);
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_chat_message_padding"), 0, 8, settings.ChatUIScale    
+            Dialog.Get("miaonet_options_chat_message_padding"), 0, 8, settings.ChatUIScale
         ).Change(v => settings.ChatMessagePadding = v);
         uiSubMenu.Add(item);
-        
+
         item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_chat_background_opacity"), 0, 10, settings.ChatBackgroundOpacity
         ).Change(v => settings.ChatBackgroundOpacity = v);

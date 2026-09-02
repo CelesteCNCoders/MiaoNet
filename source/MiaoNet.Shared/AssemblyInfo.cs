@@ -51,5 +51,22 @@ using MiaoNet.Shared;
     typeof(PacketPlayerChannelMove),
     typeof(PacketPlayerChannelMovedResponse),
     typeof(PacketPlayerChannelMovedNotification),
-    typeof(PacketChannelCreated)
+    typeof(PacketChannelCreated),
+
+    typeof(PacketWatchStart),
+    typeof(PacketWatchStartResponse),
+    typeof(PacketWatchSnapshotRequest),
+    typeof(PacketWatchSnapshotResponse),
+    typeof(PacketWatchSceneDelta),
+    typeof(PacketWatchSceneDeltaNotification),
+    typeof(PacketWatchStop),
+    typeof(PacketWatchProducerStop),
+    typeof(PacketWatchEnded),
+    typeof(PacketWatchResyncRequest),
+    typeof(PacketWatchResyncSnapshot),
+    typeof(PacketWatchSceneTransferStart),
+    typeof(PacketWatchSceneChunk),
+    typeof(PacketWatchSceneCancel),
+    typeof(PacketWatchTargetRestarting),
+    typeof(PacketWatchTargetRestartingNotification)
 ])]

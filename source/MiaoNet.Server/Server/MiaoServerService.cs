@@ -19,6 +19,9 @@ namespace MiaoNet.Server;
 public sealed partial class MiaoServerService : BackgroundService, IMiaoServerService
 {
     private static readonly ArrayPool<byte> pool = ArrayPool<byte>.Shared;
+    private static readonly TimeSpan WatchResyncRequestTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan WatcherResyncCooldown = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan WatchRestartContinuationTimeout = TimeSpan.FromSeconds(30);
 
     private readonly ILogger<MiaoServerService> logger;
     private readonly MiaoClientConnectionFactory connectionFactory;
@@ -35,6 +38,8 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
     private readonly ReaderWriterLockSlim stateLock;
     private readonly ServerState serverState;
+    private readonly WatchSessionRegistry watchSessions;
+    private readonly WatchResyncCoordinator watchResyncCoordinator = new(3);
 
     public ServerState ServerState => serverState;
 
@@ -57,6 +62,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
     {
         stateLock = new();
         serverState = new();
+        watchSessions = new();
 
         PacketHandlerRegister register = new();
         RegisterPacketHandlers(register);
@@ -144,6 +150,8 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                         hidden ? ChannelInfo.PrivateChannelVirtualID : p.Channel.ID,
                         p.ID, p.Info,
                         sameChannel ? p.Location : PlayerLocation.Empty,
+                        sameChannel ? p.PlayerEpoch : 0,
+                        sameChannel ? p.LastPlayerSequence : 0,
                         sameChannel ? p.GlobalFlags : PlayerGlobalFlags.None
                     );
 
@@ -155,7 +163,9 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                     channels.ToList(),
                     playerInfos.ToList(),
                     new(strings.PlayerJoined, strings.PlayerLeft),
-                    strings.PlayerJoinMessage
+                    strings.PlayerJoinMessage,
+                    ServerFeatureFlags.WatchSceneSync
+                        | ServerFeatureFlags.WatchRestartContinuation
                 );
 
                 // then send
@@ -198,6 +208,8 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
             // exchange data with this player
             await newConnection.HandleClientConnectAsync();
+
+            await EndWatchSessionsForPlayerAsync(newConnection, WatchEndReason.TargetDisconnected, true);
 
             // TODO don't do removing stuffs here
             using (stateLock.AcquireWriteLock())
@@ -372,6 +384,39 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
     public async ValueTask HandlePacketAsync(MiaoClientConnection connection, IContextualPacket packet)
     {
+        bool fragmentedWatchScenePacket = packet is PacketWatchSceneTransferStart
+            or PacketWatchSceneChunk;
+        if (packet is PacketPlayerLocationChanged
+            or PacketPlayerChannelMove
+            or PacketWatchStop
+            or PacketWatchProducerStop
+            or PacketWatchResyncRequest
+            or PacketWatchTargetRestarting)
+            connection.ClearWatchSceneTransfers();
+
+        try
+        {
+            if (connection.TryAcceptWatchSceneTransfer(packet, out IContextualPacket? logicalPacket))
+            {
+                if (logicalPacket is null)
+                    return;
+                packet = logicalPacket;
+                if (fragmentedWatchScenePacket)
+                    miaoMetricsService.RecordWatchSceneTransferReassembled();
+            }
+        }
+        catch (InvalidDataException exception)
+        {
+            logger.LogWarning(
+                AppEvents.Watch,
+                exception,
+                "Player {p} sent an invalid fragmented Watch scene transfer.",
+                connection.Player.Info
+            );
+            await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
+            return;
+        }
+
         if (packet is PacketResponse res)
         {
             var handler = connection.OnResponse(res);

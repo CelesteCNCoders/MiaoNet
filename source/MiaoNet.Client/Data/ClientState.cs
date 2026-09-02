@@ -49,6 +49,8 @@ public sealed class ClientState
         {
             var p = AddNewPlayer(player.ChannelID, player.PlayerID, player.PlayerInfo, player.GlobalFlags);
             p.Location = player.Location;
+            p.PlayerEpoch = player.PlayerEpoch;
+            p.LastPlayerSequence = player.PlayerSequence;
         }
         Self = new(channels[clientInitial.ChannelID], clientInitial.PlayerID, clientInitial.SelfPlayerInfo, PlayerGlobalFlags.None);
     }
@@ -113,7 +115,10 @@ public sealed class ClientState
         if (channelPlayers is not null)
         {
             foreach (var info in channelPlayers)
-                ApplyPlayerPresenceData(info);
+            {
+                if (TryGetPlayer(info.PlayerID, out OnlinePlayer? player))
+                    ApplyPlayerPresenceData(player, info.Data);
+            }
         }
 
         if (previous != target)
@@ -138,7 +143,10 @@ public sealed class ClientState
         if (target.IsPrivate && channelPlayers is not null)
         {
             foreach (var info in channelPlayers)
-                MovePlayerToChannel(GetPlayer(info.PlayerID), target);
+            {
+                if (TryGetPlayer(info.PlayerID, out OnlinePlayer? player))
+                    MovePlayerToChannel(player, target);
+            }
         }
     }
 
@@ -178,6 +186,10 @@ public sealed class ClientState
         player.Location = PlayerLocation.Empty;
         player.LastPing = -1;
         player.State = null;
+        player.EpochBaselineState = null;
+        player.PlayerEpoch = 0;
+        player.LastPlayerSequence = 0;
+        player.AwaitingPlayerKeyframe = false;
         player.GlobalFlags = PlayerGlobalFlags.None;
     }
 
@@ -186,6 +198,14 @@ public sealed class ClientState
         SafeGuard.Assert(players.ContainsValue(player));
 
         player.Location = info.Location;
+        if (info.PlayerEpoch != player.PlayerEpoch)
+        {
+            player.State = null;
+            player.EpochBaselineState = null;
+            player.AwaitingPlayerKeyframe = false;
+        }
+        player.PlayerEpoch = info.PlayerEpoch;
+        player.LastPlayerSequence = info.PlayerSequence;
         player.GlobalFlags = info.GlobalFlags;
     }
 
@@ -200,6 +220,10 @@ public sealed class ClientState
         SafeGuard.Assert(players.ContainsValue(player));
 
         player.State = data.InitialState;
+        player.EpochBaselineState = data.InitialState.Clone();
+        player.PlayerEpoch = data.PlayerEpoch;
+        player.LastPlayerSequence = data.PlayerSequence;
+        player.AwaitingPlayerKeyframe = false;
     }
 
     public void ApplyPlayerMovedInitialData(PlayerMovedInitialDataWithID data)

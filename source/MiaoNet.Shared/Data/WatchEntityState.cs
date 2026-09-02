@@ -1,0 +1,488 @@
+namespace MiaoNet.Shared;
+
+internal delegate void WatchEntityPayloadEncoder<TState>(Span<byte> payload, TState state);
+
+internal sealed class WatchArrayEqualityComparer<T> : IEqualityComparer<T[]>
+{
+    internal static readonly WatchArrayEqualityComparer<T> Instance = new();
+
+    public bool Equals(T[]? x, T[]? y)
+        => ReferenceEquals(x, y)
+            || x is not null && y is not null && x.SequenceEqual(y);
+
+    public int GetHashCode(T[] value)
+    {
+        HashCode hash = new();
+        foreach (T item in value)
+            hash.Add(item);
+        return hash.ToHashCode();
+    }
+}
+
+public enum WatchEntityKind : ushort
+{
+    None = 0,
+    Spring = 1,
+    PersistentSession = 2,
+    Checkpoint = 3,
+    SummitCheckpoint = 4,
+    WingedStrawberry = 5,
+    Refill = 6,
+    FlyFeather = 7,
+    Booster = 8,
+    Bumper = 9,
+    Cloud = 10,
+    DashSwitch = 11,
+    TempleGate = 12,
+    CrumblePlatform = 13,
+    CoreMode = 14,
+    HeartGemDoor = 15,
+    FakeHeart = 16,
+    MovingSolid = 17,
+    DashBlock = 18,
+    StrawberrySeed = 19,
+    BounceBlock = 20,
+    PeriodicPlatform = 21,
+    CassetteBlock = 22,
+    TouchSwitchAndSwitchGate = 23,
+    ClutterSystem = 24,
+    DoorMechanism = 25,
+    Key = 26,
+    LockBlock = 27,
+    TheoCrystal = 28,
+    Glider = 29,
+    TheoCrystalPedestal = 30,
+    BadelineBoost = 31,
+    FlingBird = 32,
+    WallBooster = 33,
+    Torch = 34,
+    TempleCrackedBlock = 35,
+    TempleBigEyeball = 36,
+    Reserved37 = 37,
+    TriggerSpikes = 38,
+    FireBall = 39,
+    Lava = 40,
+    BadelineOldsite = 41,
+    Snowball = 42,
+    Puffer = 43,
+    AngryOshiro = 44,
+    SeekerSystem = 45,
+    SeekerBarrier = 46,
+    PlayerSeeker = 47,
+    FinalBoss = 48,
+    FinalBossShot = 49,
+    FinalBossBeam = 50,
+    FinalBossMovingBlock = 51,
+    ReflectionTentacles = 52,
+    LightningBreakerBox = 53,
+    Lightning = 54,
+    BirdPath = 55,
+    WhiteBlock = 56,
+    ForsakenCitySatellite = 57,
+    ReflectionHeartStatue = 58,
+    RidgeGate = 59,
+    RoomEnvironment = 60,
+    RumbleTrigger = 61,
+    RumbleWall = 62,
+    Bridge = 63,
+    IntroCrusher = 64,
+    ResortRoofEnding = 65,
+    BirdNPC = 66,
+    FlutterBird = 67,
+    MoonCreature = 68,
+    FlingBirdIntro = 69,
+    DreamMirror = 70,
+    ResortMirror = 71,
+    TempleMirrorPortal = 72,
+    Gondola = 73,
+    WaveDashTutorial = 74,
+    PowerSourceNumber = 75,
+    NarrativeNPC = 76,
+    AscendManager = 77,
+    IntroCar = 78,
+    ChapterProp = 79,
+    Lookout = 80,
+    ConditionalBlock = 81,
+    BadelineDummy = 82,
+}
+
+public enum WatchNarrativeNPCVisual : byte
+{
+    Unknown = 0,
+    Granny = 1,
+    Theo = 2,
+    Oshiro = 3,
+    BadelineBoss = 4,
+}
+
+public enum WatchFinalBossBeamPhase : byte
+{
+    Charging = 0,
+    Active = 1,
+    Dissipating = 2,
+}
+
+public enum WatchFinalBossAnimation : byte
+{
+    Idle = 0,
+    Laugh = 1,
+    Attack1Begin = 2,
+    Attack1Recoil = 3,
+    GetHit = 4,
+    PretendDead = 5,
+    Attack1Loop = 6,
+    Attack2Begin = 7,
+    Attack2Aim = 8,
+    Attack2Lock = 9,
+    Attack2Recoil = 10,
+    Star = 11,
+    RecoverHit = 12,
+    ScaredIdle = 13,
+    ScaredTransition = 14,
+    Calm = 15,
+    LookUp = 16,
+    LookingUp = 17,
+    Unknown = byte.MaxValue,
+}
+
+public enum WatchMovingSolidType : byte
+{
+    ZipMover = 0,
+    SwapBlock = 1,
+    MoveBlock = 2,
+    FallingBlock = 3,
+    CrushBlock = 4,
+    BounceBlock = 5,
+    SinkingPlatform = 6,
+    FloatySpaceBlock = 7,
+    DreamBlock = 8,
+    GoldenBlock = 9,
+    GlassBlock = 10,
+    StarJumpBlock = 11,
+}
+
+public enum WatchEntityPhase : byte
+{
+    Ready = 0,
+    Active = 1,
+    Cooldown = 2,
+    Gone = 3,
+    Returning = 4,
+}
+
+public enum WatchSnowballPhase : byte
+{
+    Active = 0,
+    Broken = 1,
+}
+
+public enum WatchPufferPhase : byte
+{
+    Idle = 0,
+    Hit = 1,
+    Gone = 2,
+}
+
+public enum WatchAngryOshiroPhase : byte
+{
+    Chase = 0,
+    ChargeUp = 1,
+    Attack = 2,
+    Dummy = 3,
+    Waiting = 4,
+    Hurt = 5,
+}
+
+public enum WatchSeekerForm : byte
+{
+    Statue = 0,
+    Hatching = 1,
+    Seeker = 2,
+}
+
+public enum WatchSeekerPhase : byte
+{
+    Idle = 0,
+    Patrol = 1,
+    Spotted = 2,
+    Attack = 3,
+    Stunned = 4,
+    Skidding = 5,
+    Regenerate = 6,
+    Returned = 7,
+}
+
+public enum WatchHoldablePhase : byte
+{
+    Idle = 0,
+    Carried = 1,
+    Thrown = 2,
+    Moving = 3,
+    Flying = 4,
+    Destroying = 5,
+    Gone = 6,
+}
+
+public enum WatchWingedStrawberryState : byte
+{
+    Present = 0,
+    FlyingAway = 1,
+    Absent = 2,
+}
+
+public enum WatchStrawberrySeedPhase : byte
+{
+    Ready = 0,
+    Following = 1,
+    Returning = 2,
+    Combining = 3,
+}
+
+public enum WatchEntityStateMode : byte
+{
+    None = 0,
+    Patch = 1,
+    Replace = 2,
+}
+
+public readonly struct WatchEntityKey : IRefBinarySerializable<WatchEntityKey>, IEquatable<WatchEntityKey>
+{
+    public WatchEntityKind Kind { get; }
+
+    public int EntityID { get; }
+
+    public ushort SubID { get; }
+
+    public WatchEntityKey(WatchEntityKind kind, int entityID, ushort subID = 0)
+    {
+        Kind = kind;
+        EntityID = entityID;
+        SubID = subID;
+    }
+
+    public void Serialize(ref RefBinaryWriter writer)
+    {
+        writer.Write((ushort)Kind);
+        writer.Write(EntityID);
+        writer.Write(SubID);
+    }
+
+    public static WatchEntityKey Deserialize(ref RefBinaryReader reader)
+        => new((WatchEntityKind)reader.ReadUInt16(), reader.ReadInt32(), reader.ReadUInt16());
+
+    public bool Equals(WatchEntityKey other)
+        => Kind == other.Kind && EntityID == other.EntityID && SubID == other.SubID;
+
+    public override bool Equals(object? obj)
+        => obj is WatchEntityKey other && Equals(other);
+
+    public override int GetHashCode()
+        => HashCode.Combine(Kind, EntityID, SubID);
+
+    public static bool operator ==(WatchEntityKey left, WatchEntityKey right)
+        => left.Equals(right);
+
+    public static bool operator !=(WatchEntityKey left, WatchEntityKey right)
+        => !left.Equals(right);
+}
+
+public readonly struct WatchEntityState : IRefBinarySerializable<WatchEntityState>
+{
+    private readonly byte[]? payload;
+    private readonly IDeferredWatchEntityPayload? deferredPayload;
+
+    public WatchEntityKey Key { get; }
+
+    public ReadOnlyMemory<byte> Payload
+        => payload ?? deferredPayload?.GetPayload() ?? ReadOnlyMemory<byte>.Empty;
+
+    public WatchEntityState(WatchEntityKey key, ReadOnlySpan<byte> payload)
+        : this(key, payload.ToArray())
+    {
+    }
+
+    // Only accept arrays owned by this type; public callers retain defensive copying.
+    private WatchEntityState(WatchEntityKey key, byte[] ownedPayload)
+    {
+        Key = key;
+        payload = ownedPayload;
+        deferredPayload = null;
+    }
+
+    private WatchEntityState(WatchEntityKey key, IDeferredWatchEntityPayload deferredPayload)
+    {
+        Key = key;
+        payload = null;
+        this.deferredPayload = deferredPayload;
+    }
+
+    internal static WatchEntityState FromTyped<TState>(
+        WatchEntityKey key,
+        TState state,
+        Func<TState, byte[]> encoder
+    ) => new(key, new DeferredWatchEntityPayload<TState>(state, encoder));
+
+    internal static WatchEntityState FromTyped<TState>(
+        WatchEntityKey key,
+        TState state,
+        Func<TState, byte[]> encoder,
+        IEqualityComparer<TState> comparer
+    ) => new(key, new DeferredWatchEntityPayload<TState>(state, encoder, comparer));
+
+    internal static WatchEntityState FromTyped<TState>(
+        WatchEntityKey key,
+        TState state,
+        int payloadSize,
+        WatchEntityPayloadEncoder<TState> encoder
+    ) => new(key, new DeferredWatchEntityPayload<TState>(state, payloadSize, encoder));
+
+    internal static WatchEntityState FromTyped<TState>(
+        WatchEntityKey key,
+        TState state,
+        int payloadSize,
+        WatchEntityPayloadEncoder<TState> encoder,
+        IEqualityComparer<TState> comparer
+    ) => new(
+        key,
+        new DeferredWatchEntityPayload<TState>(state, payloadSize, encoder, comparer)
+    );
+
+    internal bool TryTypedStateEquals(WatchEntityState other, out bool equals)
+    {
+        if (deferredPayload is not null && other.deferredPayload is not null)
+            return deferredPayload.TryStateEquals(other.deferredPayload, out equals);
+        equals = false;
+        return false;
+    }
+
+    public void Serialize(ref RefBinaryWriter writer)
+    {
+        writer.Write(Key);
+        WritePayload(ref writer, Payload.Span);
+    }
+
+    public static WatchEntityState Deserialize(ref RefBinaryReader reader)
+        => new(reader.Read<WatchEntityKey>(), ReadPayload(ref reader));
+
+    internal static void WritePayload(ref RefBinaryWriter writer, ReadOnlySpan<byte> payload)
+    {
+        if (payload.Length > ushort.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(payload));
+
+        writer.Write((ushort)payload.Length);
+        writer.WriteSpan(payload);
+    }
+
+    internal static byte[] ReadPayload(ref RefBinaryReader reader)
+        => reader.ReadSpan(reader.ReadUInt16()).ToArray();
+
+    private interface IDeferredWatchEntityPayload
+    {
+        byte[] GetPayload();
+
+        bool TryStateEquals(IDeferredWatchEntityPayload other, out bool equals);
+    }
+
+    private sealed class DeferredWatchEntityPayload<TState> : IDeferredWatchEntityPayload
+    {
+        private readonly TState state;
+        private readonly Func<TState, byte[]>? encoder;
+        private readonly WatchEntityPayloadEncoder<TState>? sizedEncoder;
+        private readonly IEqualityComparer<TState> comparer;
+        private readonly int payloadSize;
+        private byte[]? payload;
+
+        public DeferredWatchEntityPayload(
+            TState state,
+            Func<TState, byte[]> encoder,
+            IEqualityComparer<TState>? comparer = null
+        )
+        {
+            this.state = state;
+            this.encoder = encoder;
+            this.comparer = comparer ?? EqualityComparer<TState>.Default;
+        }
+
+        public DeferredWatchEntityPayload(
+            TState state,
+            int payloadSize,
+            WatchEntityPayloadEncoder<TState> encoder,
+            IEqualityComparer<TState>? comparer = null
+        )
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(payloadSize);
+            this.state = state;
+            this.payloadSize = payloadSize;
+            sizedEncoder = encoder;
+            this.comparer = comparer ?? EqualityComparer<TState>.Default;
+        }
+
+        public byte[] GetPayload()
+        {
+            byte[]? value = Volatile.Read(ref payload);
+            if (value is not null)
+                return value;
+
+            if (sizedEncoder is null)
+            {
+                value = encoder!(state)
+                    ?? throw new InvalidOperationException("Watch entity encoder returned null.");
+            }
+            else
+            {
+                value = new byte[payloadSize];
+                sizedEncoder(value, state);
+            }
+            return Interlocked.CompareExchange(ref payload, value, null) ?? value;
+        }
+
+        public bool TryStateEquals(IDeferredWatchEntityPayload other, out bool equals)
+        {
+            if (other is DeferredWatchEntityPayload<TState> typed)
+            {
+                equals = comparer.Equals(state, typed.state);
+                return true;
+            }
+
+            equals = false;
+            return false;
+        }
+    }
+}
+
+public readonly struct WatchEntityEvent : IRefBinarySerializable<WatchEntityEvent>
+{
+    private readonly byte[] payload;
+
+    public WatchEntityKey Key { get; }
+
+    public byte EventID { get; }
+
+    public ReadOnlyMemory<byte> Payload => payload;
+
+    public WatchEntityEvent(WatchEntityKey key, byte eventID, ReadOnlySpan<byte> payload)
+        : this(key, eventID, payload.ToArray())
+    {
+    }
+
+    private WatchEntityEvent(WatchEntityKey key, byte eventID, byte[] ownedPayload)
+    {
+        Key = key;
+        EventID = eventID;
+        payload = ownedPayload;
+    }
+
+    public void Serialize(ref RefBinaryWriter writer)
+    {
+        writer.Write(Key);
+        writer.Write(EventID);
+        WatchEntityState.WritePayload(ref writer, Payload.Span);
+    }
+
+    public static WatchEntityEvent Deserialize(ref RefBinaryReader reader)
+        => new(
+            reader.Read<WatchEntityKey>(),
+            reader.ReadByte(),
+            WatchEntityState.ReadPayload(ref reader)
+        );
+}

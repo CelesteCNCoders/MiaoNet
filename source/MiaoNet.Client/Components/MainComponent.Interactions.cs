@@ -96,7 +96,7 @@ partial class MainComponent
                 holdingGhost = ghost;
 
                 // we are holding someone that is dead or paused
-                if (ghost is { Dead: true } or { OnlinePlayer.IsPaused: true })
+                if (ghost is { Dead: true } or { PresentationPaused: true })
                     player.Drop();
             }
         }
@@ -106,7 +106,7 @@ partial class MainComponent
         {
             if (heldByPlayerGhost is { Dead: true }
                 or { Scene: null }
-                or { OnlinePlayer.IsPaused: true }
+                or { PresentationPaused: true }
                 || level.Paused
                 || !interactionsOn
             )

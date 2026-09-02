@@ -26,6 +26,21 @@ public sealed class MiaoNetModule : EverestModule
 
     public MiaoNetContext MiaoNetContext => miaoNetContext ??= new();
 
+    internal static bool IsWatching =>
+        Instance.miaoNetContext?.MainComponent.WatchSceneSyncActive == true;
+
+    internal static bool IsAnyWatching =>
+        Instance.miaoNetContext?.MainComponent.Watching == true;
+
+    internal static bool IsWatchedPlayerPaused =>
+        Instance.miaoNetContext?.MainComponent.WatchedPlayerPaused == true;
+
+    internal static PlayerState? WatchedPlayerState =>
+        Instance.miaoNetContext?.MainComponent.WatchedPlayerState;
+
+    internal static MiaoNetGhost? WatchedGhost =>
+        Instance.miaoNetContext?.MainComponent.WatchedGhost;
+
     // TODO this is ugly
     public static Vector2? NextPlayerSpawnPosition { get; set; }
 
@@ -39,8 +54,20 @@ public sealed class MiaoNetModule : EverestModule
     public delegate void PlayerDiedHandler(Player player, Vector2 direction);
     public static event PlayerDiedHandler? PlayerDied;
 
+    public static event Action? PlayerDeathWipeStarted;
+
+    public static event Action<WatchTargetRestartKind>? PlayerWatchTargetRestarting;
+
     public delegate void PreviewPlayerRespawnHandler(Player player, Level level, bool fromSL);
     public static event PreviewPlayerRespawnHandler? PreviewPlayerRespawn;
+
+    public delegate void PlayerRoomTransitionHandler(
+        Level level,
+        LevelData next,
+        Player player,
+        Vector2 direction
+    );
+    public static event PlayerRoomTransitionHandler? PlayerRoomTransition;
 
     public MiaoNetModule()
     {
@@ -60,6 +87,7 @@ public sealed class MiaoNetModule : EverestModule
         Logger.SetLogLevel(LT.MiaoNetPacketReading, LogLevel.Verbose);
         Logger.SetLogLevel(LT.MiaoNetEmoteComponent, LogLevel.Verbose);
         Logger.SetLogLevel(LT.MiaoNetEmoteData, LogLevel.Verbose);
+        Logger.SetLogLevel(LT.MiaoNetWatch, LogLevel.Verbose);
 #endif
         using (new DetourConfigContext(RootConfig).Use())
         {
@@ -68,14 +96,101 @@ public sealed class MiaoNetModule : EverestModule
             IL.Monocle.Engine.RenderCore += Engine_RenderCore;
             Everest.Events.Level.OnExit += Level_OnExit;
             Everest.Events.Level.OnLoadLevel += Level_OnLoadLevel;
+            Everest.Events.Level.OnTransitionTo += Level_OnTransitionTo;
+            On.Celeste.Level.Update += Level_Update_After;
             IL.Celeste.Level.Update += Level_Update;
+            WatchRoomEntityIndex.Load();
             SpriteIDTracker.Load();
+            WatchPersistentSessionAdapter.Load();
+            WatchCheckpointAdapter.Load();
+            WatchWingedStrawberryAdapter.Load();
+            WatchStrawberrySeedAdapter.Load();
+            WatchSpringAdapter.Load();
+            WatchRefillAdapter.Load();
+            WatchFlyFeatherAdapter.Load();
+            WatchFakeHeartAdapter.Load();
+            WatchBoosterAdapter.Load();
+            WatchBumperAdapter.Load();
+            WatchCloudAdapter.Load();
+            WatchDashSwitchAdapter.Load();
+            WatchTempleGateAdapter.Load();
+            WatchCrumblePlatformAdapter.Load();
+            WatchCoreModeAdapter.Load();
+            WatchHeartGemDoorAdapter.Load();
+            WatchMovingSolidAdapter.Load();
+            WatchDashBlockAdapter.Load();
+            WatchBounceBlockAdapter.Load();
+            WatchPeriodicPlatformAdapter.Load();
+            WatchTriggerSpikesAdapter.Load();
+            WatchFireBallAdapter.Load();
+            WatchLavaAdapter.Load();
+            WatchBadelineOldsiteAdapter.Load();
+            WatchSnowballAdapter.Load();
+            WatchPufferAdapter.Load();
+            WatchAngryOshiroAdapter.Load();
+            WatchSeekerSystemAdapter.Load();
+            WatchSeekerBarrierAdapter.Load();
+            WatchPlayerSeekerAdapter.Load();
+            WatchFinalBossAdapter.Load();
+            WatchFinalBossShotAdapter.Load();
+            WatchFinalBossBeamAdapter.Load();
+            WatchFinalBossMovingBlockAdapter.Load();
+            WatchReflectionTentaclesAdapter.Load();
+            WatchLightningBreakerBoxAdapter.Load();
+            WatchLightningAdapter.Load();
+            WatchBirdPathAdapter.Load();
+            WatchWhiteBlockAdapter.Load();
+            WatchForsakenCitySatelliteAdapter.Load();
+            WatchReflectionHeartStatueAdapter.Load();
+            WatchRidgeGateAdapter.Load();
+            WatchRoomEnvironmentAdapter.Load();
+            WatchRumbleTriggerAdapter.Load();
+            WatchRumbleWallAdapter.Load();
+            WatchBridgeAdapter.Load();
+            WatchIntroCrusherAdapter.Load();
+            WatchResortRoofEndingAdapter.Load();
+            WatchBirdNPCAdapter.Load();
+            WatchFlutterBirdAdapter.Load();
+            WatchMoonCreatureAdapter.Load();
+            WatchFlingBirdIntroAdapter.Load();
+            WatchDreamMirrorAdapter.Load();
+            WatchResortMirrorAdapter.Load();
+            WatchTempleMirrorPortalAdapter.Load();
+            WatchGondolaAdapter.Load();
+            WatchWaveDashTutorialAdapter.Load();
+            WatchPowerSourceNumberAdapter.Load();
+            WatchCassetteBlockAdapter.Load();
+            WatchTouchSwitchAndSwitchGateAdapter.Load();
+            WatchClutterSystemAdapter.Load();
+            WatchDoorMechanismAdapter.Load();
+            WatchKeyAdapter.Load();
+            WatchLockBlockAdapter.Load();
+            WatchTheoCrystalAdapter.Load();
+            WatchGliderAdapter.Load();
+            WatchTheoCrystalPedestalAdapter.Load();
+            WatchBadelineBoostAdapter.Load();
+            WatchBadelineDummyAdapter.Load();
+            WatchFlingBirdAdapter.Load();
+            WatchWallBoosterAdapter.Load();
+            WatchTorchAdapter.Load();
+            WatchTempleCrackedBlockAdapter.Load();
+            WatchTempleBigEyeballAdapter.Load();
+            WatchTriggerFirewall.Load();
+            WatchNarrativeNPCAdapter.Load();
+            WatchAscendManagerAdapter.Load();
+            WatchIntroCarAdapter.Load();
+            WatchChapterPropAdapter.Load();
+            WatchLookoutAdapter.Load();
+            WatchConditionalBlockAdapter.Load();
+            WatchRemotePresentationAdapter.Load();
+            WatchSceneAudioSuppression.Load();
             IL.Celeste.Leader.GainFollower += Leader_GainFollower;
             On.Celeste.Overworld.Begin += Overworld_Begin;
             On.Celeste.Player.Added += Player_Added;
             Everest.Events.LevelLoader.OnLoadingThread += LevelLoader_OnLoadingThread;
             On.Celeste.Player.Play += Player_Play;
             On.Celeste.Player.Die += Player_Die;
+            On.Celeste.PlayerDeadBody.End += PlayerDeadBody_End;
             On.Celeste.PlayerCollider.Check += PlayerCollider_Check;
             On.Celeste.Player.TransitionTo += Player_TransitionTo;
             IL.Celeste.LanguageSelectUI.SetNextLanguage += LanguageSelectUI_SetNextLanguage;
@@ -107,14 +222,101 @@ public sealed class MiaoNetModule : EverestModule
         IL.Monocle.Engine.RenderCore -= Engine_RenderCore;
         Everest.Events.Level.OnExit -= Level_OnExit;
         Everest.Events.Level.OnLoadLevel -= Level_OnLoadLevel;
+        Everest.Events.Level.OnTransitionTo -= Level_OnTransitionTo;
+        On.Celeste.Level.Update -= Level_Update_After;
         IL.Celeste.Level.Update -= Level_Update;
+        WatchRoomEntityIndex.Unload();
         SpriteIDTracker.Unload();
+        WatchTempleBigEyeballAdapter.Unload();
+        WatchTriggerFirewall.Unload();
+        WatchRemotePresentationAdapter.Unload();
+        WatchLookoutAdapter.Unload();
+        WatchChapterPropAdapter.Unload();
+        WatchIntroCarAdapter.Unload();
+        WatchAscendManagerAdapter.Unload();
+        WatchNarrativeNPCAdapter.Unload();
+        WatchConditionalBlockAdapter.Unload();
+        WatchTempleCrackedBlockAdapter.Unload();
+        WatchTorchAdapter.Unload();
+        WatchWallBoosterAdapter.Unload();
+        WatchFlingBirdAdapter.Unload();
+        WatchBadelineDummyAdapter.Unload();
+        WatchBadelineBoostAdapter.Unload();
+        WatchTheoCrystalPedestalAdapter.Unload();
+        WatchGliderAdapter.Unload();
+        WatchTheoCrystalAdapter.Unload();
+        WatchLockBlockAdapter.Unload();
+        WatchKeyAdapter.Unload();
+        WatchDoorMechanismAdapter.Unload();
+        WatchClutterSystemAdapter.Unload();
+        WatchTouchSwitchAndSwitchGateAdapter.Unload();
+        WatchCassetteBlockAdapter.Unload();
+        WatchRidgeGateAdapter.Unload();
+        WatchRoomEnvironmentAdapter.Unload();
+        WatchPowerSourceNumberAdapter.Unload();
+        WatchWaveDashTutorialAdapter.Unload();
+        WatchGondolaAdapter.Unload();
+        WatchTempleMirrorPortalAdapter.Unload();
+        WatchResortMirrorAdapter.Unload();
+        WatchDreamMirrorAdapter.Unload();
+        WatchFlingBirdIntroAdapter.Unload();
+        WatchMoonCreatureAdapter.Unload();
+        WatchFlutterBirdAdapter.Unload();
+        WatchBirdNPCAdapter.Unload();
+        WatchResortRoofEndingAdapter.Unload();
+        WatchIntroCrusherAdapter.Unload();
+        WatchBridgeAdapter.Unload();
+        WatchRumbleWallAdapter.Unload();
+        WatchRumbleTriggerAdapter.Unload();
+        WatchReflectionHeartStatueAdapter.Unload();
+        WatchForsakenCitySatelliteAdapter.Unload();
+        WatchWhiteBlockAdapter.Unload();
+        WatchBirdPathAdapter.Unload();
+        WatchLightningAdapter.Unload();
+        WatchLightningBreakerBoxAdapter.Unload();
+        WatchReflectionTentaclesAdapter.Unload();
+        WatchFinalBossMovingBlockAdapter.Unload();
+        WatchFinalBossBeamAdapter.Unload();
+        WatchFinalBossShotAdapter.Unload();
+        WatchFinalBossAdapter.Unload();
+        WatchPlayerSeekerAdapter.Unload();
+        WatchSeekerBarrierAdapter.Unload();
+        WatchSeekerSystemAdapter.Unload();
+        WatchAngryOshiroAdapter.Unload();
+        WatchPufferAdapter.Unload();
+        WatchSnowballAdapter.Unload();
+        WatchBadelineOldsiteAdapter.Unload();
+        WatchLavaAdapter.Unload();
+        WatchFireBallAdapter.Unload();
+        WatchTriggerSpikesAdapter.Unload();
+        WatchPeriodicPlatformAdapter.Unload();
+        WatchBounceBlockAdapter.Unload();
+        WatchDashBlockAdapter.Unload();
+        WatchMovingSolidAdapter.Unload();
+        WatchHeartGemDoorAdapter.Unload();
+        WatchCoreModeAdapter.Unload();
+        WatchCrumblePlatformAdapter.Unload();
+        WatchTempleGateAdapter.Unload();
+        WatchDashSwitchAdapter.Unload();
+        WatchCloudAdapter.Unload();
+        WatchBumperAdapter.Unload();
+        WatchBoosterAdapter.Unload();
+        WatchFakeHeartAdapter.Unload();
+        WatchFlyFeatherAdapter.Unload();
+        WatchRefillAdapter.Unload();
+        WatchSpringAdapter.Unload();
+        WatchStrawberrySeedAdapter.Unload();
+        WatchWingedStrawberryAdapter.Unload();
+        WatchCheckpointAdapter.Unload();
+        WatchPersistentSessionAdapter.Unload();
+        WatchSceneAudioSuppression.Unload();
         IL.Celeste.Leader.GainFollower -= Leader_GainFollower;
         On.Celeste.Overworld.Begin -= Overworld_Begin;
         On.Celeste.Player.Added -= Player_Added;
         Everest.Events.LevelLoader.OnLoadingThread -= LevelLoader_OnLoadingThread;
         On.Celeste.Player.Play -= Player_Play;
         On.Celeste.Player.Die -= Player_Die;
+        On.Celeste.PlayerDeadBody.End -= PlayerDeadBody_End;
         On.Celeste.PlayerCollider.Check -= PlayerCollider_Check;
         On.Celeste.Player.TransitionTo -= Player_TransitionTo;
         IL.Celeste.LanguageSelectUI.SetNextLanguage -= LanguageSelectUI_SetNextLanguage;
@@ -356,10 +558,32 @@ public sealed class MiaoNetModule : EverestModule
     private static void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader)
         => PlayerLocationChanged?.Invoke(PlayerLocation.FetchFrom(level.Session), isFromLoader);
 
+    private static void Level_OnTransitionTo(Level level, LevelData next, Vector2 direction)
+    {
+        Player? player = level.Tracker.GetEntity<Player>();
+        if (player is not null)
+            PlayerRoomTransition?.Invoke(level, next, player, direction);
+    }
+
+    private static void Level_Update_After(On.Celeste.Level.orig_Update orig, Level self)
+    {
+        // While watching, room entities still update their local visual state but
+        // must not retain Camera writes based on the hidden Player. Vanilla room
+        // transitions remain the sole exception and continue owning the Camera.
+        bool preserveCamera = IsWatching && self.transition is null;
+        Vector2 cameraPosition = self.Camera.Position;
+        orig(self);
+        if (preserveCamera && self.transition is null)
+            self.Camera.Position = cameraPosition;
+        Instance.miaoNetContext?.MainComponent.ApplyWatchCameraAfterLevelUpdate(self);
+    }
+
+
     private static void LevelLoader_OnLoadingThread(Level level)
     {
-        level.Add(new GhostRenderLayerEntity(isHigh: false));
-        level.Add(new GhostRenderLayerEntity(isHigh: true));
+        level.Add(new GhostRenderLayerEntity(GhostRenderBand.Normal));
+        level.Add(new GhostRenderLayerEntity(GhostRenderBand.DreamDash));
+        level.Add(new GhostRenderLayerEntity(GhostRenderBand.High));
     }
 
     private static void Overworld_Begin(On.Celeste.Overworld.orig_Begin orig, Overworld self)
@@ -398,17 +622,58 @@ public sealed class MiaoNetModule : EverestModule
         }
     }
 
-    private static void Level_OnExit(Level level, LevelExit exit, LevelExit.Mode mode, Session session, HiresSnow snow)
-        => PlayerLocationChanged?.Invoke(PlayerLocation.Empty, true);
+    private static void Level_OnExit(
+        Level level,
+        LevelExit exit,
+        LevelExit.Mode mode,
+        Session session,
+        HiresSnow snow
+    )
+    {
+        WatchTargetRestartKind? restartKind = mode switch
+        {
+            LevelExit.Mode.Restart => WatchTargetRestartKind.RestartChapter,
+            LevelExit.Mode.GoldenBerryRestart => WatchTargetRestartKind.GoldenBerryRestart,
+            _ => null,
+        };
+        if (restartKind is { } kind)
+            PlayerWatchTargetRestarting?.Invoke(kind);
+
+        PlayerLocationChanged?.Invoke(PlayerLocation.Empty, true);
+    }
 
     private static PlayerDeadBody? Player_Die(On.Celeste.Player.orig_Die orig, Player self, Vector2 direction, bool evenIfInvincible, bool registerDeathInStats)
     {
+        // The real local Player remains in the Level while watching so vanilla
+        // room transitions can use it, but it is only a hidden transport
+        // surrogate. Hazards and moving solids must never turn that surrogate
+        // into a real PlayerDeadBody or it can respawn into the same hazard and
+        // start an independent death loop on the Watcher.
+        if (IsAnyWatching
+            && self.Scene is Level level
+            && ReferenceEquals(level.Tracker.GetEntity<Player>(), self))
+            return null;
+
         var body = orig(self, direction, evenIfInvincible, registerDeathInStats);
         if (body is not null)
         {
             PlayerDied?.Invoke(self, direction);
         }
         return body;
+    }
+
+    private static void PlayerDeadBody_End(
+        On.Celeste.PlayerDeadBody.orig_End orig,
+        PlayerDeadBody self
+    )
+    {
+        // PlayerDeadBody.End invokes Level.DoScreenWipe immediately after setting
+        // finished. Notify watchers before that call so both clients begin the
+        // same outgoing death wipe, rather than inferring it from the later
+        // Player.Added respawn notification.
+        if (!IsWatching && !self.finished && self.Scene is Level)
+            PlayerDeathWipeStarted?.Invoke();
+        orig(self);
     }
 
     public static void OnLoadState(Level level)

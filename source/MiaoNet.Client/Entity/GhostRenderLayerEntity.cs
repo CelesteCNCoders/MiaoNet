@@ -4,20 +4,27 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class GhostRenderLayerEntity : MiaoNetEntity
 {
-    private readonly bool isHigh;
+    private readonly GhostRenderBand band;
 
-    public GhostRenderLayerEntity(bool isHigh)
+    public GhostRenderLayerEntity(GhostRenderBand band)
     {
         Tag = MiaoNetTag.Normal;
-        Depth = isHigh ? Depths.Top : (Depths.Player + 1);
-        this.isHigh = isHigh;
+        Depth = band switch
+        {
+            GhostRenderBand.Normal => Depths.Player + 1,
+            GhostRenderBand.DreamDash => Depths.PlayerDreamDashing,
+            GhostRenderBand.High => Depths.Top,
+            _ => throw new ArgumentOutOfRangeException(nameof(band)),
+        };
+        this.band = band;
     }
 
     public override void Render()
     {
         Level level = SceneAs<Level>();
 
-        if (level.Tracker.GetEntities<MiaoNetGhostEntity>().Count == 0)
+        List<Entity> entities = level.Tracker.GetEntities<MiaoNetGhostEntity>();
+        if (entities.Count == 0)
             return;
 
         var gd = Engine.Instance.GraphicsDevice;
@@ -25,21 +32,11 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
 
         GameplayRenderer.End();
 
-        // draw all ghost entities without alpha set
-        gd.SetRenderTarget(GameplayBuffers.TempA);
-        gd.Clear(Color.Transparent);
-
-        GameplayRenderer.Begin();
-        foreach (MiaoNetGhostEntity entity in level.Tracker.GetEntities<MiaoNetGhostEntity>().Cast<MiaoNetGhostEntity>())
-        {
-            if ((isHigh ? entity.Depth <= Depth : entity.Depth >= Depth) && entity.Visible)
-                entity.GhostRender();
-        }
-        GameplayRenderer.End();
+        bool hasFocusedEntity = DrawGhostPass(gd, entities, drawFocused: false);
 
         // prepare effect if needed
         Effect? effect = null;
-        if (settings.DistanceBasedOpacity)
+        if (settings.DistanceBasedOpacity && !MiaoNetModule.Instance.MiaoNetContext.MainComponent.Watching)
         {
             Player? player = level.Tracker.GetEntity<Player>();
             if (player != null)
@@ -67,6 +64,51 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
         Draw.SpriteBatch.Draw(GameplayBuffers.TempA, level.Camera.Position, Color.White * settings.PlayerOpacityValue);
         Draw.SpriteBatch.End();
 
+        // The explicitly watched subject is a viewing target, not an ordinary
+        // background multiplayer ghost. Composite it at full opacity without
+        // changing the user's opacity setting for everyone else.
+        if (hasFocusedEntity)
+        {
+            DrawGhostPass(gd, entities, drawFocused: true);
+            gd.SetRenderTarget(GameplayBuffers.Gameplay);
+            Draw.SpriteBatch.Begin(
+                SpriteSortMode.Deferred,
+                BlendState.AlphaBlend,
+                SamplerState.PointClamp,
+                DepthStencilState.None,
+                RasterizerState.CullNone,
+                null,
+                level.Camera.Matrix
+            );
+            Draw.SpriteBatch.Draw(GameplayBuffers.TempA, level.Camera.Position, Color.White);
+            Draw.SpriteBatch.End();
+        }
+
         GameplayRenderer.Begin();
+    }
+
+    private bool DrawGhostPass(
+        GraphicsDevice graphicsDevice,
+        List<Entity> entities,
+        bool drawFocused
+    )
+    {
+        bool hasFocusedEntity = false;
+        graphicsDevice.SetRenderTarget(GameplayBuffers.TempA);
+        graphicsDevice.Clear(Color.Transparent);
+        GameplayRenderer.Begin();
+        foreach (Entity trackedEntity in entities)
+        {
+            MiaoNetGhostEntity entity = (MiaoNetGhostEntity)trackedEntity;
+            if (entity.RenderBand != band || !entity.Visible)
+                continue;
+            if (entity.WatchPresentationFocus)
+                hasFocusedEntity = true;
+            if (entity.WatchPresentationFocus != drawFocused)
+                continue;
+            entity.GhostRender();
+        }
+        GameplayRenderer.End();
+        return hasFocusedEntity;
     }
 }

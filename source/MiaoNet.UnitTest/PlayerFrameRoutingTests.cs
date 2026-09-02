@@ -1,0 +1,148 @@
+using MiaoNet.Server;
+using MiaoNet.Shared;
+
+namespace MiaoNet.UnitTest;
+
+[TestClass]
+public sealed class PlayerFrameRoutingTests
+{
+    private static readonly PlayerMapLocation Map = new("Celeste/1-ForsakenCity", AreaMode.Normal);
+
+    [TestMethod]
+    public void OnlyActiveTargetSessionsReceiveCameraFrames()
+    {
+        WatchSessionRegistry sessions = new();
+        WatchSession inactive = sessions.Add(10, 20, Map, 30);
+        WatchSession active = sessions.Add(11, 20, Map, 31);
+        active.Activate(0);
+        WatchSession resyncing = sessions.Add(12, 20, Map, 32);
+        resyncing.Activate(0);
+        Assert.AreEqual(WatchSequenceResult.Gap, resyncing.AcceptSequence(2));
+        WatchSession wrongMap = sessions.Add(
+            13,
+            20,
+            new PlayerMapLocation("Celeste/2-OldSite", AreaMode.Normal),
+            33
+        );
+        wrongMap.Activate(0);
+        WatchSession restartSuspended = sessions.Add(14, 20, Map, 34);
+        restartSuspended.Activate(0);
+        restartSuspended.SuspendForRestart(
+            WatchTargetRestartKind.RestartChapter,
+            2,
+            TimeSpan.FromSeconds(30)
+        );
+        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, 20, inactive.WatcherID, Map));
+        Assert.IsTrue(PlayerFrameRouting.IsActiveWatcher(sessions, 20, active.WatcherID, Map));
+        Assert.IsTrue(PlayerFrameRouting.IsActiveWatcher(sessions, 20, resyncing.WatcherID, Map));
+        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, 20, wrongMap.WatcherID, Map));
+        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(
+            sessions,
+            20,
+            restartSuspended.WatcherID,
+            Map
+        ));
+        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, 20, 99, Map));
+        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, 21, active.WatcherID, Map));
+        Assert.IsTrue(sessions.Remove(active.ID, out _));
+        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, 20, active.WatcherID, Map));
+        WatchSession retargeted = sessions.Add(active.WatcherID, 21, Map, 35);
+        retargeted.Activate(0);
+        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, 20, active.WatcherID, Map));
+        Assert.IsTrue(PlayerFrameRouting.IsActiveWatcher(sessions, 21, active.WatcherID, Map));
+    }
+
+    [TestMethod]
+    public void CameraIsRemovedWithoutChangingOtherFrameState()
+    {
+        FollowerInfo[] followers =
+        [
+            new(FollowerType.Key, "key", "idle", 7, new Vector2S(2, 3)),
+        ];
+        PlayerStateDelta.FrameFlags flags =
+            PlayerStateDelta.FrameFlags.DashesChange
+            | PlayerStateDelta.FrameFlags.HasHoldable
+            | PlayerStateDelta.FrameFlags.HasFollowerInitials
+            | PlayerStateDelta.FrameFlags.HasWindDirection
+            | PlayerStateDelta.FrameFlags.HasCameraPosition;
+        PlayerStateDelta source = new(
+            new Vector2(11f, 21f),
+            "runFast",
+            4,
+            new Vector2(-1f, 1f),
+            flags,
+            PlayerStateFlags.Dashing
+        )
+        {
+            Dashes = 1,
+            DashDirection = 3,
+            HoldableInfo = new(HoldableType.Theo, new Vector2(4f, 5f)),
+            FollowerInitials = followers,
+            WindDirection = new Vector2(6f, 7f),
+            CameraPosition = new Vector2(130f, 460f),
+        };
+        PacketPlayerFrame original = new(7, 11, source);
+
+        PacketPlayerFrame result = PlayerFrameRouting.CreateWithoutCamera(original);
+        PlayerStateDelta stripped = result.StateDelta!;
+
+        Assert.AreNotSame(original, result);
+        Assert.IsTrue(original.StateDelta!.HasCameraPosition);
+        Assert.IsFalse(stripped.HasCameraPosition);
+        Assert.AreEqual(flags & ~PlayerStateDelta.FrameFlags.HasCameraPosition, stripped.Flags);
+        Assert.AreEqual(source.Position, stripped.Position);
+        Assert.AreEqual(source.Animation, stripped.Animation);
+        Assert.AreEqual(source.AnimationFrame, stripped.AnimationFrame);
+        Assert.AreEqual(source.Scale, stripped.Scale);
+        Assert.AreEqual(source.StateFlags, stripped.StateFlags);
+        Assert.AreEqual(source.Dashes, stripped.Dashes);
+        Assert.AreEqual(source.DashDirection, stripped.DashDirection);
+        Assert.AreEqual(source.HoldableInfo, stripped.HoldableInfo);
+        Assert.AreSame(followers, stripped.FollowerInitials);
+        Assert.AreEqual(source.WindDirection, stripped.WindDirection);
+        Assert.AreEqual(Vector2.Zero, stripped.CameraPosition);
+    }
+
+    [TestMethod]
+    public void FrameWithoutCameraUsesExistingPacket()
+    {
+        PacketPlayerFrame packet = new(1, 1, new PlayerStateDelta(
+            Vector2.Zero,
+            string.Empty,
+            0,
+            Vector2.One,
+            PlayerStateDelta.FrameFlags.None,
+            PlayerStateFlags.None
+        ));
+
+        Assert.AreSame(packet, PlayerFrameRouting.CreateWithoutCamera(packet));
+    }
+
+    [TestMethod]
+    public void CameraRemovalPreservesFollowerDeltas()
+    {
+        FollowerInfoDelta[] followerDeltas =
+        [
+            new("spin", 8, new Vector2S(5, 6)),
+        ];
+        PacketPlayerFrame packet = new(1, 1, new PlayerStateDelta(
+            new Vector2(1f, 2f),
+            "idle",
+            3,
+            Vector2.One,
+            PlayerStateDelta.FrameFlags.HasFollowerDeltas
+                | PlayerStateDelta.FrameFlags.HasCameraPosition,
+            PlayerStateFlags.None
+        )
+        {
+            FollowerDeltas = followerDeltas,
+            CameraPosition = new Vector2(7f, 8f),
+        });
+
+        PlayerStateDelta stripped = PlayerFrameRouting.CreateWithoutCamera(packet).StateDelta!;
+
+        Assert.IsTrue(stripped.HasFollowerDeltas);
+        Assert.AreSame(followerDeltas, stripped.FollowerDeltas);
+        Assert.IsFalse(stripped.HasCameraPosition);
+    }
+}

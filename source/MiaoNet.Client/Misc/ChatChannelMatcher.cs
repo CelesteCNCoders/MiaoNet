@@ -28,13 +28,13 @@ public static class ChatChannelMatcher
         StringComparison sc = StringComparison.CurrentCultureIgnoreCase;
         if (name.Equals(Dialog.Get("miaonet_chat_channel_name_global"), sc))
             return ChatChannel.Global;
-        
+
         if (name.Equals(Dialog.Get("miaonet_chat_channel_name_channel"), sc))
             return ChatChannel.Channel;
 
         if (name.Equals(Dialog.Get("miaonet_chat_channel_name_map"), sc))
             return ChatChannel.Map;
-        
+
         return (ChatChannel)(-1);
     }
 

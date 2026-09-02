@@ -580,17 +580,100 @@ partial class MiaoNetCommand
             return m;
         }
 
-        context.MiaoNetContext.MainComponent.StartWatching(player!);
-        context.TipMessage(PFormat.Format(Dialog.Get("miaonet_commands_watch_watching"), player!.Info.Name));
+        MainComponent main = context.MiaoNetContext.MainComponent;
+        if (!main.CanStartWatching)
+            return Dialog.Get("miaonet_commands_watch_request_pending");
+
+        int targetPlayerID = player.ID;
+        string targetPlayerName = player.Info.Name;
+        if (!context.MiaoNetContext.CanUseWatchSceneSync(player))
+        {
+            if (!main.StartLegacyWatching(player))
+                return Dialog.Get("miaonet_commands_watch_failed_invalid_state");
+            ShowWatchingTip();
+            return null;
+        }
+
+        if (!main.TryBeginWatchRequest())
+            return Dialog.Get("miaonet_commands_watch_request_pending");
+
+        context.TipMessage(PFormat.Format(Dialog.Get("miaonet_commands_watch_preparing"), targetPlayerName));
+        context.Request(new PacketWatchStart(targetPlayerID), response =>
+        {
+            if (!main.CompleteWatchRequest())
+            {
+                if (response.IsSuccess)
+                    context.QueuePacket(new PacketWatchStop(response.SessionID));
+                return;
+            }
+
+            if (!response.IsSuccess)
+            {
+                if (response.Result == WatchStartResult.UnsupportedProtocol
+                    && context.MiaoNetContext.ClientState is { } fallbackState
+                    && fallbackState.TryGetPlayer(targetPlayerID, out OnlinePlayer? fallbackTarget)
+                    && main.StartLegacyWatching(fallbackTarget))
+                {
+                    ShowWatchingTip();
+                    return;
+                }
+                context.TipErrorMessage(Dialog.Get(GetWatchStartErrorKey(response.Result)));
+                return;
+            }
+
+            ClientState? state = context.MiaoNetContext.ClientState;
+            if (state is null
+                || !state.TryGetPlayer(targetPlayerID, out OnlinePlayer? currentTarget)
+                || !main.StartWatching(currentTarget, response.SessionID, response.Snapshot))
+            {
+                context.QueuePacket(new PacketWatchStop(response.SessionID));
+                context.TipErrorMessage(Dialog.Get("miaonet_commands_watch_failed_invalid_state"));
+                return;
+            }
+
+            ShowWatchingTip();
+        });
 
         return null;
+
+        void ShowWatchingTip()
+            => context.TipMessage(PFormat.Format(
+                Dialog.Get("miaonet_commands_watch_watching"),
+                targetPlayerName
+            ));
+
+        static string GetWatchStartErrorKey(WatchStartResult result)
+            => result switch
+            {
+                WatchStartResult.NoSuchPlayer or WatchStartResult.TargetUnavailable
+                    => "miaonet_commands_watch_failed_unavailable",
+                WatchStartResult.SelfTarget
+                    => "miaonet_commands_watch_failed_self",
+                WatchStartResult.DifferentChannel
+                    => "miaonet_commands_watch_failed_channel",
+                WatchStartResult.DifferentMap
+                    => "miaonet_commands_watch_failed_map",
+                WatchStartResult.TargetIsWatching
+                    => "miaonet_commands_watch_failed_target_watching",
+                WatchStartResult.InvalidState or WatchStartResult.UnsupportedProtocol
+                    => "miaonet_commands_watch_failed_invalid_state",
+                WatchStartResult.Success
+                    => throw new InvalidOperationException("Successful watch response cannot be an error."),
+            };
     }
 
     private static string? Unwatch(Context context)
     {
-        var player = context.MiaoNetContext.MainComponent.StopWatching();
+        MainComponent main = context.MiaoNetContext.MainComponent;
+        bool requestCancelled = main.CancelWatchRequest();
+        var player = main.StopWatching();
         if (player is null)
         {
+            if (requestCancelled)
+            {
+                context.TipMessage(Dialog.Get("miaonet_commands_watch_request_cancelled"));
+                return null;
+            }
             return Dialog.Get("miaonet_commands_unwatch_none_unwatched");
         }
         else
@@ -642,7 +725,7 @@ partial class MiaoNetCommand
     {
         string channelName = context.Segments[0];
         // the name is resolved server-side
-        context.QueuePacket(new PacketPlayerChannelMove(channelName));
+        context.QueuePacket(context.MiaoNetContext.MainComponent.CreateChannelMovePacket(channelName));
         return null;
     }
 

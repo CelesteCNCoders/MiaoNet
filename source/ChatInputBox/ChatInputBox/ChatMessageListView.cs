@@ -42,7 +42,7 @@ public sealed class ChatMessageListView
 
     // drives the rainbow color of the fold counter
     private float counterAnimClock;
-    
+
     public float MessageYPadding { get; set; } = 8f;
 
     public string? ActiveTabName => chatMessageManager.ActiveTabName;

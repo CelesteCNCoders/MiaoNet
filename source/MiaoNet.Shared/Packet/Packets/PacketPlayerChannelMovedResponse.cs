@@ -4,6 +4,10 @@ public sealed class PacketPlayerChannelMovedResponse : IContextualPacket<PacketP
 {
     public int ChannelID { get; }
 
+    public uint PlayerEpoch { get; }
+
+    public uint PlayerSequence { get; }
+
     // in map data, such as PlayerState and PlayerGraphicsInfo(not impled currently)
     public IReadOnlyCollection<PlayerMovedInitialDataWithID>? Players { get; }
 
@@ -12,11 +16,15 @@ public sealed class PacketPlayerChannelMovedResponse : IContextualPacket<PacketP
 
     public PacketPlayerChannelMovedResponse(
         int channelID,
+        uint playerEpoch,
+        uint playerSequence,
         IReadOnlyCollection<PlayerMovedInitialDataWithID>? players,
         IReadOnlyCollection<PlayerPresenceDataWithID>? channelPlayers
     )
     {
         ChannelID = channelID;
+        PlayerEpoch = playerEpoch;
+        PlayerSequence = playerSequence;
         Players = players;
         ChannelPlayers = channelPlayers;
     }
@@ -24,6 +32,8 @@ public sealed class PacketPlayerChannelMovedResponse : IContextualPacket<PacketP
     public void Serialize(ref RefBinaryWriter writer, IPacketSerializationContext context)
     {
         writer.Write(ChannelID);
+        writer.Write(PlayerEpoch);
+        writer.Write(PlayerSequence);
         if (Players is null)
         {
             writer.Write(false);
@@ -48,6 +58,8 @@ public sealed class PacketPlayerChannelMovedResponse : IContextualPacket<PacketP
     {
         return new(
             reader.ReadInt32(),
+            reader.ReadUInt32(),
+            reader.ReadUInt32(),
             reader.ReadBoolean() 
                 ? reader.ReadArray<PlayerMovedInitialDataWithID, PooledStringManager>(context.PooledStringManager)
                 : null,

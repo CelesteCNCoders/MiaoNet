@@ -35,5 +35,6 @@ public static class MiaoNetCommands
         var ctx = MiaoNetModule.Instance.MiaoNetContext;
         ctx.StatusComponent.ShowStatusMessage(text, spin);
     }
+
 #endif
 }

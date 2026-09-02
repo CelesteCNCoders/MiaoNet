@@ -18,6 +18,39 @@ public sealed class MiaoClientConnectionTests
     }
 
     [TestMethod]
+    public void FullGeneralQueueDoesNotConsumeReservedPlayerCapacity()
+    {
+        var connection = CreateConnection();
+        for (int i = 0; i < MiaoClientConnection.PacketChannelSize; i++)
+            Assert.IsTrue(connection.TryQueuePacket(new PacketPing()));
+
+        PacketPlayerFrame frame = new(1, 1, new PlayerStateDelta(
+            Vector2.Zero,
+            string.Empty,
+            0,
+            Vector2.One,
+            PlayerStateDelta.FrameFlags.None,
+            PlayerStateFlags.None
+        ));
+
+        Assert.IsTrue(connection.TryQueuePacket(frame));
+        Assert.IsTrue(connection.TryQueuePacket(new PacketWatchStop(1)));
+    }
+
+    [TestMethod]
+    public void FullEntityQueueNeverWaitsForCapacity()
+    {
+        var connection = CreateConnection();
+        PacketWatchSceneDelta packet = CreateEntityPacket();
+        for (int i = 0; i < MiaoClientConnection.WatchEntityPacketChannelSize; i++)
+            Assert.IsTrue(connection.TryQueuePacket(packet));
+
+        ValueTask overflow = connection.QueuePacketAsync(packet);
+
+        Assert.IsTrue(overflow.IsCompletedSuccessfully);
+    }
+
+    [TestMethod]
     public async Task PendingRequestIsRemovedAfterTimeout()
     {
         var connection = CreateConnection();
@@ -115,6 +148,15 @@ public sealed class MiaoClientConnectionTests
             new MiaoMetricsService()
         );
     }
+
+    private static PacketWatchSceneDelta CreateEntityPacket()
+        => new(new WatchSceneDelta(
+            1,
+            new PlayerLocation("Celeste/1-ForsakenCity", AreaMode.Normal, "1"),
+            [],
+            [],
+            false
+        ));
 
     private sealed class FakeNetworkConnection : INetworkConnection
     {

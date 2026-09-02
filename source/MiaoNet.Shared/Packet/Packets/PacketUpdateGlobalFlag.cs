@@ -16,6 +16,6 @@ public sealed class PacketUpdateGlobalFlag : IContextlessPacket<PacketUpdateGlob
 
     public static PacketUpdateGlobalFlag Deserialize(ref RefBinaryReader reader)
     {
-        return new((PlayerGlobalFlags)reader.ReadByte());
+        return new((PlayerGlobalFlags)reader.ReadUInt16());
     }
 }

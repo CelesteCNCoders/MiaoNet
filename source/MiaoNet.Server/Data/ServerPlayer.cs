@@ -18,6 +18,12 @@ public sealed class ServerPlayer
 
     public PlayerState? State { get; set; }
 
+    public uint PlayerEpoch { get; set; }
+
+    public uint LastPlayerSequence { get; set; }
+
+    public bool AwaitingPlayerKeyframe { get; set; }
+
     public PlayerGraphicsInfo? GraphicsInfo { get; set; }
 
     public PlayerGlobalFlags GlobalFlags { get; set; }

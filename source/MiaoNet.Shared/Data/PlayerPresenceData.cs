@@ -8,23 +8,38 @@ public readonly struct PlayerPresenceData : IRefBinarySerializable<PlayerPresenc
 {
     public PlayerLocation Location { get; }
 
+    public uint PlayerEpoch { get; }
+
+    public uint PlayerSequence { get; }
+
     public PlayerGlobalFlags GlobalFlags { get; }
 
-    public PlayerPresenceData(PlayerLocation location, PlayerGlobalFlags globalFlags)
+    public PlayerPresenceData(
+        PlayerLocation location,
+        uint playerEpoch,
+        uint playerSequence,
+        PlayerGlobalFlags globalFlags
+    )
     {
         Location = location;
+        PlayerEpoch = playerEpoch;
+        PlayerSequence = playerSequence;
         GlobalFlags = globalFlags;
     }
 
     public void Serialize(ref RefBinaryWriter writer)
     {
         writer.Write(Location);
+        writer.Write(PlayerEpoch);
+        writer.Write(PlayerSequence);
         writer.Write((ushort)GlobalFlags);
     }
 
     public static PlayerPresenceData Deserialize(ref RefBinaryReader reader)
         => new(
             reader.Read<PlayerLocation>(),
+            reader.ReadUInt32(),
+            reader.ReadUInt32(),
             (PlayerGlobalFlags)reader.ReadUInt16()
         );
 }

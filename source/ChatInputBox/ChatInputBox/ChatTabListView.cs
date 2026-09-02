@@ -5,8 +5,8 @@ public class ChatTabListView
 
     private readonly ChatMessageManager chatMessageManager;
     private readonly IScalelessTextRenderer textRenderer;
-    
-    public string InitialTabTitle { get; set; }
+
+    public string InitialTabTitle { get; set; } = string.Empty;
 
     private int  activeTabIndex => chatMessageManager.ActiveTabIndex;
 
@@ -29,7 +29,7 @@ public class ChatTabListView
         
         for (int i = -1; i < chatTabNameList.Count; i++)                                                               
         {                                                                                                  
-            var title = i == -1 ? InitialTabTitle : chatTabNameList[i];                                                                          
+            var title = i == -1 ? InitialTabTitle : chatTabNameList[i];
             float textWidth = textRenderer.Measure(title).X;                                     
             float tabWidth = textWidth + 2 * Padding;                                                      
             bool isActive = i == activeTabIndex;                                                           
