@@ -641,6 +641,13 @@ public sealed partial class MainComponent : MiaoNetComponent
             }
             else
             {
+                // A non-map location is a timeline barrier with no player state.
+                // In particular, Golden Berry deaths leave the old Level through
+                // LevelExit before creating the replacement Player. Keeping the
+                // old dead state here would make Player.Added emit Respawn in the
+                // empty-location epoch, which the server must reject.
+                pendingMapChanged = false;
+                ClientState.SelfState = null;
                 context.QueuePacket(new PacketPlayerLocationChanged(
                     playerEpoch,
                     playerSequence,
@@ -853,26 +860,29 @@ public sealed partial class MainComponent : MiaoNetComponent
     {
         if (!HasState)
             return;
-        var state = ClientState.SelfState;
-        if (state is null)
-        {
-            SafeGuard.Assert(TryGetAndSendState(level, PlayerLocation.FetchFrom(level.Session)));
-            state = ClientState.SelfState;
-            SafeGuard.Assert(state is not null);
-        }
-        if (state.StateFlags.HasFlag(PlayerStateFlags.Dead))
-        {
-            MarkWatchProducerEntityResync(PlayerLocation.FetchFrom(level.Session));
-            state.StateFlags &= ~PlayerStateFlags.Dead;
-            var type = fromSL ? LiveStateType.RespawnFromSL : LiveStateType.Respawn;
-            PacketPlayerLiveState packet = new(
-                playerEpoch,
-                NextPlayerSequence(),
-                type,
-                player.Position
-            );
-            context.QueuePacket(packet);
-        }
+        // Player.Added runs before the new location barrier during a full Level
+        // replacement. Only same-location deaths are ordinary respawns; a new
+        // Level must establish its state through the location barrier instead.
+        PlayerLocation respawnLocation = PlayerLocation.FetchFrom(level.Session);
+        PlayerState? state = ClientState.SelfState;
+        if (state is null
+            || !PlayerRespawnTimeline.CanEmitRespawn(
+                ClientState.Self.Location,
+                respawnLocation,
+                state.StateFlags
+            ))
+            return;
+
+        MarkWatchProducerEntityResync(respawnLocation);
+        state.StateFlags &= ~PlayerStateFlags.Dead;
+        var type = fromSL ? LiveStateType.RespawnFromSL : LiveStateType.Respawn;
+        PacketPlayerLiveState packet = new(
+            playerEpoch,
+            NextPlayerSequence(),
+            type,
+            player.Position
+        );
+        context.QueuePacket(packet);
     }
 
     private void MiaoNetModule_PlayerDied(Player player, Vector2 direction)
