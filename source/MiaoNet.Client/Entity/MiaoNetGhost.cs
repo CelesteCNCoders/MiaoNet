@@ -540,15 +540,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     {
         Position = position;
 
-        // The watched subject is revealed by the authoritative black-frame
-        // lifecycle. Playing the ordinary multiplayer ghost revive effect on
-        // top of it creates a second, false respawn animation.
-        if (watchFocus)
-        {
-            RestoreAfterRespawn();
-            return;
-        }
-
         if (!fromSL)
         {
             respawning = true;

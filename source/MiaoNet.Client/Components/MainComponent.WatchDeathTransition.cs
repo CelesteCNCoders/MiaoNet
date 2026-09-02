@@ -32,7 +32,6 @@ public sealed partial class MainComponent
     private PlayerLocation watchDeathSourceLocation;
     private PlayerLocation watchDeathRespawnLocation;
     private ScreenWipe? watchDeathWipe;
-    private float watchDeathFreshCameraWait;
     private bool watchDeathRoomUnloaded;
     private WatchDeathReloadLocalStats? watchDeathReloadLocalStats;
 
@@ -119,13 +118,9 @@ public sealed partial class MainComponent
         if (watchDeathTransitionPhase == WatchDeathTransitionPhase.WaitingForRespawnLoad
             && watchDeathWipe is { Completed: false, Percent: >= 1f } wipe)
         {
-            if (watchDeathRespawnStateReady && watchDeathRespawnNotificationReady
-                && watchCameraAwaitingFreshSample)
-                watchDeathFreshCameraWait += Engine.RawDeltaTime;
-
-            bool cameraReady = !watchCameraAwaitingFreshSample
-                || watchDeathFreshCameraWait >= 0.75f;
-            if (watchDeathRespawnStateReady && watchDeathRespawnNotificationReady && cameraReady)
+            // A fresh authoritative camera sample is preferable but not required:
+            // completion already falls back to the synchronized respawn position.
+            if (watchDeathRespawnStateReady && watchDeathRespawnNotificationReady)
                 wipe.EndTimer = 0f;
             else
                 // ScreenWipe deliberately spends one update at Percent=1 before
@@ -457,7 +452,6 @@ public sealed partial class MainComponent
         watchDeathSourceLocation = default;
         watchDeathRespawnLocation = default;
         watchDeathWipe = null;
-        watchDeathFreshCameraWait = 0f;
         watchDeathRoomUnloaded = false;
     }
 }
