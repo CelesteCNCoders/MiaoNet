@@ -339,9 +339,9 @@ public static class WatchPacketValidator
                 && HasZeroBytes(state.Payload.Span, 1, 2, 3),
             WatchEntityKind.NarrativeNPC => IsValidFixedStatePayload(
                     state,
-                    56,
-                    0b0011_1111,
-                    8, 12, 16, 20, 24, 32, 36, 40, 44, 48
+                    64,
+                    0b0111_1111,
+                    8, 12, 16, 20, 24, 32, 36, 40, 44, 48, 56, 60
                 )
                 && state.Payload.Span[4] <= (byte)WatchNarrativeNPCVisual.BadelineBoss
                 && HasZeroBytes(state.Payload.Span, 5, 6, 7)
@@ -361,7 +361,7 @@ public static class WatchPacketValidator
                 && ReadSingle(state.Payload.Span, 12) is >= 0f and <= 1f
                 && ReadSingle(state.Payload.Span, 16) is >= 0f and <= 1f
                 && HasZeroBytes(state.Payload.Span, 26, 27),
-            WatchEntityKind.Lookout => IsValidFixedStatePayload(state, 20, 0b0000_0011, 4, 8, 16)
+            WatchEntityKind.Lookout => IsValidFixedStatePayload(state, 20, 0b0000_0111, 4, 8, 16)
                 && BinaryPrimitives.ReadInt32LittleEndian(state.Payload.Span[12..]) >= 0,
             WatchEntityKind.ConditionalBlock => state.Key.SubID is 1 or 2
                 && state.Payload.Length == 16
