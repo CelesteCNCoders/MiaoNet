@@ -88,6 +88,14 @@ IContextualPacket
 
 Key、Lock Block、Theo Crystal、Glider、Theo Crystal Pedestal、Badeline Boost、Fling Bird、Wall Booster、Torch、Temple Cracked Block 和 Temple Big Eyeball 复用同一实体状态/事件通道。Theo Crystal 与 Glider 共用离散 Holdable 阶段；Player 手持外观继续由既有 PlayerFrame 数据传输，携带阶段不发送位置，投掷、移动和飞行阶段只发送低频绝对校正，释放事件携带位置和 force。Player 状态位额外携带跨房仍有效的红 Booster 状态；Watcher 用它保持 PlayerSprite 的原版泡泡动画，不创建第二套 Sprite，也不在本地启动 Booster 协程。观看副本 Theo 与 HeartGem 的碰撞不会启动本地收集协程，最终存在状态仍由 `PersistentSession` 收敛。Badeline Boost 与 Summit 上升过场动态创建的 `BadelineDummy` 使用独立运行时 ID 和低频位置/动画锚点；Ascend 背景的 Streaks/Clouds 在 Watcher 本地按权威 Manager 参数生成，`HeightDisplay` 则按生产端存在性和动画参数同步。所有这些副本都禁用 Player、Camera、Session 与音频进度副作用。Badeline Boost、Fling Bird 与 Temple Big Eyeball 的事件不会在 Watcher 端启动会控制 Player 或完成章节的 cutscene 协程。
 
+### 观战编码与缓冲区所有权
+
+`WatchSceneSnapshot` / `WatchSceneDelta` 在构造时冻结集合成员，首次发送时通过 `WatchSceneEncoding` 精确分配并缓存正文编码。缓存归属于场景对象，并发通知共享同一份正文；`SessionID`、`TargetPlayerID`、可变的 `RequestID` 与每次传输的 `TransferID` 仍由各自外壳处理。分片判断读取已编码长度，小包直接写出缓存正文，避免先试编码再重新编码。本优化不改变包 ID、线格式、采集频率或播放时序，也不用于依赖每连接字符串池的普通玩家帧。
+
+首版保留每个收件人的独立分片数组，不引入跨连接的池化缓冲租借。实体 payload 反序列化接管内部刚分配的数组，对外构造仍复制输入；接收缓冲可以安全复用。分片完成、取消、过期或解析失败时，Pending 立即解除对分片数组的引用，不让仍在等待的三秒超时任务保留正文。未完成 StartResponse 的生命周期保护与原有校验保持不变。
+
+按需诊断通过 .NET Meter `MiaoNet.WatchEncoding` 提供：`watch.scene.encoded_bodies`（实际正文编码次数）、`watch.scene.encoded_bytes`（编码正文字节，不是转发后的总流量）、`watch.scene.encoding_time`（毫秒）。没有订阅者时不采集编码耗时，也不输出逐包日志。`WatchEncodingPerformanceTests` 的编码微基准需要显式设置环境变量 `MIAONET_RUN_WATCH_BENCHMARKS=1`；它覆盖 1/5/10 位收件人与分片阈值两侧，仅衡量编码、分配和应用层字节，不包含 TLS、网络或实际游戏负载。
+
 ## 修改协议
 
 1. 在 `Packet/Packets/` 新增类型并实现对应序列化接口。

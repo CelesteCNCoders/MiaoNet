@@ -11,39 +11,45 @@ public sealed class PlayerFrameRoutingTests
     [TestMethod]
     public void OnlyActiveTargetSessionsReceiveCameraFrames()
     {
-        WatchSession inactive = new(1, 10, 20, Map, 30);
-        WatchSession active = new(2, 11, 20, Map, 31);
+        WatchSessionRegistry sessions = new();
+        WatchSession inactive = sessions.Add(10, 20, Map, 30);
+        WatchSession active = sessions.Add(11, 20, Map, 31);
         active.Activate(0);
-        WatchSession resyncing = new(3, 12, 20, Map, 32);
+        WatchSession resyncing = sessions.Add(12, 20, Map, 32);
         resyncing.Activate(0);
         Assert.AreEqual(WatchSequenceResult.Gap, resyncing.AcceptSequence(2));
-        WatchSession wrongMap = new(
-            4,
+        WatchSession wrongMap = sessions.Add(
             13,
             20,
             new PlayerMapLocation("Celeste/2-OldSite", AreaMode.Normal),
             33
         );
         wrongMap.Activate(0);
-        WatchSession restartSuspended = new(5, 14, 20, Map, 34);
+        WatchSession restartSuspended = sessions.Add(14, 20, Map, 34);
         restartSuspended.Activate(0);
         restartSuspended.SuspendForRestart(
             WatchTargetRestartKind.RestartChapter,
             2,
             TimeSpan.FromSeconds(30)
         );
-        WatchSession[] sessions = [inactive, active, resyncing, wrongMap, restartSuspended];
-
-        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, inactive.WatcherID, Map));
-        Assert.IsTrue(PlayerFrameRouting.IsActiveWatcher(sessions, active.WatcherID, Map));
-        Assert.IsTrue(PlayerFrameRouting.IsActiveWatcher(sessions, resyncing.WatcherID, Map));
-        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, wrongMap.WatcherID, Map));
+        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, 20, inactive.WatcherID, Map));
+        Assert.IsTrue(PlayerFrameRouting.IsActiveWatcher(sessions, 20, active.WatcherID, Map));
+        Assert.IsTrue(PlayerFrameRouting.IsActiveWatcher(sessions, 20, resyncing.WatcherID, Map));
+        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, 20, wrongMap.WatcherID, Map));
         Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(
             sessions,
+            20,
             restartSuspended.WatcherID,
             Map
         ));
-        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, 99, Map));
+        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, 20, 99, Map));
+        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, 21, active.WatcherID, Map));
+        Assert.IsTrue(sessions.Remove(active.ID, out _));
+        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, 20, active.WatcherID, Map));
+        WatchSession retargeted = sessions.Add(active.WatcherID, 21, Map, 35);
+        retargeted.Activate(0);
+        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, 20, active.WatcherID, Map));
+        Assert.IsTrue(PlayerFrameRouting.IsActiveWatcher(sessions, 21, active.WatcherID, Map));
     }
 
     [TestMethod]

@@ -173,14 +173,13 @@ internal static class WatchSceneFragmenter
             return false;
         }
 
-        using MemoryStream stream = new();
-        RefBinaryWriter writer = new(stream);
+        ReadOnlyMemory<byte> payload;
         int sceneSequence;
         uint playerEpoch;
         uint playerSequenceWatermark;
         if (state is WatchSceneSnapshot snapshot)
         {
-            writer.Write(snapshot);
+            payload = snapshot.EncodedPayload;
             sceneSequence = snapshot.Sequence;
             playerEpoch = snapshot.PlayerEpoch;
             playerSequenceWatermark = snapshot.PlayerSequenceWatermark;
@@ -188,13 +187,13 @@ internal static class WatchSceneFragmenter
         else
         {
             WatchSceneDelta delta = (WatchSceneDelta)state;
-            writer.Write(delta);
+            payload = delta.EncodedPayload;
             sceneSequence = delta.Sequence;
             playerEpoch = delta.PlayerEpoch;
             playerSequenceWatermark = delta.PlayerSequenceWatermark;
         }
 
-        int length = checked((int)stream.Length);
+        int length = payload.Length;
         if (length <= FragmentSize)
         {
             fragments = [];
@@ -223,7 +222,6 @@ internal static class WatchSceneFragmenter
             targetPlayerID
         );
 
-        byte[] payload = stream.GetBuffer();
         IContextualPacket[] packets = new IContextualPacket[count + 1];
         packets[0] = new PacketWatchSceneTransferStart(descriptor);
         for (int i = 0; i < count; i++)
@@ -233,7 +231,7 @@ internal static class WatchSceneFragmenter
             packets[i + 1] = new PacketWatchSceneChunk(
                 transferID,
                 (ushort)i,
-                payload.AsSpan(offset, fragmentLength).ToArray()
+                payload.Span.Slice(offset, fragmentLength).ToArray()
             );
         }
         FragmentCacheEntry cacheEntry = fragmentedPacketCache.GetValue(
@@ -306,6 +304,10 @@ internal sealed class WatchSceneTransferReceiver
         internal DateTime ExpiresAt { get; } = DateTime.UtcNow + TransferTimeout;
         internal int ReceivedCount { get; set; }
         internal int ReceivedLength { get; set; }
+
+        // ExpireAsync can retain this Pending after completion/cancellation. It
+        // must not retain the much larger fragment buffers until its delay ends.
+        internal void ReleaseFragments() => Array.Clear(Fragments);
     }
 
     private readonly Dictionary<int, Pending> pending = new();
@@ -327,9 +329,9 @@ internal sealed class WatchSceneTransferReceiver
                 return true;
             case PacketWatchSceneCancel cancel:
                 if (cancel.TransferID == 0)
-                    pending.Clear();
+                    ClearAll();
                 else
-                    pending.Remove(cancel.TransferID);
+                    RemoveTransfer(cancel.TransferID);
                 return true;
             default:
                 return false;
@@ -340,7 +342,20 @@ internal sealed class WatchSceneTransferReceiver
     internal void Clear()
     {
         lock (sync)
-            pending.Clear();
+            ClearAll();
+    }
+
+    private void ClearAll()
+    {
+        foreach (Pending transfer in pending.Values)
+            transfer.ReleaseFragments();
+        pending.Clear();
+    }
+
+    private void RemoveTransfer(int transferID)
+    {
+        if (pending.Remove(transferID, out Pending? transfer))
+            transfer.ReleaseFragments();
     }
 
     internal void ClearForTarget(int targetPlayerID)
@@ -352,7 +367,7 @@ internal sealed class WatchSceneTransferReceiver
                     && !IsRequiredCompletion(pair.Value.Descriptor))
                 .Select(pair => pair.Key)
                 .ToArray())
-                pending.Remove(transferID);
+                RemoveTransfer(transferID);
         }
     }
 
@@ -364,7 +379,7 @@ internal sealed class WatchSceneTransferReceiver
                 .Where(pair => !IsRequiredCompletion(pair.Value.Descriptor))
                 .Select(pair => pair.Key)
                 .ToArray())
-                pending.Remove(transferID);
+                RemoveTransfer(transferID);
         }
     }
 
@@ -397,39 +412,53 @@ internal sealed class WatchSceneTransferReceiver
         // lifecycle packet. They are safe to discard because no state was applied.
         if (!pending.TryGetValue(chunk.TransferID, out Pending? transfer))
             return null;
-        WatchSceneTransferDescriptor descriptor = transfer.Descriptor;
-        if (chunk.FragmentIndex >= descriptor.FragmentCount
-            || transfer.Fragments[chunk.FragmentIndex] is not null)
-            throw new InvalidDataException("Duplicate or out-of-range Watch scene fragment.");
-
-        int expectedLength = chunk.FragmentIndex + 1 == descriptor.FragmentCount
-            ? descriptor.TotalLength - chunk.FragmentIndex * WatchSceneFragmenter.FragmentSize
-            : WatchSceneFragmenter.FragmentSize;
-        if (chunk.Data.Length != expectedLength)
-            throw new InvalidDataException("Watch scene fragment length mismatch.");
-
-        transfer.Fragments[chunk.FragmentIndex] = chunk.Data;
-        transfer.ReceivedCount++;
-        transfer.ReceivedLength += chunk.Data.Length;
-        if (transfer.ReceivedCount != descriptor.FragmentCount)
-            return null;
-
-        pending.Remove(chunk.TransferID);
-        if (transfer.ReceivedLength != descriptor.TotalLength)
-            throw new InvalidDataException("Watch scene transfer total length mismatch.");
-
-        byte[] payload = new byte[descriptor.TotalLength];
-        int offset = 0;
-        foreach (byte[] fragment in transfer.Fragments!)
+        bool terminal = false;
+        try
         {
-            fragment.CopyTo(payload, offset);
-            offset += fragment.Length;
+            WatchSceneTransferDescriptor descriptor = transfer.Descriptor;
+            if (chunk.FragmentIndex >= descriptor.FragmentCount
+                || transfer.Fragments[chunk.FragmentIndex] is not null)
+                throw new InvalidDataException("Duplicate or out-of-range Watch scene fragment.");
+
+            int expectedLength = chunk.FragmentIndex + 1 == descriptor.FragmentCount
+                ? descriptor.TotalLength - chunk.FragmentIndex * WatchSceneFragmenter.FragmentSize
+                : WatchSceneFragmenter.FragmentSize;
+            if (chunk.Data.Length != expectedLength)
+                throw new InvalidDataException("Watch scene fragment length mismatch.");
+
+            transfer.Fragments[chunk.FragmentIndex] = chunk.Data;
+            transfer.ReceivedCount++;
+            transfer.ReceivedLength += chunk.Data.Length;
+            if (transfer.ReceivedCount != descriptor.FragmentCount)
+                return null;
+
+            terminal = true;
+            if (transfer.ReceivedLength != descriptor.TotalLength)
+                throw new InvalidDataException("Watch scene transfer total length mismatch.");
+
+            byte[] payload = new byte[descriptor.TotalLength];
+            int offset = 0;
+            foreach (byte[] fragment in transfer.Fragments!)
+            {
+                fragment.CopyTo(payload, offset);
+                offset += fragment.Length;
+            }
+            RefBinaryReader reader = new(payload);
+            IContextualPacket result = Reconstruct(descriptor, ref reader);
+            if (reader.BytesLeft != 0)
+                throw new InvalidDataException("Watch scene transfer has trailing bytes.");
+            return result;
         }
-        RefBinaryReader reader = new(payload);
-        IContextualPacket result = Reconstruct(descriptor, ref reader);
-        if (reader.BytesLeft != 0)
-            throw new InvalidDataException("Watch scene transfer has trailing bytes.");
-        return result;
+        catch
+        {
+            terminal = true;
+            throw;
+        }
+        finally
+        {
+            if (terminal)
+                RemoveTransfer(chunk.TransferID);
+        }
     }
 
     private static bool IsRequiredCompletion(WatchSceneTransferDescriptor descriptor)
@@ -500,7 +529,7 @@ internal sealed class WatchSceneTransferReceiver
             .Where(pair => pair.Value.ExpiresAt <= now)
             .Select(pair => pair.Key)
             .ToArray())
-            pending.Remove(transferID);
+            RemoveTransfer(transferID);
     }
 
     private async Task ExpireAsync(int transferID, Pending expected)
@@ -510,7 +539,7 @@ internal sealed class WatchSceneTransferReceiver
         {
             if (pending.TryGetValue(transferID, out Pending? current)
                 && ReferenceEquals(current, expected))
-                pending.Remove(transferID);
+                RemoveTransfer(transferID);
         }
     }
 }

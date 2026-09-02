@@ -135,13 +135,13 @@ public sealed partial class MiaoServerService
         Task otherPlayersTask = Task.CompletedTask;
         using (stateLock.AcquireReadLock())
         {
-            IReadOnlyCollection<WatchSession> targetSessions = watchSessions.GetByTarget(connection.ID);
             watcherTask = BroadcastToScopeExceptAsync(
                 notification,
                 u,
                 connection.ID,
                 candidate => PlayerFrameRouting.IsActiveWatcher(
-                    targetSessions,
+                    watchSessions,
+                    connection.ID,
                     candidate.ID,
                     u.MapLocation
                 )
@@ -150,7 +150,8 @@ public sealed partial class MiaoServerService
             bool hasOtherPlayers = u.Players.Any(candidate =>
                 candidate.ID != connection.ID
                 && !PlayerFrameRouting.IsActiveWatcher(
-                    targetSessions,
+                    watchSessions,
+                    connection.ID,
                     candidate.ID,
                     u.MapLocation
                 )
@@ -165,7 +166,8 @@ public sealed partial class MiaoServerService
                     u,
                     connection.ID,
                     candidate => !PlayerFrameRouting.IsActiveWatcher(
-                        targetSessions,
+                        watchSessions,
+                        connection.ID,
                         candidate.ID,
                         u.MapLocation
                     )

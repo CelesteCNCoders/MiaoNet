@@ -99,7 +99,7 @@ public sealed class PacketWatchStartResponse :
         {
             writer.Write(SessionID);
             writer.Write(TargetPlayerID);
-            writer.Write(Snapshot);
+            writer.WriteSpan(Snapshot.EncodedPayload.Span);
         }
     }
 
@@ -177,7 +177,7 @@ public sealed class PacketWatchSnapshotResponse :
         writer.Write(RequestID);
         writer.Write((byte)Result);
         if (IsSuccess)
-            writer.Write(Snapshot);
+            writer.WriteSpan(Snapshot.EncodedPayload.Span);
     }
 
     public static PacketWatchSnapshotResponse Deserialize(ref RefBinaryReader reader)
@@ -201,7 +201,7 @@ public sealed class PacketWatchSceneDelta : IContextlessPacket<PacketWatchSceneD
     }
 
     public void Serialize(ref RefBinaryWriter writer)
-        => writer.Write(Delta);
+        => writer.WriteSpan(Delta.EncodedPayload.Span);
 
     public static PacketWatchSceneDelta Deserialize(ref RefBinaryReader reader)
         => new(reader.Read<WatchSceneDelta>());
@@ -227,7 +227,7 @@ public sealed class PacketWatchSceneDeltaNotification : IContextlessPacket<Packe
     {
         writer.Write(SessionID);
         writer.Write(TargetPlayerID);
-        writer.Write(Delta);
+        writer.WriteSpan(Delta.EncodedPayload.Span);
     }
 
     public static PacketWatchSceneDeltaNotification Deserialize(ref RefBinaryReader reader)
@@ -281,7 +281,7 @@ public sealed class PacketWatchResyncSnapshot : IContextlessPacket<PacketWatchRe
     {
         writer.Write(SessionID);
         writer.Write(TargetPlayerID);
-        writer.Write(Snapshot);
+        writer.WriteSpan(Snapshot.EncodedPayload.Span);
     }
 
     public static PacketWatchResyncSnapshot Deserialize(ref RefBinaryReader reader)

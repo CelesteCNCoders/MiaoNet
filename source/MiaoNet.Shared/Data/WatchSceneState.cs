@@ -2,6 +2,10 @@ namespace MiaoNet.Shared;
 
 public sealed class WatchSceneSnapshot : IRefBinarySerializable<WatchSceneSnapshot>
 {
+    private WatchSceneEncoding? encoding;
+
+    internal ReadOnlyMemory<byte> EncodedPayload => WatchSceneEncoding.Get(ref encoding, this);
+
     public PlayerLocation Location { get; }
 
     public int Sequence { get; }
@@ -27,8 +31,8 @@ public sealed class WatchSceneSnapshot : IRefBinarySerializable<WatchSceneSnapsh
         Sequence = sequence;
         PlayerEpoch = playerEpoch;
         PlayerSequenceWatermark = playerSequenceWatermark;
-        Flags = flags;
-        EntityStates = entityStates;
+        Flags = WatchSceneEncoding.Freeze(flags);
+        EntityStates = WatchSceneEncoding.Freeze(entityStates);
     }
 
     public WatchSceneSnapshot(
@@ -74,6 +78,10 @@ public static class WatchSceneLifecyclePolicy
 
 public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
 {
+    private WatchSceneEncoding? encoding;
+
+    internal ReadOnlyMemory<byte> EncodedPayload => WatchSceneEncoding.Get(ref encoding, this);
+
     public int Sequence { get; }
 
     public uint PlayerEpoch { get; }
@@ -117,14 +125,14 @@ public sealed class WatchSceneDelta : IRefBinarySerializable<WatchSceneDelta>
         PlayerEpoch = playerEpoch;
         PlayerSequenceWatermark = playerSequenceWatermark;
         Location = location;
-        AddedFlags = addedFlags;
-        RemovedFlags = removedFlags;
+        AddedFlags = WatchSceneEncoding.Freeze(addedFlags);
+        RemovedFlags = WatchSceneEncoding.Freeze(removedFlags);
         RequiresRoomReload = requiresRoomReload;
         IsDeathRespawn = isDeathRespawn;
         RoomTransition = roomTransition;
         EntityStateMode = entityStateMode;
-        EntityStates = entityStates;
-        EntityEvents = entityEvents;
+        EntityStates = WatchSceneEncoding.Freeze(entityStates);
+        EntityEvents = WatchSceneEncoding.Freeze(entityEvents);
     }
 
     public WatchSceneDelta(

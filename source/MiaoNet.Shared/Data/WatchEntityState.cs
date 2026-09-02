@@ -297,9 +297,15 @@ public readonly struct WatchEntityState : IRefBinarySerializable<WatchEntityStat
         => payload ?? deferredPayload?.GetPayload() ?? ReadOnlyMemory<byte>.Empty;
 
     public WatchEntityState(WatchEntityKey key, ReadOnlySpan<byte> payload)
+        : this(key, payload.ToArray())
+    {
+    }
+
+    // Only accept arrays owned by this type; public callers retain defensive copying.
+    private WatchEntityState(WatchEntityKey key, byte[] ownedPayload)
     {
         Key = key;
-        this.payload = payload.ToArray();
+        payload = ownedPayload;
         deferredPayload = null;
     }
 
@@ -455,10 +461,15 @@ public readonly struct WatchEntityEvent : IRefBinarySerializable<WatchEntityEven
     public ReadOnlyMemory<byte> Payload => payload;
 
     public WatchEntityEvent(WatchEntityKey key, byte eventID, ReadOnlySpan<byte> payload)
+        : this(key, eventID, payload.ToArray())
+    {
+    }
+
+    private WatchEntityEvent(WatchEntityKey key, byte eventID, byte[] ownedPayload)
     {
         Key = key;
         EventID = eventID;
-        this.payload = payload.ToArray();
+        payload = ownedPayload;
     }
 
     public void Serialize(ref RefBinaryWriter writer)

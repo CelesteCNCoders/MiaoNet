@@ -5,21 +5,17 @@ namespace MiaoNet.Server;
 internal static class PlayerFrameRouting
 {
     internal static bool IsActiveWatcher(
-        IReadOnlyCollection<WatchSession> targetSessions,
+        WatchSessionRegistry sessions,
+        int targetID,
         int playerID,
         PlayerMapLocation map
     )
     {
-        foreach (WatchSession session in targetSessions)
-        {
-            if (session.IsActive
-                && !session.IsRestartSuspended
-                && session.WatcherID == playerID
-                && session.Map == map)
-                return true;
-        }
-
-        return false;
+        // The caller holds the server state lock, just as for the former scan.
+        return sessions.TryGetByWatcher(playerID, out WatchSession? session)
+            && session is { IsActive: true, IsRestartSuspended: false }
+            && session.TargetID == targetID
+            && session.Map == map;
     }
 
     internal static PacketPlayerFrame CreateWithoutCamera(PacketPlayerFrame packet)
