@@ -356,11 +356,13 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     {
         if (enabled)
         {
+            float alpha = watchFocus ? 1f : 0.96f;
             if (vertexLight is null)
-                vertexLight = new VertexLight(GetLightOffset(ducking), Color.White, 0.96f, 32, 64);
+                vertexLight = new VertexLight(GetLightOffset(ducking), Color.White, alpha, 32, 64);
 
             if (!ReferenceEquals(vertexLight.Entity, this))
                 Add(vertexLight);
+            vertexLight.Alpha = alpha;
             vertexLight.Visible = true;
         }
         else
