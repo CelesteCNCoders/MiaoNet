@@ -12,4 +12,5 @@ public enum PlayerGlobalFlags : ushort
     GroupPhotoMode = 1 << 5,
     Watching = 1 << 6,
     WatchSceneSyncSupported = 1 << 7,
+    WatchRestartContinuationSupported = 1 << 8,
 }

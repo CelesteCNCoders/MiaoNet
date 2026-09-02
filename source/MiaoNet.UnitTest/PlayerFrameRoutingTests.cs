@@ -25,12 +25,24 @@ public sealed class PlayerFrameRoutingTests
             33
         );
         wrongMap.Activate(0);
-        WatchSession[] sessions = [inactive, active, resyncing, wrongMap];
+        WatchSession restartSuspended = new(5, 14, 20, Map, 34);
+        restartSuspended.Activate(0);
+        restartSuspended.SuspendForRestart(
+            WatchTargetRestartKind.RestartChapter,
+            2,
+            TimeSpan.FromSeconds(30)
+        );
+        WatchSession[] sessions = [inactive, active, resyncing, wrongMap, restartSuspended];
 
         Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, inactive.WatcherID, Map));
         Assert.IsTrue(PlayerFrameRouting.IsActiveWatcher(sessions, active.WatcherID, Map));
         Assert.IsTrue(PlayerFrameRouting.IsActiveWatcher(sessions, resyncing.WatcherID, Map));
         Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, wrongMap.WatcherID, Map));
+        Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(
+            sessions,
+            restartSuspended.WatcherID,
+            Map
+        ));
         Assert.IsFalse(PlayerFrameRouting.IsActiveWatcher(sessions, 99, Map));
     }
 

@@ -23,6 +23,8 @@ internal static class PacketPriorityClassifier
                 or PacketPlayerChannelMovedNotification
                 or PacketPlayerLocationChangedResponse
                 or PacketPlayerChannelMovedResponse
+                or PacketWatchTargetRestarting
+                or PacketWatchTargetRestartingNotification
                 => PacketPriority.PlayerTimeline,
 
             PacketWatchSceneDelta
@@ -89,6 +91,7 @@ internal static class PlayerTimelinePacket
         case PacketPlayerLocationChanged:
         case PacketPlayerLiveState:
         case PacketPlayerChannelMove:
+        case PacketWatchTargetRestarting:
             playerKey = SelfPlayerKey;
             return true;
         case PacketPlayerLocationChangedNotification notification:
@@ -99,6 +102,9 @@ internal static class PlayerTimelinePacket
             return true;
         case PacketPlayerChannelMovedNotification notification:
             playerKey = notification.PlayerID;
+            return true;
+        case PacketWatchTargetRestartingNotification restarted:
+            playerKey = restarted.TargetPlayerID;
             return true;
         default:
             playerKey = 0;
@@ -184,6 +190,16 @@ internal static class PlayerTimelinePacket
             playerKey = notification.PlayerID;
             playerEpoch = notification.PlayerEpoch;
             playerSequence = notification.PlayerSequence;
+            return true;
+        case PacketWatchTargetRestarting restarting:
+            playerKey = SelfPlayerKey;
+            playerEpoch = restarting.PlayerEpoch;
+            playerSequence = restarting.PlayerSequence;
+            return true;
+        case PacketWatchTargetRestartingNotification restarted:
+            playerKey = restarted.TargetPlayerID;
+            playerEpoch = restarted.PlayerEpoch;
+            playerSequence = restarted.PlayerSequence;
             return true;
         default:
             playerKey = 0;

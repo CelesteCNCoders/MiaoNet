@@ -64,6 +64,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         context.WatchSnapshotRequested += Context_WatchSnapshotRequested;
         context.WatchSceneDeltaReceived += Context_WatchSceneDeltaReceived;
         context.WatchResyncSnapshotReceived += Context_WatchResyncSnapshotReceived;
+        context.WatchTargetRestarting += Context_WatchTargetRestarting;
         context.WatchProducerStopped += Context_WatchProducerStopped;
         context.WatchEnded += Context_WatchEnded;
 
@@ -71,6 +72,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         MiaoNetModule.PlayerSoundPlayed += MiaoNetModule_PlayerSoundPlayed;
         MiaoNetModule.PlayerDied += MiaoNetModule_PlayerDied;
         MiaoNetModule.PlayerDeathWipeStarted += MiaoNetModule_PlayerDeathWipeStarted;
+        MiaoNetModule.PlayerWatchTargetRestarting += MiaoNetModule_PlayerWatchTargetRestarting;
         MiaoNetModule.PreviewPlayerRespawn += MiaoNetModule_PreviewPlayerRespawn;
         MiaoNetModule.PlayerRoomTransition += MiaoNetModule_PlayerRoomTransition;
         WatchEntitySyncRegistry.EventProduced += WatchEntitySyncRegistry_EventProduced;
@@ -78,7 +80,8 @@ public sealed partial class MainComponent : MiaoNetComponent
 
     public override void OnConnected()
     {
-        ClientState.Self.GlobalFlags |= PlayerGlobalFlags.WatchSceneSyncSupported;
+        ClientState.Self.GlobalFlags |= PlayerGlobalFlags.WatchSceneSyncSupported
+            | PlayerGlobalFlags.WatchRestartContinuationSupported;
         context.QueuePacket(new PacketUpdateGlobalFlag(ClientState.Self.GlobalFlags));
 
         if (Engine.Scene is Level level)
@@ -128,6 +131,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.Watching, playerWatching is not null);
             globalFlags = WithFlag(globalFlags, PlayerGlobalFlags.TakingGolden, level?.Session.GrabbedGolden == true);
             globalFlags |= PlayerGlobalFlags.WatchSceneSyncSupported;
+            globalFlags |= PlayerGlobalFlags.WatchRestartContinuationSupported;
             if (previousGlobalFlags != globalFlags)
             {
                 self.GlobalFlags = globalFlags;

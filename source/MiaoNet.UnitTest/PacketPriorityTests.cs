@@ -27,6 +27,25 @@ public sealed class PacketPriorityTests
         );
         Assert.AreEqual(
             PacketPriority.PlayerTimeline,
+            PacketPriorityClassifier.Classify(new PacketWatchTargetRestarting(
+                1,
+                2,
+                2,
+                WatchTargetRestartKind.RestartChapter
+            ))
+        );
+        Assert.AreEqual(
+            PacketPriority.PlayerTimeline,
+            PacketPriorityClassifier.Classify(new PacketWatchTargetRestartingNotification(
+                1,
+                2,
+                1,
+                2,
+                WatchTargetRestartKind.RestartChapter
+            ))
+        );
+        Assert.AreEqual(
+            PacketPriority.PlayerTimeline,
             PacketPriorityClassifier.Classify(
                 new PacketContextualPlayerNotification<PacketPlayerFrame>(1, CreatePlayerFrame())
             )
@@ -272,6 +291,29 @@ public sealed class PacketPriorityTests
         AssertDequeueSame(queue, oldFrame);
         AssertDequeueSame(queue, barrier);
         AssertDequeueSame(queue, newFrame);
+    }
+
+    [TestMethod]
+    public void RestartIntentStaysBetweenTheLastFrameAndEmptyLocationBarrier()
+    {
+        ConcurrentPacketPriorityQueue<IContextualPacket> queue = new();
+        PlayerState state = CreateState(Vector2.One, 1);
+        PacketPlayerFrame frame = CreateCoalescibleFrame(7, 3, state);
+        PacketWatchTargetRestarting restarting = new(
+            7,
+            4,
+            8,
+            WatchTargetRestartKind.RestartChapter
+        );
+        PacketPlayerLocationChanged empty = new(8, 0, PlayerLocation.Empty, null);
+
+        queue.Enqueue(PacketPriority.PlayerTimeline, frame);
+        queue.Enqueue(PacketPriority.PlayerTimeline, restarting);
+        queue.Enqueue(PacketPriority.PlayerTimeline, empty);
+
+        AssertDequeueSame(queue, frame);
+        AssertDequeueSame(queue, restarting);
+        AssertDequeueSame(queue, empty);
     }
 
     [TestMethod]

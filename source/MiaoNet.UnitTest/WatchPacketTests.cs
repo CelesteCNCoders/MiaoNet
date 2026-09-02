@@ -126,6 +126,22 @@ public sealed class WatchPacketTests
         PacketWatchEnded readEnded = await RoundTripAsync(
             new PacketWatchEnded(1, WatchEndReason.LocationChanged)
         );
+        PacketWatchTargetRestarting readRestarting = await RoundTripAsync(
+            new PacketWatchTargetRestarting(
+                4,
+                12,
+                5,
+                WatchTargetRestartKind.GoldenBerryRestart
+            )
+        );
+        PacketWatchTargetRestartingNotification readRestartingNotification =
+            await RoundTripAsync(new PacketWatchTargetRestartingNotification(
+                1,
+                2,
+                4,
+                12,
+                WatchTargetRestartKind.GoldenBerryRestart
+            ));
 
         AssertDelta(delta, readDelta.Delta);
         AssertDelta(transitionDelta, readTransitionDelta.Delta);
@@ -145,6 +161,18 @@ public sealed class WatchPacketTests
         Assert.AreEqual(1, readProducerStop.SessionID);
         Assert.AreEqual(1, readEnded.SessionID);
         Assert.AreEqual(WatchEndReason.LocationChanged, readEnded.Reason);
+        Assert.AreEqual((uint)4, readRestarting.PlayerEpoch);
+        Assert.AreEqual((uint)12, readRestarting.PlayerSequence);
+        Assert.AreEqual((uint)5, readRestarting.EmptyLocationEpoch);
+        Assert.AreEqual(WatchTargetRestartKind.GoldenBerryRestart, readRestarting.Kind);
+        Assert.AreEqual(1, readRestartingNotification.SessionID);
+        Assert.AreEqual(2, readRestartingNotification.TargetPlayerID);
+        Assert.AreEqual((uint)4, readRestartingNotification.PlayerEpoch);
+        Assert.AreEqual((uint)12, readRestartingNotification.PlayerSequence);
+        Assert.AreEqual(
+            WatchTargetRestartKind.GoldenBerryRestart,
+            readRestartingNotification.Kind
+        );
     }
 
     [TestMethod]

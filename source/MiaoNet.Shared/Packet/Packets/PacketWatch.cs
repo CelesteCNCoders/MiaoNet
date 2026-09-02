@@ -31,6 +31,12 @@ public enum WatchEndReason : byte
     InvalidSession
 }
 
+public enum WatchTargetRestartKind : byte
+{
+    RestartChapter,
+    GoldenBerryRestart,
+}
+
 // client to server
 public sealed class PacketWatchStart :
     PacketRequest<PacketWatchStartResponse>,
@@ -337,4 +343,93 @@ public sealed class PacketWatchEnded : IContextlessPacket<PacketWatchEnded>
 
     public static PacketWatchEnded Deserialize(ref RefBinaryReader reader)
         => new(reader.ReadInt32(), (WatchEndReason)reader.ReadByte());
+}
+
+// watched client to server
+public sealed class PacketWatchTargetRestarting : IContextlessPacket<PacketWatchTargetRestarting>
+{
+    public uint PlayerEpoch { get; }
+
+    public uint PlayerSequence { get; }
+
+    public uint EmptyLocationEpoch { get; }
+
+    public WatchTargetRestartKind Kind { get; }
+
+    public PacketWatchTargetRestarting(
+        uint playerEpoch,
+        uint playerSequence,
+        uint emptyLocationEpoch,
+        WatchTargetRestartKind kind
+    )
+    {
+        PlayerEpoch = playerEpoch;
+        PlayerSequence = playerSequence;
+        EmptyLocationEpoch = emptyLocationEpoch;
+        Kind = kind;
+    }
+
+    public void Serialize(ref RefBinaryWriter writer)
+    {
+        writer.Write(PlayerEpoch);
+        writer.Write(PlayerSequence);
+        writer.Write(EmptyLocationEpoch);
+        writer.Write((byte)Kind);
+    }
+
+    public static PacketWatchTargetRestarting Deserialize(ref RefBinaryReader reader)
+        => new(
+            reader.ReadUInt32(),
+            reader.ReadUInt32(),
+            reader.ReadUInt32(),
+            (WatchTargetRestartKind)reader.ReadByte()
+        );
+}
+
+// server to watcher
+public sealed class PacketWatchTargetRestartingNotification :
+    IContextlessPacket<PacketWatchTargetRestartingNotification>
+{
+    public int SessionID { get; }
+
+    public int TargetPlayerID { get; }
+
+    public uint PlayerEpoch { get; }
+
+    public uint PlayerSequence { get; }
+
+    public WatchTargetRestartKind Kind { get; }
+
+    public PacketWatchTargetRestartingNotification(
+        int sessionID,
+        int targetPlayerID,
+        uint playerEpoch,
+        uint playerSequence,
+        WatchTargetRestartKind kind
+    )
+    {
+        SessionID = sessionID;
+        TargetPlayerID = targetPlayerID;
+        PlayerEpoch = playerEpoch;
+        PlayerSequence = playerSequence;
+        Kind = kind;
+    }
+
+    public void Serialize(ref RefBinaryWriter writer)
+    {
+        writer.Write(SessionID);
+        writer.Write(TargetPlayerID);
+        writer.Write(PlayerEpoch);
+        writer.Write(PlayerSequence);
+        writer.Write((byte)Kind);
+    }
+
+    public static PacketWatchTargetRestartingNotification Deserialize(ref RefBinaryReader reader)
+        => new(
+            reader.ReadInt32(),
+            reader.ReadInt32(),
+            reader.ReadUInt32(),
+            reader.ReadUInt32(),
+            (WatchTargetRestartKind)reader.ReadByte()
+        );
 }

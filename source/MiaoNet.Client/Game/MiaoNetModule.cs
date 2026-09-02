@@ -56,6 +56,8 @@ public sealed class MiaoNetModule : EverestModule
 
     public static event Action? PlayerDeathWipeStarted;
 
+    public static event Action<WatchTargetRestartKind>? PlayerWatchTargetRestarting;
+
     public delegate void PreviewPlayerRespawnHandler(Player player, Level level, bool fromSL);
     public static event PreviewPlayerRespawnHandler? PreviewPlayerRespawn;
 
@@ -620,8 +622,25 @@ public sealed class MiaoNetModule : EverestModule
         }
     }
 
-    private static void Level_OnExit(Level level, LevelExit exit, LevelExit.Mode mode, Session session, HiresSnow snow)
-        => PlayerLocationChanged?.Invoke(PlayerLocation.Empty, true);
+    private static void Level_OnExit(
+        Level level,
+        LevelExit exit,
+        LevelExit.Mode mode,
+        Session session,
+        HiresSnow snow
+    )
+    {
+        WatchTargetRestartKind? restartKind = mode switch
+        {
+            LevelExit.Mode.Restart => WatchTargetRestartKind.RestartChapter,
+            LevelExit.Mode.GoldenBerryRestart => WatchTargetRestartKind.GoldenBerryRestart,
+            _ => null,
+        };
+        if (restartKind is { } kind)
+            PlayerWatchTargetRestarting?.Invoke(kind);
+
+        PlayerLocationChanged?.Invoke(PlayerLocation.Empty, true);
+    }
 
     private static PlayerDeadBody? Player_Die(On.Celeste.Player.orig_Die orig, Player self, Vector2 direction, bool evenIfInvincible, bool registerDeathInStats)
     {

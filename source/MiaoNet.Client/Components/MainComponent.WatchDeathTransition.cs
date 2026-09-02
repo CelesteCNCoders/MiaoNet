@@ -96,9 +96,12 @@ public sealed partial class MainComponent
             // A PlayerSeeker Void ending is a death followed by a direct room
             // load. Preserve the death state while the normal watch room
             // transition catches up instead of discarding its respawn packet.
-            if (watchDeathRoomUnloaded)
-                CancelWatchDeathTransition(level);
-            return false;
+            if (watchTargetRestartKind is null)
+            {
+                if (watchDeathRoomUnloaded)
+                    CancelWatchDeathTransition(level);
+                return false;
+            }
         }
 
         if (TryCompleteWatchCrossRoomRespawn(level))
@@ -322,8 +325,7 @@ public sealed partial class MainComponent
 
     private void LoadWatchDeathRespawnSceneState(Level level)
     {
-        if (watchEntityStates is null
-            || PlayerLocation.FetchFrom(level.Session) != watchEntityLocation)
+        if (watchEntityStates is null)
         {
             Logger.Warn(
                 LT.MiaoNetWatch,
@@ -336,12 +338,27 @@ public sealed partial class MainComponent
 
         WatchEntityState[] states = watchEntityStates.Values.ToArray();
         WatchEntityKey persistentSessionKey = new(WatchEntityKind.PersistentSession, 0);
-        bool sessionPrepared = watchEntityStates.TryGetValue(
+        bool hasPersistentSession = watchEntityStates.TryGetValue(
             persistentSessionKey,
             out WatchEntityState persistentSessionState
-        ) && WatchPersistentSessionAdapter.TryApplySessionState(level, persistentSessionState);
+        );
+        string previousRoom = level.Session.Level;
+        if (hasPersistentSession && watchTargetRestartKind is not null)
+        {
+            // Chapter/golden restarts replace the target Level outright, so the
+            // Watcher never receives the ordinary room transition that would
+            // update Session.Level. Point the unloaded session at the snapshot
+            // room before applying its room-scoped persistent IDs and respawn.
+            level.Session.Level = watchEntityLocation.Room;
+        }
+        bool sessionPrepared = hasPersistentSession
+            && WatchPersistentSessionAdapter.TryApplySessionState(
+                level,
+                persistentSessionState
+            );
         if (!sessionPrepared)
         {
+            level.Session.Level = previousRoom;
             Logger.Warn(
                 LT.MiaoNetWatch,
                 $"Kept the watched death respawn lightweight because its authoritative " +
@@ -453,5 +470,8 @@ public sealed partial class MainComponent
         watchDeathRespawnLocation = default;
         watchDeathWipe = null;
         watchDeathRoomUnloaded = false;
+        watchTargetRestartPending = false;
+        watchTargetRestartSuspended = false;
+        watchTargetRestartKind = null;
     }
 }

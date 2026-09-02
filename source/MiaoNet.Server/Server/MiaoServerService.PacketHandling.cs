@@ -26,6 +26,7 @@ public sealed partial class MiaoServerService
         r.Register<PacketWatchStart>(HandlePacketAsync);
         r.Register<PacketWatchSceneDelta>(HandlePacketAsync);
         r.Register<PacketWatchResyncRequest>(HandlePacketAsync);
+        r.Register<PacketWatchTargetRestarting>(HandlePacketAsync);
         r.Register<PacketWatchStop>(HandlePacketAsync);
         r.Register<PacketWatchProducerStop>(HandlePacketAsync);
     }
@@ -195,18 +196,60 @@ public sealed partial class MiaoServerService
             return;
         }
 
-        if (oldLocation != newLocation)
+        HashSet<int> continuingRestartWatchers = [];
+        bool requestRestartResync = false;
+        if (oldLocation != newLocation && oldLocation.Map != newLocation.Map)
         {
-            bool targetMapChanged;
-            bool watcherMapChanged;
-            using (stateLock.AcquireReadLock())
+            List<(MiaoClientConnection Connection, IContextualPacket Packet)> notifications = [];
+            int removedCount = 0;
+            using (stateLock.AcquireWriteLock())
             {
-                bool mapChanged = oldLocation.Map != newLocation.Map;
-                targetMapChanged = mapChanged && watchSessions.HasTarget(connection.ID);
-                watcherMapChanged = mapChanged && watchSessions.HasWatcher(connection.ID);
+                HashSet<int> removeSessionIDs = [];
+                if (watchSessions.TryGetByWatcher(connection.ID, out WatchSession? watchedSession)
+                    && watchedSession is not null)
+                    removeSessionIDs.Add(watchedSession.ID);
+
+                foreach (WatchSession session in watchSessions.GetByTarget(connection.ID))
+                {
+                    if (session.CanContinueRestartAt(
+                        newLocation,
+                        packet.PlayerEpoch,
+                        out bool beginResync
+                    ))
+                    {
+                        continuingRestartWatchers.Add(session.WatcherID);
+                        if (beginResync)
+                        {
+                            session.BeginRestartResync();
+                            requestRestartResync = true;
+                        }
+                    }
+                    else
+                        removeSessionIDs.Add(session.ID);
+                }
+
+                foreach (int sessionID in removeSessionIDs)
+                {
+                    if (!watchSessions.Remove(sessionID, out WatchSession? removedSession)
+                        || removedSession is null)
+                        continue;
+
+                    removedCount++;
+                    AddWatchSessionEndNotificationsLocked(
+                        removedSession,
+                        WatchEndReason.LocationChanged,
+                        notifications
+                    );
+                }
             }
-            if (targetMapChanged || watcherMapChanged)
-                await EndWatchSessionsForPlayerAsync(connection, WatchEndReason.LocationChanged, false);
+
+            await SendWatchSessionEndNotificationsAsync(
+                connection,
+                WatchEndReason.LocationChanged,
+                false,
+                removedCount,
+                notifications
+            );
         }
         logger.LogDebug(
             AppEvents.GameState,
@@ -230,7 +273,8 @@ public sealed partial class MiaoServerService
                         null
                     ),
                     player.Channel,
-                    connection.ID
+                    connection.ID,
+                    candidate => !continuingRestartWatchers.Contains(candidate.ID)
                 );
 
                 // if the player is going to debug map
@@ -336,6 +380,8 @@ public sealed partial class MiaoServerService
         await generalTask;
         await withStateTask;
         await responseTask;
+        if (requestRestartResync)
+            await RequestWatchResyncSnapshotAsync(connection.ID);
     }
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerChannelMove packet)
@@ -1146,6 +1192,152 @@ public sealed partial class MiaoServerService
 
     private async Task HandlePacketAsync(
         MiaoClientConnection connection,
+        PacketWatchTargetRestarting packet
+    )
+    {
+        ServerPlayer player = connection.Player;
+        if (packet.PlayerEpoch < player.PlayerEpoch
+            || (packet.PlayerEpoch == player.PlayerEpoch
+                && packet.PlayerSequence <= player.LastPlayerSequence))
+            return;
+
+        bool valid = player.Location.IsInMap
+            && player.State is not null
+            && WatchProtocolCompatibility.SupportsWatchRestartContinuation(
+                ServerFeatureFlags.WatchSceneSync | ServerFeatureFlags.WatchRestartContinuation,
+                player.GlobalFlags
+            )
+            && Enum.IsDefined(packet.Kind)
+            && packet.PlayerEpoch == player.PlayerEpoch
+            && packet.PlayerSequence == PlayerTimelineSequence.Next(player.LastPlayerSequence)
+            && packet.EmptyLocationEpoch == PlayerTimelineSequence.Next(packet.PlayerEpoch);
+        if (!valid)
+        {
+            logger.LogWarning(
+                AppEvents.Watch,
+                "Player {target} sent an invalid watched-target restart intent at {epoch}:{sequence}.",
+                connection.ID,
+                packet.PlayerEpoch,
+                packet.PlayerSequence
+            );
+            await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
+            return;
+        }
+
+        List<(MiaoClientConnection Watcher, WatchSession Session)> recipients = [];
+        TimeSpan expiresAt = stopwatch.Elapsed + WatchRestartContinuationTimeout;
+        using (stateLock.AcquireWriteLock())
+        {
+            player.LastPlayerSequence = packet.PlayerSequence;
+            foreach (WatchSession session in watchSessions.GetByTarget(connection.ID))
+            {
+                if (!session.IsActive
+                    || !serverState.Players.TryGetValue(
+                        session.WatcherID,
+                        out MiaoClientConnection? watcher
+                    )
+                    || !WatchProtocolCompatibility.SupportsWatchRestartContinuation(
+                        ServerFeatureFlags.WatchSceneSync
+                            | ServerFeatureFlags.WatchRestartContinuation,
+                        watcher.Player.GlobalFlags
+                    ))
+                    continue;
+
+                session.SuspendForRestart(
+                    packet.Kind,
+                    packet.EmptyLocationEpoch,
+                    expiresAt
+                );
+                recipients.Add((watcher, session));
+            }
+
+            if (recipients.Count > 0)
+                watchResyncCoordinator.Complete(connection.ID);
+        }
+
+        foreach ((MiaoClientConnection watcher, WatchSession session) in recipients)
+        {
+            await watcher.QueuePacketAsync(new PacketWatchTargetRestartingNotification(
+                session.ID,
+                connection.ID,
+                packet.PlayerEpoch,
+                packet.PlayerSequence,
+                packet.Kind
+            ));
+        }
+
+        if (recipients.Count == 0)
+            return;
+
+        logger.LogInformation(
+            AppEvents.Watch,
+            "Suspended {count} watch session(s) while target {target} performs {kind}.",
+            recipients.Count,
+            connection.ID,
+            packet.Kind
+        );
+        _ = ExpireWatchRestartContinuationAfterDelayAsync(
+            connection.ID,
+            packet.EmptyLocationEpoch,
+            WatchRestartContinuationTimeout
+        );
+    }
+
+    private async Task ExpireWatchRestartContinuationAfterDelayAsync(
+        int targetID,
+        uint emptyLocationEpoch,
+        TimeSpan delay
+    )
+    {
+        try
+        {
+            await Task.Delay(delay);
+            List<(MiaoClientConnection Connection, IContextualPacket Packet)> notifications = [];
+            int removedCount = 0;
+            using (stateLock.AcquireWriteLock())
+            {
+                foreach (WatchSession session in watchSessions.GetByTarget(targetID).ToArray())
+                {
+                    if (!session.IsRestartExpired(stopwatch.Elapsed, emptyLocationEpoch)
+                        || !watchSessions.Remove(session.ID, out WatchSession? removedSession)
+                        || removedSession is null)
+                        continue;
+
+                    removedCount++;
+                    AddWatchSessionEndNotificationsLocked(
+                        removedSession,
+                        WatchEndReason.LocationChanged,
+                        notifications
+                    );
+                }
+            }
+
+            foreach ((MiaoClientConnection recipient, IContextualPacket notification) in notifications)
+                await recipient.QueuePacketAsync(notification);
+
+            if (removedCount > 0)
+            {
+                logger.LogInformation(
+                    AppEvents.Watch,
+                    "Expired {count} suspended watch session(s) for target {target}.",
+                    removedCount,
+                    targetID
+                );
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(
+                AppEvents.Watch,
+                exception,
+                "Could not expire suspended watch sessions for target {target}.",
+                targetID
+            );
+        }
+    }
+
+    private async Task HandlePacketAsync(
+        MiaoClientConnection connection,
         PacketWatchResyncRequest packet
     )
     {
@@ -1520,6 +1712,30 @@ public sealed partial class MiaoServerService
             }
         }
         return sessions.Count;
+    }
+
+    private void AddWatchSessionEndNotificationsLocked(
+        WatchSession session,
+        WatchEndReason reason,
+        List<(MiaoClientConnection Connection, IContextualPacket Packet)> notifications
+    )
+    {
+        if (serverState.Players.TryGetValue(session.TargetID, out MiaoClientConnection? target))
+            notifications.Add((target, new PacketWatchProducerStop(session.ID)));
+
+        if (!serverState.Players.TryGetValue(
+            session.WatcherID,
+            out MiaoClientConnection? watcher
+        ))
+            return;
+
+        IContextualPacket packet = session.IsActive
+            ? new PacketWatchEnded(session.ID, reason)
+            : new PacketWatchStartResponse(WatchStartResult.TargetUnavailable, 0, null)
+            {
+                RequestID = session.StartRequestID
+            };
+        notifications.Add((watcher, packet));
     }
 
     private async Task SendWatchSessionEndNotificationsAsync(

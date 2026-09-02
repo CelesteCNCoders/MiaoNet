@@ -12,7 +12,10 @@ internal static class PlayerFrameRouting
     {
         foreach (WatchSession session in targetSessions)
         {
-            if (session.IsActive && session.WatcherID == playerID && session.Map == map)
+            if (session.IsActive
+                && !session.IsRestartSuspended
+                && session.WatcherID == playerID
+                && session.Map == map)
                 return true;
         }
 

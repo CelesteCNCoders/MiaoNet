@@ -40,6 +40,8 @@ public sealed class WatchProtocolCompatibilityTests
             typeof(PacketWatchSceneTransferStart),
             typeof(PacketWatchSceneChunk),
             typeof(PacketWatchSceneCancel),
+            typeof(PacketWatchTargetRestarting),
+            typeof(PacketWatchTargetRestartingNotification),
         ];
         int lastUpstreamPacket = Array.IndexOf(registry.Types, typeof(PacketChannelCreated));
 
@@ -54,7 +56,8 @@ public sealed class WatchProtocolCompatibilityTests
     public void PacketUpdateGlobalFlagPreservesUShortFlags()
     {
         PlayerGlobalFlags expected = PlayerGlobalFlags.Watching
-            | PlayerGlobalFlags.WatchSceneSyncSupported;
+            | PlayerGlobalFlags.WatchSceneSyncSupported
+            | PlayerGlobalFlags.WatchRestartContinuationSupported;
         using MemoryStream stream = new();
         RefBinaryWriter writer = new(stream);
         new PacketUpdateGlobalFlag(expected).Serialize(ref writer);
@@ -102,6 +105,7 @@ public sealed class WatchProtocolCompatibilityTests
             new PlayerPresenceMessage("joined", "left"),
             "hello",
             ServerFeatureFlags.WatchSceneSync
+                | ServerFeatureFlags.WatchRestartContinuation
         );
         using MemoryStream stream = new();
         RefBinaryWriter writer = new(stream);
@@ -120,7 +124,11 @@ public sealed class WatchProtocolCompatibilityTests
         RefBinaryReader reader = new(stream.ToArray());
         PacketClientInitial actual = PacketClientInitial.Deserialize(ref reader);
 
-        Assert.AreEqual(ServerFeatureFlags.WatchSceneSync, actual.ServerFeatures);
+        Assert.AreEqual(
+            ServerFeatureFlags.WatchSceneSync
+                | ServerFeatureFlags.WatchRestartContinuation,
+            actual.ServerFeatures
+        );
         Assert.AreEqual(0, reader.BytesLeft);
     }
 
@@ -181,6 +189,27 @@ public sealed class WatchProtocolCompatibilityTests
         Assert.IsFalse(WatchProtocolCompatibility.CanUseWatchSceneSync(
             server,
             supported,
+            PlayerGlobalFlags.None
+        ));
+    }
+
+    [TestMethod]
+    public void RestartContinuationRequiresItsServerAndClientCapabilityBits()
+    {
+        const PlayerGlobalFlags client =
+            PlayerGlobalFlags.WatchRestartContinuationSupported;
+        const ServerFeatureFlags server = ServerFeatureFlags.WatchRestartContinuation;
+
+        Assert.IsTrue(WatchProtocolCompatibility.SupportsWatchRestartContinuation(
+            server,
+            client
+        ));
+        Assert.IsFalse(WatchProtocolCompatibility.SupportsWatchRestartContinuation(
+            ServerFeatureFlags.None,
+            client
+        ));
+        Assert.IsFalse(WatchProtocolCompatibility.SupportsWatchRestartContinuation(
+            server,
             PlayerGlobalFlags.None
         ));
     }

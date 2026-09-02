@@ -21,6 +21,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
     private static readonly ArrayPool<byte> pool = ArrayPool<byte>.Shared;
     private static readonly TimeSpan WatchResyncRequestTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan WatcherResyncCooldown = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan WatchRestartContinuationTimeout = TimeSpan.FromSeconds(30);
 
     private readonly ILogger<MiaoServerService> logger;
     private readonly MiaoClientConnectionFactory connectionFactory;
@@ -164,6 +165,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                     new(strings.PlayerJoined, strings.PlayerLeft),
                     strings.PlayerJoinMessage,
                     ServerFeatureFlags.WatchSceneSync
+                        | ServerFeatureFlags.WatchRestartContinuation
                 );
 
                 // then send
@@ -388,7 +390,8 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
             or PacketPlayerChannelMove
             or PacketWatchStop
             or PacketWatchProducerStop
-            or PacketWatchResyncRequest)
+            or PacketWatchResyncRequest
+            or PacketWatchTargetRestarting)
             connection.ClearWatchSceneTransfers();
 
         try

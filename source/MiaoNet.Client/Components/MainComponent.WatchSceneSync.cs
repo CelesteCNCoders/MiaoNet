@@ -20,6 +20,30 @@ public sealed partial class MainComponent
     private PlayerLocation? watchProducerDeathRespawnLocation;
     private WatchRoomTransition? watchProducerPendingRoomTransition;
 
+    private void MiaoNetModule_PlayerWatchTargetRestarting(WatchTargetRestartKind kind)
+    {
+        if (watchProducerSessions.Count == 0
+            || !WatchProtocolCompatibility.SupportsWatchRestartContinuation(
+                context.ServerFeatures,
+                ClientState.Self.GlobalFlags
+            ))
+            return;
+
+        uint sequence = NextPlayerSequence();
+        uint emptyLocationEpoch = PlayerTimelineSequence.Next(playerEpoch);
+        context.QueuePacket(new PacketWatchTargetRestarting(
+            playerEpoch,
+            sequence,
+            emptyLocationEpoch,
+            kind
+        ));
+        Logger.Info(
+            LT.MiaoNetWatch,
+            $"Announced watched target restart {kind} at {playerEpoch}:{sequence}; " +
+            $"empty epoch={emptyLocationEpoch}."
+        );
+    }
+
     private void Context_WatchSnapshotRequested(PacketWatchSnapshotRequest request)
     {
         if (Engine.Scene is not Level level)

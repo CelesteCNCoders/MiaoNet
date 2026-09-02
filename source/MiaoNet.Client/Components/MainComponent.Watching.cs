@@ -22,6 +22,7 @@ public sealed partial class MainComponent
     {
         PauseChanged,
         LiveState,
+        TargetRestarting,
     }
 
     private readonly record struct WatchPlayerPresentationEvent(
@@ -30,7 +31,8 @@ public sealed partial class MainComponent
         uint PlayerSequence,
         bool Paused,
         LiveStateType LiveState,
-        Vector2 Value
+        Vector2 Value,
+        WatchTargetRestartKind RestartKind = default
     );
 
     private int? watchSessionID;
@@ -74,6 +76,9 @@ public sealed partial class MainComponent
     private readonly WatchPlaybackQueue<WatchPlayerPresentationEvent> watchPlayerEventBuffer =
         new(WatchPlaybackQueueCapacity);
     private PlayerLocation watchReceivedEntityLocation;
+    private bool watchTargetRestartPending;
+    private bool watchTargetRestartSuspended;
+    private WatchTargetRestartKind? watchTargetRestartKind;
 
     public bool WatchRequestPending { get; private set; }
 
@@ -92,7 +97,9 @@ public sealed partial class MainComponent
         watchCameraApplyAfterLevelUpdate = false;
         if (playerWatching is not null)
         {
-            if (playerWatching.State is null)
+            if (playerWatching.State is null
+                && !watchTargetRestartPending
+                && !watchTargetRestartSuspended)
             {
                 StopWatching();
                 return;
@@ -121,6 +128,12 @@ public sealed partial class MainComponent
 
             player.Visible = false;
             player.StateMachine.State = Player.StFrozen;
+            if (watchTargetRestartSuspended)
+            {
+                if (UpdateWatchDeathTransition(level))
+                    ApplyPendingWatchEntityEvents(level);
+                return;
+            }
             if (watchResyncPending)
                 return;
 
@@ -283,6 +296,7 @@ public sealed partial class MainComponent
 
     private void ApplyWatchSnapshot(Level level, WatchSceneSnapshot snapshot, bool isResync)
     {
+        bool completesTargetRestart = isResync && watchTargetRestartSuspended;
         ReplaceFlags(level.Session.Flags, snapshot.Flags);
         watchMap = snapshot.Location.Map;
         lastWatchSequence = snapshot.Sequence;
@@ -316,7 +330,20 @@ public sealed partial class MainComponent
         watchResyncPending = false;
         pendingWatchResyncSnapshot = null;
         InvalidateBufferedWatchCamera(awaitFreshSample: isResync);
-        CancelWatchDeathTransition(level);
+        if (completesTargetRestart)
+        {
+            watchTargetRestartSuspended = false;
+            if (playerWatching?.State is { } state)
+            {
+                BufferWatchRespawnNotification(
+                    state.Position,
+                    watchTargetRestartKind == WatchTargetRestartKind.RestartChapter
+                );
+            }
+            MarkWatchDeathRespawnStateReady(snapshot.Location);
+        }
+        else
+            CancelWatchDeathTransition(level);
     }
 
     public OnlinePlayer? StopWatching(bool notifyServer = true)
@@ -352,6 +379,9 @@ public sealed partial class MainComponent
         watchReceivedPlayerEpoch.Reset();
         watchResyncPending = false;
         pendingWatchResyncSnapshot = null;
+        watchTargetRestartPending = false;
+        watchTargetRestartSuspended = false;
+        watchTargetRestartKind = null;
         watchMap = default;
         watchEntityLocation = default;
         watchReceivedEntityLocation = default;
@@ -412,7 +442,10 @@ public sealed partial class MainComponent
             || playerWatching?.ID != packet.TargetPlayerID)
             return;
 
-        if (packet.Delta.Sequence <= lastWatchReceivedSequence || watchResyncPending)
+        if (packet.Delta.Sequence <= lastWatchReceivedSequence
+            || watchResyncPending
+            || watchTargetRestartPending
+            || watchTargetRestartSuspended)
             return;
 
         if (!watchReceivedPlayerEpoch.CanAccept(
@@ -578,15 +611,17 @@ public sealed partial class MainComponent
             return;
         }
 
-        watchResyncPending = true;
+        if (!watchTargetRestartPending)
+            watchResyncPending = true;
         pendingWatchResyncSnapshot = packet.Snapshot;
-        if (Engine.Scene is Level level)
+        if (!watchTargetRestartPending && Engine.Scene is Level level)
             ApplyPendingWatchResyncSnapshot(level);
     }
 
     private void ApplyPendingWatchResyncSnapshot(Level level)
     {
         if (pendingWatchResyncSnapshot is not { } snapshot
+            || (watchTargetRestartPending && !watchTargetRestartSuspended)
             || PlayerLocation.FetchFrom(level.Session).Map != watchMap)
             return;
 
@@ -943,7 +978,11 @@ public sealed partial class MainComponent
         PlayerStateDelta delta
     )
     {
-        if (!WatchSceneSyncActive || watchResyncPending || playerWatching?.ID != player.ID)
+        if (!WatchSceneSyncActive
+            || watchResyncPending
+            || watchTargetRestartPending
+            || watchTargetRestartSuspended
+            || playerWatching?.ID != player.ID)
             return;
 
         WatchPlaybackEnqueueResult result = watchPlayerFrameBuffer.Enqueue(
@@ -963,7 +1002,10 @@ public sealed partial class MainComponent
 
     private void BufferWatchPlayerPause(bool paused)
     {
-        if (!WatchSceneSyncActive || watchResyncPending)
+        if (!WatchSceneSyncActive
+            || watchResyncPending
+            || watchTargetRestartPending
+            || watchTargetRestartSuspended)
             return;
 
         WatchPlaybackEnqueueResult result = watchPlayerEventBuffer.Enqueue(
@@ -983,7 +1025,10 @@ public sealed partial class MainComponent
 
     private void BufferWatchPlayerLiveState(PacketPlayerLiveState packet)
     {
-        if (!WatchSceneSyncActive || watchResyncPending)
+        if (!WatchSceneSyncActive
+            || watchResyncPending
+            || watchTargetRestartPending
+            || watchTargetRestartSuspended)
             return;
 
         WatchPlaybackEnqueueResult result = watchPlayerEventBuffer.Enqueue(
@@ -1157,7 +1202,64 @@ public sealed partial class MainComponent
         }
         watchPlaybackPlayerSequence = playerEvent.PlayerSequence;
 
+        if (playerEvent.Kind == WatchPlayerPresentationEventKind.TargetRestarting)
+        {
+            BeginWatchTargetRestart(level, playerEvent.RestartKind);
+            return;
+        }
+
         ApplyPlayerLiveState(level, player, playerEvent.LiveState, playerEvent.Value);
+    }
+
+    private void Context_WatchTargetRestarting(
+        PacketWatchTargetRestartingNotification packet
+    )
+    {
+        if (watchSessionID != packet.SessionID
+            || playerWatching?.ID != packet.TargetPlayerID
+            || watchTargetRestartPending
+            || watchTargetRestartSuspended)
+            return;
+
+        watchTargetRestartPending = true;
+        WatchPlaybackEnqueueResult result = watchPlayerEventBuffer.Enqueue(
+            context.CurrentReceivedPacketTimestamp,
+            new WatchPlayerPresentationEvent(
+                WatchPlayerPresentationEventKind.TargetRestarting,
+                packet.PlayerEpoch,
+                packet.PlayerSequence,
+                false,
+                default,
+                Vector2.Zero,
+                packet.Kind
+            )
+        );
+        if (result == WatchPlaybackEnqueueResult.Success)
+            return;
+
+        Logger.Warn(
+            LT.MiaoNetWatch,
+            $"Could not buffer watched target restart ({result}); applying it immediately."
+        );
+        if (Engine.Scene is Level level)
+            BeginWatchTargetRestart(level, packet.Kind);
+    }
+
+    private void BeginWatchTargetRestart(Level level, WatchTargetRestartKind kind)
+    {
+        if (watchDeathTransitionPhase == WatchDeathTransitionPhase.None)
+            BeginWatchDeathTransition(level);
+        SignalWatchDeathWipe(level);
+
+        watchTargetRestartPending = false;
+        watchTargetRestartSuspended = true;
+        watchTargetRestartKind = kind;
+        watchResyncPending = true;
+        watchPlayerFrameBuffer.Clear();
+        watchSceneDeltaBuffer.Clear();
+        watchPlayerEventBuffer.Clear();
+        watchCurrentPlayerFrame = null;
+        Logger.Info(LT.MiaoNetWatch, $"Holding watch session through target restart {kind}.");
     }
 
     private void InterpolateWatchPlayerFrame(

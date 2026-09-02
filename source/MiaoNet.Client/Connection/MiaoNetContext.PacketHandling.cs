@@ -28,6 +28,7 @@ partial class MiaoNetContext
     public event Action<PacketWatchSnapshotRequest>? WatchSnapshotRequested;
     public event Action<PacketWatchSceneDeltaNotification>? WatchSceneDeltaReceived;
     public event Action<PacketWatchResyncSnapshot>? WatchResyncSnapshotReceived;
+    public event Action<PacketWatchTargetRestartingNotification>? WatchTargetRestarting;
     public event Action<PacketWatchProducerStop>? WatchProducerStopped;
     public event Action<PacketWatchEnded>? WatchEnded;
 
@@ -56,6 +57,7 @@ partial class MiaoNetContext
         r.Register<PacketWatchSnapshotRequest>(HandlePacket);
         r.Register<PacketWatchSceneDeltaNotification>(HandlePacket);
         r.Register<PacketWatchResyncSnapshot>(HandlePacket);
+        r.Register<PacketWatchTargetRestartingNotification>(HandlePacket);
         r.Register<PacketWatchProducerStop>(HandlePacket);
         r.Register<PacketWatchEnded>(HandlePacket);
     }
@@ -359,6 +361,20 @@ partial class MiaoNetContext
     {
         EnsureState();
         WatchResyncSnapshotReceived?.Invoke(packet);
+    }
+
+    private void HandlePacket(PacketWatchTargetRestartingNotification packet)
+    {
+        EnsureState();
+        if (!ClientState.TryGetPlayer(packet.TargetPlayerID, out OnlinePlayer? player)
+            || packet.PlayerEpoch != player.PlayerEpoch
+            || packet.PlayerSequence <= player.LastPlayerSequence)
+            return;
+
+        if (packet.PlayerSequence != PlayerTimelineSequence.Next(player.LastPlayerSequence))
+            player.AwaitingPlayerKeyframe = true;
+        player.LastPlayerSequence = packet.PlayerSequence;
+        WatchTargetRestarting?.Invoke(packet);
     }
 
     private void HandlePacket(PacketWatchProducerStop packet)

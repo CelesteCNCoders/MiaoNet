@@ -94,4 +94,58 @@ public sealed class WatchSessionRegistryTests
         Assert.IsFalse(session.TryBeginResync(7, cooldown - TimeSpan.FromTicks(1), cooldown));
         Assert.IsTrue(session.TryBeginResync(7, cooldown, cooldown));
     }
+
+    [TestMethod]
+    public void RestartSuspensionAcceptsOnlyItsEmptyBarrierAndSameMapReturn()
+    {
+        PlayerLocation empty = PlayerLocation.Empty;
+        PlayerLocation sameMap = new(Map, "2");
+        PlayerLocation otherMap = new(
+            new PlayerMapLocation("Celeste/2-OldSite", AreaMode.Normal),
+            "1"
+        );
+        WatchSession session = new(1, 2, 3, Map, 4);
+        session.Activate(5, 7);
+        session.SuspendForRestart(
+            WatchTargetRestartKind.GoldenBerryRestart,
+            8,
+            TimeSpan.FromSeconds(30)
+        );
+
+        Assert.IsTrue(session.IsRestartSuspended);
+        Assert.AreEqual(
+            WatchSequenceResult.RestartSuspended,
+            session.AcceptSequence(6, 7)
+        );
+        Assert.IsTrue(session.CanContinueRestartAt(empty, 8, out bool emptyResync));
+        Assert.IsFalse(emptyResync);
+        Assert.IsFalse(session.CanContinueRestartAt(otherMap, 9, out _));
+        Assert.IsFalse(session.CanContinueRestartAt(sameMap, 10, out _));
+        Assert.IsTrue(session.CanContinueRestartAt(sameMap, 9, out bool returnResync));
+        Assert.IsTrue(returnResync);
+
+        session.BeginRestartResync();
+        session.CompleteResync(7, 9);
+
+        Assert.IsFalse(session.IsRestartSuspended);
+        Assert.IsFalse(session.IsResyncPending);
+        Assert.AreEqual((uint)9, session.PlayerEpoch);
+        Assert.AreEqual(WatchSequenceResult.Next, session.AcceptSequence(8, 9));
+    }
+
+    [TestMethod]
+    public void RestartSuspensionExpiresOnlyForItsOwnGeneration()
+    {
+        WatchSession session = new(1, 2, 3, Map, 4);
+        session.Activate(0);
+        session.SuspendForRestart(
+            WatchTargetRestartKind.RestartChapter,
+            3,
+            TimeSpan.FromSeconds(10)
+        );
+
+        Assert.IsFalse(session.IsRestartExpired(TimeSpan.FromSeconds(9), 3));
+        Assert.IsFalse(session.IsRestartExpired(TimeSpan.FromSeconds(10), 4));
+        Assert.IsTrue(session.IsRestartExpired(TimeSpan.FromSeconds(10), 3));
+    }
 }
