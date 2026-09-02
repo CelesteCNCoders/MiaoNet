@@ -9,13 +9,11 @@ public sealed class WatchBatchSevenEntityValidatorTests
     [TestMethod]
     public void BatchSevenPayloads_AcceptCanonicalShapes()
     {
-        Assert.IsTrue(Valid(State(WatchEntityKind.NarrativeNPC, 64, mutate: p =>
+        Assert.IsTrue(Valid(State(WatchEntityKind.NarrativeNPC, 36, mutate: p =>
         {
-            p[0] = 0b0110_0100;
+            p[0] = 0b0010_0100;
             p[4] = (byte)WatchNarrativeNPCVisual.Oshiro;
             BitConverter.TryWriteBytes(p.AsSpan(24), 1f);
-            BitConverter.TryWriteBytes(p.AsSpan(44), 32f);
-            BitConverter.TryWriteBytes(p.AsSpan(48), 64f);
         })));
         Assert.IsTrue(Valid(State(WatchEntityKind.AscendManager, 20)));
         Assert.IsTrue(Valid(State(WatchEntityKind.AscendManager, 20, 1, p =>
@@ -28,7 +26,7 @@ public sealed class WatchBatchSevenEntityValidatorTests
         Assert.IsTrue(Valid(State(WatchEntityKind.ChapterProp, 28, 1)));
         Assert.IsTrue(Valid(State(WatchEntityKind.ChapterProp, 28, 2)));
         Assert.IsTrue(Valid(State(WatchEntityKind.Lookout, 20,
-            mutate: p => p[0] = 0b0000_0100)));
+            mutate: p => p[0] = 0b0000_0011)));
         Assert.IsTrue(Valid(State(WatchEntityKind.ConditionalBlock, 16, 1,
             p => p[1] = 0)));
         Assert.IsTrue(Valid(State(WatchEntityKind.ConditionalBlock, 16, 2,
@@ -44,23 +42,22 @@ public sealed class WatchBatchSevenEntityValidatorTests
     [TestMethod]
     public void BatchSevenPayloads_RejectMalformedShapes()
     {
-        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 36)));
+        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 35)));
+        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 37)));
         Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 56)));
-        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 64,
+        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 64)));
+        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 36,
             mutate: p => p[4] = (byte)WatchNarrativeNPCVisual.BadelineBoss + 1)));
-        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 64,
+        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 36,
             mutate: p => p[5] = 1)));
-        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 64,
+        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 36,
             mutate: p => p[0] = 0b1000_0000)));
-        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 64,
+        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 36,
+            mutate: p => p[0] = 0b0100_0000)));
+        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 36,
             mutate: p => p[0] = 0b0000_0100)));
-        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 64,
+        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 36,
             mutate: p => BitConverter.TryWriteBytes(p.AsSpan(24), 1.1f))));
-        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 64, mutate: p =>
-        {
-            BitConverter.TryWriteBytes(p.AsSpan(44), 64f);
-            BitConverter.TryWriteBytes(p.AsSpan(48), 32f);
-        })));
         Assert.IsFalse(Valid(State(WatchEntityKind.AscendManager, 20, mutate: p => p[0] = 0x10)));
         Assert.IsFalse(Valid(State(WatchEntityKind.AscendManager, 20, 1,
             p => BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(4), 2))));
@@ -73,6 +70,8 @@ public sealed class WatchBatchSevenEntityValidatorTests
         Assert.IsFalse(Valid(State(WatchEntityKind.ChapterProp, 28, 3)));
         Assert.IsFalse(Valid(State(WatchEntityKind.Lookout, 20,
             mutate: p => BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(12), -1))));
+        Assert.IsFalse(Valid(State(WatchEntityKind.Lookout, 20,
+            mutate: p => p[0] = 0b0000_0100)));
         Assert.IsFalse(Valid(State(WatchEntityKind.Lookout, 20,
             mutate: p => p[0] = 0b0000_1000)));
         Assert.IsFalse(Valid(State(WatchEntityKind.ConditionalBlock, 16, 1,
