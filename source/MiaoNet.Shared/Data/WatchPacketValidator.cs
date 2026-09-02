@@ -337,10 +337,20 @@ public static class WatchPacketValidator
                 && BinaryPrimitives.ReadInt32LittleEndian(state.Payload.Span[28..]) is >= 0 and <= 64,
             WatchEntityKind.PowerSourceNumber => IsValidFixedStatePayload(state, 20, 0b0000_1111, 4, 8, 12, 16)
                 && HasZeroBytes(state.Payload.Span, 1, 2, 3),
-            WatchEntityKind.NarrativeNPC => IsValidFixedStatePayload(state, 36, 0b0011_1111, 8, 12, 16, 20, 24, 32)
+            WatchEntityKind.NarrativeNPC => IsValidFixedStatePayload(
+                    state,
+                    56,
+                    0b0011_1111,
+                    8, 12, 16, 20, 24, 32, 36, 40, 44, 48
+                )
                 && state.Payload.Span[4] <= (byte)WatchNarrativeNPCVisual.BadelineBoss
                 && HasZeroBytes(state.Payload.Span, 5, 6, 7)
-                && ReadSingle(state.Payload.Span, 24) is >= 0f and <= 1f,
+                && ReadSingle(state.Payload.Span, 24) is >= 0f and <= 1f
+                && ReadSingle(state.Payload.Span, 44) is >= 0f and <= 512f
+                && ReadSingle(state.Payload.Span, 48) >= ReadSingle(state.Payload.Span, 44)
+                && ReadSingle(state.Payload.Span, 48) <= 1024f
+                && ((state.Payload.Span[0] & 0b0000_0100) == 0
+                    || (state.Payload.Span[0] & 0b0010_0000) != 0),
             WatchEntityKind.AscendManager => IsValidAscendManagerPayload(state),
             WatchEntityKind.IntroCar => IsValidFixedStatePayload(state, 20, 0b0000_0111, 4, 8, 12)
                 && HasZeroBytes(state.Payload.Span, 1, 2, 3),

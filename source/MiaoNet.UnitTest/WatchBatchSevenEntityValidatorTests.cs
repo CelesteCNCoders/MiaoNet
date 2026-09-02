@@ -9,8 +9,14 @@ public sealed class WatchBatchSevenEntityValidatorTests
     [TestMethod]
     public void BatchSevenPayloads_AcceptCanonicalShapes()
     {
-        Assert.IsTrue(Valid(State(WatchEntityKind.NarrativeNPC, 36,
-            mutate: p => p[4] = (byte)WatchNarrativeNPCVisual.Oshiro)));
+        Assert.IsTrue(Valid(State(WatchEntityKind.NarrativeNPC, 56, mutate: p =>
+        {
+            p[0] = 0b0010_0100;
+            p[4] = (byte)WatchNarrativeNPCVisual.Oshiro;
+            BitConverter.TryWriteBytes(p.AsSpan(24), 1f);
+            BitConverter.TryWriteBytes(p.AsSpan(44), 32f);
+            BitConverter.TryWriteBytes(p.AsSpan(48), 64f);
+        })));
         Assert.IsTrue(Valid(State(WatchEntityKind.AscendManager, 20)));
         Assert.IsTrue(Valid(State(WatchEntityKind.AscendManager, 20, 1, p =>
         {
@@ -37,11 +43,22 @@ public sealed class WatchBatchSevenEntityValidatorTests
     [TestMethod]
     public void BatchSevenPayloads_RejectMalformedShapes()
     {
-        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 32)));
-        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 36,
+        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 36)));
+        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 56,
             mutate: p => p[4] = (byte)WatchNarrativeNPCVisual.BadelineBoss + 1)));
-        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 36,
+        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 56,
             mutate: p => p[5] = 1)));
+        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 56,
+            mutate: p => p[0] = 0b1000_0000)));
+        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 56,
+            mutate: p => p[0] = 0b0000_0100)));
+        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 56,
+            mutate: p => BitConverter.TryWriteBytes(p.AsSpan(24), 1.1f))));
+        Assert.IsFalse(Valid(State(WatchEntityKind.NarrativeNPC, 56, mutate: p =>
+        {
+            BitConverter.TryWriteBytes(p.AsSpan(44), 64f);
+            BitConverter.TryWriteBytes(p.AsSpan(48), 32f);
+        })));
         Assert.IsFalse(Valid(State(WatchEntityKind.AscendManager, 20, mutate: p => p[0] = 0x10)));
         Assert.IsFalse(Valid(State(WatchEntityKind.AscendManager, 20, 1,
             p => BinaryPrimitives.WriteInt32LittleEndian(p.AsSpan(4), 2))));

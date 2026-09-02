@@ -94,7 +94,9 @@ internal sealed class WatchNarrativeNpcProxy : Entity
             WatchNarrativeNPCVisual.BadelineBoss => GFX.SpriteBank.Create("badeline_boss"),
             _ => throw new ArgumentOutOfRangeException(nameof(visual), visual, null),
         };
-        Light = new VertexLight(Color.White, 1f, 32, 64);
+        Light = visual == WatchNarrativeNPCVisual.Oshiro
+            ? new VertexLight(-Vector2.UnitY * 16f, Color.White, 1f, 32, 64)
+            : new VertexLight(Color.White, 1f, 32, 64);
         Add(Sprite);
         Add(Light);
         Collidable = false;
@@ -116,7 +118,13 @@ internal sealed class WatchNarrativeNpcProxy : Entity
 
 internal sealed class WatchNarrativeNPCAdapter : IWatchEntityAdapter
 {
-    private const int PayloadSize = 36;
+    private const int PayloadSize = 56;
+    private const byte EntityVisibleFlag = 1 << 0;
+    private const byte SpriteVisibleFlag = 1 << 1;
+    private const byte LightVisibleFlag = 1 << 2;
+    private const byte CollidableFlag = 1 << 3;
+    private const byte ActiveFlag = 1 << 4;
+    private const byte HasLightFlag = 1 << 5;
     private static readonly WatchNarrativeNPCAdapter instance = new();
     private static readonly ConditionalWeakTable<NPC, WatchTimedStateCache> sync = new();
     private static readonly ConditionalWeakTable<NPC, WatchRemotePosition> remote = new();
@@ -190,18 +198,50 @@ internal sealed class WatchNarrativeNPCAdapter : IWatchEntityAdapter
             entity.Position = target;
         else
             position.Apply(entity, target);
-        entity.Visible = (p[0] & 1) != 0;
-        sprite.Visible = (p[0] & 2) != 0;
+        entity.Visible = (p[0] & EntityVisibleFlag) != 0;
+        sprite.Visible = (p[0] & SpriteVisibleFlag) != 0;
         if (light is not null)
         {
-            light.Visible = (p[0] & 32) != 0 && (p[0] & 4) != 0;
-            light.Alpha = Math.Clamp(WatchEntityPayloadCodec.ReadSingle(p, 24), 0f, 1f);
+            bool hasLight = (p[0] & HasLightFlag) != 0;
+            light.Visible = hasLight && (p[0] & LightVisibleFlag) != 0;
+            if (hasLight)
+            {
+                light.Alpha = Math.Clamp(WatchEntityPayloadCodec.ReadSingle(p, 24), 0f, 1f);
+                light.Position = WatchEntityPayloadCodec.ReadVector2(p, 36);
+                light.StartRadius = WatchEntityPayloadCodec.ReadSingle(p, 44);
+                light.EndRadius = WatchEntityPayloadCodec.ReadSingle(p, 48);
+                Color color = light.Color;
+                color.PackedValue = BinaryPrimitives.ReadUInt32LittleEndian(p[52..]);
+                light.Color = color;
+            }
         }
         entity.Collidable = false;
         sprite.Scale = WatchEntityPayloadCodec.ReadVector2(p, 16);
         sprite.Rotation = WatchEntityPayloadCodec.ReadSingle(p, 32);
         entity.Depth = WatchEntityPayloadCodec.ReadInt32(p, 28);
         WatchSpriteState.ApplyAnimation(sprite, WatchEntityPayloadCodec.ReadUInt16(p, 2), p[1]);
+    }
+
+    private static VertexLight? EnsureLight(NPC npc, ReadOnlySpan<byte> payload)
+    {
+        if ((payload[0] & HasLightFlag) == 0)
+            return npc.Light;
+
+        if (npc.Light is null)
+        {
+            Color color = Color.White;
+            color.PackedValue = BinaryPrimitives.ReadUInt32LittleEndian(payload[52..]);
+            npc.Light = new VertexLight(
+                WatchEntityPayloadCodec.ReadVector2(payload, 36),
+                color,
+                WatchEntityPayloadCodec.ReadSingle(payload, 24),
+                (int)WatchEntityPayloadCodec.ReadSingle(payload, 44),
+                (int)WatchEntityPayloadCodec.ReadSingle(payload, 48)
+            );
+        }
+        if (npc.Light.Entity is null)
+            npc.Add(npc.Light);
+        return npc.Light;
     }
 
     public IEnumerable<WatchEntityState> CaptureStates(Level level)
@@ -214,13 +254,14 @@ internal sealed class WatchNarrativeNPCAdapter : IWatchEntityAdapter
             if (!WatchEntityIDTable<NPC>.TryGet(npc, level.Session.Level, out int id)
                 || npc.Sprite is null)
                 continue;
+            VertexLight? light = npc.Light;
             byte flags = 0;
-            if (npc.Visible) flags |= 1;
-            if (npc.Sprite.Visible) flags |= 2;
-            if (npc.Light?.Visible == true) flags |= 4;
-            if (npc.Collidable) flags |= 8;
-            if (npc.Active) flags |= 16;
-            if (npc.Light is not null) flags |= 32;
+            if (npc.Visible) flags |= EntityVisibleFlag;
+            if (npc.Sprite.Visible) flags |= SpriteVisibleFlag;
+            if (light?.Visible == true) flags |= LightVisibleFlag;
+            if (npc.Collidable) flags |= CollidableFlag;
+            if (npc.Active) flags |= ActiveFlag;
+            if (light is not null) flags |= HasLightFlag;
             var current = (
                 Flags: flags,
                 AnimationFrame: (byte)Math.Max(0, npc.Sprite.CurrentAnimationFrame),
@@ -228,9 +269,13 @@ internal sealed class WatchNarrativeNPCAdapter : IWatchEntityAdapter
                 VisualKind: (byte)GetVisualKind(npc),
                 npc.Position,
                 Scale: npc.Sprite.Scale,
-                LightAlpha: npc.Light?.Alpha ?? 0f,
+                LightAlpha: light?.Alpha ?? 0f,
                 npc.Depth,
-                Rotation: npc.Sprite.Rotation
+                Rotation: npc.Sprite.Rotation,
+                LightPosition: light?.Position ?? Vector2.Zero,
+                LightStartRadius: light?.StartRadius ?? 0f,
+                LightEndRadius: light?.EndRadius ?? 0f,
+                LightColor: light?.Color.PackedValue ?? Color.White.PackedValue
             );
             yield return sync.GetValue(npc, static _ => new()).Capture(
                 new(Kind, id), current, current.Flags, PayloadSize,
@@ -245,6 +290,10 @@ internal sealed class WatchNarrativeNPCAdapter : IWatchEntityAdapter
                     WatchEntityPayloadCodec.WriteSingle(payload, 24, state.LightAlpha);
                     WatchEntityPayloadCodec.WriteInt32(payload, 28, state.Depth);
                     WatchEntityPayloadCodec.WriteSingle(payload, 32, state.Rotation);
+                    WatchEntityPayloadCodec.WriteVector2(payload, 36, state.LightPosition);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 44, state.LightStartRadius);
+                    WatchEntityPayloadCodec.WriteSingle(payload, 48, state.LightEndRadius);
+                    BinaryPrimitives.WriteUInt32LittleEndian(payload[52..], state.LightColor);
                 },
                 level.TimeActive,
                 WatchEntitySyncRegistry.IsCapturingCurrentState);
@@ -298,9 +347,9 @@ internal sealed class WatchNarrativeNPCAdapter : IWatchEntityAdapter
                     proxy.RemoveSelf();
                     proxies.Remove(proxy);
                 }
-                ApplyPresentation(npc, npc.Sprite, npc.Light, p,
+                ApplyPresentation(npc, npc.Sprite, EnsureLight(npc, p), p,
                     remote.GetValue(npc, static _ => new()));
-                npc.Active = (p[0] & 16) != 0;
+                npc.Active = (p[0] & ActiveFlag) != 0;
                 if (npc.Talker is not null)
                     npc.Talker.Enabled = false;
                 changed = true;
