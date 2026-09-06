@@ -208,8 +208,8 @@ public sealed class MiaoNetModule : EverestModule
 
     private static void Level_OnAfterUpdate(Level level)
     {
-        foreach (MiaoNetGhost ghost in level.Tracker.GetEntities<MiaoNetGhost>().Cast<MiaoNetGhost>())
-            ghost.HairAfterUpdate();
+        foreach (MiaoNetGhost.GhostHair hair in level.Tracker.GetComponents<MiaoNetGhost.GhostHair>().Cast<MiaoNetGhost.GhostHair>())
+            hair.AltAfterUpdate();
     }
 
     // do not dispose schinese textures
