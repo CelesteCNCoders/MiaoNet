@@ -19,6 +19,9 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     private readonly ConcurrentQueue<(long Generation, IContextualPacket Packet)> receiveQueue;
     private readonly ConcurrentQueue<Action> mainThreadQueue;
 
+    private const int FrameQueueBacklogThreshold = 6;
+    private readonly Dictionary<int, Queue<PlayerStateDelta>> frameQueues;
+
     private readonly List<MiaoNetComponent> components;
     private readonly List<MiaoNetComponent> renderableComponents;
     private MiaoServerConnection? connection;
@@ -30,6 +33,8 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     /// <summary>Update on Connect() call.</summary>
     public bool ShowAvatar { get; private set; }
+
+    public event Action<OnlinePlayer, PlayerStateDelta>? FrameTick;
 
 #if DEBUG
     public string TargetServer { get; set; } = "127.0.0.1";
@@ -99,6 +104,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         receiveQueue = new();
         pendingRequests = new();
         mainThreadQueue = new();
+        frameQueues = new();
         connectionLifecycle = new();
 
         var main = MainComponent = new MainComponent(this);
@@ -209,6 +215,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                 }
             }),
             new("clear pending requests", pendingRequests.Clear),
+            new("clear frame queues", frameQueues.Clear),
         ];
         if (components is not null)
         {
@@ -265,6 +272,8 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
             if (!HasConnection)
                 return;
+
+            ConsumeFrameQueues();
 
             components.ForEach(c => c.Update());
         }
