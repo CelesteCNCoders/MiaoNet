@@ -33,7 +33,7 @@ public static partial class Program
         builder.Configuration
             .AddJsonFile("appsettings.json", false)
             .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", true)
-            .AddJsonFile("content.json", false);
+            .AddJsonFile("content.json", false, reloadOnChange: true);
 
         builder.Configuration.AddEnvironmentVariables("MIAONET:");
 
@@ -47,7 +47,7 @@ public static partial class Program
         builder.Services.AddSingleton<NetworkListenerFactory>(p =>
             o => new TlsTcpListener(
                 p.GetRequiredService<IMiaoCertificateService>(),
-                IPEndPoint.Parse(o.ListenEndPoint)
+                IPEndPoint.Parse(o)
             )
         );
 
@@ -76,7 +76,39 @@ public static partial class Program
 #else
         builder.Services.AddSingleton<IMiaoAuthenticator, CustomAuthenticator>();
 #endif
-        builder.Services.Configure<MiaoServerOptions>(builder.Configuration.GetRequiredSection("MiaoServer"));
+        builder.Services.Configure<MiaoServerOptions>(builder.Configuration.GetRequiredSection("MiaoServer:Network"));
+        builder.Services.Configure<HttpOptions>(builder.Configuration.GetRequiredSection("MiaoServer:Http"));
+
+#if !USE_LOCALHOST_PFX
+        builder.Services
+            .AddOptions<CertificateOptions>()
+            .Bind(builder.Configuration.GetRequiredSection("MiaoServer:Certificate"))
+            .Validate(
+                CertificateOptions.IsConfigured,
+                "MiaoServer:Certificate must configure both CertificatePath and CertificateKeyPath."
+            )
+            .ValidateOnStart();
+#endif
+
+#if USE_CELEMIAO_AUTH
+        builder.Services
+            .AddOptions<AuthenticationOptions>()
+            .Bind(builder.Configuration.GetRequiredSection("MiaoServer:Authentication"))
+            .Validate(
+                AuthenticationOptions.IsConfigured,
+                "CeleMiao authentication requires MiaoServer:Authentication to configure ClientID, ClientSecret, and EncryptionPassword."
+            )
+            .ValidateOnStart();
+#endif
+
+        builder.Services
+            .AddOptions<AnnouncementsOptions>()
+            .Bind(builder.Configuration.GetRequiredSection("Announcements"))
+            .Validate(
+                AnnouncementsOptions.IsConfigured,
+                "content.json's Announcements must provide both SChinese and English."
+            )
+            .ValidateOnStart();
 
         builder.Services.AddHostedService<MiaoHttpService>();
 

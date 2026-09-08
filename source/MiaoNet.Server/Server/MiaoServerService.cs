@@ -23,6 +23,8 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
     private readonly ILogger<MiaoServerService> logger;
     private readonly MiaoClientConnectionFactory connectionFactory;
     private readonly MiaoServerOptions options;
+    private readonly IOptionsMonitor<AnnouncementsOptions> announcementsMonitor;
+    private readonly IDisposable? announcementsChangeSubscription;
     private readonly IMiaoAuthenticator authenticator;
     private readonly MiaoMetricsService miaoMetricsService;
 
@@ -49,6 +51,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
     public MiaoServerService(
         ILogger<MiaoServerService> logger,
         IOptions<MiaoServerOptions> options,
+        IOptionsMonitor<AnnouncementsOptions> announcementsMonitor,
         NetworkListenerFactory networkListenerFactory,
         MiaoClientConnectionFactory connectionFactory,
         IMiaoAuthenticator authenticator,
@@ -66,7 +69,11 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         this.connectionFactory = connectionFactory;
         this.authenticator = authenticator;
         this.options = options.Value;
-        networkListener = networkListenerFactory(this.options.Network);
+        this.announcementsMonitor = announcementsMonitor;
+        announcementsChangeSubscription = announcementsMonitor.OnChange(
+            (_, _) => logger.LogInformation(AppEvents.Server, "Announcements options reloaded.")
+        );
+        networkListener = networkListenerFactory(this.options.ListenEndPoint);
         pingTimer = new(TimeSpan.FromMilliseconds(this.options.PingPeriod));
         stopwatch = Stopwatch.StartNew();
         this.miaoMetricsService = miaoMetricsService;
@@ -75,7 +82,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
     public override Task StartAsync(CancellationToken cancellationToken)
     {
         logger.LogInformation("MiaoNet Server v{v} starting...", Connection.Version.ToString(3));
-        logger.LogInformation("Start to listen on {ep}.", options.Network.ListenEndPoint);
+        logger.LogInformation("Start to listen on {ep}.", options.ListenEndPoint);
         networkListener.Listen();
         return base.StartAsync(cancellationToken);
     }
@@ -95,6 +102,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
     public override void Dispose()
     {
         base.Dispose();
+        announcementsChangeSubscription?.Dispose();
         pingTimer.Dispose();
     }
 
@@ -147,7 +155,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                         sameChannel ? p.GlobalFlags : PlayerGlobalFlags.None
                     );
 
-                var strings = options.Announcements[handshakeResult.HandshakeData.LanguageCode];
+                var strings = announcementsMonitor.CurrentValue[handshakeResult.HandshakeData.LanguageCode];
                 PacketClientInitial packetClientInitial = new PacketClientInitial(
                     newPlayer.Channel.ID,
                     newPlayer.ID,

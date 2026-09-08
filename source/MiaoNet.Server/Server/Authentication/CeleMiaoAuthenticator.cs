@@ -26,26 +26,18 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
     public const string EndPointCodeAuth = "oauth/token";
     public const string EndPointAuth = "api/celeste/user?access_token=";
 
-    public CeleMiaoAuthenticator(IOptions<MiaoServerOptions> options, ILogger<CeleMiaoAuthenticator> logger)
+    public CeleMiaoAuthenticator(IOptions<AuthenticationOptions> options, ILogger<CeleMiaoAuthenticator> logger)
         : this(options, logger, new HttpClient())
     {
     }
 
     internal CeleMiaoAuthenticator(
-        IOptions<MiaoServerOptions> options,
+        IOptions<AuthenticationOptions> options,
         ILogger<CeleMiaoAuthenticator> logger,
         HttpClient httpClient
     )
     {
-        var authOptions = options.Value.Authentication;
-        if (string.IsNullOrWhiteSpace(authOptions.ClientID)
-            || string.IsNullOrWhiteSpace(authOptions.ClientSecret)
-            || string.IsNullOrWhiteSpace(authOptions.EncryptionPassword))
-        {
-            throw new InvalidOperationException(
-                "ClientID, ClientSecret and EncryptionPassword must be configured when using CeleMiaoAuthenticator."
-            );
-        }
+        var authOptions = options.Value;
         clientID = authOptions.ClientID;
         clientSecret = authOptions.ClientSecret;
 

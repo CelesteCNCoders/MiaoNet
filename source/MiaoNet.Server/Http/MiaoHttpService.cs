@@ -23,7 +23,7 @@ public sealed partial class MiaoHttpService : BackgroundService
 
     public MiaoHttpService(
         ILogger<MiaoHttpService> logger,
-        IOptions<MiaoServerOptions> options,
+        IOptions<HttpOptions> options,
         IMiaoServerService miaoServerService,
         MiaoMetricsService miaoMetricsService
     )
@@ -32,7 +32,7 @@ public sealed partial class MiaoHttpService : BackgroundService
         this.miaoServerService = miaoServerService;
         this.miaoMetricsService = miaoMetricsService;
         httpListener = new();
-        httpListener.Prefixes.Add(options.Value.HttpListenerPrefix);
+        httpListener.Prefixes.Add(options.Value.ListenerPrefix);
 
         jsonSerializerOptions = new()
         {
