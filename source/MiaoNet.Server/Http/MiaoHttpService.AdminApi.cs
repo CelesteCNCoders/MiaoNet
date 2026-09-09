@@ -119,7 +119,8 @@ public sealed partial class MiaoHttpService
             name = p.Value.Player.Info.Name,
             authID = p.Value.Player.Info.AuthID,
             channel = p.Value.Player.Channel.Info.Name,
-            location = p.Value.Player.Location.ToString()
+            location = p.Value.Player.Location.ToString(),
+            ping = p.Value.Player.LastPing
         });
         var channels = miaoServerService.Channels.Select(static c => new
         {

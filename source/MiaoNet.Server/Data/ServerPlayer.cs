@@ -22,6 +22,18 @@ public sealed class ServerPlayer
 
     public PlayerGlobalFlags GlobalFlags { get; set; }
 
+    private int lastPing = -1;
+
+    /// <summary>
+    /// -1 if not measured
+    /// Currently written by the heartbeat task, read by the admin panel
+    /// </summary>
+    public int LastPing
+    {
+        get => Volatile.Read(ref lastPing);
+        set => Volatile.Write(ref lastPing, value);
+    }
+
     public ServerPlayer(ServerChannel channel, int id, PlayerInfo info)
     {
         fireworksTokenBucket = new(500, 500 * 3);

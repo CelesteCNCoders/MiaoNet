@@ -104,7 +104,8 @@ public partial class MiaoHttpService
                 {
                     ID = c.ID,
                     Name = c.Player.Info.Name,
-                    Location = c.Player.Location.ToString()
+                    Location = c.Player.Location.ToString(),
+                    Ping = c.Player.LastPing
                 })
             })
         };

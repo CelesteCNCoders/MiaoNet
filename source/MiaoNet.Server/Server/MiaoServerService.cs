@@ -258,12 +258,19 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                 // of its own players, so cross-channel latency stays invisible.
                 foreach (var group in list.GroupBy(t => t.Item2.Player.Channel))
                 {
-                    PacketPingData pingData = new(
-                        group.Where(t => t.Item1.Result is not null)
-                            .Select(t => (t.Item2.ID, (int)t.Item1.Result!.Value.TotalMilliseconds)
-                    ).ToList());
+                    // (cid, latency ms)
+                    List<(int, int)> pings = new();
+                    foreach (var (task, connection) in group)
+                    {
+                        if (task.Result is TimeSpan latency)
+                        {
+                            int ms = (int)latency.TotalMilliseconds;
+                            connection.Player.LastPing = ms;
+                            pings.Add((connection.ID, ms));
+                        }
+                    }
 
-                    await BroadcastToScopeAsync(pingData, group.Key);
+                    await BroadcastToScopeAsync(new PacketPingData(pings), group.Key);
                 }
 
                 async Task<TimeSpan?> PingFor(MiaoClientConnection connection, int timeout)

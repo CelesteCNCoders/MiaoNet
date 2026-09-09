@@ -93,6 +93,10 @@
             th.sortable.sort-asc::after{opacity:1;color:#00e5ff;filter:drop-shadow(0 0 4px rgba(0,229,255,.8));}
             th.sortable.sort-desc::after{opacity:1;color:#00e5ff;filter:drop-shadow(0 0 4px rgba(0,229,255,.8));
               border-bottom:none;border-top:5px solid currentColor;}
+            .ping-good{color:#00ff9c;font-variant-numeric:tabular-nums;}
+            .ping-mid{color:#ffb300;font-variant-numeric:tabular-nums;}
+            .ping-bad{color:#ff3860;font-variant-numeric:tabular-nums;}
+            .ping-na{color:#3d5560;}
 
             /* ---------- inputs & buttons ---------- */
             input{background:#0a0e14;border:1px solid rgba(0,229,255,.25);color:#c8d3d8;padding:8px 10px;font-size:13px;
@@ -226,6 +230,7 @@
                       <th class="sortable" data-sort="name">名称</th>
                       <th class="sortable" data-sort="authID">AuthID</th>
                       <th class="sortable" data-sort="channel">频道</th>
+                      <th class="sortable" data-sort="ping">延迟</th>
                       <th class="sortable" data-sort="location">位置</th>
                       <th>操作</th>
                     </tr></thead>
@@ -401,6 +406,14 @@
             // ---- players ----
             const knownPlayers = new Set();
             let lastPlayers = [];
+            // 延迟单元格: -1/缺失 表示尚未测出
+            function pingCell(ping) {
+              if (typeof ping !== "number" || ping < 0) return '<span class="ping-na">-</span>';
+              let cls = "ping-good";
+              if (ping >= 200) cls = "ping-bad";
+              else if (ping >= 80) cls = "ping-mid";
+              return '<span class="' + cls + '">' + ping + " ms</span>";
+            }
             // sortKey: null = 默认(服务端顺序); 否则按该列排序, sortAsc 控制方向
             let sortKey = null, sortAsc = true;
             const sortAccessors = {
@@ -408,6 +421,7 @@
               name: p => (p.name || "").toLowerCase(),
               authID: p => p.authID,
               channel: p => (p.channel || "").toLowerCase(),
+              ping: p => (typeof p.ping === "number" && p.ping >= 0 ? p.ping : Number.POSITIVE_INFINITY),
               location: p => (p.location || "").toLowerCase()
             };
             function sortPlayers(list) {
@@ -427,7 +441,7 @@
               const body = $("#players-body");
               body.innerHTML = "";
               if (lastPlayers.length === 0) {
-                body.innerHTML = '<tr><td colspan="6" class="empty">当前没有在线玩家</td></tr>';
+                body.innerHTML = '<tr><td colspan="7" class="empty">当前没有在线玩家</td></tr>';
                 return;
               }
               const seen = new Set();
@@ -436,7 +450,7 @@
                 const tr = document.createElement("tr");
                 if (!knownPlayers.has(p.connectionID)) tr.className = "row-new";
                 tr.innerHTML = "<td>" + p.connectionID + "</td><td>" + esc(p.name) + "</td><td>" + p.authID +
-                  "</td><td>" + esc(p.channel || "-") + "</td><td>" + esc(p.location) + "</td>";
+                  "</td><td>" + esc(p.channel || "-") + "</td><td>" + pingCell(p.ping) + "</td><td>" + esc(p.location) + "</td>";
                 const td = document.createElement("td");
                 const btn = document.createElement("button");
                 btn.className = "kick"; btn.textContent = "踢出";
