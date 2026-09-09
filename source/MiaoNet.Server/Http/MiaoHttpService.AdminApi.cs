@@ -229,7 +229,9 @@ public sealed partial class MiaoHttpService
                 upBytesPerSecond = current.UpBytesPerSecond,
                 downBytesPerSecond = current.DownBytesPerSecond,
                 uptimeSeconds = adminMetricsSampler.UptimeSeconds,
-                gcTotalMemory = GC.GetTotalMemory(false)
+                gcTotalMemory = GC.GetTotalMemory(false),
+                cpuPercent = current.CpuPercent,
+                cpuCores = Environment.ProcessorCount
             },
             series = new
             {
@@ -240,7 +242,8 @@ public sealed partial class MiaoHttpService
                 downPacketsPerSecond = series.Select(static s => s.DownPacketsPerSecond),
                 upBytesPerSecond = series.Select(static s => s.UpBytesPerSecond),
                 downBytesPerSecond = series.Select(static s => s.DownBytesPerSecond),
-                chatMessagesPerInterval = series.Select(static s => s.ChatMessagesPerInterval)
+                chatMessagesPerInterval = series.Select(static s => s.ChatMessagesPerInterval),
+                cpuPercent = series.Select(static s => s.CpuPercent)
             }
         });
     }

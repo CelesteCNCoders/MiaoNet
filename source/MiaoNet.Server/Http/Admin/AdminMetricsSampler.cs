@@ -1,10 +1,11 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace MiaoNet.Server;
 
 /// <summary>
-/// 每 5 秒采样一次服务器指标(在线人数/频道数/包与字节速率/聊天数),
+/// 每 5 秒采样一次服务器指标(在线人数/频道数/包与字节速率/聊天数/CPU 占用),
 /// 保留最近约 1 小时(720 点)的时间序列, 供管理后台图表使用.
 /// </summary>
 public sealed class AdminMetricsSampler : BackgroundService
@@ -23,7 +24,8 @@ public sealed class AdminMetricsSampler : BackgroundService
         double DownBytesPerSecond,
         double ChatMessagesPerInterval,
         long Sessions,
-        long ChatMessagesTotal
+        long ChatMessagesTotal,
+        double CpuPercent
     );
 
     private readonly IMiaoServerService miaoServerService;
@@ -37,6 +39,8 @@ public sealed class AdminMetricsSampler : BackgroundService
     private int count;
 
     private readonly long startedTickCount = Environment.TickCount64;
+    private TimeSpan previousCpuTime;
+    private long previousCpuTimestamp;
 
     public AdminMetricsSampler(
         IMiaoServerService miaoServerService,
@@ -59,6 +63,8 @@ public sealed class AdminMetricsSampler : BackgroundService
 
         var previous = miaoMetricsService.Get();
         long previousChat = adminChatBuffer.TotalCount;
+        previousCpuTime = Environment.CpuUsage.TotalTime;
+        previousCpuTimestamp = Stopwatch.GetTimestamp();
 
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
@@ -78,7 +84,8 @@ public sealed class AdminMetricsSampler : BackgroundService
                     (current.TcpDownloadByBytes - previous.TcpDownloadByBytes) / seconds,
                     currentChat - previousChat,
                     current.SessionsCount,
-                    currentChat
+                    currentChat,
+                    SampleCpuPercent()
                 );
 
                 previous = current;
@@ -97,6 +104,22 @@ public sealed class AdminMetricsSampler : BackgroundService
                 logger.LogError(AppEvents.Http, e, "Failed to sample admin metrics.");
             }
         }
+    }
+
+    /// <summary>
+    /// 自上次采样以来的进程 CPU 占用, 100% 表示占满一个逻辑核心.
+    /// </summary>
+    private double SampleCpuPercent()
+    {
+        long timestamp = Stopwatch.GetTimestamp();
+        TimeSpan cpuTime = Environment.CpuUsage.TotalTime;
+        TimeSpan cpuDelta = cpuTime - previousCpuTime;
+        double wallDelta = Stopwatch.GetElapsedTime(previousCpuTimestamp, timestamp).TotalSeconds;
+        previousCpuTime = cpuTime;
+        previousCpuTimestamp = timestamp;
+        if (wallDelta <= 0)
+            return 0;
+        return cpuDelta.TotalSeconds / wallDelta * 100;
     }
 
     /// <summary>获取当前快照与按时间升序的时间序列.</summary>
@@ -118,7 +141,8 @@ public sealed class AdminMetricsSampler : BackgroundService
                     miaoServerService.Channels.Count,
                     0, 0, 0, 0, 0,
                     miaoMetricsService.Get().SessionsCount,
-                    adminChatBuffer.TotalCount
+                    adminChatBuffer.TotalCount,
+                    0
                 );
             return (current, series);
         }
