@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace MiaoNet.Server;
 
 /// <summary>
-/// 每 5 秒采样一次服务器指标(在线人数/频道数/包与字节速率/聊天数/CPU 占用),
+/// 每 5 秒采样一次服务器指标(在线人数/频道数/包与字节速率/聊天数/CPU 占用/GC 分配速率),
 /// 保留最近约 1 小时(720 点)的时间序列, 供管理后台图表使用.
 /// </summary>
 public sealed class AdminMetricsSampler : BackgroundService
@@ -25,7 +25,8 @@ public sealed class AdminMetricsSampler : BackgroundService
         double ChatMessagesPerInterval,
         long Sessions,
         long ChatMessagesTotal,
-        double CpuPercent
+        double CpuPercent,
+        double AllocBytesPerSecond
     );
 
     private readonly IMiaoServerService miaoServerService;
@@ -41,6 +42,7 @@ public sealed class AdminMetricsSampler : BackgroundService
     private readonly long startedTickCount = Environment.TickCount64;
     private TimeSpan previousCpuTime;
     private long previousCpuTimestamp;
+    private long previousAllocatedBytes;
 
     public AdminMetricsSampler(
         IMiaoServerService miaoServerService,
@@ -65,6 +67,7 @@ public sealed class AdminMetricsSampler : BackgroundService
         long previousChat = adminChatBuffer.TotalCount;
         previousCpuTime = Environment.CpuUsage.TotalTime;
         previousCpuTimestamp = Stopwatch.GetTimestamp();
+        previousAllocatedBytes = GC.GetTotalAllocatedBytes();
 
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
@@ -85,7 +88,8 @@ public sealed class AdminMetricsSampler : BackgroundService
                     currentChat - previousChat,
                     current.SessionsCount,
                     currentChat,
-                    SampleCpuPercent()
+                    SampleCpuPercent(),
+                    SampleAllocBytesPerSecond(seconds)
                 );
 
                 previous = current;
@@ -122,6 +126,19 @@ public sealed class AdminMetricsSampler : BackgroundService
         return cpuDelta.TotalSeconds / wallDelta * 100;
     }
 
+    /// <summary>
+    /// 自上次采样以来的托管堆分配速率(字节/秒).
+    /// </summary>
+    private double SampleAllocBytesPerSecond(double seconds)
+    {
+        long allocated = GC.GetTotalAllocatedBytes();
+        long delta = allocated - previousAllocatedBytes;
+        previousAllocatedBytes = allocated;
+        if (seconds <= 0)
+            return 0;
+        return delta / seconds;
+    }
+
     /// <summary>获取当前快照与按时间升序的时间序列.</summary>
     public (Sample Current, List<Sample> Series) GetSnapshot()
     {
@@ -142,6 +159,7 @@ public sealed class AdminMetricsSampler : BackgroundService
                     0, 0, 0, 0, 0,
                     miaoMetricsService.Get().SessionsCount,
                     adminChatBuffer.TotalCount,
+                    0,
                     0
                 );
             return (current, series);

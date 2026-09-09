@@ -295,15 +295,6 @@
                 text-shadow: 0 0 10px rgba(0,229,255,.4);
             }
 
-                .card .value .sub {
-                    font-size: 11px;
-                    font-weight: 400;
-                    color: #5f7a85;
-                    margin-left: 6px;
-                    letter-spacing: 1px;
-                    text-shadow: none;
-                }
-
         /* ---------- table ---------- */
         .table-wrap {
             max-height: 320px;
@@ -903,7 +894,6 @@
             <div class="card"><div class="label">累计消息</div><div class="value" id="d-chat">0</div></div>
             <div class="card"><div class="label">运行时间</div><div class="value" id="d-uptime" style="font-size:17px;">-</div></div>
             <div class="card"><div class="label">托管内存</div><div class="value" id="d-mem" style="font-size:17px;">-</div></div>
-            <div class="card"><div class="label">CPU 占用</div><div class="value" id="d-cpu" style="font-size:17px;">-</div></div>
         </div>
         <section class="panel sec-players">
             <h2 class="sec-title">在线玩家</h2>
@@ -960,6 +950,7 @@
                 <div class="chart-wrap"><h3>TCP 包速率（包 / 秒）</h3><canvas id="chart-packets"></canvas><div class="chart-tip"></div><div class="legend"><span style="--c:#00e5ff">上行</span><span style="--c:#ffb300">下行</span></div></div>
                 <div class="chart-wrap"><h3>TCP 字节速率（KB / 秒）</h3><canvas id="chart-bytes"></canvas><div class="chart-tip"></div><div class="legend"><span style="--c:#00e5ff">上行</span><span style="--c:#ffb300">下行</span></div></div>
                 <div class="chart-wrap"><h3 id="chart-cpu-title">CPU 占用（% / 单核）</h3><canvas id="chart-cpu"></canvas><div class="chart-tip"></div><div class="legend"><span style="--c:#ff3860">CPU</span></div></div>
+                <div class="chart-wrap"><h3>GC 分配速率（MB / 秒）</h3><canvas id="chart-alloc"></canvas><div class="chart-tip"></div><div class="legend"><span style="--c:#c792ea">分配速率</span></div></div>
             </div>
         </section>
     </main>
@@ -1293,8 +1284,6 @@
                 setNumber($("#d-chat"), c.chatMessagesTotal);
                 $("#d-uptime").textContent = fmtUptime(c.uptimeSeconds);
                 $("#d-mem").textContent = fmtBytes(c.gcTotalMemory);
-                $("#d-cpu").innerHTML = (Math.round(c.cpuPercent * 10) / 10) + "%" +
-                    '<span class="sub">共 ' + c.cpuCores + " 核</span>";
                 $("#chart-cpu-title").textContent = "CPU 占用（% / 单核，共 " + c.cpuCores + " 核）";
                 const s = data.series;
                 const labels = s.time.map(t => new Date(t * 1000).toLocaleTimeString("zh-CN", { hour12: false }));
@@ -1315,6 +1304,9 @@
                 ]);
                 drawChart($("#chart-cpu"), labels, [
                     { name: "CPU", color: "#ff3860", data: s.cpuPercent }
+                ]);
+                drawChart($("#chart-alloc"), labels, [
+                    { name: "分配速率", color: "#c792ea", data: s.allocBytesPerSecond.map(v => v / 1048576) }
                 ]);
             } catch (e) { pollFail("metrics", "指标流"); }
         }
