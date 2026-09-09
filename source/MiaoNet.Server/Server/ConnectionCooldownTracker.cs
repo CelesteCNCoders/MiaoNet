@@ -10,7 +10,12 @@ namespace MiaoNet.Server;
 public sealed class ConnectionCooldownTracker
 {
     private static readonly TimeSpan Window = TimeSpan.FromSeconds(10);
-    private const int MaxAttemptsPerWindow = 6;
+    private const int MaxAttemptsPerWindow =
+#if DEBUG
+        6000000;
+#else
+        6;
+#endif
     private static readonly TimeSpan Cooldown = TimeSpan.FromMinutes(3);
 
     private sealed class Entry
