@@ -16,6 +16,10 @@ public sealed class MiaoServerOptions
 
     public int RequestTimeout { get; set; } = 10000;
 
+    public double SendBatchFrequency { get; set; } = 60.0;
+
+    public int SendBatchSize { get; set; } = 1344;
+
     public required CertificateOptions Certificate { get; set; }
 
     public required AuthenticationOptions Authentication { get; set; }
