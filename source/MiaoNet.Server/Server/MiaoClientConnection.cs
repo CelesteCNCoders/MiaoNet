@@ -358,7 +358,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         while (await channelReader.WaitToReadAsync(token))
         {
             int packetsCount = 0;
-            while (channelReader.TryRead(out var packet) && ms.Position < PacketBatchSize)
+            while (ms.Position < PacketBatchSize && channelReader.TryRead(out var packet))
             {
                 WritePacket(ms, packet, this);
                 packetsCount++;
