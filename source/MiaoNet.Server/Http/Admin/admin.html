@@ -84,6 +84,15 @@
             tbody tr:hover{background:rgba(0,229,255,.05);}
             tr.row-new{animation:rowIn .4s ease;}
             @keyframes rowIn{from{opacity:0;transform:translateX(-10px);}to{opacity:1;transform:none;}}
+            th.sortable{cursor:pointer;user-select:none;transition:color .15s,background .15s;}
+            th.sortable:hover{color:#9fdcec;background:rgba(0,229,255,.09);}
+            th.sortable::after{content:"";display:inline-block;width:0;height:0;margin-left:6px;
+              vertical-align:middle;opacity:0;transition:opacity .15s;
+              border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:5px solid currentColor;}
+            th.sortable:hover::after{opacity:.4;}
+            th.sortable.sort-asc::after{opacity:1;color:#00e5ff;filter:drop-shadow(0 0 4px rgba(0,229,255,.8));}
+            th.sortable.sort-desc::after{opacity:1;color:#00e5ff;filter:drop-shadow(0 0 4px rgba(0,229,255,.8));
+              border-bottom:none;border-top:5px solid currentColor;}
 
             /* ---------- inputs & buttons ---------- */
             input{background:#0a0e14;border:1px solid rgba(0,229,255,.25);color:#c8d3d8;padding:8px 10px;font-size:13px;
@@ -211,8 +220,15 @@
                   <button class="act" id="announce-send">发送公告</button>
                 </div>
                 <div class="table-wrap">
-                  <table>
-                    <thead><tr><th>连接 ID</th><th>名称</th><th>AuthID</th><th>频道</th><th>位置</th><th>操作</th></tr></thead>
+                  <table id="players-table">
+                    <thead><tr>
+                      <th class="sortable" data-sort="connectionID">连接 ID</th>
+                      <th class="sortable" data-sort="name">名称</th>
+                      <th class="sortable" data-sort="authID">AuthID</th>
+                      <th class="sortable" data-sort="channel">频道</th>
+                      <th class="sortable" data-sort="location">位置</th>
+                      <th>操作</th>
+                    </tr></thead>
                     <tbody id="players-body"></tbody>
                   </table>
                 </div>
@@ -384,30 +400,80 @@
 
             // ---- players ----
             const knownPlayers = new Set();
+            let lastPlayers = [];
+            // sortKey: null = 默认(服务端顺序); 否则按该列排序, sortAsc 控制方向
+            let sortKey = null, sortAsc = true;
+            const sortAccessors = {
+              connectionID: p => p.connectionID,
+              name: p => (p.name || "").toLowerCase(),
+              authID: p => p.authID,
+              channel: p => (p.channel || "").toLowerCase(),
+              location: p => (p.location || "").toLowerCase()
+            };
+            function sortPlayers(list) {
+              if (sortKey === null) return list;
+              const get = sortAccessors[sortKey];
+              if (!get) return list;
+              // 复制后排序, 避免改动原始数组; 数值与字符串都按同类型比较
+              return list.slice().sort((a, b) => {
+                const va = get(a), vb = get(b);
+                let r;
+                if (typeof va === "number" && typeof vb === "number") r = va - vb;
+                else r = String(va).localeCompare(String(vb), "zh-CN");
+                return sortAsc ? r : -r;
+              });
+            }
+            function renderPlayers() {
+              const body = $("#players-body");
+              body.innerHTML = "";
+              if (lastPlayers.length === 0) {
+                body.innerHTML = '<tr><td colspan="6" class="empty">当前没有在线玩家</td></tr>';
+                return;
+              }
+              const seen = new Set();
+              for (const p of sortPlayers(lastPlayers)) {
+                seen.add(p.connectionID);
+                const tr = document.createElement("tr");
+                if (!knownPlayers.has(p.connectionID)) tr.className = "row-new";
+                tr.innerHTML = "<td>" + p.connectionID + "</td><td>" + esc(p.name) + "</td><td>" + p.authID +
+                  "</td><td>" + esc(p.channel || "-") + "</td><td>" + esc(p.location) + "</td>";
+                const td = document.createElement("td");
+                const btn = document.createElement("button");
+                btn.className = "kick"; btn.textContent = "踢出";
+                btn.addEventListener("click", () => kickPlayer(p));
+                td.appendChild(btn); tr.appendChild(td);
+                body.appendChild(tr);
+              }
+              knownPlayers.clear(); seen.forEach(id => knownPlayers.add(id));
+            }
+            function updateSortIndicators() {
+              $("#players-table").querySelectorAll("th.sortable").forEach(th => {
+                th.classList.toggle("sort-asc", th.dataset.sort === sortKey && sortAsc);
+                th.classList.toggle("sort-desc", th.dataset.sort === sortKey && !sortAsc);
+              });
+            }
+            function bindPlayerSort() {
+              $("#players-table").querySelectorAll("th.sortable").forEach(th => {
+                th.addEventListener("click", () => {
+                  const key = th.dataset.sort;
+                  if (sortKey === key) {
+                    // 同一列: 切换升降序; 再点回默认顺序
+                    if (!sortAsc) { sortKey = null; sortAsc = true; }
+                    else sortAsc = false;
+                  } else {
+                    sortKey = key; sortAsc = true;
+                  }
+                  updateSortIndicators();
+                  renderPlayers();
+                });
+              });
+            }
             async function refreshPlayers() {
               try {
                 const data = await apiJson("/admin/api/players");
                 pollOk("players", "玩家数据");
-                const body = $("#players-body");
-                body.innerHTML = "";
-                if (data.players.length === 0) {
-                  body.innerHTML = '<tr><td colspan="6" class="empty">当前没有在线玩家</td></tr>';
-                }
-                const seen = new Set();
-                for (const p of data.players) {
-                  seen.add(p.connectionID);
-                  const tr = document.createElement("tr");
-                  if (!knownPlayers.has(p.connectionID)) tr.className = "row-new";
-                  tr.innerHTML = "<td>" + p.connectionID + "</td><td>" + esc(p.name) + "</td><td>" + p.authID +
-                    "</td><td>" + esc(p.channel || "-") + "</td><td>" + esc(p.location) + "</td>";
-                  const td = document.createElement("td");
-                  const btn = document.createElement("button");
-                  btn.className = "kick"; btn.textContent = "踢出";
-                  btn.addEventListener("click", () => kickPlayer(p));
-                  td.appendChild(btn); tr.appendChild(td);
-                  body.appendChild(tr);
-                }
-                knownPlayers.clear(); seen.forEach(id => knownPlayers.add(id));
+                lastPlayers = data.players;
+                renderPlayers();
                 // channels table
                 const cb = $("#d-channels-body");
                 cb.innerHTML = "";
@@ -614,6 +680,7 @@
             });
 
             // ---- polling loops ----
+            bindPlayerSort();
             refreshPlayers(); pollChat(); pollLogs(); pollMetrics();
             setInterval(refreshPlayers, 3000);
             setInterval(pollChat, 2000);
