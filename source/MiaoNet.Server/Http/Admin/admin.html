@@ -1194,7 +1194,7 @@
             if (!Number.isInteger(freezeMinutes) || freezeMinutes < 1) { toast("需要填写有效的冻结时间", false); return; }
             if (!confirm("确定要踢出 " + p.name + " 并临时冻结 " + freezeMinutes + " 分钟吗？")) return;
             try {
-                const r = await postJson("/admin/api/kick", { connectionID: p.connectionID, authID: p.authID, reason: reason.trim(), freezeMinutes });
+                const r = await postJson("/admin/api/kick", { connectionID: p.connectionID, reason: reason.trim(), freezeMinutes });
                 if (r.ok) { toast("已踢出 " + p.name + " 并冻结 " + freezeMinutes + " 分钟", true); refreshPlayers(); }
                 else toast(r.error || "踢出失败", false);
             } catch (e) { toast("请求失败", false); }

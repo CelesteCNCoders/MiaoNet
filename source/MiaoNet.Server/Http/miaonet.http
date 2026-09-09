@@ -81,12 +81,12 @@ Cookie: {{adminCookie}}
 
 ###
 
-# admin api: kick player (authID 或 connectionID 至少一个)
+# admin api: kick player (by connectionID, which identifies one connection)
 POST http://{{host}}/admin/api/kick
 Cookie: {{adminCookie}}
 Content-Type: application/json
 
-{ "authID": 1, "reason": "Reason here." }
+{ "connectionID": 1, "reason": "Reason here.", "freezeMinutes": 10 }
 
 ###
 

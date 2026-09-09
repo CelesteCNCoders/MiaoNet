@@ -8,7 +8,7 @@ namespace MiaoNet.Server;
 
 public sealed partial class MiaoHttpService
 {
-    private sealed record AdminKickRequest(int? AuthID, int? ConnectionID, string? Reason, int? FreezeMinutes);
+    private sealed record AdminKickRequest(int? ConnectionID, string? Reason, int? FreezeMinutes);
 
     private sealed record AdminAnnounceRequest(string? Message);
 
@@ -139,10 +139,10 @@ public sealed partial class MiaoHttpService
             return;
         }
         AdminKickRequest? request = await ReadJsonBodyAsync<AdminKickRequest>(context);
-        if (request is null || (request.AuthID is null && request.ConnectionID is null))
+        if (request?.ConnectionID is not int cid)
         {
             await WriteJsonAsync(context, (int)HttpStatusCode.BadRequest,
-                new { ok = false, error = "需要提供 authID 或 connectionID" });
+                new { ok = false, error = "需要提供 connectionID" });
             return;
         }
         if (string.IsNullOrWhiteSpace(request.Reason))
@@ -160,11 +160,9 @@ public sealed partial class MiaoHttpService
         string reason = request.Reason;
         TimeSpan freezeDuration = TimeSpan.FromMinutes(request.FreezeMinutes.Value);
 
-        List<(int AuthID, string Name)> kicked = new();
-        if (request.ConnectionID is int cid)
-            kicked.AddRange(await KickByConnectionIDAsync(cid, reason));
-        if (request.AuthID is int aid)
-            kicked.AddRange(await KickByAuthIDAsync(aid, reason));
+        // the kick button belongs to one specific connection, so only connectionID is honored here;
+        // authID is client-supplied and must not be used to target players
+        List<(int AuthID, string Name)> kicked = await KickByConnectionIDAsync(cid, reason);
 
         // frozen accounts may not log back in until the freeze expires
         foreach (var (authID, _) in kicked)
@@ -178,8 +176,8 @@ public sealed partial class MiaoHttpService
 
         logger.LogInformation(
             AppEvents.Http,
-            "Admin {admin} kicked {count} player(s) (authID: {aid}, connectionID: {cid}), frozen for {min} minute(s), reason: {reason}.",
-            session.UserName, kicked.Count, request.AuthID, request.ConnectionID, request.FreezeMinutes.Value, reason
+            "Admin {admin} kicked {count} player(s) (connectionID: {cid}), frozen for {min} minute(s), reason: {reason}.",
+            session.UserName, kicked.Count, cid, request.FreezeMinutes.Value, reason
         );
         await WriteJsonAsync(context, (int)HttpStatusCode.OK,
             kicked.Count > 0
