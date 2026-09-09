@@ -109,7 +109,6 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         }
         finally
         {
-            sendChannel.Writer.TryComplete();
             await CancelPendingRequestsAsync();
             networkConnection.Dispose();
             logger.LogInformation(AppEvents.Connection, "Connection id {id} closed.", ID);
