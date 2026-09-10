@@ -526,7 +526,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                     Add(playerSprite);
                     if (vertexLight is not null)
                         Add(vertexLight);
-                    Scene.OnEndOfFrame += new(ResetHair);
+                    if (Scene is not null)
+                        Scene.OnEndOfFrame += new(ResetHair);
+                    else
+                        ResetHair();
                     lastBody = null;
                 }
             );
@@ -543,7 +546,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             Add(playerSprite);
             if (vertexLight is not null)
                 Add(vertexLight);
-            Scene.OnEndOfFrame += new(ResetHair);
+            if (Scene is not null)
+                Scene.OnEndOfFrame += new(ResetHair);
+            else
+                ResetHair();
             lastBody?.RemoveSelf();
         }
     }
