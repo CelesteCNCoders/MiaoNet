@@ -359,8 +359,6 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         int batchSize = server.SendBatchSize;
         TimeProvider timeProvider = TimeProvider.System;
 
-        // TODO yes obviously client should handle batching too
-
         // wait for data
         while (await channelReader.WaitToReadAsync(token))
         {

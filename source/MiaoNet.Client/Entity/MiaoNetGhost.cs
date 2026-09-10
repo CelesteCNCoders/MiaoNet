@@ -7,11 +7,38 @@ namespace Celeste.Mod.MiaoNet;
 public sealed class MiaoNetGhost : MiaoNetGhostEntity
 {
     // prevent it from being AfterUpdated by Level.Update
-    private sealed class GhostHair : PlayerHair
+    [Tracked]
+    public sealed class GhostHair : PlayerHair
     {
         public GhostHair(PlayerSprite sprite)
             : base(sprite)
         {
+        }
+
+        public void AltAfterUpdate()
+        {
+            if (Entity is MiaoNetGhost ghost)
+            {
+                if (ghost.dead)
+                    return;
+
+                if (ghost.OnlinePlayer.IsPaused)
+                {
+                    bool simulateMotion = SimulateMotion;
+                    SimulateMotion = false;
+                    AfterUpdate();
+                    SimulateMotion = simulateMotion;
+                }
+                else
+                {
+                    AfterUpdate();
+                }
+            }
+            else
+            {
+                // maybe ghost dead body
+                AfterUpdate();
+            }
         }
     }
 
@@ -499,7 +526,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
                     Add(playerSprite);
                     if (vertexLight is not null)
                         Add(vertexLight);
-                    Scene.OnEndOfFrame += new(ResetHair);
+                    if (Scene is not null)
+                        Scene.OnEndOfFrame += new(ResetHair);
+                    else
+                        ResetHair();
                     lastBody = null;
                 }
             );
@@ -516,7 +546,10 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
             Add(playerSprite);
             if (vertexLight is not null)
                 Add(vertexLight);
-            Scene.OnEndOfFrame += new(ResetHair);
+            if (Scene is not null)
+                Scene.OnEndOfFrame += new(ResetHair);
+            else
+                ResetHair();
             lastBody?.RemoveSelf();
         }
     }
@@ -544,7 +577,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
 
     public void UpdateSprite(string animID, ushort animFrame, bool facingLeft, Vector2 scale)
     {
-        if (animID != string.Empty && playerSprite.Has(animID))
+        if (!dead && animID != string.Empty && playerSprite.Has(animID))
         {
             playerSprite.Play(animID);
             playerSprite.SetAnimationFrame(animFrame);
@@ -764,24 +797,6 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         if (respawning)
         {
             DeathEffect.Draw(Position, playerHair.Color, deadEase);
-        }
-    }
-
-    public void HairAfterUpdate()
-    {
-        if (dead)
-            return;
-
-        if (OnlinePlayer.IsPaused)
-        {
-            bool simulateMotion = playerHair.SimulateMotion;
-            playerHair.SimulateMotion = false;
-            playerHair.AfterUpdate();
-            playerHair.SimulateMotion = simulateMotion;
-        }
-        else
-        {
-            playerHair.AfterUpdate();
         }
     }
 }

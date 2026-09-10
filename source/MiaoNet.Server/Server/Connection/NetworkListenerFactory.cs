@@ -1,3 +1,3 @@
 ﻿namespace MiaoNet.Server;
 
-public delegate INetworkListener NetworkListenerFactory(NetworkOptions options);
+public delegate INetworkListener NetworkListenerFactory(string listenEndPoint);

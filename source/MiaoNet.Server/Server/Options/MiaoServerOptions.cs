@@ -1,10 +1,8 @@
-using MiaoNet.Shared;
-
 namespace MiaoNet.Server;
 
 public sealed class MiaoServerOptions
 {
-    public NetworkOptions Network { get; set; } = new() { ListenEndPoint = "0.0.0.0:21473" };
+    public string ListenEndPoint { get; set; } = "0.0.0.0:21473";
 
     public int HandshakeTimeout { get; set; } = 6000;
 
@@ -19,16 +17,4 @@ public sealed class MiaoServerOptions
     public double SendBatchFrequency { get; set; } = 60.0;
 
     public int SendBatchSize { get; set; } = 1344;
-
-    public required CertificateOptions Certificate { get; set; }
-
-    public required AuthenticationOptions Authentication { get; set; }
-
-    public required LocalizedOptions<AnnouncementsStrings> Announcements { get; set; }
-
-    public string HttpListenerPrefix { get; set; } = "http://localhost:21474/";
-
-    public string ApiToken { get; set; } = string.Empty;
-
-    public AdminPanelOptions AdminPanel { get; set; } = new();
 }

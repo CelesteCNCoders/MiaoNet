@@ -1,7 +1,7 @@
 <Project>
 
   <PropertyGroup>
-    <LangVersion>preview</LangVersion>
+    <LangVersion>14</LangVersion>
     <UseLocalhostPfx>false</UseLocalhostPfx>
     <UseLocalhostPfx Condition="$(Configuration) == 'Debug'">true</UseLocalhostPfx>
     <UseCeleMiaoAuth Condition="'$(UseCeleMiaoAuth)' == '' and '$(Configuration)' == 'Release'">true</UseCeleMiaoAuth>

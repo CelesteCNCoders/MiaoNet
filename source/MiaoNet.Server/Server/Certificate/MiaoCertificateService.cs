@@ -20,13 +20,9 @@ public sealed class MiaoCertificateService : BackgroundService, IMiaoCertificate
 
     private volatile X509Certificate2 cert;
 
-    public MiaoCertificateService(ILogger<MiaoCertificateService> logger, IOptions<MiaoServerOptions> options)
+    public MiaoCertificateService(ILogger<MiaoCertificateService> logger, IOptions<CertificateOptions> options)
     {
-        var oc = options.Value.Certificate;
-        if (oc.CertificatePath is null || oc.CertificateKeyPath is null)
-        {
-            throw new Exception("Certificate must be configured when using MiaoCertificateService.");
-        }
+        var oc = options.Value;
         certPath = oc.CertificatePath;
         keyPath = oc.CertificateKeyPath;
         timer = new PeriodicTimer(TimeSpan.FromHours(4));

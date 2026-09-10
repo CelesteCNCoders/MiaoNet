@@ -33,7 +33,7 @@ public sealed partial class MiaoHttpService : BackgroundService
 
     public MiaoHttpService(
         ILogger<MiaoHttpService> logger,
-        IOptions<MiaoServerOptions> options,
+        IOptions<HttpOptions> options,
         MiaoServerService miaoServerService,
         MiaoMetricsService miaoMetricsService,
         AdminLogBuffer adminLogBuffer,
@@ -50,7 +50,7 @@ public sealed partial class MiaoHttpService : BackgroundService
         this.adminMetricsSampler = adminMetricsSampler;
         this.temporaryFreezeStore = temporaryFreezeStore;
         httpListener = new();
-        httpListener.Prefixes.Add(options.Value.HttpListenerPrefix);
+        httpListener.Prefixes.Add(options.Value.ListenerPrefix);
 
         apiToken = options.Value.ApiToken;
         adminOptions = options.Value.AdminPanel;
@@ -91,7 +91,7 @@ public sealed partial class MiaoHttpService : BackgroundService
         {
             logger.LogWarning(
                 AppEvents.Http,
-                "MiaoServer:ApiToken is not configured; mutating HTTP endpoints (DELETE /player, POST /announce, /gc) are unprotected."
+                "MiaoServer:Http:ApiToken is not configured; mutating HTTP endpoints (DELETE /player, POST /announce, /gc) are unprotected."
             );
         }
         if (adminOptions.Enabled)
@@ -100,7 +100,7 @@ public sealed partial class MiaoHttpService : BackgroundService
             {
                 logger.LogWarning(
                     AppEvents.Http,
-                    "Admin panel is enabled but MiaoServer:AdminPanel ClientID/ClientSecret is not configured; OAuth login will fail."
+                    "Admin panel is enabled but MiaoServer:Http:AdminPanel ClientID/ClientSecret is not configured; OAuth login will fail."
                 );
             }
             logger.LogInformation(AppEvents.Http, "Admin panel is enabled on /admin, forum: {forum}.", adminOptions.ForumBaseUrl);

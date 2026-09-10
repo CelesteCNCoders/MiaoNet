@@ -74,6 +74,7 @@ partial class MiaoNetContext
         EnsureState();
         var player = ClientState.GetPlayer(packet.PlayerID);
         ClientState.OnPlayerLeft(packet.PlayerID);
+        frameQueues.Remove(packet.PlayerID);
         PlayerLeft?.Invoke(player);
         player.State = null;
     }
@@ -93,7 +94,46 @@ partial class MiaoNetContext
             Logger.Warn(LT.MiaoNetSync, $"No initial state but received frame notification for {player.Info}!");
             return;
         }
+        GetFrameQueue(player.ID).Enqueue(packet.Packet.StateDelta);
         PlayerFrameNotification?.Invoke(player, packet.Packet);
+    }
+
+    private void ConsumeFrameQueues()
+    {
+        EnsureState();
+        if (frameQueues.Count == 0)
+            return;
+
+        foreach (var pair in frameQueues)
+        {
+            var queue = pair.Value;
+            if (queue.Count == 0)
+                continue;
+
+            if (!ClientState.TryGetPlayer(pair.Key, out OnlinePlayer? player))
+                continue;
+
+            int consumeCount = queue.Count > FrameQueueBacklogThreshold ? queue.Count : 1;
+            if (consumeCount > 1)
+            {
+                Logger.Debug(
+                    LT.MiaoNetSync,
+                    $"Frame queue backlog for {player.Info}: {queue.Count} frames queued, consuming {consumeCount} this frame to catch up."
+                );
+            }
+            for (int i = 0; i < consumeCount && queue.TryDequeue(out PlayerStateDelta? delta); i++)
+                FrameTick?.Invoke(player, delta!);
+        }
+    }
+
+    private Queue<PlayerStateDelta> GetFrameQueue(int playerID)
+    {
+        if (!frameQueues.TryGetValue(playerID, out Queue<PlayerStateDelta>? queue))
+        {
+            queue = new();
+            frameQueues[playerID] = queue;
+        }
+        return queue;
     }
 
     private void HandlePacket(PacketPlayerLocationChangedNotification packet)
@@ -101,6 +141,8 @@ partial class MiaoNetContext
         EnsureState();
         var player = ClientState.GetPlayer(packet.PlayerID);
         player.Location = packet.Location;
+
+        frameQueues.Remove(packet.PlayerID);
 
         bool roomOnly = packet.InitialState is null
             && packet.Location.IsInMap
@@ -115,6 +157,7 @@ partial class MiaoNetContext
     private void HandlePacket(PacketPlayerLocationChangedResponse packet)
     {
         EnsureState();
+        frameQueues.Clear();
         foreach (var playerInMap in packet.Players)
             ClientState.ApplyPlayerMovedInitialData(playerInMap);
         PlayerLocationChangeResponded?.Invoke(packet);
@@ -244,6 +287,7 @@ partial class MiaoNetContext
             foreach (var playerInMap in packet.Players)
                 ClientState.ApplyPlayerMovedInitialData(playerInMap);
         }
+        frameQueues.Clear();
         SelfChannelMoved?.Invoke(packet);
     }
 
@@ -253,6 +297,7 @@ partial class MiaoNetContext
         ClientState.OnPlayerChannelMove(packet.PlayerID, packet.ChannelID, packet.Presence, out var pl);
         if (packet.InitialData is not null)
             ClientState.ApplyPlayerMovedInitialData(packet.PlayerID, packet.InitialData.Value);
+        frameQueues.Remove(packet.PlayerID);
         PlayerChannelMoved?.Invoke(pl, packet);
     }
 

@@ -33,7 +33,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         ghosts = new();
 
         context.PlayerLeft += Context_PlayerLeft;
-        context.PlayerFrameNotification += Context_PlayerFrameNotification;
+        context.FrameTick += Context_FrameTick;
         context.PlayerLocationChanged += Context_PlayerLocationChanged;
         context.PlayerLocationChangeResponded += Context_PlayerLocationChangeResponded;
         context.PlayerLiveStateNotification += Context_PlayerLiveStateNotification;
@@ -562,65 +562,62 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
     }
 
-    private void Context_PlayerFrameNotification(OnlinePlayer player, PacketPlayerFrame packet)
+    private void Context_FrameTick(OnlinePlayer player, PlayerStateDelta delta)
     {
         if (Engine.Scene is not Level level)
             return;
+        ApplyFrame(level, player.ID, delta);
+    }
 
-        var delta = packet.StateDelta;
+    private void ApplyFrame(Level level, int playerID, PlayerStateDelta delta)
+    {
+        if (!ghosts.TryGetValue(playerID, out MiaoNetGhost? ghost))
+            return;
 
-        if (ghosts.TryGetValue(player.ID, out var ghost))
+        if (!ghost.BeingHeldLocally)
+            ghost.Position = delta.Position;
+
+        // hmmm can we avoid these tons of updates?
+
+        ghost.UpdateInteractions(delta.StateFlags.HasFlag(PlayerStateFlags.Interactions));
+        ghost.UpdateSprite(delta.Animation, delta.AnimationFrame, delta.StateFlags.HasFlag(PlayerStateFlags.FacingLeft), delta.Scale);
+        if (delta.HasHoldable)
         {
-            if (!ghost.BeingHeldLocally)
-                ghost.Position = delta.Position;
-
-            // hmmm can we avoid these tons of updates?
-
-            ghost.UpdateInteractions(delta.StateFlags.HasFlag(PlayerStateFlags.Interactions));
-            ghost.UpdateSprite(delta.Animation, delta.AnimationFrame, delta.StateFlags.HasFlag(PlayerStateFlags.FacingLeft), delta.Scale);
-            if (delta.HasHoldable)
-            {
-                var hi = delta.HoldableInfo;
-                if (hi.Type == HoldableType.Jelly)
-                    ghost.UpdateHoldable(
-                        hi.Type,
-                        hi.Offset,
-                        hi.Animation,
-                        hi.AnimationFrame,
-                        hi.Scale,
-                        hi.Rotation
-                    );
-                else
-                    ghost.UpdateSimpleHoldable(hi.Type, hi.Offset);
-
-                if (player.ID == heldByPlayerGhost?.OnlinePlayer.ID)
-                    OnHeldByPlayerFrame(level, ghost);
-            }
+            var hi = delta.HoldableInfo;
+            if (hi.Type == HoldableType.Jelly)
+                ghost.UpdateHoldable(
+                    hi.Type,
+                    hi.Offset,
+                    hi.Animation,
+                    hi.AnimationFrame,
+                    hi.Scale,
+                    hi.Rotation
+                );
             else
-            {
-                ghost.UpdateNoHoldable();
-            }
-            if (delta.HasFollowerInitials)
-                ghost.OnFollowerInitials(delta.FollowerInitials);
-            else if (delta.HasFollowerDeltas)
-                ghost.OnFollowerDeltas(delta.FollowerDeltas);
+                ghost.UpdateSimpleHoldable(hi.Type, hi.Offset);
 
-            if (delta.HasWindDirection)
-                ghost.UpdateWind(delta.WindDirection);
-
-            ghost.UpdateDashing(
-                delta.StateFlags.HasFlag(PlayerStateFlags.Dashing), delta.DashDirection / (float)byte.MaxValue * MathF.Tau,
-                delta.DashesChange, delta.Dashes
-            );
-            ghost.UpdateStarFlying(delta.StateFlags.HasFlag(PlayerStateFlags.StarFlying));
-            ghost.UpdateDucking(delta.StateFlags.HasFlag(PlayerStateFlags.Ducking));
-            ghost.UpdateTired(delta.StateFlags.HasFlag(PlayerStateFlags.Tired));
+            if (playerID == heldByPlayerGhost?.OnlinePlayer.ID)
+                OnHeldByPlayerFrame(level, ghost);
         }
         else
         {
-            // server can be late to know we aren't in the previous location
-            Logger.Warn(LT.MiaoNetSync, $"Notified but ghost does not exists for {player.Info}");
+            ghost.UpdateNoHoldable();
         }
+        if (delta.HasFollowerInitials)
+            ghost.OnFollowerInitials(delta.FollowerInitials);
+        else if (delta.HasFollowerDeltas)
+            ghost.OnFollowerDeltas(delta.FollowerDeltas);
+
+        if (delta.HasWindDirection)
+            ghost.UpdateWind(delta.WindDirection);
+
+        ghost.UpdateDashing(
+            delta.StateFlags.HasFlag(PlayerStateFlags.Dashing), delta.DashDirection / (float)byte.MaxValue * MathF.Tau,
+            delta.DashesChange, delta.Dashes
+        );
+        ghost.UpdateStarFlying(delta.StateFlags.HasFlag(PlayerStateFlags.StarFlying));
+        ghost.UpdateDucking(delta.StateFlags.HasFlag(PlayerStateFlags.Ducking));
+        ghost.UpdateTired(delta.StateFlags.HasFlag(PlayerStateFlags.Tired));
     }
 
     private void Context_PlayerLeft(OnlinePlayer player)
