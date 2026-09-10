@@ -354,6 +354,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         // TODO avoid using MemoryStream
         MemoryStream ms = new(512);
         var channelReader = sendChannel.Reader;
+        bool batchingEnabled = server.SendBatchingEnabled;
         TimeSpan batchInterval = server.SendBatchInterval;
         int batchSize = server.SendBatchSize;
         TimeProvider timeProvider = TimeProvider.System;
@@ -381,6 +382,8 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
                 }
 
                 if (flush) break;
+
+                if (!batchingEnabled) break;
 
                 // not full, wait for more data
                 // and also start a timer, we'll flush when the timer elapses or the batch size is reached

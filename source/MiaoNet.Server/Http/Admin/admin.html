@@ -169,6 +169,10 @@
             gap: 12px;
         }
 
+        .sec-settings {
+            grid-column: 1/-1;
+        }
+
         .sec-players {
             grid-column: span 7;
         }
@@ -486,6 +490,25 @@
                 flex: 1;
                 max-width: 480px;
             }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #c8d3d8;
+            font-size: 13px;
+        }
+
+            .setting-row input[type="checkbox"] {
+                width: 16px;
+                height: 16px;
+                accent-color: #00e5ff;
+            }
+
+        .setting-note {
+            color: #4f99a8;
+            font-size: 12px;
+        }
 
         /* ---------- streams ---------- */
         .stream-wrap {
@@ -895,6 +918,13 @@
             <div class="card"><div class="label">运行时间</div><div class="value" id="d-uptime" style="font-size:17px;">-</div></div>
             <div class="card"><div class="label">托管内存</div><div class="value" id="d-mem" style="font-size:17px;">-</div></div>
         </div>
+        <section class="panel sec-settings">
+            <h2 class="sec-title">服务器设置</h2>
+            <div class="setting-row">
+                <input id="batching-enabled" type="checkbox">
+                <label for="batching-enabled">启用时间窗口发包 Batching</label>
+            </div>
+        </section>
         <section class="panel sec-players">
             <h2 class="sec-title">在线玩家</h2>
             <div class="bar">
@@ -976,6 +1006,28 @@
         function postJson(path, body) {
             return apiJson(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         }
+
+        const batchingEnabled = $("#batching-enabled");
+        async function refreshSettings() {
+            try {
+                const data = await apiJson("/admin/api/settings");
+                batchingEnabled.checked = data.batchingEnabled === true;
+                pollOk("settings", "服务器设置");
+            } catch (e) { pollFail("settings", "服务器设置"); }
+        }
+        batchingEnabled.addEventListener("change", async () => {
+            batchingEnabled.disabled = true;
+            try {
+                const enabled = batchingEnabled.checked;
+                const data = await postJson("/admin/api/settings/batching", { enabled });
+                if (!data.ok) throw new Error(data.error || "更新失败");
+                toast(enabled ? "已启用发包 batching，新连接生效" : "已关闭发包 batching，新连接生效", true);
+            } catch (e) {
+                batchingEnabled.checked = !batchingEnabled.checked;
+                toast(e.message || "设置更新失败", false);
+            } finally { batchingEnabled.disabled = false; }
+        });
+        refreshSettings();
 
         // ---- terminal: mini connection console + boot sequence ----
         function termPrint(text) {

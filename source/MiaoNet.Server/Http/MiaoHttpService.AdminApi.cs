@@ -12,6 +12,8 @@ public sealed partial class MiaoHttpService
 
     private sealed record AdminAnnounceRequest(string? Message);
 
+    private sealed record AdminBatchingRequest(bool? Enabled);
+
     private async Task HandleAdminApiRequestAsync(
         string path,
         NameValueCollection query,
@@ -40,6 +42,12 @@ public sealed partial class MiaoHttpService
                 break;
             case "/admin/api/metrics":
                 await AdminApiMetricsAsync(context);
+                break;
+            case "/admin/api/settings":
+                await AdminApiSettingsAsync(context);
+                break;
+            case "/admin/api/settings/batching":
+                await AdminApiBatchingAsync(context, session);
                 break;
             default:
                 context.Response.StatusCode = (int)HttpStatusCode.NotFound;
@@ -245,6 +253,45 @@ public sealed partial class MiaoHttpService
                 cpuPercent = series.Select(static s => s.CpuPercent),
                 allocBytesPerSecond = series.Select(static s => s.AllocBytesPerSecond)
             }
+        });
+    }
+
+    private async Task AdminApiSettingsAsync(HttpListenerContext context)
+    {
+        if (context.Request.HttpMethod != "GET")
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+            return;
+        }
+        await WriteJsonAsync(context, (int)HttpStatusCode.OK, new
+        {
+            batchingEnabled = miaoServerService.SendBatchingEnabled
+        });
+    }
+
+    private async Task AdminApiBatchingAsync(
+        HttpListenerContext context,
+        AdminSessionStore.AdminSession session
+    )
+    {
+        if (context.Request.HttpMethod != "POST")
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+            return;
+        }
+        AdminBatchingRequest? request = await ReadJsonBodyAsync<AdminBatchingRequest>(context);
+        if (request?.Enabled is not bool enabled)
+        {
+            await WriteJsonAsync(context, (int)HttpStatusCode.BadRequest,
+                new { ok = false, error = "需要提供 batching 开关状态" });
+            return;
+        }
+        miaoServerService.SetSendBatchingEnabled(enabled);
+        logger.LogInformation(AppEvents.Http, "Admin {admin} set packet batching to {enabled}.", session.UserName, enabled);
+        await WriteJsonAsync(context, (int)HttpStatusCode.OK, new
+        {
+            ok = true,
+            batchingEnabled = enabled
         });
     }
 

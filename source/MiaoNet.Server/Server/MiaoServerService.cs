@@ -28,6 +28,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
     private readonly AdminChatBuffer adminChatBuffer;
     private readonly TemporaryFreezeStore temporaryFreezeStore;
     private readonly ConnectionCooldownTracker connectionCooldownTracker = new();
+    private volatile bool sendBatchingEnabled = true;
 
     private readonly PacketDispatcher packetDispatcher;
 
@@ -50,6 +51,10 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
     public TimeSpan SendBatchInterval => TimeSpan.FromSeconds(1.0 / options.SendBatchFrequency);
 
     public int SendBatchSize => options.SendBatchSize;
+
+    public bool SendBatchingEnabled => sendBatchingEnabled;
+
+    public void SetSendBatchingEnabled(bool enabled) => sendBatchingEnabled = enabled;
 
     public TimeSpan RequestTimeout => TimeSpan.FromMilliseconds(options.RequestTimeout);
 
