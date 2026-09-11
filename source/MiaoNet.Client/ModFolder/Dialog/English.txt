@@ -279,9 +279,10 @@ miaonet_oui_conflict_description=
 	MiaoNet version: v(0)
 	CelesteNet version: v(1)
 
-	Unfortunately, these mods conflict with each other.
-	You can avoid this issue by disabling either mod after exiting the game.
-miaonet_oui_conflict_exit_game= Exit Game
+	Compatibility between them is not guaranteed. You can choose to:
+miaonet_oui_conflict_exit= Exit
+miaonet_oui_conflict_continue= Continue
+miaonet_oui_conflict_continue_description= Warning: This may cause unexpected behavior or incompatibilities.
 
 miaonet_interactions_off_on_collecting_golden= Player interactions disabled due to picking up a golden berry.
 miaonet_group_photo_mode_off_on_map_change= Group photo mode disabled due to location changing.

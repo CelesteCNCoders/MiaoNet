@@ -24,7 +24,10 @@ internal sealed class OuiConflict : Oui
         menu.Add(new TextMenu.Header(Dialog.Get("miaonet_oui_conflict_title")));
         menu.Add(new TextMenu.SubHeader(desc));
         menu.Add(new TextMenu.Button(string.Empty) { Selectable = false });
-        menu.Add(new TextMenu.Button(Dialog.Get("miaonet_oui_conflict_exit_game")).Pressed(new Action(Exit)));
+        menu.Add(new TextMenu.Button(Dialog.Get("miaonet_oui_conflict_exit")).Pressed(new Action(Exit)));
+        var continueButton = new TextMenu.Button(Dialog.Get("miaonet_oui_conflict_continue")).Pressed(new Action(Continue));
+        menu.Add(continueButton);
+        continueButton.AddDescription(menu, Dialog.Get("miaonet_oui_conflict_continue_description"));
         menu.BatchMode = false;
         return menu;
     }
@@ -70,6 +73,11 @@ internal sealed class OuiConflict : Oui
         {
             Scene.Remove(menu);
         };
+    }
+
+    public void Continue()
+    {
+        Overworld.Goto<OuiMainMenu>();
     }
 
     private void Exit()
