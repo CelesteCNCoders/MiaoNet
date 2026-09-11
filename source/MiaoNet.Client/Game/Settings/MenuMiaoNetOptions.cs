@@ -176,7 +176,7 @@ public static class MenuMiaoNetOptions
         uiSubMenu.Add(item);
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_chat_message_padding"), 0, 8, settings.ChatUIScale    
+            Dialog.Get("miaonet_options_chat_message_padding"), 0, 8, settings.ChatMessagePadding
         ).Change(v => settings.ChatMessagePadding = v);
         uiSubMenu.Add(item);
         
