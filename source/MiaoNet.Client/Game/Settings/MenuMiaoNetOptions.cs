@@ -240,7 +240,7 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
 
         item = new TextMenuExt.IntSlider(
-            Dialog.Get("miaonet_options_self_name_opactiy"), 1, 10, settings.SelfNameOpacity
+            Dialog.Get("miaonet_options_self_name_opacity"), 1, 10, settings.SelfNameOpacity
         ).Change(v => settings.SelfNameOpacity = v);
         menu.Add(item);
 
