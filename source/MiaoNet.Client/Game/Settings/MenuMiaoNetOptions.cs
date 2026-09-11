@@ -255,15 +255,18 @@ public static class MenuMiaoNetOptions
         menu.Add(item);
 
         {
-            TextMenuExt.IntSlider minPlayerOpacitySlider;
-            minPlayerOpacitySlider = new TextMenuExt.IntSlider(
+            var minPlayerOpacitySlider = new TextMenuExt.IntSlider(
                 Dialog.Get("miaonet_options_min_player_opacity_multiplier"), 0, 9, settings.MinPlayerOpacityMultiplier
             ).Change(v => settings.MinPlayerOpacityMultiplier = v);
-            minPlayerOpacitySlider.Visible = settings.DistanceBasedOpacity;
+            minPlayerOpacitySlider.Disabled = !settings.DistanceBasedOpacity;
 
             item = new TextMenu.OnOff(
                 Dialog.Get("miaonet_options_distance_based_opacity"), settings.DistanceBasedOpacity
-            ).Change(v => settings.DistanceBasedOpacity = minPlayerOpacitySlider.Visible = v);
+            ).Change(v =>
+            {
+                settings.DistanceBasedOpacity = v;
+                minPlayerOpacitySlider.Disabled = !v;
+            });
             menu.Add(item);
             menu.Add(minPlayerOpacitySlider);
         }
