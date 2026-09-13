@@ -1,153 +1,349 @@
 ﻿using System.Collections.Concurrent;
+using System.Globalization;
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace Celeste.Mod.MiaoNet;
 
+// TODO we should support retrying failed requests
 public static class AvatarManager
 {
-    private static readonly string PathAvatarCache =
-        Path.Combine(Everest.Loader.PathCache, "MiaoNet", "AvatarCache");
+    private const int HashLength = 16;
 
-    private static int nextID;
+    private const string ImageExtension = ".png";
+    private const string MetaExtension = ".meta";
 
-    private struct CacheInfo
+    private const string LegacyStateFileName = ".json";
+
+    private const string VersionFileName = "v2";
+
+    private static readonly string PathAvatarCache;
+
+    private static readonly HttpClient httpClient;
+
+    private static readonly ConcurrentDictionary<Uri, Task<string>> runningFetches = new();
+
+    static AvatarManager()
+    {
+        string? pathCache = Everest.Loader.PathCache ?? throw new InvalidOperationException(
+            "AvatarManager was used before Everest finished initializing."
+        );
+        PathAvatarCache = Path.Combine(pathCache, "MiaoNet", "AvatarCache");
+
+        httpClient = new();
+        string ua = $"MiaoNet.Client/{MiaoNetModule.Instance.Metadata.VersionString}";
+        httpClient.DefaultRequestHeaders.Add("User-Agent", ua);
+        Logger.Info(LT.MiaoNetAvatar, $"Using User-Agent {ua}.");
+
+        MigrateLegacyCache();
+    }
+
+    public static Task<string> GetAsync(Uri uri)
+    {
+    Retry:
+        if (runningFetches.TryGetValue(uri, out Task<string>? running))
+            return running;
+
+        TaskCompletionSource<string> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        if (!runningFetches.TryAdd(uri, completion.Task))
+            goto Retry;
+
+        _ = FetchAndCompleteAsync(uri, completion);
+        return completion.Task;
+    }
+
+    private static async Task FetchAndCompleteAsync(Uri uri, TaskCompletionSource<string> completion)
+    {
+        try
+        {
+            completion.SetResult(await FetchAsync(uri));
+        }
+        catch (Exception e)
+        {
+            completion.SetException(e);
+        }
+        finally
+        {
+            runningFetches.TryRemove(uri, out _);
+        }
+    }
+
+    private static async Task<string> FetchAsync(Uri uri)
+    {
+        Directory.CreateDirectory(PathAvatarCache);
+
+        string imagePath = Path.Combine(PathAvatarCache, HashUri(uri) + ImageExtension);
+        string metaPath = imagePath + MetaExtension;
+
+        if (!File.Exists(imagePath) || !CacheInfo.TryRead(metaPath, out CacheInfo cache))
+            return await DownloadAsync(uri, imagePath, metaPath, null);
+
+        if (cache.CacheControlMaxAge is TimeSpan maxAge && DateTimeOffset.UtcNow < cache.FetchTime + maxAge)
+        {
+            Logger.Debug(LT.MiaoNetAvatar, $"Using locally cached {uri}.");
+            return imagePath;
+        }
+
+        CacheInfo? revalidate = cache.ETag is not null || cache.LastModified is not null ? cache : null;
+        return await DownloadAsync(uri, imagePath, metaPath, revalidate);
+    }
+
+    private static async Task<string> DownloadAsync(Uri uri, string imagePath, string metaPath, CacheInfo? revalidate)
+    {
+        using HttpRequestMessage request = new(HttpMethod.Get, uri);
+
+        if (revalidate is CacheInfo cached)
+        {
+            if (cached.ETag is not null)
+                request.Headers.TryAddWithoutValidation("If-None-Match", cached.ETag);
+            if (cached.LastModified is not null)
+                request.Headers.IfModifiedSince = cached.LastModified;
+
+            Logger.Debug(LT.MiaoNetAvatar, $"Revalidating cached {uri}...");
+        }
+        else
+        {
+            Logger.Debug(LT.MiaoNetAvatar, $"No cache found, requesting {uri}...");
+        }
+
+        using HttpResponseMessage response = await httpClient.SendAsync(request);
+
+        DateTimeOffset fetchTime = DateTimeOffset.UtcNow;
+        TimeSpan? maxAge = response.Headers.CacheControl?.MaxAge;
+        DateTimeOffset? lastModified = response.Content.Headers.LastModified;
+        string? eTag = response.Headers.ETag?.Tag;
+
+        if (revalidate is not null && response.StatusCode == HttpStatusCode.NotModified)
+        {
+            Logger.Debug(LT.MiaoNetAvatar, $"Remote resource is not modified, using cached {uri}.");
+
+            CacheInfo refreshed = new(
+                fetchTime,
+                maxAge ?? revalidate.Value.CacheControlMaxAge,
+                lastModified ?? revalidate.Value.LastModified,
+                eTag ?? revalidate.Value.ETag
+            );
+            refreshed.Write(metaPath);
+            return imagePath;
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        byte[] data = await response.Content.ReadAsByteArrayAsync();
+        WriteFileAtomic(imagePath, data);
+        new CacheInfo(fetchTime, maxAge, lastModified, eTag).Write(metaPath);
+        return imagePath;
+    }
+
+    private static string HashUri(Uri uri)
+    {
+        Span<byte> digest = stackalloc byte[32];
+        SHA256.HashData(Encoding.UTF8.GetBytes(uri.AbsoluteUri), digest);
+        return Convert.ToHexString(digest[..(HashLength / 2)]);
+    }
+
+    private static void WriteFileAtomic(string path, byte[] contents)
+    {
+        string tmpPath = path + ".tmp";
+        File.WriteAllBytes(tmpPath, contents);
+        File.Move(tmpPath, path, true);
+    }
+
+    private static void MigrateLegacyCache()
+    {
+        try
+        {
+            string legacyStatePath = Path.Combine(PathAvatarCache, LegacyStateFileName);
+            if (!File.Exists(legacyStatePath))
+                return;
+
+            Logger.Info(LT.MiaoNetAvatar, "Migrating v1 avatar cache to v2...");
+
+            if (TryReadLegacyCache(legacyStatePath, out Dictionary<string, LegacyCacheInfo> legacy))
+            {
+                foreach ((string uriText, LegacyCacheInfo info) in legacy)
+                {
+                    try
+                    {
+                        MigrateLegacyEntry(uriText, info);
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.Warn(LT.MiaoNetAvatar, $"Failed to migrate cached avatar \"{uriText}\".");
+                        Logger.LogDetailed(e);
+                    }
+                }
+            }
+            else
+            {
+                Logger.Warn(LT.MiaoNetAvatar, "Failed to read v1 avatar cache state, discarding it.");
+            }
+
+            RemoveLegacyCacheFiles();
+            File.WriteAllBytes(Path.Combine(PathAvatarCache, VersionFileName), []);
+
+            Logger.Info(LT.MiaoNetAvatar, "Migrated v1 avatar cache to v2.");
+        }
+        catch (Exception e)
+        {
+            Logger.Error(LT.MiaoNetAvatar, "Failed to migrate v1 avatar cache to v2.");
+            Logger.LogDetailed(e);
+        }
+    }
+
+    private static void MigrateLegacyEntry(string uriText, LegacyCacheInfo info)
+    {
+        if (!Uri.TryCreate(uriText, UriKind.Absolute, out Uri? uri))
+            return;
+
+        string legacyName = Path.GetFileName(info.FileName);
+        if (legacyName.Length == 0)
+            return;
+
+        string legacyImagePath = Path.Combine(PathAvatarCache, legacyName);
+        if (!File.Exists(legacyImagePath))
+            return;
+
+        string imagePath = Path.Combine(PathAvatarCache, HashUri(uri) + ImageExtension);
+        if (File.Exists(imagePath))
+            File.Delete(legacyImagePath);
+        else
+            File.Move(legacyImagePath, imagePath);
+
+        new CacheInfo(
+            new DateTimeOffset(info.FetchTime),
+            info.CacheControlMaxAge,
+            info.LastModified,
+            info.ETag
+        ).Write(imagePath + MetaExtension);
+    }
+
+    private static bool TryReadLegacyCache(string path, out Dictionary<string, LegacyCacheInfo> legacy)
+    {
+        legacy = [];
+
+        try
+        {
+            using FileStream stream = File.OpenRead(path);
+            using JsonDocument document = JsonDocument.Parse(stream);
+            if (!document.RootElement.TryGetProperty("clone", out JsonElement clone))
+                return false;
+
+            legacy = clone.Deserialize<Dictionary<string, LegacyCacheInfo>>() ?? [];
+            return true;
+        }
+        catch (Exception e)
+        {
+            Logger.Warn(LT.MiaoNetAvatar, $"Failed to read v1 avatar cache state \"{path}\".");
+            Logger.LogDetailed(e);
+            return false;
+        }
+    }
+
+    private static void RemoveLegacyCacheFiles()
+    {
+        foreach (string path in Directory.EnumerateFiles(PathAvatarCache))
+        {
+            string name = Path.GetFileName(path);
+
+            if (name != LegacyStateFileName &&
+                name != LegacyStateFileName + ".tmp" &&
+                !IsLegacyImageName(name))
+            {
+                continue;
+            }
+
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception e)
+            {
+                Logger.Warn(LT.MiaoNetAvatar, $"Failed to remove legacy avatar cache file \"{path}\".");
+                Logger.LogDetailed(e);
+            }
+        }
+    }
+
+    private static bool IsLegacyImageName(string name)
+    {
+        if (!name.EndsWith(ImageExtension, StringComparison.Ordinal))
+            return false;
+
+        string baseName = name[..^ImageExtension.Length];
+        if (baseName.Length is 0 or HashLength)
+            return false;
+
+        return baseName.All(static c => c is >= '0' and <= '9');
+    }
+
+    private sealed class LegacyCacheInfo
     {
         public DateTime FetchTime { get; set; }
-        public string FileName { get; set; }
-
+        public string FileName { get; set; } = string.Empty;
         public TimeSpan? CacheControlMaxAge { get; set; }
         public DateTimeOffset? LastModified { get; set; }
         public string? ETag { get; set; }
     }
 
-    private static readonly HttpClient httpClient;
-    private static readonly ConcurrentDictionary<Uri, CacheInfo> memoryCache;
-
-    static AvatarManager()
+    private readonly record struct CacheInfo(
+        DateTimeOffset FetchTime,
+        TimeSpan? CacheControlMaxAge,
+        DateTimeOffset? LastModified,
+        string? ETag
+    )
     {
-        httpClient = new();
-        httpClient.DefaultRequestHeaders.Add("User-Agent", "MiaoNet Client Avatar Http Client");
-        memoryCache = new();
+        private const int LineCount = 4;
 
-        try
+        public static bool TryRead(string path, out CacheInfo cache)
         {
-            string file = Path.Combine(PathAvatarCache, ".json");
-            if (File.Exists(file))
-            {
-                var node = JsonSerializer.Deserialize<JsonNode>(File.ReadAllText(file));
-                int? id = node?["id"]?.GetValue<int>();
-                var dicNode = node?["clone"];
-                var dic = JsonSerializer.Deserialize<ConcurrentDictionary<Uri, CacheInfo>>(dicNode);
+            cache = default;
 
-                if (id is null || dic is null)
-                {
-                    Logger.Error(LT.MiaoNetAvatar, "Failed to read broken cache state.");
-                    return;
-                }
-                nextID = id.Value;
-                memoryCache = dic;
+            try
+            {
+                if (!File.Exists(path))
+                    return false;
+
+                string[] lines = File.ReadAllLines(path);
+                if (lines.Length != LineCount)
+                    return false;
+
+                if (!TryParseDateTimeOffset(lines[0], out DateTimeOffset fetchTime))
+                    return false;
+
+                TimeSpan? maxAge = TimeSpan.TryParse(lines[1], CultureInfo.InvariantCulture, out TimeSpan parsedMaxAge)
+                    ? parsedMaxAge
+                    : null;
+                DateTimeOffset? lastModified = TryParseDateTimeOffset(lines[2], out DateTimeOffset parsedLastModified)
+                    ? parsedLastModified
+                    : null;
+
+                cache = new(fetchTime, maxAge, lastModified, lines[3].Length == 0 ? null : lines[3]);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Logger.Warn(LT.MiaoNetAvatar, $"Failed to read avatar cache meta \"{path}\".");
+                Logger.LogDetailed(e);
+                return false;
             }
         }
-        catch (Exception e)
+
+        public void Write(string path)
         {
-            Logger.Error(LT.MiaoNetAvatar, "Failed to read cache state from disk.");
-            Logger.LogDetailed(e);
+            string content = string.Join('\n',
+                FetchTime.ToString("O", CultureInfo.InvariantCulture),
+                CacheControlMaxAge?.ToString("c", CultureInfo.InvariantCulture),
+                LastModified?.ToString("O", CultureInfo.InvariantCulture),
+                ETag
+            ) + '\n';
+            WriteFileAtomic(path, Encoding.UTF8.GetBytes(content));
         }
-    }
 
-    public static void PersistStateToDisk()
-    {
-        var clone = memoryCache.ToDictionary();
-        var id = nextID;
-        JsonObject obj = new()
-        {
-            ["id"] = id,
-            ["clone"] = JsonSerializer.SerializeToNode(clone)
-        };
-        var str = JsonSerializer.Serialize(obj);
-        Directory.CreateDirectory(PathAvatarCache);
-        string tmp = Path.Combine(PathAvatarCache, ".json.tmp");
-        string real = Path.Combine(PathAvatarCache, ".json");
-        File.WriteAllText(tmp, str);
-        File.Move(tmp, real, true);
-    }
-
-    public static async ValueTask<string> GetAsync(Uri uri)
-    {
-        if (memoryCache.TryGetValue(uri, out var cache) && File.Exists(Path.Combine(PathAvatarCache, cache.FileName)))
-        {
-            if (cache.CacheControlMaxAge is TimeSpan timeSpan && DateTime.UtcNow < cache.FetchTime + timeSpan)
-            {
-                Logger.Debug(LT.MiaoNetAvatar, $"Using locally cached {uri}.");
-                return Path.Combine(PathAvatarCache, cache.FileName);
-            }
-
-            if (cache.ETag is not null || cache.LastModified is not null)
-            {
-                HttpRequestMessage req = new(HttpMethod.Get, uri);
-
-                if (cache.ETag is not null)
-                    req.Headers.IfNoneMatch.Add(new(cache.ETag));
-                if (cache.LastModified is not null)
-                    req.Headers.IfModifiedSince = cache.LastModified;
-
-                var res = await httpClient.SendAsync(req);
-
-                cache.FetchTime = DateTime.UtcNow;
-                cache.CacheControlMaxAge = res.Headers.CacheControl?.MaxAge;
-                cache.LastModified = res.Content.Headers.LastModified;
-                cache.ETag = res.Headers.ETag?.Tag;
-
-                if (res.StatusCode == HttpStatusCode.NotModified)
-                {
-                    Logger.Debug(LT.MiaoNetAvatar, $"Remote resource is not modified, using cached {uri}.");
-                    memoryCache[uri] = cache;
-                    return Path.Combine(PathAvatarCache, cache.FileName);
-                }
-                else
-                {
-                    Logger.Debug(LT.MiaoNetAvatar, $"Remote resource is modified, requesting {uri}...");
-                    res.EnsureSuccessStatusCode();
-                    await FetchAndSave(res, cache.FileName);
-                    memoryCache[uri] = cache;
-                    return Path.Combine(PathAvatarCache, cache.FileName);
-                }
-            }
-            goto FullFetch;
-        }
-    FullFetch:
-        {
-            Logger.Debug(LT.MiaoNetAvatar, $"No cache found, requesting {uri}...");
-            var res = await httpClient.GetAsync(uri);
-
-            var cacheControlMaxAge = res.Headers.CacheControl?.MaxAge;
-            var lastModified = res.Content.Headers.LastModified;
-            var eTag = res.Headers.ETag?.Tag;
-
-            string fileName = $"{Interlocked.Increment(ref nextID)}.png";
-            await FetchAndSave(res, fileName);
-
-            memoryCache.AddOrUpdate(uri, new CacheInfo()
-            {
-                FetchTime = DateTime.UtcNow,
-                FileName = fileName,
-                CacheControlMaxAge = cacheControlMaxAge,
-                LastModified = lastModified,
-                ETag = eTag
-            }, (u, o) => o);
-
-            return Path.Combine(PathAvatarCache, fileName);
-        }
-    }
-
-    private static async Task FetchAndSave(HttpResponseMessage message, string fileName)
-    {
-        var arr = await message.Content.ReadAsByteArrayAsync();
-
-        Directory.CreateDirectory(PathAvatarCache);
-        string pathToAvatarCacheFile = Path.Combine(PathAvatarCache, fileName);
-        await File.WriteAllBytesAsync(pathToAvatarCacheFile, arr);
+        private static bool TryParseDateTimeOffset(string value, out DateTimeOffset result)
+            => DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out result);
     }
 }

@@ -194,7 +194,6 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         // Stop publishing the connection before invoking extensible cleanup code.
         // A cleanup callback can fail or re-enter this method, but observers must
         // never see a live connection paired with an already-cleared client state.
-        bool hadConnection = connection is not null;
         activeConnectionOperation = null;
         connection = null;
         clientState = null;
@@ -227,8 +226,6 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         [
             new("close connection operation", () => operation.CloseConnection(false)),
         ];
-        if (hadConnection)
-            finalSteps.Add(new("persist avatar state", AvatarManager.PersistStateToDisk));
 
         List<CleanupFailure> failures = [.. BestEffortCleanup.Run(cleanupSteps, finalSteps)];
 
@@ -363,7 +360,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                 return;
             }
 
-            string avatarPath = await AvatarManager.GetAsync(uri).ConfigureAwait(false);
+            string avatarPath = await AvatarManager.GetAsync(uri);
 
             QueueForOperation(operation.Generation, () =>
             {
