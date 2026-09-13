@@ -30,13 +30,13 @@ public sealed partial class MiaoServerService
         var player = connection.Player;
         if (player.State is null)
         {
-            logger.LogError(AppEvents.Game, "Packet frame received but no initial state for {p}.", player.Info);
+            logger.LogError(AppEvents.Game, "Received a player frame from {p} but there is no initial state.", player.Info);
             await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
             return;
         }
         else if (!player.Location.IsInMap)
         {
-            logger.LogError(AppEvents.Game, "Player {p} is not in map but sent PacketPlayerFrame!", player.Info);
+            logger.LogError(AppEvents.Game, "Player {p} is not in a map but sent a player frame packet.", player.Info);
             await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
             return;
         }
@@ -72,7 +72,7 @@ public sealed partial class MiaoServerService
         var newLocation = packet.Location;
         logger.LogDebug(
             AppEvents.GameState,
-            "Player {p} location changing from {p1} to {p2}.",
+            "Player {p} is changing location from {p1} to {p2}.",
             player.Info, oldLocation, newLocation
         );
 
@@ -134,7 +134,7 @@ public sealed partial class MiaoServerService
         {
             logger.LogWarning(
                 AppEvents.GameState,
-                "Player {p} didn't send state when went to {loc}.",
+                "Player {p} didn't send its state when moving to {loc}.",
                 player.Info, newLocation
             );
             await connection.DisconnectAsync(DisconnectReason.InvalidPacketWithState);
@@ -192,6 +192,14 @@ public sealed partial class MiaoServerService
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerChannelMove packet)
     {
         var player = connection.Player;
+
+        logger.LogInformation(
+            AppEvents.Channel,
+            "{player} is moving from channel \"{from}\" to \"{to}\".",
+            player,
+            player.Channel.Info.Name,
+            packet.TargetChannelName
+        );
 
         ValueTask responseTask;
         Task sameMapTask;
@@ -310,7 +318,7 @@ public sealed partial class MiaoServerService
         logger.LogInformation(AppEvents.GameChat, "[{channel}] {player}: {msg}", packet.ChatChannel, connection.Player.Info, packet.Content);
         if (packet.Content.Length > 64)
         {
-            logger.LogWarning(AppEvents.GameChat, "{player} is sending a large chat!", connection.Player.Info);
+            logger.LogWarning(AppEvents.GameChat, "{player} sent an oversized chat message.", connection.Player.Info);
             await connection.DisconnectAsync(DisconnectReason.Kicked, "Chat too long.");
             return;
         }
@@ -413,7 +421,7 @@ public sealed partial class MiaoServerService
             {
                 if (response.Accepted)
                 {
-                    logger.LogInformation(AppEvents.Game, "{p}'s teleport request to {p2} accepted.", connection.Player.Info, target.Player.Info);
+                    logger.LogInformation(AppEvents.Game, "{p}'s teleport request to {p2} was accepted.", connection.Player.Info, target.Player.Info);
                     return connection.ResponseAsync(
                         request,
                         new(PacketTeleportResponse.TeleportFailedReason.None, response.Session)
@@ -421,7 +429,7 @@ public sealed partial class MiaoServerService
                 }
                 else
                 {
-                    logger.LogInformation(AppEvents.Game, "{p}'s teleport request to {p2} rejected.", connection.Player.Info, target.Player.Info);
+                    logger.LogInformation(AppEvents.Game, "{p}'s teleport request to {p2} was rejected.", connection.Player.Info, target.Player.Info);
                     return connection.ResponseAsync(
                         request,
                         new(PacketTeleportResponse.TeleportFailedReason.OtherDenied, null)
@@ -447,7 +455,7 @@ public sealed partial class MiaoServerService
         {
             logger.LogInformation(
                 AppEvents.Game,
-                "{p} is requesting to teleport to player(id: {id}) who is not found.",
+                "{p} is requesting to teleport to player (id {id}), which does not exist.",
                 connection.Player.Info,
                 request.TargetPlayerID
             );
@@ -481,7 +489,7 @@ public sealed partial class MiaoServerService
         {
             logger.LogInformation(
                 AppEvents.GameChat,
-                "{player} tries to send private message to player(id: {id}) who is not found.",
+                "{player} tried to send a private message to player (id {id}), which does not exist.",
                 connection.Player.Info,
                 request.TargetPlayerID
             );

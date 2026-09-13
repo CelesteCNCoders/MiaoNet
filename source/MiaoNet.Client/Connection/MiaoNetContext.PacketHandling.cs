@@ -58,7 +58,7 @@ partial class MiaoNetContext
             StatusComponent.ShowStatusMessage(ConnectionStatus.Kicked(packet.Message));
             return;
         }
-        Logger.Info(LT.MiaoNetConnection, $"Received PacketDisconnected with reason {packet.Reason} and message \"{packet.Message}\".");
+        Logger.Info(LT.MiaoNetConnection, $"Received a disconnect packet: reason {packet.Reason}, message \"{packet.Message}\".");
         StatusComponent.ShowStatusMessage(packet.Message ?? ConnectionStatus.Disconnected);
     }
 
@@ -91,7 +91,7 @@ partial class MiaoNetContext
         }
         else
         {
-            Logger.Warn(LT.MiaoNetSync, $"No initial state but received frame notification for {player.Info}!");
+            Logger.Warn(LT.MiaoNetSync, $"Received a frame notification for {player.Info}, but there is no initial state.");
             return;
         }
         GetFrameQueue(player.ID).Enqueue(packet.Packet.StateDelta);
@@ -200,7 +200,7 @@ partial class MiaoNetContext
             }
             else
             {
-                Logger.Warn(LT.MiaoNetSync, $"No initial state but received live state notification for {player.Info}!");
+                Logger.Warn(LT.MiaoNetSync, $"Received a live state notification for {player.Info}, but there is no initial state.");
             }
         }
         PlayerLiveStateNotification?.Invoke(player, packet.Packet.Type, packet.Packet.Vector2);

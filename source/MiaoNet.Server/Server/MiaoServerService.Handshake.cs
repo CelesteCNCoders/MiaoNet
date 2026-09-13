@@ -49,7 +49,7 @@ partial class MiaoServerService
         {
             networkConnection?.Dispose();
             pendingConnection.Dispose();
-            logger.LogInformation(AppEvents.Connection, "{addr} Handshake timeouted.", addr);
+            logger.LogInformation(AppEvents.Connection, "{addr} handshake timed out.", addr);
             return;
         }
         catch (Exception e)
@@ -58,7 +58,7 @@ partial class MiaoServerService
             pendingConnection.Dispose();
             logger.LogError(
                 AppEvents.Connection, e,
-                "Error when completing pending connection({addr}).",
+                "Error while completing pending connection from {addr}.",
                 addr
             );
             return;
@@ -117,7 +117,7 @@ partial class MiaoServerService
                     BinaryPrimitives.WriteUInt16LittleEndian(span[5..7], build);
                     logger.LogInformation(
                         AppEvents.Connection,
-                        "{addr} version {v1}.{v2}.{v3} does not match current version.",
+                        "{addr} version {v1}.{v2}.{v3} does not match the server version.",
                         networkConnection.RemoteAddress, majorClient, minorClient, buildClient
                     );
                     await stream.WriteAsync(memory[0..(1 + VersionLength)], token);
@@ -171,6 +171,16 @@ partial class MiaoServerService
                 handshakeData.IsAuthorize,
                 token
             );
+
+            if (authResult.IsFailed)
+            {
+                logger.LogInformation(
+                    AppEvents.Auth,
+                    "{addr} failed to authenticate: {result}.",
+                    networkConnection.RemoteAddress,
+                    authResult.Type
+                );
+            }
 
             string? failedReason = authResult.IsFailed ? authResult.SuspendMessage : null;
             HandshakeAckData ack = new(authResult.Type, authResult.TokenData, failedReason);

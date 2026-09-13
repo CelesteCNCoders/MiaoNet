@@ -54,7 +54,7 @@ public sealed partial class MiaoHttpService : BackgroundService
     public override Task StartAsync(CancellationToken cancellationToken)
     {
         httpListener.Start();
-        logger.LogInformation(AppEvents.Http, "HttpListener start to listen on {ps}.", string.Join(';', httpListener.Prefixes));
+        logger.LogInformation(AppEvents.Http, "HttpListener started, listening on {ps}.", string.Join(';', httpListener.Prefixes));
 
         return base.StartAsync(cancellationToken);
     }
@@ -102,7 +102,7 @@ public sealed partial class MiaoHttpService : BackgroundService
         catch (Exception e)
         {
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-            logger.LogError(AppEvents.Http, e, "Error when handling request \"{url}\" from {ep}", context.Request.RawUrl, context.Request.RemoteEndPoint);
+            logger.LogError(AppEvents.Http, e, "Error while handling request \"{url}\" from {ep}.", context.Request.RawUrl, context.Request.RemoteEndPoint);
         }
         finally
         {
@@ -124,7 +124,7 @@ public sealed partial class MiaoHttpService : BackgroundService
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             logger.LogError(
                 AppEvents.Http, e,
-                "Error when handling request \"{url}\" from {ep}",
+                "Error while handling request \"{url}\" from {ep}.",
                 context.Request.RawUrl, context.Request.RemoteEndPoint
             );
         }

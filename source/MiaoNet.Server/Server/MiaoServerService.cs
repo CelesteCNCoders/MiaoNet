@@ -82,7 +82,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
     public override Task StartAsync(CancellationToken cancellationToken)
     {
         logger.LogInformation("MiaoNet Server v{v} starting...", Connection.Version.ToString(3));
-        logger.LogInformation("Start to listen on {ep}.", options.ListenEndPoint);
+        logger.LogInformation("Listening on {ep}.", options.ListenEndPoint);
         networkListener.Listen();
         return base.StartAsync(cancellationToken);
     }
@@ -94,7 +94,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         {
             IPendingNetworkConnection pending = await networkListener.AcceptAsync(stoppingToken);
             var addr = pending.RemoteAddress;
-            logger.LogInformation(AppEvents.Connection, "New client try connecting: {addr}", addr);
+            logger.LogInformation(AppEvents.Connection, "New client is trying to connect from {addr}.", addr);
             _ = HandlePendingConnectionAsync(pending, stoppingToken);
         }
     }
@@ -117,10 +117,9 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
             var newPlayer = serverState.CreateNewPlayer(handshakeResult.PlayerInfo);
             logger.LogInformation(
                 AppEvents.Connection,
-                "Assign {ep}({player}) to id {id}.",
-                addr,
-                newPlayer.Info.Name,
-                newPlayer.ID
+                "{player} joined from {ep}.",
+                newPlayer,
+                addr
             );
 
             // create the connection
@@ -213,13 +212,18 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                 serverState.RemovePlayer(newConnection);
             }
             // then, tell other clients this player left
-            logger.LogInformation(AppEvents.Connection, "Client id {id} handle finished.", newPlayer.ID);
+            logger.LogInformation(AppEvents.Connection, "Finished handling client {player}.", newPlayer);
             await BroadcastAsync(new PacketPlayerLeft(newPlayer.ID));
         }
         catch (Exception e)
         {
             connection.Dispose();
-            logger.LogError(AppEvents.Connection, e, "Exception occurred for {addr}:", addr);
+            logger.LogError(
+                AppEvents.Connection, e,
+                "Exception occurred for {player}@{addr}.",
+                handshakeResult.PlayerInfo,
+                addr
+            );
         }
     }
 
@@ -267,8 +271,8 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                     {
                         logger.LogInformation(
                             AppEvents.Connection,
-                            "{p} has too many pending requests and will be disconnected.",
-                            connection.Player.Info
+                            "{p} has too many pending requests, disconnecting.",
+                            connection.Player
                         );
                         await connection.DisconnectAsync(DisconnectReason.Timeout);
                         return null;
@@ -285,7 +289,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                     {
                         try
                         {
-                            logger.LogInformation(AppEvents.Connection, "{p} timed out heartbeat.", connection.Player.Info);
+                            logger.LogInformation(AppEvents.Connection, "Heartbeat timed out for {p}.", connection.Player);
                             await connection.DisconnectAsync(DisconnectReason.Timeout);
                         }
                         finally
@@ -302,12 +306,12 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         catch (OperationCanceledException e)
         when (e.CancellationToken == token)
         {
-            logger.LogInformation(AppEvents.Server, "Cancelled heartbeats task.");
+            logger.LogInformation(AppEvents.Server, "Heartbeat task cancelled.");
         }
         catch (Exception e)
         {
             // wait what
-            logger.LogCritical(AppEvents.Server, e, "Handler of connections heartbeats is down.");
+            logger.LogCritical(AppEvents.Server, e, "Connection heartbeat handler is down, restarting...");
             // we'd better not to make the server down too...
             goto Restart;
         }
@@ -387,9 +391,9 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
             {
                 logger.LogWarning(
                     AppEvents.Connection,
-                    "Unknown received response of id {rid} for player {p}. Type is {type}",
+                    "Received unknown response {rid} from {p}, type is {type}.",
                     res.RequestID,
-                    connection.Player.Info,
+                    connection.Player,
                     packet.GetType()
                 );
                 return;
@@ -401,7 +405,12 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
             bool handled = await packetDispatcher.DispatchPacketAsync(connection, packet);
             if (!handled)
             {
-                logger.LogWarning("Unhandled packet received from client: {pc}", packet.GetType());
+                logger.LogWarning(
+                    AppEvents.Connection,
+                    "Received unhandled packet from {player}: {pc}.",
+                    connection.Player,
+                    packet.GetType()
+                );
             }
         }
     }

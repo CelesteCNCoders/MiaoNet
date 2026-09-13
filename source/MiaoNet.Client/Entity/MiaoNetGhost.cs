@@ -449,7 +449,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         {
             Logger.Error(
                 LT.MiaoNet,
-                $"Received {deltas.Length} follower deltas but there's only {followers.Count} followers."
+                $"Received {deltas.Length} follower deltas but there are only {followers.Count} followers."
             );
             // let it crash
         }

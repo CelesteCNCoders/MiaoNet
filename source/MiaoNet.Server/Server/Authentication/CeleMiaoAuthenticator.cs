@@ -52,7 +52,7 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
         this.httpClient = httpClient;
         // TODO add version info
         string ua = "MiaoNet.Server.CeleMiaoAuthenticator";
-        logger.LogInformation(AppEvents.Auth, "Using User-Agent \"{ua}\"", ua);
+        logger.LogInformation(AppEvents.Auth, "Using User-Agent \"{ua}\".", ua);
         httpClient.BaseAddress = new Uri(BaseAddress);
         httpClient.DefaultRequestHeaders.Add("User-Agent", ua);
 
@@ -112,12 +112,12 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
                 }
                 else if (errorResult is not null)
                 {
-                    logger.LogWarning(AppEvents.Auth, "Auth failed bbs-side with error {err}. {msg}.", errorResult.Error, errorResult.ErrorDescription);
+                    logger.LogWarning(AppEvents.Auth, "BBS-side auth failed with error {err}: {msg}.", errorResult.Error, errorResult.ErrorDescription);
                     return new(AuthenticationResultType.InvalidTokenData, null, null);
                 }
                 else
                 {
-                    logger.LogWarning(AppEvents.Auth, "Bbs-side sent null.");
+                    logger.LogWarning(AppEvents.Auth, "BBS-side returned an empty response.");
                     return new(AuthenticationResultType.InternalServerError, null, null);
                 }
             }
@@ -130,7 +130,7 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
                 }
                 catch (CryptographicException e)
                 {
-                    logger.LogWarning(e, "Failed to decrypt data.");
+                    logger.LogWarning(AppEvents.Auth, e, "Failed to decrypt authentication data.");
                     return new AuthenticationResult(AuthenticationResultType.InvalidTokenData);
                 }
                 TokenObject tokenObject = RefBinarySerialization.Deserialize<TokenObject>(decryptedData);
@@ -174,12 +174,12 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
                     }
                     else if (errorResult is not null)
                     {
-                        logger.LogWarning(AppEvents.Auth, "Auth failed bbs-side with error {err}. {msg}.", errorResult.Error, errorResult.ErrorDescription);
+                        logger.LogWarning(AppEvents.Auth, "BBS-side auth failed with error {err}: {msg}.", errorResult.Error, errorResult.ErrorDescription);
                         return new(AuthenticationResultType.InvalidTokenData, null, null);
                     }
                     else
                     {
-                        logger.LogWarning(AppEvents.Auth, "Bbs-side sent null.");
+                        logger.LogWarning(AppEvents.Auth, "BBS-side returned an empty response.");
                         return new(AuthenticationResultType.InternalServerError, null, null);
                     }
                 }
@@ -188,7 +188,7 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
         }
         catch (Exception e)
         {
-            logger.LogError(AppEvents.Auth, e, "Exception occurred when authing.");
+            logger.LogError(AppEvents.Auth, e, "Exception occurred while authenticating.");
             return new AuthenticationResult(AuthenticationResultType.InternalServerError);
         }
     }
@@ -209,7 +209,7 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
             {
                 logger.LogInformation(
                     AppEvents.Auth,
-                    "{pn}:{id} is suspended due to {reason}, message: {msg}. Until {until}",
+                    "{pn}:{id} is suspended due to {reason}, message: {msg}, until {until}.",
                     result.UserName, result.ID,
                     result.SuspendReason, result.SuspendMessage,
                     result.SuspendedUntil
@@ -220,7 +220,7 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
             if (result.Color is not { Length: 7 } || !TryParseHexColor(result.Color.AsSpan(1), out Color color))
             {
                 color = Color.White;
-                logger.LogWarning(AppEvents.Auth, "Failed to parse color for player {name}, raw hex string: {hex}.", result.UserName, result.Color);
+                logger.LogWarning(AppEvents.Auth, "Failed to parse color \"{hex}\" for player {name}, falling back to white.", result.Color, result.UserName);
             }
             return new AuthenticationResult(
                 AuthenticationResultType.Success,
@@ -230,12 +230,12 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
         }
         else if (errorResult is not null)
         {
-            logger.LogWarning(AppEvents.Auth, "Auth failed bbs-side with error {err}. {msg}.", errorResult.Error, errorResult.ErrorDescription);
+            logger.LogWarning(AppEvents.Auth, "BBS-side auth failed with error {err}: {msg}.", errorResult.Error, errorResult.ErrorDescription);
             return new(AuthenticationResultType.InvalidTokenData);
         }
         else
         {
-            logger.LogWarning(AppEvents.Auth, "Bbs-side sent null.");
+            logger.LogWarning(AppEvents.Auth, "BBS-side returned an empty response.");
             return new(AuthenticationResultType.InternalServerError);
         }
     }

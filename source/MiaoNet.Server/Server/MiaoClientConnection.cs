@@ -95,22 +95,22 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         catch (IOException ioe)
         when (ioe.InnerException is SocketException { SocketErrorCode: SocketError.ConnectionReset or SocketError.ConnectionAborted } e)
         {
-            logger.LogInformation(AppEvents.Connection, "Connection aborted, id {id}.", ID);
+            logger.LogInformation(AppEvents.Connection, "Connection aborted for {player}.", Player);
         }
         catch (OperationCanceledException)
         {
             networkConnection.Shutdown();
-            logger.LogDebug(AppEvents.Connection, "Connection id {id} handling cancelled.", ID);
+            logger.LogDebug(AppEvents.Connection, "Connection handling cancelled for {player}.", Player);
         }
         catch (Exception e)
         {
-            logger.LogError(AppEvents.Connection, e, "Exception when handling connection id {id}.", ID);
+            logger.LogError(AppEvents.Connection, e, "Connection handling failed for {player}.", Player);
         }
         finally
         {
             await CancelPendingRequestsAsync();
             networkConnection.Dispose();
-            logger.LogInformation(AppEvents.Connection, "Connection id {id} closed.", ID);
+            logger.LogInformation(AppEvents.Connection, "Connection closed for {player}.", Player);
         }
     }
 
@@ -183,12 +183,12 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         }
 
         logger.LogWarning(
-            "Could not find source request id of response {id}, type is {type}.",
+            AppEvents.Connection,
+            "Response {id} from {player} has no matching pending request, type is {type}.",
             response.RequestID,
+            Player,
             response.GetType().FullName
         );
-        foreach (var item in pendingRequests)
-            logger.LogWarning("pendingRequests has key: {key}", item.Key);
 
         return null;
     }
@@ -220,7 +220,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         }
         catch (Exception e)
         {
-            logger.LogError(AppEvents.Connection, e, "Request {id} timeout handler failed for connection {connectionId}.", id, ID);
+            logger.LogError(AppEvents.Connection, e, "Timeout handler of request {id} failed for {player}.", id, Player);
         }
     }
 
@@ -254,9 +254,9 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
                         logger.LogError(
                             AppEvents.Connection,
                             e,
-                            "Request {id} cancellation handler failed for connection {connectionId}.",
+                            "Cancellation handler of request {id} failed for {player}.",
                             id,
-                            ID
+                            Player
                         );
                     }
                 }
@@ -283,7 +283,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
                 break;
         }
         await pipeWriter.CompleteAsync();
-        logger.LogDebug("Receiving task of id {id} finished.", ID);
+        logger.LogDebug("Receiving task finished for {player}.", Player);
     }
 
     private async Task HandleClientProcessingAsync(CancellationToken token)
@@ -302,12 +302,12 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         {
             logger.LogWarning(
                 AppEvents.Connection,
-                "Connection id {id} closed with {leftover} leftover bytes that do not form a complete packet frame.",
-                ID,
+                "Connection closed for {player} with {leftover} bytes that do not form a complete packet frame.",
+                Player,
                 leftoverBytes
             );
         }
-        logger.LogDebug("Processing task of id {id} finished.", ID);
+        logger.LogDebug("Processing task finished for {player}.", Player);
     }
 
     internal static async Task<long> ProcessPacketsAsync(
@@ -409,7 +409,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
             batch.Clear();
         }
-        logger.LogDebug("Sending task of id {id} finished.", ID);
+        logger.LogDebug("Sending task finished for {player}.", Player);
     }
 
     internal static bool TryParsePacket(

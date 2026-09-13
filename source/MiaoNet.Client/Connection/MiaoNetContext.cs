@@ -279,7 +279,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         }
         catch (Exception e)
         {
-            Logger.Error(LT.MiaoNet, "Exception occurred during updating!");
+            Logger.Error(LT.MiaoNet, "Exception occurred while updating.");
             Logger.LogDetailed(e, LT.MiaoNet);
             DisconnectByException(e);
         }
@@ -354,7 +354,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
             if (!Uri.TryCreate(playerInfo.AvatarUrl, UriKind.Absolute, out Uri? uri))
             {
-                Logger.Warn(LT.MiaoNetAvatar, $"Invalid url \"{playerInfo.AvatarUrl}\" for player {playerInfo.DisplayName}.");
+                Logger.Warn(LT.MiaoNetAvatar, $"Invalid URL \"{playerInfo.AvatarUrl}\" for player {playerInfo.DisplayName}.");
                 QueueForOperation(operation.Generation, () =>
                 {
                     Emoji.Register(sid, GFX.Gui["miaonet/missing_avatar"], 64, 64);
@@ -374,7 +374,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                 }
                 catch (Exception e)
                 {
-                    Logger.Error(LT.MiaoNetAvatar, $"Failed to create texture of \"{playerInfo.AvatarUrl}\" for player {playerInfo.DisplayName}");
+                    Logger.Error(LT.MiaoNetAvatar, $"Failed to create a texture from \"{playerInfo.AvatarUrl}\" for player {playerInfo.DisplayName}.");
                     Logger.LogDetailed(e);
                     tex = GFX.Gui["miaonet/missing_avatar"];
                 }
@@ -386,8 +386,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         {
             Logger.Error(
                 LT.MiaoNetAvatar,
-                $"Error on avatar preparing for player \"{playerInfo}\" " +
-                $"of id {playerID} with url {playerInfo.AvatarUrl}."
+                $"Error while preparing the avatar of {playerInfo} (id {playerID}), url: {playerInfo.AvatarUrl}."
             );
             Logger.LogDetailed(e);
         }
@@ -434,7 +433,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         }
         catch (Exception e)
         {
-            Logger.Error(LT.MiaoNet, "Exception occurred during rendering!");
+            Logger.Error(LT.MiaoNet, "Exception occurred while rendering.");
             Logger.LogDetailed(e, LT.MiaoNet);
             DisconnectByException(e);
         }

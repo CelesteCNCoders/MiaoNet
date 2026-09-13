@@ -39,7 +39,7 @@ public static class ClientRC
         }
         else
         {
-            Logger.Info(LT.MiaoNetRC, "Client RC is not running, no need to stop.");
+            Logger.Info(LT.MiaoNetRC, "Client RC is not running, nothing to stop.");
         }
     }
 
@@ -77,7 +77,7 @@ public static class ClientRC
         { }
         catch (Exception e)
         {
-            Logger.Error(LT.MiaoNetRC, "Unhandled exception!");
+            Logger.Error(LT.MiaoNetRC, "Unhandled exception in the client RC listener!");
             Logger.LogDetailed(e, LT.MiaoNetRC);
         }
 

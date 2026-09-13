@@ -493,7 +493,7 @@ public sealed partial class MainComponent : MiaoNetComponent
                 else if (Engine.Scene is LevelLoader)
                 {
                     if (pendingMapChanged)
-                        Logger.Warn(LT.MiaoNet, "pendingMapChanged is still true, is this a bug?");
+                        Logger.Warn(LT.MiaoNet, "pendingMapChanged is still true, this is unexpected.");
                     pendingMapChanged = true;
                 }
                 else
@@ -536,7 +536,7 @@ public sealed partial class MainComponent : MiaoNetComponent
 
     private void Context_PlayerLocationChanged(OnlinePlayer player, PacketPlayerLocationChangedNotification packet)
     {
-        Logger.Debug(LT.MiaoNet, $"LocationChanging: {player.Info.Name} to {packet.Location}");
+        Logger.Debug(LT.MiaoNet, $"Location changing: {player.Info.Name} -> {packet.Location}");
         if (Engine.Scene is not Level level)
             return;
 
@@ -553,7 +553,7 @@ public sealed partial class MainComponent : MiaoNetComponent
     {
         if (Engine.Scene is not Level level)
             return;
-        Logger.Debug(LT.MiaoNet, $"LocationChangeResponding: Players count = {packet.Players.Count}");
+        Logger.Debug(LT.MiaoNet, $"Responding to the location change with {packet.Players.Count} players.");
         CleanUpGhosts(level);
         foreach (var item in packet.Players)
         {
@@ -628,7 +628,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             return;
         if (!ghosts.Remove(player.ID, out MiaoNetGhost? ghost))
         {
-            Logger.Warn(LT.MiaoNet, $"Try removing the ghost of player({player.Info}) but it doesn't exist.");
+            Logger.Warn(LT.MiaoNet, $"Tried to remove the ghost of {player.Info}, but it does not exist.");
             return;
         }
         level.CompletelyRemove(ghost);
@@ -679,7 +679,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         }
         else
         {
-            Logger.Warn(LT.MiaoNetSync, $"Live state notified but ghost does not exists for {player.Info}");
+            Logger.Warn(LT.MiaoNetSync, $"Received a live state for {player.Info}, but the ghost does not exist.");
         }
     }
 
@@ -718,7 +718,7 @@ public sealed partial class MainComponent : MiaoNetComponent
         // TODO and also, we need to introduce player global settings
         if (!ghosts.TryGetValue(player.ID, out var ghost))
         {
-            Logger.Warn(LT.MiaoNetSync, $"Received player {player.Info} played audio {audio.Event} but no ghost found.");
+            Logger.Warn(LT.MiaoNetSync, $"Received played audio {audio.Event} from {player.Info}, but no ghost was found.");
             return;
         }
 
@@ -760,11 +760,11 @@ public sealed partial class MainComponent : MiaoNetComponent
         {
             ghosts[other.ID] = ghost = new(other, context.ShowAvatar);
             level.Add(ghost);
-            Logger.Debug(LT.MiaoNet, $"Created ghost for {other.Info}");
+            Logger.Debug(LT.MiaoNet, $"Created a ghost for {other.Info}.");
         }
         else
         {
-            Logger.Debug(LT.MiaoNet, $"Removed ghost for {other.Info}");
+            Logger.Debug(LT.MiaoNet, $"Removed the ghost of {other.Info}.");
         }
     }
 

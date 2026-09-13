@@ -159,7 +159,7 @@ public sealed class MiaoNetModule : EverestModule
         }
         catch (Exception e)
         {
-            Logger.Error("MiaoNet", $"Error occurred while loading extra settings.");
+            Logger.Error(LT.MiaoNet, "Error occurred while loading extra settings.");
             Logger.LogDetailed(e);
         }
     }
@@ -173,7 +173,7 @@ public sealed class MiaoNetModule : EverestModule
         }
         catch (Exception e)
         {
-            Logger.Error("MiaoNet", $"Error occurred while saving extra settings.");
+            Logger.Error(LT.MiaoNet, "Error occurred while saving extra settings.");
             Logger.LogDetailed(e);
         }
     }

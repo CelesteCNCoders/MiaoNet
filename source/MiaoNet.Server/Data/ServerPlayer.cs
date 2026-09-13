@@ -14,6 +14,8 @@ public sealed class ServerPlayer
 
     public PlayerInfo Info { get; }
 
+    public override string ToString() => $"{Info}(id: {ID})";
+
     public PlayerLocation Location { get; set; }
 
     public PlayerState? State { get; set; }
