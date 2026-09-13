@@ -8,20 +8,21 @@ public static class PacketFraming
     private static readonly ArrayPool<byte> pool = ArrayPool<byte>.Shared;
 
     public static void WritePacket(
-        Stream stream,
+        ByteArrayBufferWriter output,
         IContextualPacket packet,
         IPacketSerializationContext context
     )
     {
         ushort packetID = PacketRegistry.GetPacketID(packet);
-        long frameStart = stream.Position;
-        stream.Seek(Connection.PacketHeaderSize, SeekOrigin.Current);
-        long payloadStart = stream.Position;
+        int frameStart = output.WrittenCount;
 
-        RefBinaryWriter writer = new(stream);
+        RefBinaryWriter writer = new(output);
+        writer.Write((ushort)0);
+        writer.Write(packetID);
         packet.Serialize(ref writer, context);
+        writer.Flush();
 
-        long payloadSize = stream.Position - payloadStart;
+        int payloadSize = output.WrittenCount - frameStart - Connection.PacketHeaderSize;
         if (payloadSize > Connection.MaxPayloadSize)
         {
             throw new PacketTooLargeException(
@@ -31,11 +32,27 @@ public static class PacketFraming
             );
         }
 
-        long frameEnd = stream.Position;
-        stream.Position = frameStart;
-        writer.Write((ushort)payloadSize);
-        writer.Write(packetID);
-        stream.Position = frameEnd;
+        Span<byte> frame = output.WrittenSpan[frameStart..];
+        BinaryPrimitives.WriteUInt16LittleEndian(frame, (ushort)payloadSize);
+        BinaryPrimitives.WriteUInt16LittleEndian(frame[sizeof(ushort)..], packetID);
+    }
+
+    public static void WriteSizePrefixed<T>(ByteArrayBufferWriter output, T value)
+        where T : IRefBinarySerializable<T>
+    {
+        int frameStart = output.WrittenCount;
+
+        RefBinaryWriter writer = new(output);
+        writer.Write((ushort)0);
+        value.Serialize(ref writer);
+        writer.Flush();
+
+        int size = output.WrittenCount - frameStart - sizeof(ushort);
+        if (size > Connection.MaxPayloadSize)
+            throw new ArgumentOutOfRangeException(nameof(value));
+
+        Span<byte> frame = output.WrittenSpan[frameStart..];
+        BinaryPrimitives.WriteUInt16LittleEndian(frame, (ushort)size);
     }
 
     public static async ValueTask<IContextualPacket?> ReadPacketAsync(

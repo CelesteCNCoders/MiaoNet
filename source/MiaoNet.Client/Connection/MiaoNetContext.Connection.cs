@@ -175,10 +175,7 @@ partial class MiaoNetContext
             string? prefix = settings.Prefix;
             Color color = settings.Color is null ? Color.White : Calc.HexToColor(settings.Color);
             PlayerInfo playerInfo = new(-1, name, prefix ?? string.Empty, settings.AvatarUrl ?? string.Empty, color);
-            MemoryStream ms = new(32);
-            RefBinaryWriter writer = new(ms);
-            writer.Write(playerInfo);
-            byte[] authData = ms.GetBuffer().AsSpan(0, checked((int)ms.Position)).ToArray();
+            byte[] authData = RefBinarySerialization.Serialize(playerInfo);
             handshakeData = new(langCode, false, authData, netMods);
 #endif
 

@@ -351,8 +351,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
     private async Task HandleClientSendingAsync(CancellationToken token)
     {
-        // TODO avoid using MemoryStream
-        MemoryStream ms = new(512);
+        ByteArrayBufferWriter batch = new(512);
         var channelReader = sendChannel.Reader;
         TimeSpan batchInterval = server.SendBatchInterval;
         int batchSize = server.SendBatchSize;
@@ -369,9 +368,9 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
                 bool flush = false;
                 while (channelReader.TryRead(out var packet))
                 {
-                    WritePacket(ms, packet, this);
+                    PacketFraming.WritePacket(batch, packet, this);
                     packetsCount++;
-                    if (!packet.CanBatch || ms.Position >= batchSize)
+                    if (!packet.CanBatch || batch.WrittenCount >= batchSize)
                     {
                         flush = true;
                         break;
@@ -402,14 +401,13 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
                 }
             }
 
-            int size = checked((int)ms.Position);
+            int size = batch.WrittenCount;
             Debug.Assert(size > 0);
 
-            var mem = ms.GetBuffer().AsMemory(0, size);
-            await networkConnection.Stream.WriteAsync(mem, token);
+            await networkConnection.Stream.WriteAsync(batch.WrittenMemory, token);
             metricsService.RecordPacketTcpUpload(packetsCount, size);
 
-            ms.Seek(0, SeekOrigin.Begin);
+            batch.Clear();
         }
         logger.LogDebug("Sending task of id {id} finished.", ID);
     }
@@ -458,11 +456,4 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
                 ArrayPool<byte>.Shared.Return(rented);
         }
     }
-
-    private static void WritePacket(
-        MemoryStream stream,
-        IContextualPacket packet,
-        IPacketSerializationContext context
-    )
-        => PacketFraming.WritePacket(stream, packet, context);
 }

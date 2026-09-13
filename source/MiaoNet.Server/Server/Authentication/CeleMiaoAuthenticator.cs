@@ -163,7 +163,7 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
                                 tokenObject.RefreshToken,
                                 resTime + TimeSpan.FromSeconds(tokenResult.ExpiresIn)
                             );
-                            var authData = RefBinarySerialization.Serialize(newTokenObject, 80);
+                            var authData = RefBinarySerialization.Serialize(newTokenObject);
                             var encryptedData = alg.EncryptCbc(authData, alg.IV);
                             return new(result.Type, result.PlayerInfo, encryptedData);
                         }

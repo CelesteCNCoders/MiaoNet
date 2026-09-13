@@ -159,9 +159,7 @@ partial class MiaoServerService
             {
                 var memory = buffer.AsMemory(0, size);
                 await stream.ReadExactlyAsync(memory, token);
-                var span = memory.Span;
-                RefBinaryReader reader = new(span);
-                handshakeData = reader.Read<HandshakeData>();
+                handshakeData = RefBinarySerialization.Deserialize<HandshakeData>(memory.Span);
             }
             finally
             {
@@ -177,15 +175,9 @@ partial class MiaoServerService
             string? failedReason = authResult.IsFailed ? authResult.SuspendMessage : null;
             HandshakeAckData ack = new(authResult.Type, authResult.TokenData, failedReason);
 
-            MemoryStream ms = new(32);
-            ms.Seek(2, SeekOrigin.Begin);
-            RefBinaryWriter writer = new(ms);
-            writer.Write(ack);
-            ushort ackSize = (ushort)(ms.Position - sizeof(ushort));
-            ms.Seek(0, SeekOrigin.Begin);
-            writer.Write(ackSize);
-            Memory<byte> memoryToSend = ms.GetBuffer().AsMemory(0, ackSize + sizeof(ushort));
-            await stream.WriteAsync(memoryToSend, token);
+            ByteArrayBufferWriter frame = new(32);
+            PacketFraming.WriteSizePrefixed(frame, ack);
+            await stream.WriteAsync(frame.WrittenMemory, token);
 
             return authResult.IsFailed ? null : new HandshakeResult(authResult.PlayerInfo, handshakeData, ack);
         }

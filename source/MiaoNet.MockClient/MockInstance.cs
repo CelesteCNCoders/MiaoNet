@@ -68,10 +68,7 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
         }
 
         PlayerInfo playerInfo = new(-1, Name, string.Empty, string.Empty, Color.White);
-        MemoryStream ms = new(32);
-        RefBinaryWriter writer = new(ms);
-        writer.Write(playerInfo);
-        byte[] authData = ms.GetBuffer().AsSpan(0, checked((int)ms.Position)).ToArray();
+        byte[] authData = RefBinarySerialization.Serialize(playerInfo);
         HandshakeData handshakeData = new(0, false, authData, []);
 
         var ack = await connection.MakeHandshakeAsync(handshakeData, default);

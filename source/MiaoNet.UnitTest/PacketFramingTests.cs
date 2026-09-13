@@ -25,10 +25,10 @@ public sealed class PacketFramingTests
             new PlayerPresenceMessage(string.Empty, string.Empty),
             string.Empty
         );
-        using var stream = new MemoryStream();
+        ByteArrayBufferWriter output = new();
 
         PacketTooLargeException exception = Assert.ThrowsExactly<PacketTooLargeException>(
-            () => PacketFraming.WritePacket(stream, packet, context)
+            () => PacketFraming.WritePacket(output, packet, context)
         );
 
         Assert.AreEqual(packet.GetType(), exception.PacketType);
@@ -44,17 +44,17 @@ public sealed class PacketFramingTests
             default,
             new string('a', Connection.MaxPayloadSize - packetFieldsSize)
         );
-        using var stream = new MemoryStream();
+        ByteArrayBufferWriter output = new();
 
-        PacketFraming.WritePacket(stream, packet, context);
+        PacketFraming.WritePacket(output, packet, context);
 
         Assert.AreEqual(
             Connection.MaxPayloadSize,
-            BinaryPrimitives.ReadUInt16LittleEndian(stream.GetBuffer())
+            BinaryPrimitives.ReadUInt16LittleEndian(output.WrittenSpan)
         );
         Assert.AreEqual(
             Connection.PacketHeaderSize + Connection.MaxPayloadSize,
-            stream.Length
+            output.WrittenCount
         );
     }
 
@@ -322,9 +322,9 @@ public sealed class PacketFramingTests
 
     private byte[] WriteFrame(IContextualPacket packet)
     {
-        using var stream = new MemoryStream();
-        PacketFraming.WritePacket(stream, packet, context);
-        return stream.ToArray();
+        ByteArrayBufferWriter output = new();
+        PacketFraming.WritePacket(output, packet, context);
+        return output.WrittenSpan.ToArray();
     }
 
     private sealed class TestPacketSerializationContext : IPacketSerializationContext
