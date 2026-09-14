@@ -282,7 +282,8 @@ public sealed class InputBox
             Vector2 view = new(Engine.ViewWidth, Engine.ViewHeight);
             float xScale = view.X / Engine.Width;
             float yScale = view.Y / Engine.Height;
-            Vector2 viewPos = new((textBaseLoc.X + sizeBeforeCaret.X) * xScale, (baseLoc.Y - height) * yScale);
+            Vector2 viewPos = new Vector2(Engine.Viewport.X, Engine.Viewport.Y) +
+                new Vector2((textBaseLoc.X + sizeBeforeCaret.X) * xScale, (baseLoc.Y - height) * yScale);
             Rectangle finalRect = new Rectangle(
                 (int)viewPos.X,
                 (int)viewPos.Y,
