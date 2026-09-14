@@ -290,8 +290,9 @@ public sealed class InputBox
                 Math.Max(1, (int)(sizeImeEditing.X * xScale)),
                 (int)(height * yScale)
             );
-            // TODO the calculated result is almost correct but
-            // IME is still being placed in somewhere incorrect
+            // Known issue: with only a few pinyin letters typed, the candidate window covers
+            // the input row, and it only avoids it once more input arrives. A plain SDL2-only
+            // project shows the same thing, so this is probably an SDL2-side issue.
             TextInputEXT.SetInputRectangle(finalRect);
         }
 
