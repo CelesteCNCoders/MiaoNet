@@ -23,7 +23,6 @@ MiaoNet 是面向大量玩家场景的 Celeste 联机项目，也是对 CelesteN
 | `source/MiaoNet.ClientShared/` | 客户端与 MockClient 共用的 TLS/TCP 连接代码 |
 | `source/MiaoNet.Server/` | 基于 .NET Generic Host 的独立服务端，包括认证、TLS、状态、管理 API 和指标 |
 | `source/MiaoNet.Shared/` | 客户端与服务端共享的协议、数据结构和二进制序列化代码 |
-| `source/ChatInputBox/` | 可复用的聊天输入、历史记录、标签页和补全组件，附 Everest 示例项目 |
 | `source/MiaoNet.MockClient/` | 本地连接与基础压测用模拟客户端 |
 | `source/MiaoNet.UnitTest/` | MSTest 测试项目 |
 | `source/PacketDumpInspector/` | MiaoNet 数据包转储检查工具 |
@@ -32,9 +31,11 @@ MiaoNet 是面向大量玩家场景的 Celeste 联机项目，也是对 CelesteN
 
 - [开发上手指南](docs/developing-MiaoNet.md)
 - [客户端架构](source/MiaoNet.Client/docs/client-arch.md)
+- [客户端 UI 层](source/MiaoNet.Client/docs/ui.md)
+- [按键输入消费规格](docs/ui-input-spec.md)
 - [服务端架构](source/MiaoNet.Server/docs/server-arch.md)
 - [共享包系统](source/MiaoNet.Shared/docs/packet-system.md)
-- [ChatInputBox](source/ChatInputBox/ChatInputBox/docs/chatinputbox.md)
+- [聊天数据模型与编辑内核](source/MiaoNet.Client/Chat/README.md)
 
 ## 环境要求
 

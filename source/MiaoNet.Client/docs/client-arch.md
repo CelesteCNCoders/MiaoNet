@@ -1,6 +1,6 @@
 # MiaoNet 客户端架构
 
-`MiaoNet.Client` 是 Everest Mod 项目，目标框架为 `net8.0`。它通过 `CelesteMod.props` 引用本地 Celeste/Everest 程序集，并把 `MiaoNet.Shared`、`MiaoNet.ClientShared` 和 `ChatInputBox` 的源码链接进客户端程序集。
+`MiaoNet.Client` 是 Everest Mod 项目，目标框架为 `net8.0`。它通过 `CelesteMod.props` 引用本地 Celeste/Everest 程序集，并把 `MiaoNet.Shared` 和 `MiaoNet.ClientShared` 的源码链接进客户端程序集；聊天的数据模型与编辑内核在 `Chat/`，是这个项目自己的源码。
 
 ## 目录
 
@@ -8,7 +8,8 @@
 source/MiaoNet.Client/
 ├── Game/              Everest 入口、Hook、设置、字体、资源和控制台命令
 ├── Connection/        MiaoNetContext、连接线程、包分发和连接状态
-├── Components/        同步、聊天、表情、玩家列表、Debug Map、状态 UI
+├── Components/        同步、聊天、表情、玩家列表、Debug Map、状态 UI 与 UI 宿主
+├── UI/                内建 retained 布局/样式层与聊天、玩家列表节点（见 docs/ui.md）
 ├── Data/              ClientState、OnlinePlayer/Channel、聊天消息和传送数据
 ├── Entity/             Ghost、名称标签、表情、烟花、合影平台等游戏实体
 ├── Command/            聊天命令定义、解析、参数类型和执行上下文
@@ -73,13 +74,16 @@ MiaoNet.Shared (包、数据结构、二进制序列化)
 | 组件 | 主要职责 |
 |---|---|
 | `MainComponent` | 每帧发送 `PacketPlayerFrame`，处理位置/房间变化、Ghost、观战和互动 |
-| `ChatComponent` | 输入框、聊天标签页、历史记录、消息收发和命令执行 |
+| `ChatComponent` | 聊天业务状态：输入编辑内核、历史记录、消息收发、命令执行和频道标签 |
+| `UIComponent` | 屏幕 UI 宿主：拥有节点树、画布、控制器，负责布局与绘制 |
 | `PlayerListComponent` | 按频道显示在线玩家及频道 |
 | `EmoteComponent` | 表情轮盘与表情发送 |
 | `DebugMapComponent` | Debug Map 场景中的覆盖渲染 |
 | `StatusComponent` | 连接、认证、断线和错误状态提示 |
 
-`ChatComponent` 会在连接时创建 `Global`、`Channel`、`Map` 三个标签页。`ChatMessageFactory` 将服务端消息转换为 ChatInputBox 的富文本，支持提及高亮和私聊回执；断线时会清理标签页、消息和输入历史。
+`ChatComponent` 会在连接时创建 `Global`、`Channel`、`Map` 三个标签页。`ChatMessageFactory` 将服务端消息转换为 `ChatText` 富文本，支持提及高亮和私聊回执；断线时会清理标签页、消息和输入历史。
+
+聊天的绘制、标签栏、输入框与补全浮层由 `UIComponent` 通过 `UI/` 下的 retained 节点完成；数据模型与 `TextBuffer` 编辑内核在 `Chat/`。细节见[客户端 UI 层](ui.md)与[聊天数据模型](../Chat/README.md)。
 
 ## 状态模型
 
