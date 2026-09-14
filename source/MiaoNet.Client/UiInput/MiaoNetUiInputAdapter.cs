@@ -1,0 +1,222 @@
+using System;
+using Celeste.Mod.MiaoNet.UI.Input;
+using Microsoft.Xna.Framework.Input;
+
+// Not "Celeste.Mod.MiaoNet.Input": that would shadow Celeste.Input (Gamepad/Jump/Rumble).
+namespace Celeste.Mod.MiaoNet.UiInput;
+
+// polls the game's input once per frame and turns it into UiInputActions. with UiInputRouter
+// this is the only place in the client that reads UI input; components consume the arbitrated
+// result.
+//
+// two easy-to-miss details:
+//   - caret movement and completion navigation use repeating virtual buttons, while input history
+//     uses the raw edge, so holding Up doesn't scroll history;
+//   - opening bindings are consumed unconditionally, even when the scene would refuse to open the
+//     UI.
+public sealed class MiaoNetUiInputAdapter : IDisposable
+{
+    // analogue trigger threshold.
+    private const float TriggerThreshold = 0.4f;
+
+    // delay before a held caret/completion button starts repeating.
+    private const float RepeatDelay = 0.4f;
+
+    // interval between repeats of a held caret/completion button.
+    private const float RepeatInterval = 0.05f;
+
+    private readonly UiInputRouter router;
+    private readonly UiInputFrame frame = new();
+
+    private readonly VirtualButton caretLeft;
+    private readonly VirtualButton caretRight;
+    private readonly VirtualButton completionUp;
+    private readonly VirtualButton completionDown;
+
+    private float lastWheelValue = float.NaN;
+    private bool disposed;
+
+    public MiaoNetUiInputAdapter(UiInputRouter router)
+    {
+        ArgumentNullException.ThrowIfNull(router);
+        this.router = router;
+
+        caretLeft = CreateRepeatButton(Keys.Left);
+        caretRight = CreateRepeatButton(Keys.Right);
+        completionUp = CreateRepeatButton(Keys.Up);
+        completionDown = CreateRepeatButton(Keys.Down);
+    }
+
+    // reads this frame's input and arbitrates it. call once per frame, before components update.
+    public void Poll()
+    {
+        frame.Clear();
+        MiaoNetModuleSettings settings = MiaoNetModule.Settings;
+
+        // opening bindings: consumed unconditionally.
+        PressBinding(settings.ChatButton, UiInputAction.ChatToggle);
+        PressBinding(settings.ChatCommandButton, UiInputAction.ChatCommandToggle);
+
+        if (settings.PlayerListButton.Pressed)
+        {
+            settings.PlayerListButton.ConsumePress();
+            frame.Press(UiInputAction.PlayerListToggle);
+        }
+
+        if (settings.PlayerListButton.Check)
+        {
+            frame.Hold(UiInputAction.PlayerListToggle);
+        }
+
+        // the player list's scroll keys are levels, not edges.
+        if (settings.PlayerListScrollUp.Check)
+        {
+            frame.Hold(UiInputAction.PlayerListScrollUp);
+        }
+
+        if (settings.PlayerListScrollDown.Check)
+        {
+            frame.Hold(UiInputAction.PlayerListScrollDown);
+        }
+
+        if (MInput.Keyboard.Pressed(Keys.Escape))
+        {
+            frame.Press(UiInputAction.Cancel);
+        }
+
+        if (MInput.Keyboard.Pressed(Keys.Enter))
+        {
+            frame.Press(UiInputAction.Submit);
+        }
+
+        PollCaretOrChannelSwitch();
+
+        // completion navigation repeats while held.
+        if (completionUp.Pressed)
+        {
+            completionUp.ConsumePress();
+            frame.Press(UiInputAction.CompletionUp);
+        }
+        else if (completionDown.Pressed)
+        {
+            completionDown.ConsumePress();
+            frame.Press(UiInputAction.CompletionDown);
+        }
+
+        // input history is edge-only, so it reads the raw key instead of the repeating button.
+        if (MInput.Keyboard.Pressed(Keys.Up))
+        {
+            frame.Press(UiInputAction.HistoryUp);
+        }
+        else if (MInput.Keyboard.Pressed(Keys.Down))
+        {
+            frame.Press(UiInputAction.HistoryDown);
+        }
+
+        if (MInput.Keyboard.Pressed(Keys.Tab))
+        {
+            frame.Press(UiInputAction.CompletionAccept);
+        }
+
+        if (MInput.Keyboard.Pressed(Keys.V) && ControlHeld())
+        {
+            frame.Press(UiInputAction.Paste);
+        }
+
+        // PageUp/PageDown are levels, with PageUp taking precedence when both are held.
+        if (MInput.Keyboard.Check(Keys.PageUp))
+        {
+            frame.Hold(UiInputAction.ChatListScrollUp);
+        }
+        else if (MInput.Keyboard.Check(Keys.PageDown))
+        {
+            frame.Hold(UiInputAction.ChatListScrollDown);
+        }
+
+        frame.ChatScrollDelta = WheelDelta();
+
+        router.Route(frame);
+    }
+
+    public void Dispose()
+    {
+        if (disposed)
+        {
+            return;
+        }
+
+        disposed = true;
+        caretLeft.Deregister();
+        caretRight.Deregister();
+        completionUp.Deregister();
+        completionDown.Deregister();
+    }
+
+    // shift turns the horizontal keys into a channel switch; otherwise they move the caret.
+    private void PollCaretOrChannelSwitch()
+    {
+        bool shift = MInput.Keyboard.CurrentState.IsKeyDown(Keys.LeftShift)
+            || MInput.Keyboard.CurrentState.IsKeyDown(Keys.RightShift);
+
+        if (shift)
+        {
+            if (MInput.Keyboard.Pressed(Keys.Left))
+            {
+                frame.Press(UiInputAction.ChannelPrevious);
+            }
+            else if (MInput.Keyboard.Pressed(Keys.Right))
+            {
+                frame.Press(UiInputAction.ChannelNext);
+            }
+
+            return;
+        }
+
+        if (caretLeft.Pressed)
+        {
+            caretLeft.ConsumePress();
+            frame.Press(UiInputAction.CaretLeft);
+        }
+        else if (caretRight.Pressed)
+        {
+            caretRight.ConsumePress();
+            frame.Press(UiInputAction.CaretRight);
+        }
+    }
+
+    private void PressBinding(ButtonBinding? binding, UiInputAction action)
+    {
+        if (binding is null || !binding.Pressed)
+        {
+            return;
+        }
+
+        binding.ConsumePress();
+        frame.Press(action);
+    }
+
+    // reads the wheel directly instead of MInput, which doesn't refresh the value in time.
+    private float WheelDelta()
+    {
+        float wheel = Mouse.GetState().ScrollWheelValue;
+        if (float.IsNaN(lastWheelValue))
+        {
+            lastWheelValue = wheel;
+            return 0f;
+        }
+
+        float delta = wheel - lastWheelValue;
+        lastWheelValue = wheel;
+        return delta;
+    }
+
+    private static bool ControlHeld()
+        => MInput.Keyboard.Check(Keys.LeftControl) || MInput.Keyboard.Check(Keys.RightControl);
+
+    private static VirtualButton CreateRepeatButton(Keys key)
+    {
+        var button = new VirtualButton(new Binding() { Keyboard = [key] }, Input.Gamepad, 0f, TriggerThreshold);
+        button.SetRepeat(RepeatDelay, RepeatInterval);
+        return button;
+    }
+}
