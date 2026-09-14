@@ -209,6 +209,10 @@ partial class MiaoNetContext
                 if (r != AuthenticationResultType.Success)
                 {
                     operation.CloseConnection(true);
+#if USE_CELEMIAO_AUTH
+                    if (r is AuthenticationResultType.InvalidTokenData)
+                        ClientRC.AuthenticationCode = null;
+#endif
                     string? reason = handshakeAck.DeniedReason;
                     string status = r switch
                     {

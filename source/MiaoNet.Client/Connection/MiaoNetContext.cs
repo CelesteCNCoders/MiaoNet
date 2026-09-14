@@ -134,7 +134,6 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         long generation = connectionLifecycle.Begin();
 #if USE_CELEMIAO_AUTH
         string? authenticationCode = ClientRC.AuthenticationCode;
-        ClientRC.AuthenticationCode = null;
         ConnectionOperation operation = new(
             generation,
             ShowAvatar,
@@ -294,6 +293,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             MiaoNetModule.Settings.TokenData = operation.RefreshedAuthenticationData;
             Logger.Info(LT.MiaoNetConnection, "Server sent new auth data, accepted.");
         }
+        ClientRC.AuthenticationCode = null;
 #endif
         clientState = new(packetClientInitial);
         PlayerPresenceMessage = packetClientInitial.PlayerPresenceMessage;
