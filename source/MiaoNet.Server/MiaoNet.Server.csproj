@@ -1,43 +1,44 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
-    <RootNamespace>MiaoNet.Server</RootNamespace>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <CETCompat>false</CETCompat>
-    <DefineConstants>$(DefineConstants);MIAO_SERVER</DefineConstants>
-  </PropertyGroup>
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0</TargetFramework>
+		<RootNamespace>MiaoNet.Server</RootNamespace>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<CETCompat>false</CETCompat>
+		<DefineConstants>$(DefineConstants);MIAO_SERVER</DefineConstants>
+	</PropertyGroup>
 
-  <PropertyGroup Condition="$(Configuration) == 'Release'">
-    <!-- 开启服务器 GC 但是暂时关闭 DATAS GC -->
-    <ServerGarbageCollection>true</ServerGarbageCollection>
-    <GarbageCollectionAdaptationMode>0</GarbageCollectionAdaptationMode>
-  </PropertyGroup>
-  
-  <ItemGroup>
-    <Compile Include="../MiaoNet.Shared/**/*.cs" LinkBase="0-Shared" />
-  </ItemGroup>
-  
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.1" />
-    <!-- ms 你为什么不提供默认的 FileLogger 啊啊啊 -->
-    <PackageReference Include="NReco.Logging.File" Version="1.3.1" />
-  </ItemGroup>
-  
-  <ItemGroup>
-    <None Update="appsettings*.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+	<PropertyGroup Condition="$(Configuration) == 'Release'">
+		<!-- Enable server GC but temporarily disable DATAS GC -->
+		<!-- in our current scenario we don't care about memory usage -->
+		<ServerGarbageCollection>true</ServerGarbageCollection>
+		<GarbageCollectionAdaptationMode>0</GarbageCollectionAdaptationMode>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Include="../MiaoNet.Shared/**/*.cs" LinkBase="0-Shared" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.1" />
+		<!-- Unfortunately there is no official plain text file logging provider package -->
+		<PackageReference Include="NReco.Logging.File" Version="1.3.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Update="appsettings*.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
 		<None Update="content.json">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
-  </ItemGroup>
+	</ItemGroup>
 
-  <ItemGroup Condition="$(UseLocalhostPfx) == 'true'">
-    <EmbeddedResource Include="../localhost.pfx" LogicalName="localhost.pfx" Visible="false" />
-  </ItemGroup>
+	<ItemGroup Condition="$(UseLocalhostPfx) == 'true'">
+		<EmbeddedResource Include="../localhost.pfx" LogicalName="localhost.pfx" Visible="false" />
+	</ItemGroup>
 
 </Project>
