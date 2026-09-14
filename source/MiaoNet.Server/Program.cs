@@ -42,7 +42,10 @@ public static partial class Program
             .AddSimpleConsole();
 
         if (!builder.Environment.IsDevelopment())
-            builder.Logging.AddFile($"logs/{DateTime.Now:yyyy-MM-dd}.log");
+            builder.Logging.AddFile(
+                Path.Combine("logs", $"{DateTime.Now:yyyy-MM-dd}.log"),
+                o => o.IncludeScopes = true
+            );
 
         builder.Services.AddSingleton<NetworkListenerFactory>(p =>
             o => new TlsTcpListener(

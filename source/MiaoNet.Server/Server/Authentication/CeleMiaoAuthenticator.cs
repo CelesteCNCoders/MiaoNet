@@ -193,7 +193,6 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
         }
     }
 
-    // TODO using logger scopes
     private async Task<AuthenticationResult> AuthenticateByTokenAsync(string accessToken, CancellationToken token)
     {
         var res = await httpClient.GetAsync($"{EndPointAuth}{Uri.EscapeDataString(accessToken)}", token);

@@ -165,11 +165,15 @@ partial class MiaoServerService
                 pool.Return(buffer);
             }
 
-            var authResult = await authenticator.AuthenticateAsync(
-                handshakeData.AuthenticationData,
-                handshakeData.IsAuthorize,
-                token
-            );
+            AuthenticationResult authResult;
+            using (logger.BeginScope("connection {addr}", networkConnection.RemoteAddress))
+            {
+                authResult = await authenticator.AuthenticateAsync(
+                    handshakeData.AuthenticationData,
+                    handshakeData.IsAuthorize,
+                    token
+                );
+            }
 
             if (authResult.IsFailed)
             {
