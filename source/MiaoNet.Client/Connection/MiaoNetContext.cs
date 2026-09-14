@@ -58,7 +58,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 #pragma warning disable IDE0260
             return scene.Entities.Any(e => e is KeyboardConfigUI or ButtonConfigUI) == false &&
                    // we can't check TextInputEXT.IsTextInputActive since ImGuiHelper is always activating it
-                   ((scene as Overworld)?.Current is not OuiFileNaming and not UI.OuiModOptionString) &&
+                   ((scene as Overworld)?.Current is not OuiFileNaming and not global::Celeste.Mod.UI.OuiModOptionString) &&
                    !scene.Entities.OfType<TextMenu>().Any(m => m.Items.Any(i => i is TextMenuExt.Modal { Visible: true })) &&
                    // do not open ui when it's teleporting using CollabLobbyUI
                    // but why level.Overlay is null at this time??
