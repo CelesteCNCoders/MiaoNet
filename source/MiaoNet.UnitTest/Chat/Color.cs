@@ -1,4 +1,4 @@
-﻿namespace Celeste.Mod.ChatInputBox;
+﻿namespace Celeste.Mod.MiaoNet.Chat;
 
 public readonly struct Color : IEquatable<Color>
 {

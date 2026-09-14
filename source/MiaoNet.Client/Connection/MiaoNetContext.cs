@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using Celeste.Mod.MiaoNet.UiInput;
+using Celeste.Mod.MiaoNet.UI.Input;
 using MiaoNet.ClientShared;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Graphics;
@@ -29,7 +31,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     private ClientState? clientState;
 
-    private bool hasComponentFocus;
+    private readonly MiaoNetUiInputAdapter uiInputAdapter;
 
     /// <summary>Update on Connect() call.</summary>
     public bool ShowAvatar { get; private set; }
@@ -44,11 +46,15 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public int TargetPort { get; set; } = 21473;
 
-    public bool HasComponentFocus
-    {
-        get => hasComponentFocus;
-        set { SafeGuard.Assert(hasComponentFocus != value); hasComponentFocus = value; }
-    }
+    /// <summary>
+    /// Whether some UI currently owns the keyboard. Derived from the input router's explicit focus
+    /// owner instead of being a flag callers set and clear; the old flag could be left set and
+    /// permanently block the chat from opening (docs/ui-input-spec.md §6).
+    /// </summary>
+    public bool HasComponentFocus => UiInput.HasFocus;
+
+    /// <summary>The single arbitration point for UI input.</summary>
+    public UiInputRouter UiInput { get; } = new();
 
     public bool IsSuitableToOpenUI
     {
@@ -58,6 +64,8 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 #pragma warning disable IDE0260
             return scene.Entities.Any(e => e is KeyboardConfigUI or ButtonConfigUI) == false &&
                    // we can't check TextInputEXT.IsTextInputActive since ImGuiHelper is always activating it
+                   // Fully qualified: MiaoNet.Client now owns a Celeste.Mod.MiaoNet.UI namespace,
+                   // which would otherwise shadow Everest's Celeste.Mod.UI here.
                    ((scene as Overworld)?.Current is not OuiFileNaming and not global::Celeste.Mod.UI.OuiModOptionString) &&
                    !scene.Entities.OfType<TextMenu>().Any(m => m.Items.Any(i => i is TextMenuExt.Modal { Visible: true })) &&
                    // do not open ui when it's teleporting using CollabLobbyUI
@@ -95,6 +103,10 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public ChatComponent ChatComponent { get; }
 
+    public PlayerListComponent PlayerListComponent { get; }
+
+    public UIComponent UIComponent { get; }
+
     public StatusComponent StatusComponent { get; }
 
     public MiaoNetContext()
@@ -108,12 +120,22 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         connectionLifecycle = new();
 
         var main = MainComponent = new MainComponent(this);
-        var pl = new PlayerListComponent(this);
+        var pl = PlayerListComponent = new PlayerListComponent(this);
         var chat = ChatComponent = new ChatComponent(this);
         var dm = new DebugMapComponent(this);
         var em = EmoteComponent = new EmoteComponent(this);
-        components = [main, pl, chat, dm, em];
-        renderableComponents = [dm, chat, pl];
+        var ui = UIComponent = new UIComponent(this);
+        uiInputAdapter = new MiaoNetUiInputAdapter(UiInput);
+        components = [main, pl, chat, dm, em, ui];
+
+        // Every consumer has now claimed its actions; refuse to run if the routing table and those
+        // claims disagree, rather than letting a key silently do nothing.
+        UiInput.Seal();
+
+        // The player list and the chat message list render through UIComponent now.
+        // UIComponent paints before the chat component so the legacy input box stays on top,
+        // matching the original order (messages, tabs, input).
+        renderableComponents = [dm, ui, chat];
 
         StatusComponent = new(this);
         PacketHandlerRegister r = new();
@@ -199,7 +221,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         connection = null;
         clientState = null;
         PlayerPresenceMessage = null;
-        hasComponentFocus = false;
+        UiInput.SetFocus(UiFocusOwner.None);
         PooledStringManager = null;
 
         List<PacketDisconnected>? terminalPackets = null;
@@ -275,6 +297,9 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
             ConsumeFrameQueues();
 
+            // Input is polled and arbitrated once, before any component runs, so priority no
+            // longer depends on the order of the components array.
+            uiInputAdapter.Poll();
             components.ForEach(c => c.Update());
         }
         catch (Exception e)

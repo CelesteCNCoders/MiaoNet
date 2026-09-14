@@ -1,7 +1,7 @@
 ﻿using System.Collections.Immutable;
-using Celeste.Mod.ChatInputBox;
+using Celeste.Mod.MiaoNet.Chat;
 
-namespace ChatInputBox.UnitTest;
+namespace MiaoNet.UnitTest;
 
 // don't read these to study something, these were written by ai
 

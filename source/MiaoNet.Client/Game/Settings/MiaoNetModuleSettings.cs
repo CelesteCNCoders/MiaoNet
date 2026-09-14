@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using Celeste.Mod.MiaoNet.UI.Geometry;
+using Celeste.Mod.MiaoNet.UI.PlayerList;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Input;
 using YamlDotNet.Serialization;
@@ -160,9 +162,9 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 
     #region Calculated
 
-    [YamlIgnore] public float PlayerListUIScaleValue => GetPowSmoothScaleValue(PlayerListUIScale);
+    [YamlIgnore] public float PlayerListUIScaleValue => UiScale.FromSetting(PlayerListUIScale);
 
-    [YamlIgnore] public float ChatUIScaleValue => GetPowSmoothScaleValue(ChatUIScale);
+    [YamlIgnore] public float ChatUIScaleValue => UiScale.FromSetting(ChatUIScale);
 
     [YamlIgnore] public float PlayerOpacityValue => PlayerOpacity / 10f;
 
@@ -348,20 +350,6 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
         5 => 12f,
         6 => 20f,
     } / 24f;
-
-    private static float GetPowSmoothScaleValue(int scale)
-    {
-        const int range = 20;
-        const float minScale = 0.25f;
-        const float maxScale = 0.8f;
-        float t = Math.Clamp(
-            (scale - 1) / (float)(range - 1),
-            0f,
-            1f
-        );
-
-        return minScale * (float)Math.Pow(maxScale / minScale, t);
-    }
 
 
     private void NotifySettingsChanged(SettingsCategory category)
