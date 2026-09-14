@@ -48,14 +48,12 @@ partial class MiaoServerService
         when (e.CancellationToken == cts.Token)
         {
             networkConnection?.Dispose();
-            pendingConnection.Dispose();
             logger.LogInformation(AppEvents.Connection, "{addr} handshake timed out.", addr);
             return;
         }
         catch (Exception e)
         {
             networkConnection?.Dispose();
-            pendingConnection.Dispose();
             logger.LogError(
                 AppEvents.Connection, e,
                 "Error while completing pending connection from {addr}.",
@@ -65,6 +63,7 @@ partial class MiaoServerService
         }
         finally
         {
+            pendingConnection.Dispose();
             cts.Dispose();
         }
 
