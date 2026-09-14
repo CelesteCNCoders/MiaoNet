@@ -12,7 +12,7 @@ public sealed class StatusPanelUiTests
     private static void AssertClose(float expected, float actual, string message)
         => Assert.IsLessThan(1e-4f, MathF.Abs(expected - actual), $"{message}: expected {expected}, got {actual}");
 
-    private static void AssertRect(UiRect actual, float x, float y, float width, float height, string message)
+    private static void AssertRect(UIRect actual, float x, float y, float width, float height, string message)
     {
         AssertClose(x, actual.X, $"{message}.X");
         AssertClose(y, actual.Y, $"{message}.Y");
@@ -20,10 +20,10 @@ public sealed class StatusPanelUiTests
         AssertClose(height, actual.Height, $"{message}.Height");
     }
 
-    private sealed class Probe(float width, float height) : UiNode
+    private sealed class Probe(float width, float height) : UINode
     {
-        protected override UiSize OnMeasure(BoxConstraints constraints)
-            => constraints.Constrain(new UiSize(width, height));
+        protected override UISize OnMeasure(BoxConstraints constraints)
+            => constraints.Constrain(new UISize(width, height));
     }
 
     [TestMethod]
@@ -33,7 +33,7 @@ public sealed class StatusPanelUiTests
         var message = new Probe(100f, 12f);
         var panel = new StatusPanelNode(icon, message);
 
-        var ui = new UiRoot();
+        var ui = new UIRoot();
         ui.SetRoot(panel);
         ui.Layout(800f, 600f);
 
@@ -59,7 +59,7 @@ public sealed class StatusPanelUiTests
         var message = new Probe(100f, 12f);
         var panel = new StatusPanelNode(icon, message);
 
-        var ui = new UiRoot();
+        var ui = new UIRoot();
         ui.SetRoot(panel);
         ui.Layout(800f, 600f);
         float firstBottom = icon.Bounds.Bottom;

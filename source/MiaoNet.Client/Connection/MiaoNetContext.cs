@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using Celeste.Mod.MiaoNet.UiInput;
+using Celeste.Mod.MiaoNet.UIInput;
 using Celeste.Mod.MiaoNet.UI.Input;
 using MiaoNet.ClientShared;
 using MiaoNet.Shared;
@@ -31,7 +31,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     private ClientState? clientState;
 
-    private readonly MiaoNetUiInputAdapter uiInputAdapter;
+    private readonly MiaoNetUIInputAdapter uiInputAdapter;
 
     /// <summary>Update on Connect() call.</summary>
     public bool ShowAvatar { get; private set; }
@@ -51,10 +51,10 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     /// owner instead of being a flag callers set and clear; the old flag could be left set and
     /// permanently block the chat from opening (docs/ui-input-spec.md §6).
     /// </summary>
-    public bool HasComponentFocus => UiInput.HasFocus;
+    public bool HasComponentFocus => UIInput.HasFocus;
 
     /// <summary>The single arbitration point for UI input.</summary>
-    public UiInputRouter UiInput { get; } = new();
+    public UIInputRouter UIInput { get; } = new();
 
     public bool IsSuitableToOpenUI
     {
@@ -125,12 +125,12 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         var dm = new DebugMapComponent(this);
         var em = EmoteComponent = new EmoteComponent(this);
         var ui = UIComponent = new UIComponent(this);
-        uiInputAdapter = new MiaoNetUiInputAdapter(UiInput);
+        uiInputAdapter = new MiaoNetUIInputAdapter(UIInput);
         components = [main, pl, chat, dm, em, ui];
 
         // Every consumer has now claimed its actions; refuse to run if the routing table and those
         // claims disagree, rather than letting a key silently do nothing.
-        UiInput.Seal();
+        UIInput.Seal();
 
         // The player list and the chat message list render through UIComponent now.
         // UIComponent paints before the chat component so the legacy input box stays on top,
@@ -221,7 +221,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         connection = null;
         clientState = null;
         PlayerPresenceMessage = null;
-        UiInput.SetFocus(UiFocusOwner.None);
+        UIInput.SetFocus(UIFocusOwner.None);
         PooledStringManager = null;
 
         List<PacketDisconnected>? terminalPackets = null;

@@ -8,7 +8,7 @@ namespace Celeste.Mod.MiaoNet.UI.Controls;
 
 // one line of text. the node rect is its layout box, and the text is drawn at TextStyle's
 // anchor inside it, so callers position text by arranging the node instead of computing coords.
-public sealed class TextNode : UiNode
+public sealed class TextNode : UINode
 {
     private string text = string.Empty;
     private TextStyle textStyle = TextStyle.Default;
@@ -39,18 +39,18 @@ public sealed class TextNode : UiNode
         }
     }
 
-    protected override UiSize OnMeasure(BoxConstraints constraints)
+    protected override UISize OnMeasure(BoxConstraints constraints)
     {
         ITextRenderer? renderer = Style.TextRenderer;
         if (renderer is null || text.Length == 0)
         {
-            return constraints.Constrain(new UiSize(0f, textStyle.LineHeight ?? 0f));
+            return constraints.Constrain(new UISize(0f, textStyle.LineHeight ?? 0f));
         }
 
         return constraints.Constrain(renderer.Measure(text, ResolveStyle()));
     }
 
-    protected override void PaintSelf(IUiCanvas canvas, float opacity)
+    protected override void PaintSelf(IUICanvas canvas, float opacity)
     {
         ITextRenderer? renderer = Style.TextRenderer;
         if (renderer is null || text.Length == 0)
@@ -59,7 +59,7 @@ public sealed class TextNode : UiNode
         }
 
         TextStyle style = ResolveStyle();
-        UiColor color = style.Color ?? Style.Foreground ?? UiColor.White;
+        UIColor color = style.Color ?? Style.Foreground ?? UIColor.White;
         style = style with { Color = color * opacity };
 
         float x = style.HorizontalAnchor switch
@@ -75,7 +75,7 @@ public sealed class TextNode : UiNode
             _ => Bounds.Bottom,
         };
 
-        renderer.Draw(canvas, text, new UiOffset(x, y), style);
+        renderer.Draw(canvas, text, new UIOffset(x, y), style);
     }
 
     private TextStyle ResolveStyle() => textStyle with

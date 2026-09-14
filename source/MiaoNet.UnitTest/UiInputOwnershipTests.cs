@@ -89,11 +89,11 @@ public sealed class UiInputOwnershipTests
         string componentsDirectory = Path.Combine(root, "source", "MiaoNet.Client", "Components");
         Assert.IsTrue(Directory.Exists(componentsDirectory), $"not found: {componentsDirectory}");
 
-        var claimed = new HashSet<UiInputAction>();
+        var claimed = new HashSet<UIInputAction>();
         foreach (string file in Directory.EnumerateFiles(componentsDirectory, "*.cs", SearchOption.AllDirectories))
         {
             string text = File.ReadAllText(file);
-            foreach (UiInputAction action in Enum.GetValues<UiInputAction>())
+            foreach (UIInputAction action in Enum.GetValues<UIInputAction>())
             {
                 if (text.Contains($".On(UiInputAction.{action},", StringComparison.Ordinal)
                     || text.Contains($".OwnHeld(UiInputAction.{action})", StringComparison.Ordinal))
@@ -103,7 +103,7 @@ public sealed class UiInputOwnershipTests
             }
         }
 
-        UiInputAction[] unclaimed = [.. UiInputRouter.Rules
+        UIInputAction[] unclaimed = [.. UIInputRouter.Rules
             .Select(rule => rule.Action)
             .Where(action => !claimed.Contains(action))
             .Distinct()];

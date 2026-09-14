@@ -5,7 +5,7 @@ namespace Celeste.Mod.MiaoNet.UI.Geometry;
 // maps the integer ui scale setting to the real scale factor applied to chat and player
 // list geometry. exponential ramp from MinScale to MaxScale over settings 1..20, so each step
 // is a constant ratio instead of a constant increment.
-public static class UiScale
+public static class UIScale
 {
     public const int MinSetting = 1;
 

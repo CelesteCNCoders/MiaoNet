@@ -9,19 +9,19 @@ namespace Celeste.Mod.MiaoNet.UI.Scene;
 // unlike the reference framework there's no per-frame setroot: the tree is retained and only
 // rebuilt when the whole ui opens or closes. data changes flow through node update methods
 // and invalidatemeasure.
-public sealed class UiRoot
+public sealed class UIRoot
 {
-    private UiNode? root;
+    private UINode? root;
 
-    public UiNode? Root => root;
+    public UINode? Root => root;
 
-    public UiNode? FocusedNode { get; private set; }
+    public UINode? FocusedNode { get; private set; }
 
     // logical size used for the last layout.
-    public UiSize Size { get; private set; }
+    public UISize Size { get; private set; }
 
     // replaces the whole tree. only for opening or closing the ui, never a per-frame path.
-    public void SetRoot(UiNode? node)
+    public void SetRoot(UINode? node)
     {
         if (ReferenceEquals(root, node))
         {
@@ -36,25 +36,25 @@ public sealed class UiRoot
     // measures and arranges the tree under a tight screen-sized constraint.
     public void Layout(float width, float height)
     {
-        Size = new UiSize(width, height);
+        Size = new UISize(width, height);
         if (root is null)
         {
             return;
         }
 
         root.Measure(BoxConstraints.Tight(width, height));
-        root.Arrange(new UiRect(0f, 0f, width, height));
+        root.Arrange(new UIRect(0f, 0f, width, height));
     }
 
-    public void Paint(IUiCanvas canvas)
+    public void Paint(IUICanvas canvas)
     {
         ArgumentNullException.ThrowIfNull(canvas);
         root?.PaintTree(canvas, 1f);
     }
 
-    public UiNode? HitTest(UiOffset point) => root?.HitTest(point);
+    public UINode? HitTest(UIOffset point) => root?.HitTest(point);
 
-    public void RequestFocus(UiNode? node) => FocusedNode = node;
+    public void RequestFocus(UINode? node) => FocusedNode = node;
 
     public void ClearFocus() => FocusedNode = null;
 }

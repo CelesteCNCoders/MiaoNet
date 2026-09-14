@@ -5,7 +5,7 @@ using Celeste.Mod.MiaoNet.UI.Styling;
 namespace Celeste.Mod.MiaoNet.UI.Chat;
 
 // one styled run of text inside a chat message.
-public readonly record struct ChatTextRun(string Text, UiColor Color, TextDecoration Decorations);
+public readonly record struct ChatTextRun(string Text, UIColor Color, TextDecoration Decorations);
 
 // xna-free view model of one chat line. colors, decorations and the resolved timestamp all come
 // from the app layer's adapter.

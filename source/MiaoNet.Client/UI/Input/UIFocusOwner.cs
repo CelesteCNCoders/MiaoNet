@@ -6,7 +6,7 @@ namespace Celeste.Mod.MiaoNet.UI.Input;
 // the chat and the player list. it was easy to leave set, and that permanently blocked the chat
 // from opening. an explicit owner can't get stuck like that because it's derived from what's
 // actually open.
-public enum UiFocusOwner
+public enum UIFocusOwner
 {
     // nothing owns the keyboard: only open/close and chat list scrolling apply.
     None,

@@ -10,7 +10,7 @@ namespace Celeste.Mod.MiaoNet.UI.Chat;
 
 // completion popup anchored above the input box. items are drawn bottom-up so the last candidate
 // ends up closest to the input.
-public sealed class CompletionPopupNode : UiNode
+public sealed class CompletionPopupNode : UINode
 {
     private readonly ITextRenderer renderer;
 
@@ -49,7 +49,7 @@ public sealed class CompletionPopupNode : UiNode
     // left bar drawn outside the background.
     public float LeftBarWidth { get; set; } = 3f;
 
-    protected override UiSize OnMeasure(BoxConstraints constraints)
+    protected override UISize OnMeasure(BoxConstraints constraints)
     {
         float width = 0f;
         foreach (Completion item in Items)
@@ -57,23 +57,23 @@ public sealed class CompletionPopupNode : UiNode
             width = MathF.Max(width, renderer.Measure(item.Display, TextStyle()).Width);
         }
 
-        return constraints.Constrain(new UiSize(
+        return constraints.Constrain(new UISize(
             width + (2f * Padding),
             (LineHeight * Items.Count) + (2f * Padding)));
     }
 
-    protected override void PaintSelf(IUiCanvas canvas, float opacity)
+    protected override void PaintSelf(IUICanvas canvas, float opacity)
     {
         if (Items.Count == 0)
         {
             return;
         }
 
-        canvas.FillRect(Bounds, MiaoNetUiTheme.Completion.Background * opacity);
-        canvas.FillRect(new UiRect(Bounds.X, Bounds.Y, Bounds.Width, 1f), MiaoNetUiTheme.Completion.BorderTop * opacity);
+        canvas.FillRect(Bounds, MiaoNetUITheme.Completion.Background * opacity);
+        canvas.FillRect(new UIRect(Bounds.X, Bounds.Y, Bounds.Width, 1f), MiaoNetUITheme.Completion.BorderTop * opacity);
         canvas.FillRect(
-            new UiRect(Bounds.X - LeftBarWidth, Bounds.Y, LeftBarWidth, Bounds.Height),
-            MiaoNetUiTheme.Completion.BorderLeft * opacity);
+            new UIRect(Bounds.X - LeftBarWidth, Bounds.Y, LeftBarWidth, Bounds.Height),
+            MiaoNetUITheme.Completion.BorderLeft * opacity);
 
         float baseline = Bounds.Bottom - Padding;
         for (int i = Items.Count - 1; i >= 0; i--)
@@ -83,20 +83,20 @@ public sealed class CompletionPopupNode : UiNode
             if (selected)
             {
                 canvas.FillRect(
-                    new UiRect(Bounds.X, baseline - LineHeight, Bounds.Width, LineHeight),
-                    MiaoNetUiTheme.Completion.SelectedBackground * opacity);
+                    new UIRect(Bounds.X, baseline - LineHeight, Bounds.Width, LineHeight),
+                    MiaoNetUITheme.Completion.SelectedBackground * opacity);
                 canvas.FillRect(
-                    new UiRect(Bounds.X - LeftBarWidth, baseline - LineHeight, LeftBarWidth, LineHeight),
-                    MiaoNetUiTheme.Completion.SelectedBar * opacity);
+                    new UIRect(Bounds.X - LeftBarWidth, baseline - LineHeight, LeftBarWidth, LineHeight),
+                    MiaoNetUITheme.Completion.SelectedBar * opacity);
             }
 
             renderer.Draw(
                 canvas,
                 Items[i].Display,
-                new UiOffset(Bounds.X + Padding, baseline),
+                new UIOffset(Bounds.X + Padding, baseline),
                 TextStyle() with
                 {
-                    Color = (selected ? MiaoNetUiTheme.Completion.SelectedText : MiaoNetUiTheme.Completion.Text) * opacity,
+                    Color = (selected ? MiaoNetUITheme.Completion.SelectedText : MiaoNetUITheme.Completion.Text) * opacity,
                 });
 
             baseline -= LineHeight;

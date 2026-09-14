@@ -40,7 +40,7 @@ public sealed class PlayerListPanelNode : ScrollNode
             Axis = FlexAxis.Vertical,
             Spacing = PlayerListLayout.ChannelSpacing,
             CrossAxisAlignment = CrossAxisAlignment.Stretch,
-            Style = new UiStyle { Width = metrics.PanelWidth, TextRenderer = renderer },
+            Style = new UIStyle { Width = metrics.PanelWidth, TextRenderer = renderer },
         };
 
         foreach (PlayerListChannel channel in channels)
@@ -54,7 +54,7 @@ public sealed class PlayerListPanelNode : ScrollNode
         // last channel. no right margin on purpose: the width comes from the widest row instead.
         Child = new BoxNode
         {
-            Style = new UiStyle
+            Style = new UIStyle
             {
                 Padding = new EdgeInsets(
                     PlayerListLayout.PanelMarginX,

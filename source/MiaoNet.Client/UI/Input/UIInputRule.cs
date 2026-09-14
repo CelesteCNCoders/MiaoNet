@@ -8,9 +8,9 @@ namespace Celeste.Mod.MiaoNet.UI.Input;
 // the focus list is the whole arbitration rule. no predicate form on purpose: an explicit list can
 // be printed, diffed and checked exhaustively, so "one consumer per action" stays true by
 // construction instead of by review.
-public sealed class UiInputRule
+public sealed class UIInputRule
 {
-    public UiInputRule(UiInputAction action, UiInputConsumer consumer, params UiFocusOwner[] focuses)
+    public UIInputRule(UIInputAction action, UIInputConsumer consumer, params UIFocusOwner[] focuses)
     {
         ArgumentNullException.ThrowIfNull(focuses);
         if (focuses.Length == 0)
@@ -23,16 +23,16 @@ public sealed class UiInputRule
         Focuses = focuses;
     }
 
-    public UiInputAction Action { get; }
+    public UIInputAction Action { get; }
 
-    public UiInputConsumer Consumer { get; }
+    public UIInputConsumer Consumer { get; }
 
     // the focus states this action is live in; any other focus drops it.
-    public UiFocusOwner[] Focuses { get; }
+    public UIFocusOwner[] Focuses { get; }
 
-    public bool Applies(UiFocusOwner focus)
+    public bool Applies(UIFocusOwner focus)
     {
-        foreach (UiFocusOwner allowed in Focuses)
+        foreach (UIFocusOwner allowed in Focuses)
         {
             if (allowed == focus)
             {

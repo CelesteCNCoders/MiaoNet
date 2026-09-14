@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using Celeste.Mod.MiaoNet.Chat;
 using Celeste.Mod.MiaoNet.UI.Chat;
@@ -14,9 +12,9 @@ public sealed partial class ChatComponent
 {
     // bumps whenever something the chat UI shows changes. manager's mutation counter plus the
     // open state, which also selects which log we display.
-    internal int UiVersion => (chatManager.Version * 2) + (Active ? 1 : 0);
+    internal int UIVersion => (chatManager.Version * 2) + (Active ? 1 : 0);
 
-    internal ChatUiSnapshot BuildUiSnapshot()
+    internal ChatUISnapshot BuildUISnapshot()
     {
         ChatMessageManager manager = chatManager;
 
@@ -29,7 +27,7 @@ public sealed partial class ChatComponent
             repeats[i] = full[i].RepeatCount;
         }
 
-        return new ChatUiSnapshot
+        return new ChatUISnapshot
         {
             FullLogKeys = keys,
             RepeatCounts = repeats,
@@ -64,7 +62,7 @@ public sealed partial class ChatComponent
         var runs = new List<ChatTextRun>(segments.Length);
         foreach (ChatTextSegment segment in segments)
         {
-            runs.Add(new ChatTextRun(segment.Text, ToUiColor(segment.Color), ToDecoration(segment.Style)));
+            runs.Add(new ChatTextRun(segment.Text, ToUIColor(segment.Color), ToDecoration(segment.Style)));
         }
 
         return new ChatMessageRow
@@ -95,8 +93,8 @@ public sealed partial class ChatComponent
         return decorations;
     }
 
-    private static UiColor ToUiColor(Color color)
-        => UiColor.FromBytes(color.R, color.G, color.B, color.A);
+    private static UIColor ToUIColor(Color color)
+        => UIColor.FromBytes(color.R, color.G, color.B, color.A);
 
     private sealed class DisplaySource(List<ChatItem> items) : IChatMessageSource
     {
@@ -109,7 +107,7 @@ public sealed partial class ChatComponent
 }
 
 // snapshot of everything the chat UI needs; rebuilt only when the log changes
-internal sealed class ChatUiSnapshot
+internal sealed class ChatUISnapshot
 {
     public required object[] FullLogKeys { get; init; }
 

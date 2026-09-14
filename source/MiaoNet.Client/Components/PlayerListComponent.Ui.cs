@@ -15,9 +15,9 @@ public sealed partial class PlayerListComponent
 
     // bumped whenever something the list shows changes (roster, location, ping, a relevant
     // setting). the UI host only rebuilds its node tree when this changes.
-    internal int UiVersion { get; private set; }
+    internal int UIVersion { get; private set; }
 
-    internal PlayerListIcons UiIcons => uiIcons ??= new PlayerListIcons
+    internal PlayerListIcons UIIcons => uiIcons ??= new PlayerListIcons
     {
         Paused = new MiaoNetTexture(texPlayerPaused),
         Interactions = new MiaoNetTexture(texPlayerInteractions),
@@ -27,9 +27,9 @@ public sealed partial class PlayerListComponent
         DebugMap = new MiaoNetTexture(texPlayerDebugMap),
     };
 
-    private void BumpUiVersion() => UiVersion++;
+    private void BumpUIVersion() => UIVersion++;
 
-    internal List<PlayerListChannel> BuildUiChannels()
+    internal List<PlayerListChannel> BuildUIChannels()
     {
         bool liveMode = MiaoNetModule.Settings.LiveMode;
         var channels = new List<PlayerListChannel>(channelPlayerList.Count);
@@ -39,7 +39,7 @@ public sealed partial class PlayerListComponent
             var rows = new List<PlayerRow>(channel.Players.Count);
             foreach (PlayerListEntry entry in channel.Players)
             {
-                rows.Add(BuildUiRow(entry, liveMode));
+                rows.Add(BuildUIRow(entry, liveMode));
             }
 
             channels.Add(new PlayerListChannel
@@ -52,7 +52,7 @@ public sealed partial class PlayerListComponent
         return channels;
     }
 
-    private static PlayerRow BuildUiRow(PlayerListEntry entry, bool liveMode)
+    private static PlayerRow BuildUIRow(PlayerListEntry entry, bool liveMode)
     {
         OnlinePlayer player = entry.Player;
         PlayerLocation location = player.Location;
@@ -81,22 +81,22 @@ public sealed partial class PlayerListComponent
         return new PlayerRow
         {
             DisplayName = entry.DisplayName,
-            NameColor = ToUiColor(player.Info.Color),
+            NameColor = ToUIColor(player.Info.Color),
             Status = ToStatus(player.GlobalFlags),
             PingText = entry.PingText,
             HasLocation = hasLocation,
             RoomText = roomText,
             UsesDebugRoomIcon = usesDebugRoomIcon,
             MapName = mapName,
-            MapNameColor = ToUiColor(entry.MapNameColor),
+            MapNameColor = ToUIColor(entry.MapNameColor),
             AreaModeText = entry.AreaModeText,
-            MapSideColor = ToUiColor(entry.MapSideColor),
+            MapSideColor = ToUIColor(entry.MapSideColor),
             AreaIcon = entry.AreaIconTexture is { } icon ? new MiaoNetTexture(icon) : null,
         };
     }
 
-    private static UiColor ToUiColor(Color color)
-        => UiColor.FromBytes(color.R, color.G, color.B, color.A);
+    private static UIColor ToUIColor(Color color)
+        => UIColor.FromBytes(color.R, color.G, color.B, color.A);
 
     private static PlayerStatus ToStatus(PlayerGlobalFlags flags)
     {

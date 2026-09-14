@@ -8,10 +8,10 @@ namespace Celeste.Mod.MiaoNet.UI.Styling;
 // no margin on purpose: spacing is expressed as parent padding or explicit layout
 // constants, so a separate margin channel would just be unused complexity.
 // add it when something actually needs it.
-public sealed class UiStyle
+public sealed class UIStyle
 {
     // a fresh default style; each node gets its own instance so nobody mutates a shared one.
-    public static UiStyle Default => new();
+    public static UIStyle Default => new();
 
     public float? Width { get; set; }
 
@@ -27,11 +27,11 @@ public sealed class UiStyle
 
     public EdgeInsets Padding { get; set; } = EdgeInsets.Zero;
 
-    public UiColor? Background { get; set; }
+    public UIColor? Background { get; set; }
 
-    public UiColor? Foreground { get; set; }
+    public UIColor? Foreground { get; set; }
 
-    public UiColor? BorderColor { get; set; }
+    public UIColor? BorderColor { get; set; }
 
     public float? BorderWidth { get; set; }
 

@@ -2,7 +2,7 @@ namespace Celeste.Mod.MiaoNet.UI.Input;
 
 // a named UI action. the adapter turns physical input into these, the router decides which consumer
 // (if any) gets each one.
-public enum UiInputAction
+public enum UIInputAction
 {
     // default T.
     ChatToggle,

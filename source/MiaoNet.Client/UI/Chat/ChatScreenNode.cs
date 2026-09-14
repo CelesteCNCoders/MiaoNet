@@ -90,7 +90,7 @@ public sealed class ChatScreenNode : MultiChildNode
         return MathF.Floor(available / rowHeight) * rowHeight;
     }
 
-    protected override UiSize OnMeasure(BoxConstraints constraints)
+    protected override UISize OnMeasure(BoxConstraints constraints)
     {
         float width = float.IsInfinity(constraints.MaxWidth) ? 0f : constraints.MaxWidth;
         float height = float.IsInfinity(constraints.MaxHeight) ? 0f : constraints.MaxHeight;
@@ -102,22 +102,22 @@ public sealed class ChatScreenNode : MultiChildNode
         Tabs.Measure(new BoxConstraints(0f, contentWidth, LineHeight, LineHeight));
         Input.Measure(new BoxConstraints(contentWidth, contentWidth, Input.BoxHeight, Input.BoxHeight));
 
-        return constraints.Constrain(new UiSize(width, height));
+        return constraints.Constrain(new UISize(width, height));
     }
 
-    protected override void OnArrange(UiRect bounds)
+    protected override void OnArrange(UIRect bounds)
     {
         float contentWidth = MathF.Max(0f, bounds.Width - (2f * ChatLayout.Margin));
         float listHeight = ListHeight(bounds.Height);
 
-        Messages.Arrange(new UiRect(
+        Messages.Arrange(new UIRect(
             ChatLayout.Margin,
             BaseY(bounds.Height) - listHeight,
             contentWidth,
             listHeight));
 
         // always arranged so the geometry stays valid while hidden.
-        Tabs.Arrange(new UiRect(
+        Tabs.Arrange(new UIRect(
             ChatLayout.Margin,
             TabsTopY(bounds.Height),
             contentWidth,
@@ -125,7 +125,7 @@ public sealed class ChatScreenNode : MultiChildNode
 
         // the input box occupies the bottom band. always laid out so the caret and popup keep
         // their positions even while the field has no focus.
-        Input.Arrange(new UiRect(
+        Input.Arrange(new UIRect(
             ChatLayout.Margin,
             InputTopY(bounds.Height),
             contentWidth,

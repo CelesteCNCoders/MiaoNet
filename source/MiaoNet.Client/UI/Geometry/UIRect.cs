@@ -3,9 +3,9 @@ using System;
 namespace Celeste.Mod.MiaoNet.UI.Geometry;
 
 // an axis-aligned rectangle in logical screen units
-public readonly record struct UiRect(float X, float Y, float Width, float Height)
+public readonly record struct UIRect(float X, float Y, float Width, float Height)
 {
-    public static readonly UiRect Empty = new(0f, 0f, 0f, 0f);
+    public static readonly UIRect Empty = new(0f, 0f, 0f, 0f);
 
     public float Left => X;
 
@@ -15,31 +15,31 @@ public readonly record struct UiRect(float X, float Y, float Width, float Height
 
     public float Bottom => Y + Height;
 
-    public UiOffset Position => new(X, Y);
+    public UIOffset Position => new(X, Y);
 
-    public UiSize Size => new(Width, Height);
+    public UISize Size => new(Width, Height);
 
-    public bool Contains(UiOffset point)
+    public bool Contains(UIOffset point)
         => point.X >= X && point.X < X + Width
         && point.Y >= Y && point.Y < Y + Height;
 
     // true when the two overlap; touching edges don't count
-    public bool Intersects(UiRect other)
+    public bool Intersects(UIRect other)
         => other.X < Right && X < other.Right
         && other.Y < Bottom && Y < other.Bottom;
 
-    public UiRect WithOffset(UiOffset offset)
+    public UIRect WithOffset(UIOffset offset)
         => new(X + offset.X, Y + offset.Y, Width, Height);
 
     // shrink by insets, never below a zero extent
-    public UiRect Deflate(EdgeInsets insets)
+    public UIRect Deflate(EdgeInsets insets)
         => new(
             X + insets.Left,
             Y + insets.Top,
             MathF.Max(0f, Width - insets.Horizontal),
             MathF.Max(0f, Height - insets.Vertical));
 
-    public UiRect Inflate(EdgeInsets insets)
+    public UIRect Inflate(EdgeInsets insets)
         => new(
             X - insets.Left,
             Y - insets.Top,
@@ -48,11 +48,11 @@ public readonly record struct UiRect(float X, float Y, float Width, float Height
 
     // snap to whole pixels: floor the origin, then derive the extent from the floored far
     // edge so adjacent rects tile without seams
-    public UiRect Snap()
+    public UIRect Snap()
     {
         float snappedX = MathF.Floor(X);
         float snappedY = MathF.Floor(Y);
-        return new UiRect(
+        return new UIRect(
             snappedX,
             snappedY,
             MathF.Floor(X + Width) - snappedX,

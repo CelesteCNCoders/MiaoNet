@@ -24,7 +24,7 @@ public sealed class PlayerRow
 {
     public required string DisplayName { get; init; }
 
-    public UiColor NameColor { get; init; } = UiColor.White;
+    public UIColor NameColor { get; init; } = UIColor.White;
 
     public PlayerStatus Status { get; init; }
 
@@ -41,13 +41,13 @@ public sealed class PlayerRow
 
     public string? MapName { get; init; }
 
-    public UiColor MapNameColor { get; init; } = UiColor.LightGray;
+    public UIColor MapNameColor { get; init; } = UIColor.LightGray;
 
     public string? AreaModeText { get; init; }
 
-    public UiColor MapSideColor { get; init; } = UiColor.LightGray;
+    public UIColor MapSideColor { get; init; } = UIColor.LightGray;
 
-    public IUiTexture? AreaIcon { get; init; }
+    public IUITexture? AreaIcon { get; init; }
 }
 
 // one channel section of the player list
@@ -61,20 +61,20 @@ public sealed class PlayerListChannel
 // icon textures supplied by the application layer
 public sealed class PlayerListIcons
 {
-    public IUiTexture? Paused { get; init; }
+    public IUITexture? Paused { get; init; }
 
-    public IUiTexture? Interactions { get; init; }
+    public IUITexture? Interactions { get; init; }
 
-    public IUiTexture? LiveMode { get; init; }
+    public IUITexture? LiveMode { get; init; }
 
-    public IUiTexture? TakingGolden { get; init; }
+    public IUITexture? TakingGolden { get; init; }
 
-    public IUiTexture? GroupPhotoMode { get; init; }
+    public IUITexture? GroupPhotoMode { get; init; }
 
     // reused for both the watching flag and the debug-map room marker
-    public IUiTexture? DebugMap { get; init; }
+    public IUITexture? DebugMap { get; init; }
 
-    public IUiTexture? For(PlayerStatus status) => status switch
+    public IUITexture? For(PlayerStatus status) => status switch
     {
         PlayerStatus.Paused => Paused,
         PlayerStatus.Interactions => Interactions,

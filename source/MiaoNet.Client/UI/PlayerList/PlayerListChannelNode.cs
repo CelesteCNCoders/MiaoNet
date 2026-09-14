@@ -24,11 +24,11 @@ public sealed class PlayerListChannelNode : BoxNode
         ArgumentNullException.ThrowIfNull(metrics);
         ArgumentNullException.ThrowIfNull(icons);
 
-        Style = new UiStyle
+        Style = new UIStyle
         {
             Width = metrics.PanelWidth,
             Padding = new EdgeInsets(PlayerListLayout.ChannelPaddingX, PlayerListLayout.ChannelPaddingY),
-            Background = MiaoNetUiTheme.PlayerList.Background,
+            Background = MiaoNetUITheme.PlayerList.Background,
             TextRenderer = renderer,
         };
 
@@ -37,23 +37,23 @@ public sealed class PlayerListChannelNode : BoxNode
             Axis = FlexAxis.Vertical,
             Spacing = 0f,
             CrossAxisAlignment = CrossAxisAlignment.Stretch,
-            Style = new UiStyle { TextRenderer = renderer },
+            Style = new UIStyle { TextRenderer = renderer },
         };
 
         content.Add(new TextNode
         {
             Text = channel.Header,
-            Style = new UiStyle
+            Style = new UIStyle
             {
                 Height = metrics.HeaderHeight,
-                Foreground = MiaoNetUiTheme.PlayerList.Header,
+                Foreground = MiaoNetUITheme.PlayerList.Header,
                 TextRenderer = renderer,
             },
             TextStyle = new TextStyle
             {
                 Scale = scale,
                 LineHeight = metrics.LineHeight,
-                Color = MiaoNetUiTheme.PlayerList.Header,
+                Color = MiaoNetUITheme.PlayerList.Header,
                 VerticalAnchor = VerticalAnchor.Top,
             },
         });
@@ -72,14 +72,14 @@ public sealed class PlayerListChannelNode : BoxNode
 
     public IReadOnlyList<PlayerRowNode> RowNodes { get; }
 
-    protected override void PaintBorder(IUiCanvas canvas, UiRect rect, float opacity)
+    protected override void PaintBorder(IUICanvas canvas, UIRect rect, float opacity)
     {
         float thickness = PlayerListLayout.BorderThickness;
         canvas.FillRect(
-            new UiRect(rect.X, rect.Y, rect.Width, thickness),
-            MiaoNetUiTheme.PlayerList.BorderTop * opacity);
+            new UIRect(rect.X, rect.Y, rect.Width, thickness),
+            MiaoNetUITheme.PlayerList.BorderTop * opacity);
         canvas.FillRect(
-            new UiRect(rect.X, rect.Y, thickness, rect.Height),
-            MiaoNetUiTheme.PlayerList.BorderLeft * opacity);
+            new UIRect(rect.X, rect.Y, thickness, rect.Height),
+            MiaoNetUITheme.PlayerList.BorderLeft * opacity);
     }
 }

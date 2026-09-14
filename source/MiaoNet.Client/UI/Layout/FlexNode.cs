@@ -20,17 +20,17 @@ public sealed class FlexNode : MultiChildNode
 
     private bool IsHorizontal => Axis == FlexAxis.Horizontal;
 
-    protected override UiSize OnMeasure(BoxConstraints constraints)
+    protected override UISize OnMeasure(BoxConstraints constraints)
     {
         bool horizontal = IsHorizontal;
         float mainMax = horizontal ? constraints.MaxWidth : constraints.MaxHeight;
         float crossMax = horizontal ? constraints.MaxHeight : constraints.MaxWidth;
         bool stretch = CrossAxisAlignment == CrossAxisAlignment.Stretch && !float.IsInfinity(crossMax);
 
-        List<UiNode> visible = VisibleChildren();
+        List<UINode> visible = VisibleChildren();
         if (visible.Count == 0)
         {
-            return constraints.Constrain(UiSize.Zero);
+            return constraints.Constrain(UISize.Zero);
         }
 
         float totalInflexMain = 0f;
@@ -38,7 +38,7 @@ public sealed class FlexNode : MultiChildNode
         float maxCross = 0f;
 
         // pass 1: inflexible children decide how much main-axis space is left for flexible ones.
-        foreach (UiNode child in visible)
+        foreach (UINode child in visible)
         {
             if (child.Flex > 0f)
             {
@@ -46,7 +46,7 @@ public sealed class FlexNode : MultiChildNode
                 continue;
             }
 
-            UiSize size = child.Measure(ChildConstraints(horizontal, mainMax, crossMax, stretch, mainOverride: null));
+            UISize size = child.Measure(ChildConstraints(horizontal, mainMax, crossMax, stretch, mainOverride: null));
             totalInflexMain += horizontal ? size.Width : size.Height;
             maxCross = MathF.Max(maxCross, horizontal ? size.Height : size.Width);
         }
@@ -58,7 +58,7 @@ public sealed class FlexNode : MultiChildNode
         // pass 2: divide the remaining main-axis space by flex weight.
         if (totalFlex > 0f)
         {
-            foreach (UiNode child in visible)
+            foreach (UINode child in visible)
             {
                 if (child.Flex <= 0f)
                 {
@@ -66,7 +66,7 @@ public sealed class FlexNode : MultiChildNode
                 }
 
                 float allocated = remaining * (child.Flex / totalFlex);
-                UiSize size = child.Measure(
+                UISize size = child.Measure(
                     ChildConstraints(horizontal, mainMax, crossMax, stretch, mainOverride: allocated));
                 totalMain += horizontal ? size.Width : size.Height;
                 maxCross = MathF.Max(maxCross, horizontal ? size.Height : size.Width);
@@ -74,15 +74,15 @@ public sealed class FlexNode : MultiChildNode
         }
 
         totalMain += spacing;
-        UiSize desired = horizontal
-            ? new UiSize(totalMain, maxCross)
-            : new UiSize(maxCross, totalMain);
+        UISize desired = horizontal
+            ? new UISize(totalMain, maxCross)
+            : new UISize(maxCross, totalMain);
         return constraints.Constrain(desired);
     }
 
-    protected override void OnArrange(UiRect bounds)
+    protected override void OnArrange(UIRect bounds)
     {
-        List<UiNode> visible = VisibleChildren();
+        List<UINode> visible = VisibleChildren();
         if (visible.Count == 0)
         {
             return;
@@ -93,9 +93,9 @@ public sealed class FlexNode : MultiChildNode
         float crossSize = horizontal ? bounds.Height : bounds.Width;
 
         float contentMain = 0f;
-        foreach (UiNode child in visible)
+        foreach (UINode child in visible)
         {
-            UiSize size = child.MeasuredSize;
+            UISize size = child.MeasuredSize;
             contentMain += horizontal ? size.Width : size.Height;
         }
         contentMain += Spacing * (visible.Count - 1);
@@ -139,9 +139,9 @@ public sealed class FlexNode : MultiChildNode
         }
 
         float cursor = (horizontal ? bounds.X : bounds.Y) + offset;
-        foreach (UiNode child in visible)
+        foreach (UINode child in visible)
         {
-            UiSize size = child.MeasuredSize;
+            UISize size = child.MeasuredSize;
             float childMain = horizontal ? size.Width : size.Height;
             float childCross = horizontal ? size.Height : size.Width;
             float crossOffset = CrossAxisAlignment switch
@@ -151,9 +151,9 @@ public sealed class FlexNode : MultiChildNode
                 _ => 0f,
             };
 
-            UiRect rect = horizontal
-                ? new UiRect(cursor, bounds.Y + crossOffset, childMain, childCross)
-                : new UiRect(bounds.X + crossOffset, cursor, childCross, childMain);
+            UIRect rect = horizontal
+                ? new UIRect(cursor, bounds.Y + crossOffset, childMain, childCross)
+                : new UIRect(bounds.X + crossOffset, cursor, childCross, childMain);
             child.Arrange(rect);
             cursor += childMain + step;
         }
@@ -179,10 +179,10 @@ public sealed class FlexNode : MultiChildNode
             : new BoxConstraints(crossMin, crossMax, mainMin, mainLimit);
     }
 
-    private List<UiNode> VisibleChildren()
+    private List<UINode> VisibleChildren()
     {
-        List<UiNode> result = [];
-        foreach (UiNode child in Children)
+        List<UINode> result = [];
+        foreach (UINode child in Children)
         {
             if (child.IsVisible)
             {

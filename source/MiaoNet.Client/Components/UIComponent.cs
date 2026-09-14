@@ -1,4 +1,3 @@
-using System;
 using Celeste.Mod.MiaoNet.Chat;
 using Celeste.Mod.MiaoNet.UI.Chat;
 using Celeste.Mod.MiaoNet.UI.Controls;
@@ -19,8 +18,8 @@ namespace Celeste.Mod.MiaoNet;
 // list. the chat log model lives in MiaoNet.Client/Chat/, we just make nodes out of it.
 public sealed class UIComponent : MiaoNetComponent
 {
-    private readonly UiRoot ui = new();
-    private readonly MiaoNetUiCanvas canvas = new();
+    private readonly UIRoot ui = new();
+    private readonly MiaoNetUICanvas canvas = new();
     private readonly MiaoNetTextRenderer textRenderer = MiaoNetTextRenderer.Instance;
 
     private readonly PlayerListController playerList = new();
@@ -45,13 +44,13 @@ public sealed class UIComponent : MiaoNetComponent
     private bool builtLiveMode;
 
     private int builtChatVersion = -1;
-    private ChatUiSnapshot? chatSnapshot;
+    private ChatUISnapshot? chatSnapshot;
 
     private float hostWidth = -1f;
     private float hostHeight = -1f;
 
-    private readonly UiInputRegistrations playerListInput;
-    private readonly UiInputRegistrations chatInput;
+    private readonly UIInputRegistrations playerListInput;
+    private readonly UIInputRegistrations chatInput;
 
     // set by the player list toggle reaction, consumed in UpdatePlayerList
     private bool playerListToggleRequested;
@@ -65,7 +64,7 @@ public sealed class UIComponent : MiaoNetComponent
         playerListPanel = new PlayerListPanelNode(textRenderer);
         playerListHost = new AlignNode
         {
-            Alignment = UiAlignment.TopLeft,
+            Alignment = UIAlignment.TopLeft,
             Child = playerListPanel,
         };
 
@@ -79,7 +78,7 @@ public sealed class UIComponent : MiaoNetComponent
             new ChatInputNode(chatField, chatPopup));
 
         // paint order: player list on top of the chat
-        root = new StackNode { Alignment = UiAlignment.TopLeft };
+        root = new StackNode { Alignment = UIAlignment.TopLeft };
         root.Add(chatScreen);
         root.Add(playerListHost);
         ui.SetRoot(root);
@@ -87,16 +86,16 @@ public sealed class UIComponent : MiaoNetComponent
         // we drive the chat message list, so we claim that consumer's scroll actions on the same
         // handle ChatComponent used for its editing reactions: the router arbitrates per
         // consumer, not per class.
-        playerListInput = context.UiInput.Register(UiInputConsumer.PlayerList);
-        chatInput = context.UiInput.Register(UiInputConsumer.Chat);
+        playerListInput = context.UIInput.Register(UIInputConsumer.PlayerList);
+        chatInput = context.UIInput.Register(UIInputConsumer.Chat);
 
-        playerListInput.On(UiInputAction.PlayerListToggle, TogglePlayerListInPressMode);
-        playerListInput.OwnHeld(UiInputAction.PlayerListToggle);
-        playerListInput.OwnHeld(UiInputAction.PlayerListScrollUp);
-        playerListInput.OwnHeld(UiInputAction.PlayerListScrollDown);
+        playerListInput.On(UIInputAction.PlayerListToggle, TogglePlayerListInPressMode);
+        playerListInput.OwnHeld(UIInputAction.PlayerListToggle);
+        playerListInput.OwnHeld(UIInputAction.PlayerListScrollUp);
+        playerListInput.OwnHeld(UIInputAction.PlayerListScrollDown);
 
-        chatInput.OwnHeld(UiInputAction.ChatListScrollUp);
-        chatInput.OwnHeld(UiInputAction.ChatListScrollDown);
+        chatInput.OwnHeld(UIInputAction.ChatListScrollUp);
+        chatInput.OwnHeld(UIInputAction.ChatListScrollDown);
     }
 
     // press mode reacts to the edge. the reaction runs before Update and only records intent;
@@ -148,7 +147,7 @@ public sealed class UIComponent : MiaoNetComponent
         if (playerListWasOpen)
         {
             // release the keyboard explicitly, a stale owner would block opening the chat
-            context.UiInput.SetFocus(UiFocusOwner.None);
+            context.UIInput.SetFocus(UIFocusOwner.None);
         }
 
         chat.Reset();
@@ -176,7 +175,7 @@ public sealed class UIComponent : MiaoNetComponent
         else
         {
             // hold mode is a level, not an edge: the routing table delivers it and we read it
-            wantsOpen = playerListInput.IsHeld(UiInputAction.PlayerListToggle);
+            wantsOpen = playerListInput.IsHeld(UIInputAction.PlayerListToggle);
         }
 
         playerListToggleRequested = false;
@@ -192,12 +191,12 @@ public sealed class UIComponent : MiaoNetComponent
         if (playerList.IsOpen != wasOpen)
         {
             playerListData.Active = playerList.IsOpen;
-            context.UiInput.SetFocus(playerList.IsOpen ? UiFocusOwner.PlayerList : UiFocusOwner.None);
+            context.UIInput.SetFocus(playerList.IsOpen ? UIFocusOwner.PlayerList : UIFocusOwner.None);
         }
 
         // the routing table already restricts these to player-list focus, i.e. while it's open
-        playerList.ScrollUpHeld = playerListInput.IsHeld(UiInputAction.PlayerListScrollUp);
-        playerList.ScrollDownHeld = playerListInput.IsHeld(UiInputAction.PlayerListScrollDown);
+        playerList.ScrollUpHeld = playerListInput.IsHeld(UIInputAction.PlayerListScrollUp);
+        playerList.ScrollDownHeld = playerListInput.IsHeld(UIInputAction.PlayerListScrollDown);
         playerList.ViewportHeight = Engine.Height;
         playerList.Update(Engine.RawDeltaTime);
 
@@ -215,7 +214,7 @@ public sealed class UIComponent : MiaoNetComponent
     private void RebuildPlayerListIfNeeded(float scale, bool liveMode)
     {
         // live mode masks map and room names, so it changes the model too
-        if (builtPlayerListVersion == playerListData.UiVersion
+        if (builtPlayerListVersion == playerListData.UIVersion
             && builtPlayerListScale == scale
             && builtLiveMode == liveMode)
         {
@@ -223,12 +222,12 @@ public sealed class UIComponent : MiaoNetComponent
         }
 
         playerListPanel.Rebuild(
-            playerListData.BuildUiChannels(),
-            playerListData.UiIcons,
+            playerListData.BuildUIChannels(),
+            playerListData.UIIcons,
             scale,
             MiaoNetFont.ENZhsLineHeight * scale);
 
-        builtPlayerListVersion = playerListData.UiVersion;
+        builtPlayerListVersion = playerListData.UIVersion;
         builtPlayerListScale = scale;
         builtLiveMode = liveMode;
     }
@@ -291,13 +290,13 @@ public sealed class UIComponent : MiaoNetComponent
         chat.Active = chatData.Active;
         chat.ShowDuration = settings.ChatDisplayDuration;
 
-        if (builtChatVersion != chatData.UiVersion)
+        if (builtChatVersion != chatData.UIVersion)
         {
-            chatSnapshot = chatData.BuildUiSnapshot();
+            chatSnapshot = chatData.BuildUISnapshot();
             chatMessages.SetMessages(chatSnapshot.Display);
             chatTabs.Tabs = chatSnapshot.TabNames;
             chatTabs.InitialTitle = chatSnapshot.InitialTitle;
-            builtChatVersion = chatData.UiVersion;
+            builtChatVersion = chatData.UIVersion;
         }
 
         if (chatSnapshot is null)
@@ -310,12 +309,12 @@ public sealed class UIComponent : MiaoNetComponent
 
         // wheel and PageUp/PageDown add into one delta. both come from the same routing rule, so
         // the wheel does nothing while the player list owns the keyboard.
-        float delta = context.UiInput.ChatScrollDelta;
-        if (chatInput.IsHeld(UiInputAction.ChatListScrollUp))
+        float delta = context.UIInput.ChatScrollDelta;
+        if (chatInput.IsHeld(UIInputAction.ChatListScrollUp))
         {
             delta += ChatLayout.KeyboardScrollSpeed * deltaTime;
         }
-        else if (chatInput.IsHeld(UiInputAction.ChatListScrollDown))
+        else if (chatInput.IsHeld(UIInputAction.ChatListScrollDown))
         {
             delta -= ChatLayout.KeyboardScrollSpeed * deltaTime;
         }
@@ -343,7 +342,7 @@ public sealed class UIComponent : MiaoNetComponent
 
         hostWidth = Engine.Width;
         hostHeight = Engine.Height;
-        playerListHost.Style = new UiStyle { Width = hostWidth, Height = hostHeight };
-        root.Style = new UiStyle { Width = hostWidth, Height = hostHeight };
+        playerListHost.Style = new UIStyle { Width = hostWidth, Height = hostHeight };
+        root.Style = new UIStyle { Width = hostWidth, Height = hostHeight };
     }
 }

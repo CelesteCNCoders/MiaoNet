@@ -11,18 +11,18 @@ public sealed class MiaoNetTextRenderer : ITextRenderer
 {
     public static MiaoNetTextRenderer Instance { get; } = new();
 
-    public UiSize Measure(string text, TextStyle style)
+    public UISize Measure(string text, TextStyle style)
     {
         if (string.IsNullOrEmpty(text))
         {
-            return UiSize.Zero;
+            return UISize.Zero;
         }
 
         Vector2 size = MiaoNetFont.Measure(text) * style.Scale;
-        return new UiSize(size.X, size.Y);
+        return new UISize(size.X, size.Y);
     }
 
-    public void Draw(IUiCanvas canvas, string text, UiOffset position, TextStyle style)
+    public void Draw(IUICanvas canvas, string text, UIOffset position, TextStyle style)
     {
         ArgumentNullException.ThrowIfNull(canvas);
 
@@ -31,7 +31,7 @@ public sealed class MiaoNetTextRenderer : ITextRenderer
             return;
         }
 
-        UiColor uiColor = style.Color ?? UiColor.White;
+        UIColor uiColor = style.Color ?? UIColor.White;
         Color color = uiColor.ToXna();
         Vector2 justify = style.HorizontalAnchor.ToJustify(style.VerticalAnchor);
         Vector2 vectorScale = new(style.Scale);
@@ -59,13 +59,13 @@ public sealed class MiaoNetTextRenderer : ITextRenderer
         if (style.Decorations.HasFlag(TextDecoration.Underline))
         {
             float y = position.Y + (textSize.Y * (1f - style.VerticalAnchor.VerticalFactor()));
-            canvas.DrawLine(new UiOffset(left, y), new UiOffset(right, y), uiColor, thickness);
+            canvas.DrawLine(new UIOffset(left, y), new UIOffset(right, y), uiColor, thickness);
         }
 
         if (style.Decorations.HasFlag(TextDecoration.Strikethrough))
         {
             float y = position.Y + (textSize.Y * (1f - style.VerticalAnchor.VerticalFactor())) - (textSize.Y / 2f);
-            canvas.DrawLine(new UiOffset(left, y), new UiOffset(right, y), uiColor, thickness);
+            canvas.DrawLine(new UIOffset(left, y), new UIOffset(right, y), uiColor, thickness);
         }
     }
 

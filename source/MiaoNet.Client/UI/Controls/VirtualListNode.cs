@@ -13,7 +13,7 @@ public interface IVirtualListDataSource
     int Count { get; }
 
     // builds a node for an item that just entered the window
-    UiNode BuildItem(int index);
+    UINode BuildItem(int index);
 
     // stable identity of an item. nodes are reused while their key stays in the window, so
     // scrolling does not rebuild the items that stay visible.
@@ -26,10 +26,10 @@ public interface IVirtualListDataSource
 // this is the only place in the UI layer that reconciles nodes by identity, and I want to keep
 // it that way -- the rest of the tree is retained and updated in place, there is no global
 // reconciliation pass.
-public class VirtualListNode : UiNode
+public class VirtualListNode : UINode
 {
-    private readonly Dictionary<object, UiNode> mounted = [];
-    private readonly List<UiNode> window = [];
+    private readonly Dictionary<object, UINode> mounted = [];
+    private readonly List<UINode> window = [];
 
     private IVirtualListDataSource? dataSource;
 
@@ -62,7 +62,7 @@ public class VirtualListNode : UiNode
     // scroll position measured from the top of the content
     public float Offset { get; set; }
 
-    public UiSize ContentSize { get; private set; }
+    public UISize ContentSize { get; private set; }
 
     public int FirstVisibleIndex { get; private set; } = -1;
 
@@ -73,27 +73,27 @@ public class VirtualListNode : UiNode
 
     public float MaxScroll => MathF.Max(0f, ContentSize.Height - Bounds.Height);
 
-    public override IReadOnlyList<UiNode> Children => window;
+    public override IReadOnlyList<UINode> Children => window;
 
     public float ClampOffset(float value) => Math.Clamp(value, 0f, MaxScroll);
 
-    protected override UiSize OnMeasure(BoxConstraints constraints)
+    protected override UISize OnMeasure(BoxConstraints constraints)
     {
         int count = dataSource?.Count ?? 0;
         float contentHeight = count <= 0 ? 0f : (count * Step) - Spacing;
 
         // The width comes from the layout (Style.Width or a tight constraint); item widths are
         // content-derived and only measured for the items actually mounted.
-        float width = constraints.Constrain(new UiSize(constraints.MaxWidth, 0f)).Width;
-        ContentSize = new UiSize(width, contentHeight);
+        float width = constraints.Constrain(new UISize(constraints.MaxWidth, 0f)).Width;
+        ContentSize = new UISize(width, contentHeight);
 
         float height = float.IsInfinity(constraints.MaxHeight)
             ? contentHeight
             : MathF.Min(contentHeight, constraints.MaxHeight);
-        return constraints.Constrain(new UiSize(width, height));
+        return constraints.Constrain(new UISize(width, height));
     }
 
-    protected override void OnArrange(UiRect bounds)
+    protected override void OnArrange(UIRect bounds)
     {
         int count = dataSource?.Count ?? 0;
         if (count <= 0)
@@ -119,17 +119,17 @@ public class VirtualListNode : UiNode
         var itemConstraints = new BoxConstraints(0f, float.PositiveInfinity, ItemExtent, ItemExtent);
         for (int i = from; i <= to; i++)
         {
-            UiNode node = window[i - from];
+            UINode node = window[i - from];
 
             // Push per-frame state BEFORE measuring: it may update metrics that the measurement
             // depends on. A freshly built node still carries its type's defaults, so measuring
             // first would lay it out with the wrong size for one frame and visibly jump.
             OnItemMounted(node, i);
 
-            UiSize size = node.Measure(itemConstraints);
+            UISize size = node.Measure(itemConstraints);
 
             float y = bounds.Y + (i * step) - Offset;
-            node.Arrange(new UiRect(bounds.X, y, size.Width, size.Height));
+            node.Arrange(new UIRect(bounds.X, y, size.Width, size.Height));
 
             if (FadeItemsAtEdges)
             {
@@ -138,11 +138,11 @@ public class VirtualListNode : UiNode
         }
     }
 
-    protected override UiRect? CullRectFor(UiRect? inherited)
+    protected override UIRect? CullRectFor(UIRect? inherited)
     {
-        UiRect own = Bounds;
+        UIRect own = Bounds;
         return inherited is { } outer
-            ? new UiRect(
+            ? new UIRect(
                 MathF.Max(outer.X, own.X),
                 MathF.Max(outer.Y, own.Y),
                 MathF.Max(0f, MathF.Min(outer.Right, own.Right) - MathF.Max(outer.X, own.X)),
@@ -153,7 +153,7 @@ public class VirtualListNode : UiNode
     // called for every mounted item on every layout pass, before the item is measured. push
     // current settings and per-frame state here -- anything that affects measurement has to go
     // through this hook, not build time.
-    protected virtual void OnItemMounted(UiNode node, int index)
+    protected virtual void OnItemMounted(UINode node, int index)
     {
     }
 
@@ -161,7 +161,7 @@ public class VirtualListNode : UiNode
     protected void Reset()
     {
         UnmountAll();
-        ContentSize = UiSize.Zero;
+        ContentSize = UISize.Zero;
         Offset = 0f;
         InvalidateMeasure();
     }
@@ -169,12 +169,12 @@ public class VirtualListNode : UiNode
     private void MountWindow(int from, int to)
     {
         var wanted = new HashSet<object>();
-        var next = new List<UiNode>(to - from + 1);
+        var next = new List<UINode>(to - from + 1);
 
         for (int i = from; i <= to; i++)
         {
             object key = dataSource!.GetItemKey(i);
-            if (!mounted.TryGetValue(key, out UiNode? node))
+            if (!mounted.TryGetValue(key, out UINode? node))
             {
                 node = dataSource.BuildItem(i);
                 node.Parent = this;
@@ -198,7 +198,7 @@ public class VirtualListNode : UiNode
 
     private void UnmountAll()
     {
-        foreach (UiNode node in mounted.Values)
+        foreach (UINode node in mounted.Values)
         {
             node.Parent = null;
         }
@@ -207,7 +207,7 @@ public class VirtualListNode : UiNode
         window.Clear();
     }
 
-    private static float VisibleFraction(UiRect item, UiRect viewport)
+    private static float VisibleFraction(UIRect item, UIRect viewport)
     {
         if (item.Height <= 0f)
         {

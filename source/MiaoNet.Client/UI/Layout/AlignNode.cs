@@ -8,23 +8,23 @@ namespace Celeste.Mod.MiaoNet.UI.Layout;
 // constraints are tight.
 public sealed class AlignNode : SingleChildNode
 {
-    public UiAlignment Alignment { get; set; } = UiAlignment.Center;
+    public UIAlignment Alignment { get; set; } = UIAlignment.Center;
 
-    protected override UiSize OnMeasure(BoxConstraints constraints)
+    protected override UISize OnMeasure(BoxConstraints constraints)
     {
-        UiSize childSize = Child?.Measure(constraints.Loosen()) ?? UiSize.Zero;
+        UISize childSize = Child?.Measure(constraints.Loosen()) ?? UISize.Zero;
         return constraints.Constrain(childSize);
     }
 
-    protected override void OnArrange(UiRect bounds)
+    protected override void OnArrange(UIRect bounds)
     {
         if (Child is null)
         {
             return;
         }
 
-        UiSize size = Child.MeasuredSize;
-        UiOffset offset = Alignment.OffsetFor(bounds.Size, size);
-        Child.Arrange(new UiRect(bounds.X + offset.X, bounds.Y + offset.Y, size.Width, size.Height));
+        UISize size = Child.MeasuredSize;
+        UIOffset offset = Alignment.OffsetFor(bounds.Size, size);
+        Child.Arrange(new UIRect(bounds.X + offset.X, bounds.Y + offset.Y, size.Width, size.Height));
     }
 }

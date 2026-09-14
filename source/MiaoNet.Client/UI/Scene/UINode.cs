@@ -12,33 +12,33 @@ namespace Celeste.Mod.MiaoNet.UI.Scene;
 // this is our one layer replacing the reference framework's widget/element/renderobject split.
 // since the tree is retained there's no global reconciliation pass; the only place that reuses
 // nodes by identity is the virtual list, and that's local to that node.
-public abstract class UiNode
+public abstract class UINode
 {
-    private static readonly UiNode[] NoChildren = Array.Empty<UiNode>();
+    private static readonly UINode[] NoChildren = Array.Empty<UINode>();
 
-    private UiStyle style = UiStyle.Default;
+    private UIStyle style = UIStyle.Default;
     private bool measureValid;
-    private UiSize measured;
+    private UISize measured;
     private BoxConstraints lastConstraints;
 
     // visual style; replacing it invalidates the cached measurement.
-    public UiStyle Style
+    public UIStyle Style
     {
         get => style;
         set
         {
-            style = value ?? UiStyle.Default;
+            style = value ?? UIStyle.Default;
             InvalidateMeasure();
         }
     }
 
-    public UiNode? Parent { get; internal set; }
+    public UINode? Parent { get; internal set; }
 
     // final rect assigned by the parent during arrange.
-    public UiRect Bounds { get; private set; }
+    public UIRect Bounds { get; private set; }
 
     // size from the most recent measure.
-    public UiSize MeasuredSize { get; private set; }
+    public UISize MeasuredSize { get; private set; }
 
     private bool isVisible = true;
 
@@ -70,10 +70,10 @@ public abstract class UiNode
     // flex weight inside a flexnode; 0 means inflexible.
     public float Flex { get; set; }
 
-    public virtual IReadOnlyList<UiNode> Children => NoChildren;
+    public virtual IReadOnlyList<UINode> Children => NoChildren;
 
     // reuses the cached result while the constraints are unchanged.
-    public UiSize Measure(BoxConstraints constraints)
+    public UISize Measure(BoxConstraints constraints)
     {
         BoxConstraints effective = ApplyStyleSizing(constraints);
         if (measureValid && lastConstraints == effective)
@@ -88,7 +88,7 @@ public abstract class UiNode
         return measured;
     }
 
-    public void Arrange(UiRect bounds)
+    public void Arrange(UIRect bounds)
     {
         Bounds = bounds;
         OnArrange(bounds);
@@ -106,13 +106,13 @@ public abstract class UiNode
     }
 
     // top-down, painting each visible node at the accumulated opacity.
-    public void PaintTree(IUiCanvas canvas, float opacity)
+    public void PaintTree(IUICanvas canvas, float opacity)
     {
         ArgumentNullException.ThrowIfNull(canvas);
         PaintTree(canvas, opacity, null);
     }
 
-    private void PaintTree(IUiCanvas canvas, float opacity, UiRect? inheritedCull)
+    private void PaintTree(IUICanvas canvas, float opacity, UIRect? inheritedCull)
     {
         if (!IsVisible)
         {
@@ -125,11 +125,11 @@ public abstract class UiNode
             return;
         }
 
-        UiRect? cull = CullRectFor(inheritedCull);
+        UIRect? cull = CullRectFor(inheritedCull);
 
         PaintSelf(canvas, nodeOpacity);
         OnBeforeChildren(canvas);
-        foreach (UiNode child in Children)
+        foreach (UINode child in Children)
         {
             if (cull is { } rect && !child.Bounds.Intersects(rect))
             {
@@ -142,7 +142,7 @@ public abstract class UiNode
     }
 
     // deepest visible node containing the point, if any.
-    public virtual UiNode? HitTest(UiOffset point)
+    public virtual UINode? HitTest(UIOffset point)
     {
         if (!IsVisible || !Bounds.Contains(point))
         {
@@ -150,10 +150,10 @@ public abstract class UiNode
         }
 
         // Children are painted after their parent, so they are on top: test them last-first.
-        IReadOnlyList<UiNode> children = Children;
+        IReadOnlyList<UINode> children = Children;
         for (int i = children.Count - 1; i >= 0; i--)
         {
-            UiNode? hit = children[i].HitTest(point);
+            UINode? hit = children[i].HitTest(point);
             if (hit is not null)
             {
                 return hit;
@@ -163,31 +163,31 @@ public abstract class UiNode
         return IsHitTestVisible ? this : null;
     }
 
-    protected abstract UiSize OnMeasure(BoxConstraints constraints);
+    protected abstract UISize OnMeasure(BoxConstraints constraints);
 
-    protected virtual void OnArrange(UiRect bounds)
+    protected virtual void OnArrange(UIRect bounds)
     {
     }
 
     // draw this node only; children are painted by painttree.
-    protected virtual void PaintSelf(IUiCanvas canvas, float opacity)
+    protected virtual void PaintSelf(IUICanvas canvas, float opacity)
     {
     }
 
     // push graphics state (a clip rect, say) before children paint.
-    protected virtual void OnBeforeChildren(IUiCanvas canvas)
+    protected virtual void OnBeforeChildren(IUICanvas canvas)
     {
     }
 
     // pop whatever onbeforechildren pushed.
-    protected virtual void OnAfterChildren(IUiCanvas canvas)
+    protected virtual void OnAfterChildren(IUICanvas canvas)
     {
     }
 
     // narrows the paint culling rect for this subtree; scrolling containers intersect it with
     // their viewport so descendants outside get skipped instead of drawn and scissored.
     // returning the inherited value (or null) turns culling off here.
-    protected virtual UiRect? CullRectFor(UiRect? inherited) => inherited;
+    protected virtual UIRect? CullRectFor(UIRect? inherited) => inherited;
 
     // folds style sizing fields into the constraints before measuring.
     private BoxConstraints ApplyStyleSizing(BoxConstraints constraints)

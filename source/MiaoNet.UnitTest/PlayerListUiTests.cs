@@ -23,26 +23,26 @@ public sealed class PlayerListUiTests
     // deterministic stand-in for the pixel font: every glyph is CharWidth wide
     private sealed class FakeTextRenderer : ITextRenderer
     {
-        public UiSize Measure(string text, TextStyle style)
+        public UISize Measure(string text, TextStyle style)
             => new(text.Length * CharWidth * style.Scale, 12f * style.Scale);
 
-        public void Draw(IUiCanvas canvas, string text, UiOffset position, TextStyle style)
+        public void Draw(IUICanvas canvas, string text, UIOffset position, TextStyle style)
         {
         }
 
         public bool CanRender(int character, TextStyle style) => true;
     }
 
-    private sealed class FakeTexture(float width, float height) : IUiTexture
+    private sealed class FakeTexture(float width, float height) : IUITexture
     {
         public float Width { get; } = width;
 
         public float Height { get; } = height;
 
         public void Draw(
-            IUiCanvas canvas,
-            UiOffset position,
-            UiColor tint,
+            IUICanvas canvas,
+            UIOffset position,
+            UIColor tint,
             float scale,
             HorizontalAnchor horizontalAnchor = HorizontalAnchor.Left,
             VerticalAnchor verticalAnchor = VerticalAnchor.Top)
@@ -50,17 +50,17 @@ public sealed class PlayerListUiTests
         }
     }
 
-    private sealed class RecordingCanvas : IUiCanvas
+    private sealed class RecordingCanvas : IUICanvas
     {
-        public List<UiColor> FillColors { get; } = [];
+        public List<UIColor> FillColors { get; } = [];
 
-        public void FillRect(UiRect rect, UiColor color) => FillColors.Add(color);
+        public void FillRect(UIRect rect, UIColor color) => FillColors.Add(color);
 
-        public void DrawLine(UiOffset from, UiOffset to, UiColor color, float thickness)
+        public void DrawLine(UIOffset from, UIOffset to, UIColor color, float thickness)
         {
         }
 
-        public void PushClip(UiRect rect)
+        public void PushClip(UIRect rect)
         {
         }
 
@@ -134,7 +134,7 @@ public sealed class PlayerListUiTests
 
     // ---------------------------------------------------------------- layout
 
-    private static (UiRoot Root, PlayerListPanelNode Panel, AlignNode Host) BuildPanel(
+    private static (UIRoot Root, PlayerListPanelNode Panel, AlignNode Host) BuildPanel(
         IReadOnlyList<PlayerListChannel> channels,
         PlayerListIcons icons,
         float viewportWidth = 400f,
@@ -145,12 +145,12 @@ public sealed class PlayerListUiTests
 
         var host = new AlignNode
         {
-            Alignment = UiAlignment.TopLeft,
+            Alignment = UIAlignment.TopLeft,
             Child = panel,
-            Style = new UiStyle { Width = viewportWidth, Height = viewportHeight },
+            Style = new UIStyle { Width = viewportWidth, Height = viewportHeight },
         };
 
-        var root = new UiRoot();
+        var root = new UIRoot();
         root.SetRoot(host);
         root.Layout(viewportWidth, viewportHeight);
         return (root, panel, host);
@@ -171,8 +171,8 @@ public sealed class PlayerListUiTests
         var column = (FlexNode)((BoxNode)panel.Child!).Child!;
         AssertClose(2f, column.Children.Count, "channel count");
 
-        UiNode first = column.Children[0];
-        UiNode second = column.Children[1];
+        UINode first = column.Children[0];
+        UINode second = column.Children[1];
 
         // PL.PANEL.MARGIN_X = 16, PL.PANEL.MARGIN_Y = 16
         AssertClose(16f, first.Bounds.X, "channel.X");
@@ -296,7 +296,7 @@ public sealed class PlayerListUiTests
             Channel("C", Row("C")),
         };
 
-        (UiRoot root, PlayerListPanelNode panel, AlignNode host) = BuildPanel(channels, new PlayerListIcons());
+        (UIRoot root, PlayerListPanelNode panel, AlignNode host) = BuildPanel(channels, new PlayerListIcons());
 
         var canvas = new RecordingCanvas();
         root.Paint(canvas);
@@ -317,9 +317,9 @@ public sealed class PlayerListUiTests
 
     private static int CountChannelBackgrounds(RecordingCanvas canvas)
     {
-        UiColor background = MiaoNetUiTheme.PlayerList.Background;
+        UIColor background = MiaoNetUITheme.PlayerList.Background;
         int count = 0;
-        foreach (UiColor color in canvas.FillColors)
+        foreach (UIColor color in canvas.FillColors)
         {
             if (color == background)
             {

@@ -4,13 +4,13 @@ using System.Collections.Generic;
 namespace Celeste.Mod.MiaoNet.UI.Scene;
 
 // base for nodes with exactly one child.
-public abstract class SingleChildNode : UiNode
+public abstract class SingleChildNode : UINode
 {
-    private static readonly UiNode[] NoChildren = Array.Empty<UiNode>();
-    private readonly UiNode[] singleChildBuffer = new UiNode[1];
-    private UiNode? child;
+    private static readonly UINode[] NoChildren = Array.Empty<UINode>();
+    private readonly UINode[] singleChildBuffer = new UINode[1];
+    private UINode? child;
 
-    public UiNode? Child
+    public UINode? Child
     {
         get => child;
         set
@@ -36,7 +36,7 @@ public abstract class SingleChildNode : UiNode
         }
     }
 
-    public override IReadOnlyList<UiNode> Children
+    public override IReadOnlyList<UINode> Children
     {
         get
         {
@@ -52,15 +52,15 @@ public abstract class SingleChildNode : UiNode
 }
 
 // base for nodes with an ordered list of children.
-public abstract class MultiChildNode : UiNode
+public abstract class MultiChildNode : UINode
 {
-    private readonly List<UiNode> items = [];
+    private readonly List<UINode> items = [];
 
-    public IReadOnlyList<UiNode> Items => items;
+    public IReadOnlyList<UINode> Items => items;
 
-    public override IReadOnlyList<UiNode> Children => items;
+    public override IReadOnlyList<UINode> Children => items;
 
-    public void Add(UiNode child)
+    public void Add(UINode child)
     {
         ArgumentNullException.ThrowIfNull(child);
         child.Parent = this;
@@ -68,16 +68,16 @@ public abstract class MultiChildNode : UiNode
         InvalidateMeasure();
     }
 
-    public void AddRange(IEnumerable<UiNode> children)
+    public void AddRange(IEnumerable<UINode> children)
     {
         ArgumentNullException.ThrowIfNull(children);
-        foreach (UiNode child in children)
+        foreach (UINode child in children)
         {
             Add(child);
         }
     }
 
-    public void SetItems(IEnumerable<UiNode> children)
+    public void SetItems(IEnumerable<UINode> children)
     {
         ArgumentNullException.ThrowIfNull(children);
         Clear();
@@ -93,7 +93,7 @@ public abstract class MultiChildNode : UiNode
 
     public void Clear()
     {
-        foreach (UiNode child in items)
+        foreach (UINode child in items)
         {
             child.Parent = null;
         }

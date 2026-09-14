@@ -9,16 +9,16 @@ namespace Celeste.Mod.MiaoNet.UI.Rendering;
 // allowed to know both worlds.
 public static class XnaInterop
 {
-    public static Color ToXna(this UiColor color)
+    public static Color ToXna(this UIColor color)
         => new(
             ToByte(color.R),
             ToByte(color.G),
             ToByte(color.B),
             ToByte(color.A));
 
-    public static Vector2 ToVector2(this UiOffset offset) => new(offset.X, offset.Y);
+    public static Vector2 ToVector2(this UIOffset offset) => new(offset.X, offset.Y);
 
-    public static Rectangle ToRectangle(this UiRect rect)
+    public static Rectangle ToRectangle(this UIRect rect)
         => new(
             (int)MathF.Floor(rect.X),
             (int)MathF.Floor(rect.Y),

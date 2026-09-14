@@ -8,11 +8,11 @@ namespace Celeste.Mod.MiaoNet.UI.Rendering;
 public interface ITextRenderer
 {
     // size of text under style, independent of anchoring.
-    UiSize Measure(string text, TextStyle style);
+    UISize Measure(string text, TextStyle style);
 
     // draws text; position is interpreted through the style's anchors, reproducing the
     // original ui's justify vectors.
-    void Draw(IUiCanvas canvas, string text, UiOffset position, TextStyle style);
+    void Draw(IUICanvas canvas, string text, UIOffset position, TextStyle style);
 
     bool CanRender(int character, TextStyle style);
 }

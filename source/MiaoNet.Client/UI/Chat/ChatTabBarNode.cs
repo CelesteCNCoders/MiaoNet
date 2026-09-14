@@ -9,7 +9,7 @@ namespace Celeste.Mod.MiaoNet.UI.Chat;
 
 // channel tab strip. the first entry is the "global" tab and is addressed by index -1, ahead of
 // the channel tabs.
-public sealed class ChatTabBarNode : UiNode
+public sealed class ChatTabBarNode : UINode
 {
     private readonly ITextRenderer renderer;
 
@@ -32,7 +32,7 @@ public sealed class ChatTabBarNode : UiNode
 
     public int EntryCount => Tabs.Count + 1;
 
-    protected override UiSize OnMeasure(BoxConstraints constraints)
+    protected override UISize OnMeasure(BoxConstraints constraints)
     {
         float width = 0f;
         for (int i = -1; i < Tabs.Count; i++)
@@ -45,10 +45,10 @@ public sealed class ChatTabBarNode : UiNode
             width -= ChatLayout.TabGap;
         }
 
-        return constraints.Constrain(new UiSize(width, LineHeight));
+        return constraints.Constrain(new UISize(width, LineHeight));
     }
 
-    protected override void PaintSelf(IUiCanvas canvas, float opacity)
+    protected override void PaintSelf(IUICanvas canvas, float opacity)
     {
         float x = Bounds.X;
 
@@ -59,25 +59,25 @@ public sealed class ChatTabBarNode : UiNode
             bool isActive = i == ActiveIndex;
 
             // snap tabs to whole pixels so backgrounds and text line up.
-            var rect = new UiRect(
+            var rect = new UIRect(
                 MathF.Floor(x),
                 MathF.Floor(Bounds.Y),
                 MathF.Floor(tabWidth),
                 LineHeight);
 
-            UiColor backgroundColor = isActive
-                ? MiaoNetUiTheme.Tab.ActiveBackground
-                : MiaoNetUiTheme.Tab.IdleBackground;
-            UiColor textColor = isActive
-                ? MiaoNetUiTheme.Tab.ActiveText
-                : MiaoNetUiTheme.Tab.IdleText;
+            UIColor backgroundColor = isActive
+                ? MiaoNetUITheme.Tab.ActiveBackground
+                : MiaoNetUITheme.Tab.IdleBackground;
+            UIColor textColor = isActive
+                ? MiaoNetUITheme.Tab.ActiveText
+                : MiaoNetUITheme.Tab.IdleText;
 
             canvas.FillRect(rect, backgroundColor * opacity);
 
             renderer.Draw(
                 canvas,
                 title,
-                new UiOffset(x + ChatLayout.Padding, Bounds.Bottom),
+                new UIOffset(x + ChatLayout.Padding, Bounds.Bottom),
                 new TextStyle
                 {
                     Scale = Scale,

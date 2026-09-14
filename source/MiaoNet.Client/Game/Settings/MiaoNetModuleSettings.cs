@@ -162,9 +162,9 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 
     #region Calculated
 
-    [YamlIgnore] public float PlayerListUIScaleValue => UiScale.FromSetting(PlayerListUIScale);
+    [YamlIgnore] public float PlayerListUIScaleValue => UIScale.FromSetting(PlayerListUIScale);
 
-    [YamlIgnore] public float ChatUIScaleValue => UiScale.FromSetting(ChatUIScale);
+    [YamlIgnore] public float ChatUIScaleValue => UIScale.FromSetting(ChatUIScale);
 
     [YamlIgnore] public float PlayerOpacityValue => PlayerOpacity / 10f;
 

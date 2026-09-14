@@ -20,10 +20,10 @@ public sealed class StatusPanelNode : MultiChildNode
     // horizontal gap between the cogwheel and the message.
     public const float MessageGap = 32f;
 
-    private UiSize iconSize;
-    private UiSize messageSize;
+    private UISize iconSize;
+    private UISize messageSize;
 
-    public StatusPanelNode(UiNode icon, UiNode message)
+    public StatusPanelNode(UINode icon, UINode message)
     {
         ArgumentNullException.ThrowIfNull(icon);
         ArgumentNullException.ThrowIfNull(message);
@@ -34,12 +34,12 @@ public sealed class StatusPanelNode : MultiChildNode
         Add(message);
     }
 
-    public UiNode Icon { get; }
+    public UINode Icon { get; }
 
-    public UiNode Message { get; }
+    public UINode Message { get; }
 
     // the area the overlay is laid out in; normally the whole screen.
-    protected override UiSize OnMeasure(BoxConstraints constraints)
+    protected override UISize OnMeasure(BoxConstraints constraints)
     {
         // children size themselves; the panel just fills the screen it's given.
         iconSize = Icon.Measure(BoxConstraints.Unbounded);
@@ -47,18 +47,18 @@ public sealed class StatusPanelNode : MultiChildNode
 
         float width = float.IsInfinity(constraints.MaxWidth) ? 0f : constraints.MaxWidth;
         float height = float.IsInfinity(constraints.MaxHeight) ? 0f : constraints.MaxHeight;
-        return constraints.Constrain(new UiSize(width, height));
+        return constraints.Constrain(new UISize(width, height));
     }
 
-    protected override void OnArrange(UiRect bounds)
+    protected override void OnArrange(UIRect bounds)
     {
         float iconX = CornerOffset;
         float iconY = bounds.Height - CornerOffset - iconSize.Height;
-        Icon.Arrange(new UiRect(iconX, iconY, iconSize.Width, iconSize.Height));
+        Icon.Arrange(new UIRect(iconX, iconY, iconSize.Width, iconSize.Height));
 
         // message bottom lines up with the cogwheel's, i.e. CornerOffset above the screen bottom.
         float messageX = iconX + iconSize.Width + MessageGap;
         float messageY = bounds.Height - CornerOffset - messageSize.Height;
-        Message.Arrange(new UiRect(messageX, messageY, messageSize.Width, messageSize.Height));
+        Message.Arrange(new UIRect(messageX, messageY, messageSize.Width, messageSize.Height));
     }
 }

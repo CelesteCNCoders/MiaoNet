@@ -13,7 +13,7 @@ namespace Celeste.Mod.MiaoNet.UI.Chat;
 //
 // y is anchored at the row's bottom: the background covers the row rect and the
 // text baseline sits MessagePaddingY above the bottom edge.
-public sealed class ChatMessageNode : UiNode
+public sealed class ChatMessageNode : UINode
 {
     private readonly ITextRenderer renderer;
     private ChatMessageRow row;
@@ -79,9 +79,9 @@ public sealed class ChatMessageNode : UiNode
     public float TimeCellWidth
         => row.TimeText is null ? 0f : (ChatLayout.TimeTextWidthRatio * LineHeight) + (2f * ChatLayout.TimeTextPaddingX);
 
-    protected override UiSize OnMeasure(BoxConstraints constraints)
+    protected override UISize OnMeasure(BoxConstraints constraints)
     {
-        TextStyle style = RunStyle(UiColor.White);
+        TextStyle style = RunStyle(UIColor.White);
         float width = TimeCellWidth;
 
         foreach (ChatTextRun run in row.Runs)
@@ -94,10 +94,10 @@ public sealed class ChatMessageNode : UiNode
             width += CounterWidth();
         }
 
-        return constraints.Constrain(new UiSize(width + (2f * ChatLayout.MessagePaddingX), MessageLineHeight));
+        return constraints.Constrain(new UISize(width + (2f * ChatLayout.MessagePaddingX), MessageLineHeight));
     }
 
-    protected override void PaintSelf(IUiCanvas canvas, float opacity)
+    protected override void PaintSelf(IUICanvas canvas, float opacity)
     {
         if (Fade <= 0f)
         {
@@ -108,7 +108,7 @@ public sealed class ChatMessageNode : UiNode
         float alpha = opacity * Fade;
         canvas.FillRect(
             Bounds.Snap(),
-            MiaoNetUiTheme.Chat.Background * (alpha * BackgroundOpacity));
+            MiaoNetUITheme.Chat.Background * (alpha * BackgroundOpacity));
 
         float textAlpha = alpha * TextOpacity;
         float baseline = Bounds.Bottom - MessagePaddingY;
@@ -119,8 +119,8 @@ public sealed class ChatMessageNode : UiNode
             renderer.Draw(
                 canvas,
                 time,
-                new UiOffset(x + ChatLayout.TimeTextPaddingX, baseline),
-                RunStyle(MiaoNetUiTheme.Chat.Time, textAlpha, VerticalAnchor.Bottom));
+                new UIOffset(x + ChatLayout.TimeTextPaddingX, baseline),
+                RunStyle(MiaoNetUITheme.Chat.Time, textAlpha, VerticalAnchor.Bottom));
             x += TimeCellWidth;
         }
 
@@ -131,7 +131,7 @@ public sealed class ChatMessageNode : UiNode
             {
                 Decorations = run.Decorations,
             };
-            renderer.Draw(canvas, run.Text, new UiOffset(x, baseline), style);
+            renderer.Draw(canvas, run.Text, new UIOffset(x, baseline), style);
             x += renderer.Measure(run.Text, style).Width;
         }
 
@@ -143,7 +143,7 @@ public sealed class ChatMessageNode : UiNode
 
     private float MessageBodyWidth()
     {
-        TextStyle style = RunStyle(UiColor.White);
+        TextStyle style = RunStyle(UIColor.White);
         float width = 0f;
         foreach (ChatTextRun run in row.Runs)
         {
@@ -163,36 +163,36 @@ public sealed class ChatMessageNode : UiNode
     {
         // measure with the pop scale and max shake so the row always covers the counter.
         float scale = Scale * CounterScale();
-        float text = renderer.Measure(CounterText(), RunStyle(UiColor.White) with { Scale = scale }).Width;
+        float text = renderer.Measure(CounterText(), RunStyle(UIColor.White) with { Scale = scale }).Width;
         float gap = ChatLayout.CounterGap * Scale;
         return gap + text + (FoldCounter.GetShakeAmplitude(row.RepeatCount) * Scale);
     }
 
     private string CounterText() => $"X{row.RepeatCount}";
 
-    private void PaintCounter(IUiCanvas canvas, float x, float textAlpha)
+    private void PaintCounter(IUICanvas canvas, float x, float textAlpha)
     {
         float scale = Scale * CounterScale();
         float gap = ChatLayout.CounterGap * Scale;
         float shake = FoldCounter.GetShakeAmplitude(row.RepeatCount) * Scale;
 
-        var offset = new UiOffset(0f, 0f);
+        var offset = new UIOffset(0f, 0f);
         if (shake > 0f)
         {
-            offset = new UiOffset(
+            offset = new UIOffset(
                 ((Random.Shared.NextSingle() * 2f) - 1f) * shake,
                 ((Random.Shared.NextSingle() * 2f) - 1f) * shake);
         }
 
         RgbColor rgb = FoldCounter.GetColor(row.RepeatCount, CounterAnimClock);
-        var color = new UiColor(rgb.R, rgb.G, rgb.B, 1f);
+        var color = new UIColor(rgb.R, rgb.G, rgb.B, 1f);
 
         // centred on the row so the pop animation grows symmetrically.
         float centerY = Bounds.Y + (MessageLineHeight * 0.5f);
         renderer.Draw(
             canvas,
             CounterText(),
-            new UiOffset(x + gap + offset.X, centerY + offset.Y),
+            new UIOffset(x + gap + offset.X, centerY + offset.Y),
             new TextStyle
             {
                 Scale = scale,
@@ -204,7 +204,7 @@ public sealed class ChatMessageNode : UiNode
     }
 
     private TextStyle RunStyle(
-        UiColor color,
+        UIColor color,
         float alpha = 1f,
         VerticalAnchor verticalAnchor = VerticalAnchor.Top)
         => new()

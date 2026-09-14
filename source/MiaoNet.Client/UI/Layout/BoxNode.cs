@@ -10,26 +10,26 @@ namespace Celeste.Mod.MiaoNet.UI.Layout;
 // painted background matches the outer bounds.
 public class BoxNode : SingleChildNode
 {
-    protected override UiSize OnMeasure(BoxConstraints constraints)
+    protected override UISize OnMeasure(BoxConstraints constraints)
     {
         EdgeInsets padding = Style.Padding;
-        UiSize childSize = Child?.Measure(constraints.Deflate(padding)) ?? UiSize.Zero;
-        UiSize desired = new(
+        UISize childSize = Child?.Measure(constraints.Deflate(padding)) ?? UISize.Zero;
+        UISize desired = new(
             childSize.Width + padding.Horizontal,
             childSize.Height + padding.Vertical);
         return constraints.Constrain(desired);
     }
 
-    protected override void OnArrange(UiRect bounds)
+    protected override void OnArrange(UIRect bounds)
     {
         Child?.Arrange(bounds.Deflate(Style.Padding));
     }
 
-    protected override void PaintSelf(IUiCanvas canvas, float opacity)
+    protected override void PaintSelf(IUICanvas canvas, float opacity)
     {
-        UiRect rect = Style.PixelSnap ? Bounds.Snap() : Bounds;
+        UIRect rect = Style.PixelSnap ? Bounds.Snap() : Bounds;
 
-        if (Style.Background is UiColor background)
+        if (Style.Background is UIColor background)
         {
             canvas.FillRect(rect, background * opacity);
         }
@@ -39,18 +39,18 @@ public class BoxNode : SingleChildNode
 
     // uniform border on all four edges. subclasses override this when a panel needs a different
     // color or thickness per edge, e.g. the player list channel headers.
-    protected virtual void PaintBorder(IUiCanvas canvas, UiRect rect, float opacity)
+    protected virtual void PaintBorder(IUICanvas canvas, UIRect rect, float opacity)
     {
         float borderWidth = Style.BorderWidth ?? 0f;
-        if (borderWidth <= 0f || Style.BorderColor is not UiColor borderColor)
+        if (borderWidth <= 0f || Style.BorderColor is not UIColor borderColor)
         {
             return;
         }
 
-        UiColor color = borderColor * opacity;
-        canvas.FillRect(new UiRect(rect.X, rect.Y, rect.Width, borderWidth), color);
-        canvas.FillRect(new UiRect(rect.X, rect.Bottom - borderWidth, rect.Width, borderWidth), color);
-        canvas.FillRect(new UiRect(rect.X, rect.Y, borderWidth, rect.Height), color);
-        canvas.FillRect(new UiRect(rect.Right - borderWidth, rect.Y, borderWidth, rect.Height), color);
+        UIColor color = borderColor * opacity;
+        canvas.FillRect(new UIRect(rect.X, rect.Y, rect.Width, borderWidth), color);
+        canvas.FillRect(new UIRect(rect.X, rect.Bottom - borderWidth, rect.Width, borderWidth), color);
+        canvas.FillRect(new UIRect(rect.X, rect.Y, borderWidth, rect.Height), color);
+        canvas.FillRect(new UIRect(rect.Right - borderWidth, rect.Y, borderWidth, rect.Height), color);
     }
 }

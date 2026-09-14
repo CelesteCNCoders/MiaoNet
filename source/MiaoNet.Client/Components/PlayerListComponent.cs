@@ -164,7 +164,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             channelPlayerList.Add(privateChannelEntry);
         }
 #endif
-        BumpUiVersion();
+        BumpUIVersion();
     }
 
     private void Context_PingDataReceived()
@@ -172,7 +172,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         foreach (var channel in channelPlayerList)
             foreach (var item in channel.Players)
                 item.UpdatePing();
-        BumpUiVersion();
+        BumpUIVersion();
     }
 
     private void UpdatePlayer(OnlinePlayer player)
@@ -184,7 +184,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         var item = channel!.Players.Find(i => i.Player == player);
         item!.Update(ClipType);
         SortPlayerList();
-        BumpUiVersion();
+        BumpUIVersion();
         return;
     }
 
@@ -207,6 +207,6 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     {
         Active = false;
         channelPlayerList.Clear();
-        BumpUiVersion();
+        BumpUIVersion();
     }
 }

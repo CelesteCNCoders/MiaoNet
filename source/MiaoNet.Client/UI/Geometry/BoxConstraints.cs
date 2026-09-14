@@ -13,18 +13,18 @@ public readonly record struct BoxConstraints(float MinWidth, float MaxWidth, flo
     public static BoxConstraints Tight(float width, float height)
         => new(width, width, height, height);
 
-    public static BoxConstraints Tight(UiSize size)
+    public static BoxConstraints Tight(UISize size)
         => new(size.Width, size.Width, size.Height, size.Height);
 
     public static BoxConstraints Loose(float width, float height)
         => new(0f, width, 0f, height);
 
-    public static BoxConstraints Loose(UiSize size)
+    public static BoxConstraints Loose(UISize size)
         => new(0f, size.Width, 0f, size.Height);
 
     public bool IsTight => MinWidth == MaxWidth && MinHeight == MaxHeight;
 
-    public UiSize Constrain(UiSize size)
+    public UISize Constrain(UISize size)
         => new(Clamp(size.Width, MinWidth, MaxWidth), Clamp(size.Height, MinHeight, MaxHeight));
 
     public BoxConstraints Deflate(EdgeInsets insets)

@@ -10,7 +10,7 @@ namespace Celeste.Mod.MiaoNet;
 // sits outside the XNA-free UI core on purpose: the outline uses Draw.SpriteBatch and Monocle's
 // MTexture internals (ScaleFix, ClipRect, Center, DrawOffset) that the core doesn't expose, and
 // exposing them would leak Monocle into something meant to be testable without the game.
-internal sealed class StatusCogwheelNode : UiNode
+internal sealed class StatusCogwheelNode : UINode
 {
     // the scale this node draws the icon at
     public const float IconScale = 1f / 3.5f;
@@ -27,10 +27,10 @@ internal sealed class StatusCogwheelNode : UiNode
 
     public Color Tint { get; set; } = Color.White;
 
-    protected override UiSize OnMeasure(BoxConstraints constraints)
-        => constraints.Constrain(new UiSize(texture.Width * IconScale, texture.Height * IconScale));
+    protected override UISize OnMeasure(BoxConstraints constraints)
+        => constraints.Constrain(new UISize(texture.Width * IconScale, texture.Height * IconScale));
 
-    protected override void PaintSelf(IUiCanvas canvas, float opacity)
+    protected override void PaintSelf(IUICanvas canvas, float opacity)
         => DrawOutlineCentered(
             texture,
             new Vector2(Bounds.X + (Bounds.Width * 0.5f), Bounds.Y + (Bounds.Height * 0.5f)),

@@ -14,8 +14,8 @@ namespace Celeste.Mod.MiaoNet;
 // the overlay node only gets finished screen positions.
 public sealed class DebugMapComponent : MiaoNetComponent
 {
-    private readonly UiRoot ui = new();
-    private readonly MiaoNetUiCanvas canvas = new();
+    private readonly UIRoot ui = new();
+    private readonly MiaoNetUICanvas canvas = new();
     private readonly DebugMapOverlayNode overlay;
     private readonly List<DebugMapMarker> markers = [];
 
@@ -24,7 +24,7 @@ public sealed class DebugMapComponent : MiaoNetComponent
     {
         overlay = new DebugMapOverlayNode
         {
-            Style = new UiStyle { TextRenderer = MiaoNetTextRenderer.Instance },
+            Style = new UIStyle { TextRenderer = MiaoNetTextRenderer.Instance },
         };
 
         ui.SetRoot(overlay);
@@ -56,8 +56,8 @@ public sealed class DebugMapComponent : MiaoNetComponent
             Color hair = gfx.GetHairInfo(player.State.Dashes).Color;
             markers.Add(new DebugMapMarker(
                 player.Info.Name,
-                new UiOffset(pos.X, pos.Y),
-                UiColor.FromBytes(hair.R, hair.G, hair.B, hair.A)));
+                new UIOffset(pos.X, pos.Y),
+                UIColor.FromBytes(hair.R, hair.G, hair.B, hair.A)));
         }
 
         overlay.Markers = markers;

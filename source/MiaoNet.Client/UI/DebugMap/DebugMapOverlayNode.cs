@@ -8,7 +8,7 @@ using Celeste.Mod.MiaoNet.UI.Styling;
 namespace Celeste.Mod.MiaoNet.UI.DebugMap;
 
 // one player marker in the debug-map overlay, already in screen coordinates.
-public readonly record struct DebugMapMarker(string Name, UiOffset Position, UiColor HairColor);
+public readonly record struct DebugMapMarker(string Name, UIOffset Position, UIColor HairColor);
 
 // per-player markers drawn over the level editor's map: a small hair-coloured square with the
 // player's name outlined above it.
@@ -17,7 +17,7 @@ public readonly record struct DebugMapMarker(string Name, UiOffset Position, UiC
 // screen coordinates instead of laying out one child per marker: building and arranging children
 // every frame would be pure churn for no layout benefit, and the marker count is bounded by the
 // players in the channel.
-public sealed class DebugMapOverlayNode : UiNode
+public sealed class DebugMapOverlayNode : UINode
 {
     // half the edge of the hair-coloured marker square.
     public const float MarkerRadius = 4f;
@@ -37,14 +37,14 @@ public sealed class DebugMapOverlayNode : UiNode
         set => markers = value ?? [];
     }
 
-    protected override UiSize OnMeasure(BoxConstraints constraints)
+    protected override UISize OnMeasure(BoxConstraints constraints)
     {
         float width = float.IsInfinity(constraints.MaxWidth) ? 0f : constraints.MaxWidth;
         float height = float.IsInfinity(constraints.MaxHeight) ? 0f : constraints.MaxHeight;
-        return constraints.Constrain(new UiSize(width, height));
+        return constraints.Constrain(new UISize(width, height));
     }
 
-    protected override void PaintSelf(IUiCanvas canvas, float opacity)
+    protected override void PaintSelf(IUICanvas canvas, float opacity)
     {
         if (markers.Count == 0)
         {
@@ -56,7 +56,7 @@ public sealed class DebugMapOverlayNode : UiNode
         {
             Scale = TextScale,
             LineHeight = Style.LineHeight,
-            Color = MiaoNetUiTheme.DebugMap.Name * opacity,
+            Color = MiaoNetUITheme.DebugMap.Name * opacity,
             HorizontalAnchor = HorizontalAnchor.Center,
             VerticalAnchor = VerticalAnchor.Bottom,
             Decorations = TextDecoration.Outline,
@@ -68,11 +68,11 @@ public sealed class DebugMapOverlayNode : UiNode
             text?.Draw(
                 canvas,
                 marker.Name,
-                new UiOffset(marker.Position.X, marker.Position.Y - TextLift),
+                new UIOffset(marker.Position.X, marker.Position.Y - TextLift),
                 textStyle);
 
             canvas.FillRect(
-                new UiRect(
+                new UIRect(
                     marker.Position.X - MarkerRadius,
                     marker.Position.Y - MarkerRadius,
                     MarkerRadius * 2f,

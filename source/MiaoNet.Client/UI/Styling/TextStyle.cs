@@ -35,7 +35,7 @@ public sealed record TextStyle
 {
     public static readonly TextStyle Default = new();
 
-    public UiColor? Color { get; init; }
+    public UIColor? Color { get; init; }
 
     public float Scale { get; init; } = 1f;
 

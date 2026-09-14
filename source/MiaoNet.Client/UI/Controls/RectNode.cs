@@ -6,19 +6,19 @@ namespace Celeste.Mod.MiaoNet.UI.Controls;
 
 // a solid rect that just takes whatever size the layout gives it -- zebra stripes, borders,
 // fixed-width gaps (give it Style.Width or a flex share).
-public sealed class RectNode : UiNode
+public sealed class RectNode : UINode
 {
-    protected override UiSize OnMeasure(BoxConstraints constraints)
-        => constraints.Constrain(UiSize.Zero);
+    protected override UISize OnMeasure(BoxConstraints constraints)
+        => constraints.Constrain(UISize.Zero);
 
-    protected override void PaintSelf(IUiCanvas canvas, float opacity)
+    protected override void PaintSelf(IUICanvas canvas, float opacity)
     {
-        if (Style.Background is not UiColor background)
+        if (Style.Background is not UIColor background)
         {
             return;
         }
 
-        UiRect rect = Style.PixelSnap ? Bounds.Snap() : Bounds;
+        UIRect rect = Style.PixelSnap ? Bounds.Snap() : Bounds;
         canvas.FillRect(rect, background * opacity);
     }
 }

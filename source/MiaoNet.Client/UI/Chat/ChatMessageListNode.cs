@@ -78,7 +78,7 @@ public sealed class ChatMessageListNode : VirtualListNode
         }
     }
 
-    protected override void OnItemMounted(UiNode node, int index)
+    protected override void OnItemMounted(UINode node, int index)
     {
         if (node is not ChatMessageNode message || source is null)
         {
@@ -100,7 +100,7 @@ public sealed class ChatMessageListNode : VirtualListNode
         public object GetItemKey(int index)
             => owner.source!.GetKey(index);
 
-        public UiNode BuildItem(int index)
+        public UINode BuildItem(int index)
             => new ChatMessageNode(owner.renderer, owner.source!.BuildRow(index));
     }
 }

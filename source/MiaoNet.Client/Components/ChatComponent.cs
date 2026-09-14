@@ -54,7 +54,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     private int historyIndex;
 
     // our claims on arbitrated input, reactions get registered once in the ctor
-    private readonly UiInputRegistrations input;
+    private readonly UIInputRegistrations input;
 
     public bool Active => active;
 
@@ -71,7 +71,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         chatManager = new();
         ChatMessageBoxSetup();
 
-        input = context.UiInput.Register(UiInputConsumer.Chat);
+        input = context.UIInput.Register(UIInputConsumer.Chat);
         RegisterInputReactions();
 
         context.ChatMessageReceived += Context_ChatMessageReceived;
@@ -88,18 +88,18 @@ public sealed partial class ChatComponent : MiaoNetComponent
     // (Activate/Deactivate), so closing the box can't also submit/page like the old returns did.
     private void RegisterInputReactions()
     {
-        input.On(UiInputAction.ChatToggle, OpenChat);
-        input.On(UiInputAction.ChatCommandToggle, OpenCommandChat);
+        input.On(UIInputAction.ChatToggle, OpenChat);
+        input.On(UIInputAction.ChatCommandToggle, OpenCommandChat);
 
-        input.On(UiInputAction.Cancel, CancelEditing);
-        input.On(UiInputAction.Submit, SubmitEditing);
+        input.On(UIInputAction.Cancel, CancelEditing);
+        input.On(UIInputAction.Submit, SubmitEditing);
 
-        input.On(UiInputAction.ChannelPrevious, () =>
+        input.On(UIInputAction.ChannelPrevious, () =>
         {
             chatManager.CycleTabForward();
             SyncChatChannelWithTab();
         });
-        input.On(UiInputAction.ChannelNext, () =>
+        input.On(UIInputAction.ChannelNext, () =>
         {
             chatManager.CycleTabBackward();
             SyncChatChannelWithTab();
@@ -107,15 +107,15 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
         // completions and history share the arrow keys; which one gets them depends on whether
         // the popup is up, so this guard lives here instead of in the routing table.
-        input.On(UiInputAction.CompletionUp, () => SelectCompletion(-1));
-        input.On(UiInputAction.CompletionDown, () => SelectCompletion(+1));
-        input.On(UiInputAction.HistoryUp, () => StepHistory(-1));
-        input.On(UiInputAction.HistoryDown, () => StepHistory(+1));
+        input.On(UIInputAction.CompletionUp, () => SelectCompletion(-1));
+        input.On(UIInputAction.CompletionDown, () => SelectCompletion(+1));
+        input.On(UIInputAction.HistoryUp, () => StepHistory(-1));
+        input.On(UIInputAction.HistoryDown, () => StepHistory(+1));
 
-        input.On(UiInputAction.CaretLeft, () => editor.MoveCaretBackward());
-        input.On(UiInputAction.CaretRight, () => editor.MoveCaretForward());
-        input.On(UiInputAction.CompletionAccept, () => editor.AcceptCompletion());
-        input.On(UiInputAction.Paste, () => editor.Paste(TextInput.GetClipboardText()));
+        input.On(UIInputAction.CaretLeft, () => editor.MoveCaretBackward());
+        input.On(UIInputAction.CaretRight, () => editor.MoveCaretForward());
+        input.On(UIInputAction.CompletionAccept, () => editor.AcceptCompletion());
+        input.On(UIInputAction.Paste, () => editor.Paste(TextInput.GetClipboardText()));
     }
 
     private void OpenChat()
@@ -293,7 +293,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
     public override void Update()
     {
-        // the reactions registered in the ctor already ran: UiInputRouter.Route arbitrates and
+        // the reactions registered in the ctor already ran: UIInputRouter.Route arbitrates and
         // fires them once per frame before any component updates. so what's left is the per-frame
         // stuff that doesn't need input -- keeping the scene paused and the caret blink.
         if (active)
@@ -387,7 +387,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
             level.Add(dummyOverlay);
             level.AllowHudHide = false;
         }
-        context.UiInput.SetFocus(UiFocusOwner.Chat);
+        context.UIInput.SetFocus(UIFocusOwner.Chat);
     }
 
     private void Deactivate()
@@ -405,7 +405,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
             level.CompletelyRemove(dummyOverlay);
             level.AllowHudHide = previousAllowHudHide;
         }
-        context.UiInput.SetFocus(UiFocusOwner.None);
+        context.UIInput.SetFocus(UIFocusOwner.None);
     }
 
     // the editing kernel; UIComponent draws it

@@ -16,8 +16,8 @@ public sealed class StatusComponent : MiaoNetComponent
     private const float Duration = 6f;
     private const float FadeDuration = 1f / 12f;
 
-    private readonly UiRoot ui = new();
-    private readonly MiaoNetUiCanvas canvas = new();
+    private readonly UIRoot ui = new();
+    private readonly MiaoNetUICanvas canvas = new();
 
     private StatusCogwheelNode? cog;
     private TextNode? message;
@@ -99,7 +99,7 @@ public sealed class StatusComponent : MiaoNetComponent
         {
             EnsureNodes();
 
-            UiColor color = UiColor.White * ease;
+            UIColor color = UIColor.White * ease;
             cog!.Rotation = rotation;
             cog.Tint = color.ToXna();
             message!.Text = statusMessage;
@@ -130,7 +130,7 @@ public sealed class StatusComponent : MiaoNetComponent
         cog = new StatusCogwheelNode(GFX.Gui["reloader/cogwheel"]);
         message = new TextNode
         {
-            Style = new UiStyle { TextRenderer = MiaoNetTextRenderer.Instance },
+            Style = new UIStyle { TextRenderer = MiaoNetTextRenderer.Instance },
             TextStyle = new TextStyle
             {
                 Scale = 1f,

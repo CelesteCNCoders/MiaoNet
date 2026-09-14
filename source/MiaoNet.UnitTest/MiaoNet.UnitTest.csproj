@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -41,9 +41,9 @@
     <Compile Include="..\MiaoNet.Client\UI\Input\**\*.cs" LinkBase="0-Shared/UI/Input" />
     <Compile Include="..\MiaoNet.Client\UI\Status\**\*.cs" LinkBase="0-Shared/UI/Status" />
     <Compile Include="..\MiaoNet.Client\UI\DebugMap\**\*.cs" LinkBase="0-Shared/UI/DebugMap" />
-    <Compile Include="..\MiaoNet.Client\UI\Rendering\IUiCanvas.cs" LinkBase="0-Shared/UI/Rendering" />
+    <Compile Include="..\MiaoNet.Client\UI\Rendering\IUICanvas.cs" LinkBase="0-Shared/UI/Rendering" />
     <Compile Include="..\MiaoNet.Client\UI\Rendering\ITextRenderer.cs" LinkBase="0-Shared/UI/Rendering" />
-    <Compile Include="..\MiaoNet.Client\UI\Rendering\IUiTexture.cs" LinkBase="0-Shared/UI/Rendering" />
+    <Compile Include="..\MiaoNet.Client\UI\Rendering\IUITexture.cs" LinkBase="0-Shared/UI/Rendering" />
   </ItemGroup>
 
   <ItemGroup>

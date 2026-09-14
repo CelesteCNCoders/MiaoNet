@@ -8,12 +8,12 @@ namespace Celeste.Mod.MiaoNet.UI.Controls;
 
 // draws an icon texture. TargetHeight scales it to exactly that height, keeping the aspect
 // ratio -- that is what the old player list did to every status icon.
-public sealed class IconNode : UiNode
+public sealed class IconNode : UINode
 {
-    private IUiTexture? texture;
+    private IUITexture? texture;
     private float targetHeight;
 
-    public IUiTexture? Texture
+    public IUITexture? Texture
     {
         get => texture;
         set
@@ -43,25 +43,25 @@ public sealed class IconNode : UiNode
         }
     }
 
-    public UiColor Tint { get; set; } = UiColor.White;
+    public UIColor Tint { get; set; } = UIColor.White;
 
     // extra paint-only offset, used by the floating paused icon animation
-    public UiOffset PaintOffset { get; set; }
+    public UIOffset PaintOffset { get; set; }
 
     private float Scale => texture is null || targetHeight <= 0f ? 1f : targetHeight / texture.Height;
 
-    protected override UiSize OnMeasure(BoxConstraints constraints)
+    protected override UISize OnMeasure(BoxConstraints constraints)
     {
         if (texture is null)
         {
-            return constraints.Constrain(UiSize.Zero);
+            return constraints.Constrain(UISize.Zero);
         }
 
         float scale = Scale;
-        return constraints.Constrain(new UiSize(texture.Width * scale, texture.Height * scale));
+        return constraints.Constrain(new UISize(texture.Width * scale, texture.Height * scale));
     }
 
-    protected override void PaintSelf(IUiCanvas canvas, float opacity)
+    protected override void PaintSelf(IUICanvas canvas, float opacity)
     {
         if (texture is null)
         {
@@ -70,7 +70,7 @@ public sealed class IconNode : UiNode
 
         texture.Draw(
             canvas,
-            new UiOffset(Bounds.X + PaintOffset.X, Bounds.Y + PaintOffset.Y),
+            new UIOffset(Bounds.X + PaintOffset.X, Bounds.Y + PaintOffset.Y),
             Tint * opacity,
             Scale);
     }

@@ -17,7 +17,7 @@ public sealed class UiLayoutTests
             MathF.Abs(expected - actual),
             $"{message}: expected {expected}, got {actual}");
 
-    private static void AssertRect(UiRect actual, float x, float y, float width, float height, string message)
+    private static void AssertRect(UIRect actual, float x, float y, float width, float height, string message)
     {
         AssertClose(x, actual.X, $"{message}.X");
         AssertClose(y, actual.Y, $"{message}.Y");
@@ -26,18 +26,18 @@ public sealed class UiLayoutTests
     }
 
     // a leaf with a fixed desired size that records where it was arranged
-    private sealed class Probe(float width, float height) : UiNode
+    private sealed class Probe(float width, float height) : UINode
     {
         public float Width { get; set; } = width;
 
         public float Height { get; set; } = height;
 
-        public UiRect? LastBounds { get; private set; }
+        public UIRect? LastBounds { get; private set; }
 
-        protected override UiSize OnMeasure(BoxConstraints constraints)
-            => constraints.Constrain(new UiSize(Width, Height));
+        protected override UISize OnMeasure(BoxConstraints constraints)
+            => constraints.Constrain(new UISize(Width, Height));
 
-        protected override void OnArrange(UiRect bounds) => LastBounds = bounds;
+        protected override void OnArrange(UIRect bounds) => LastBounds = bounds;
     }
 
     // ---------------------------------------------------------------- constraints
@@ -47,9 +47,9 @@ public sealed class UiLayoutTests
     {
         var constraints = new BoxConstraints(0f, 100f, 0f, 50f);
 
-        Assert.AreEqual(new UiSize(80f, 40f), constraints.Constrain(new UiSize(80f, 40f)));
-        Assert.AreEqual(new UiSize(100f, 50f), constraints.Constrain(new UiSize(500f, 500f)));
-        Assert.AreEqual(new UiSize(0f, 0f), constraints.Constrain(new UiSize(-5f, -5f)));
+        Assert.AreEqual(new UISize(80f, 40f), constraints.Constrain(new UISize(80f, 40f)));
+        Assert.AreEqual(new UISize(100f, 50f), constraints.Constrain(new UISize(500f, 500f)));
+        Assert.AreEqual(new UISize(0f, 0f), constraints.Constrain(new UISize(-5f, -5f)));
 
         BoxConstraints deflated = constraints.Deflate(new EdgeInsets(10f, 5f, 20f, 15f));
         AssertClose(0f, deflated.MinWidth, "deflated.MinWidth");
@@ -65,7 +65,7 @@ public sealed class UiLayoutTests
 
         AssertClose(0f, loosened.MinWidth, "loosened.MinWidth");
         AssertClose(120f, loosened.MaxWidth, "loosened.MaxWidth");
-        Assert.AreEqual(new UiSize(20f, 10f), loosened.Constrain(new UiSize(20f, 10f)));
+        Assert.AreEqual(new UISize(20f, 10f), loosened.Constrain(new UISize(20f, 10f)));
     }
 
     [TestMethod]
@@ -80,8 +80,8 @@ public sealed class UiLayoutTests
     [TestMethod]
     public void UiRect_SnapFloorsOriginAndDerivesExtentFromFarEdge()
     {
-        var rect = new UiRect(10.4f, 20.6f, 30.3f, 40.2f);
-        UiRect snapped = rect.Snap();
+        var rect = new UIRect(10.4f, 20.6f, 30.3f, 40.2f);
+        UIRect snapped = rect.Snap();
 
         // x: floor(10.4)=10; width: floor(10.4+30.3)-10 = 40-10 = 30
         // y: floor(20.6)=20; height: floor(20.6+40.2)-20 = 60-20 = 40
@@ -92,12 +92,12 @@ public sealed class UiLayoutTests
     public void UiScale_MapsSettingsOntoTheDocumentedExponentialRamp()
     {
         // A1..A5 from the parameter spec
-        AssertClose(0.25f, UiScale.FromSetting(1), "A1 setting 1");
-        AssertClose(0.8f, UiScale.FromSetting(20), "A2 setting 20");
-        AssertClose(0.33953f, UiScale.FromSetting(6), "A3 setting 6");
-        AssertClose(0.43373f, UiScale.FromSetting(10), "A4 setting 10");
-        AssertClose(0.25f, UiScale.FromSetting(0), "A5 clamps below the range");
-        AssertClose(0.8f, UiScale.FromSetting(25), "A5 clamps above the range");
+        AssertClose(0.25f, UIScale.FromSetting(1), "A1 setting 1");
+        AssertClose(0.8f, UIScale.FromSetting(20), "A2 setting 20");
+        AssertClose(0.33953f, UIScale.FromSetting(6), "A3 setting 6");
+        AssertClose(0.43373f, UIScale.FromSetting(10), "A4 setting 10");
+        AssertClose(0.25f, UIScale.FromSetting(0), "A5 clamps below the range");
+        AssertClose(0.8f, UIScale.FromSetting(25), "A5 clamps above the range");
     }
 
     // ---------------------------------------------------------------- flex
@@ -118,8 +118,8 @@ public sealed class UiLayoutTests
         flex.Add(second);
 
         var constraints = BoxConstraints.Tight(200f, 50f);
-        Assert.AreEqual(new UiSize(200f, 50f), flex.Measure(constraints));
-        flex.Arrange(new UiRect(0f, 0f, 200f, 50f));
+        Assert.AreEqual(new UISize(200f, 50f), flex.Measure(constraints));
+        flex.Arrange(new UIRect(0f, 0f, 200f, 50f));
 
         // Stretch gives children a tight cross axis, so their height becomes 50.
         AssertRect(first.LastBounds!.Value, 0f, 0f, 30f, 50f, "first");
@@ -130,7 +130,7 @@ public sealed class UiLayoutTests
     public void Flex_HorizontalEnd_PushesContentToTheFarEdge()
     {
         FlexNode flex = CreateTwoChildRow(MainAxisAlignment.End);
-        flex.Arrange(new UiRect(0f, 0f, 200f, 50f));
+        flex.Arrange(new UIRect(0f, 0f, 200f, 50f));
 
         // content = 30 + 50 + 10 spacing = 90, leftover = 110
         AssertClose(110f, flex.Children[0].Bounds.X, "first.X");
@@ -141,7 +141,7 @@ public sealed class UiLayoutTests
     public void Flex_HorizontalCenter_SplitsLeftoverEvenly()
     {
         FlexNode flex = CreateTwoChildRow(MainAxisAlignment.Center);
-        flex.Arrange(new UiRect(0f, 0f, 200f, 50f));
+        flex.Arrange(new UIRect(0f, 0f, 200f, 50f));
 
         AssertClose(55f, flex.Children[0].Bounds.X, "first.X");
         AssertClose(95f, flex.Children[1].Bounds.X, "second.X");
@@ -151,7 +151,7 @@ public sealed class UiLayoutTests
     public void Flex_HorizontalSpaceBetween_AddsLeftoverToTheGap()
     {
         FlexNode flex = CreateTwoChildRow(MainAxisAlignment.SpaceBetween);
-        flex.Arrange(new UiRect(0f, 0f, 200f, 50f));
+        flex.Arrange(new UIRect(0f, 0f, 200f, 50f));
 
         // step = spacing 10 + leftover 110 = 120
         AssertClose(0f, flex.Children[0].Bounds.X, "first.X");
@@ -173,8 +173,8 @@ public sealed class UiLayoutTests
         flex.Add(first);
         flex.Add(second);
 
-        Assert.AreEqual(new UiSize(100f, 200f), flex.Measure(BoxConstraints.Tight(100f, 200f)));
-        flex.Arrange(new UiRect(0f, 0f, 100f, 200f));
+        Assert.AreEqual(new UISize(100f, 200f), flex.Measure(BoxConstraints.Tight(100f, 200f)));
+        flex.Arrange(new UIRect(0f, 0f, 100f, 200f));
 
         AssertRect(first.LastBounds!.Value, 0f, 0f, 100f, 30f, "first");
         AssertRect(second.LastBounds!.Value, 0f, 40f, 100f, 50f, "second");
@@ -192,7 +192,7 @@ public sealed class UiLayoutTests
         flex.Add(child);
 
         flex.Measure(BoxConstraints.Tight(200f, 50f));
-        flex.Arrange(new UiRect(0f, 0f, 200f, 50f));
+        flex.Arrange(new UIRect(0f, 0f, 200f, 50f));
 
         AssertRect(child.LastBounds!.Value, 0f, 0f, 30f, 10f, "child");
     }
@@ -213,7 +213,7 @@ public sealed class UiLayoutTests
         flex.Add(right);
 
         flex.Measure(BoxConstraints.Tight(200f, 20f));
-        flex.Arrange(new UiRect(0f, 0f, 200f, 20f));
+        flex.Arrange(new UIRect(0f, 0f, 200f, 20f));
 
         AssertRect(left.LastBounds!.Value, 0f, 0f, 30f, 10f, "left");
         AssertRect(spacer.Bounds, 30f, 0f, 140f, 0f, "spacer");
@@ -249,13 +249,13 @@ public sealed class UiLayoutTests
         flex.Add(second);
 
         flex.Measure(BoxConstraints.Tight(200f, 20f));
-        flex.Arrange(new UiRect(0f, 0f, 200f, 20f));
+        flex.Arrange(new UIRect(0f, 0f, 200f, 20f));
         AssertClose(30f, second.Bounds.X, "second.X before hiding the first");
 
         // visibility participates in layout, so this has to invalidate the flex's cached measure
         first.IsVisible = false;
         flex.Measure(BoxConstraints.Tight(200f, 20f));
-        flex.Arrange(new UiRect(0f, 0f, 200f, 20f));
+        flex.Arrange(new UIRect(0f, 0f, 200f, 20f));
 
         AssertClose(0f, second.Bounds.X, "second.X after hiding the first");
     }
@@ -267,15 +267,15 @@ public sealed class UiLayoutTests
     {
         var box = new BoxNode
         {
-            Style = new UiStyle { Padding = new EdgeInsets(8f) },
+            Style = new UIStyle { Padding = new EdgeInsets(8f) },
         };
         var child = new Probe(30f, 20f);
         box.Child = child;
 
-        UiSize size = box.Measure(BoxConstraints.Loose(200f, 200f));
-        Assert.AreEqual(new UiSize(46f, 36f), size);
+        UISize size = box.Measure(BoxConstraints.Loose(200f, 200f));
+        Assert.AreEqual(new UISize(46f, 36f), size);
 
-        box.Arrange(new UiRect(10f, 10f, 46f, 36f));
+        box.Arrange(new UIRect(10f, 10f, 46f, 36f));
         AssertRect(child.LastBounds!.Value, 18f, 18f, 30f, 20f, "child");
     }
 
@@ -284,14 +284,14 @@ public sealed class UiLayoutTests
     {
         var align = new AlignNode
         {
-            Alignment = UiAlignment.Center,
-            Style = new UiStyle { Width = 100f, Height = 100f },
+            Alignment = UIAlignment.Center,
+            Style = new UIStyle { Width = 100f, Height = 100f },
         };
         var child = new Probe(20f, 10f);
         align.Child = child;
 
         align.Measure(BoxConstraints.Tight(100f, 100f));
-        align.Arrange(new UiRect(0f, 0f, 100f, 100f));
+        align.Arrange(new UIRect(0f, 0f, 100f, 100f));
 
         AssertRect(child.LastBounds!.Value, 40f, 45f, 20f, 10f, "child");
     }
@@ -301,14 +301,14 @@ public sealed class UiLayoutTests
     {
         var align = new AlignNode
         {
-            Alignment = UiAlignment.BottomRight,
-            Style = new UiStyle { Width = 100f, Height = 100f },
+            Alignment = UIAlignment.BottomRight,
+            Style = new UIStyle { Width = 100f, Height = 100f },
         };
         var child = new Probe(20f, 10f);
         align.Child = child;
 
         align.Measure(BoxConstraints.Tight(100f, 100f));
-        align.Arrange(new UiRect(0f, 0f, 100f, 100f));
+        align.Arrange(new UIRect(0f, 0f, 100f, 100f));
 
         AssertRect(child.LastBounds!.Value, 80f, 90f, 20f, 10f, "child");
     }
@@ -318,16 +318,16 @@ public sealed class UiLayoutTests
     {
         var stack = new StackNode
         {
-            Alignment = UiAlignment.Center,
-            Style = new UiStyle { Width = 100f, Height = 100f },
+            Alignment = UIAlignment.Center,
+            Style = new UIStyle { Width = 100f, Height = 100f },
         };
         var big = new Probe(40f, 20f);
         var small = new Probe(10f, 10f);
         stack.Add(big);
         stack.Add(small);
 
-        Assert.AreEqual(new UiSize(100f, 100f), stack.Measure(BoxConstraints.Tight(100f, 100f)));
-        stack.Arrange(new UiRect(0f, 0f, 100f, 100f));
+        Assert.AreEqual(new UISize(100f, 100f), stack.Measure(BoxConstraints.Tight(100f, 100f)));
+        stack.Arrange(new UIRect(0f, 0f, 100f, 100f));
 
         AssertRect(big.LastBounds!.Value, 30f, 40f, 40f, 20f, "big");
         AssertRect(small.LastBounds!.Value, 45f, 45f, 10f, 10f, "small");
@@ -341,16 +341,16 @@ public sealed class UiLayoutTests
         var root = new FlexNode
         {
             Axis = FlexAxis.Vertical,
-            Style = new UiStyle { Width = 320f, Height = 180f },
+            Style = new UIStyle { Width = 320f, Height = 180f },
         };
         var child = new Probe(100f, 50f);
         root.Add(child);
 
-        var ui = new UiRoot();
+        var ui = new UIRoot();
         ui.SetRoot(root);
         ui.Layout(320f, 180f);
 
-        Assert.AreEqual(new UiSize(320f, 180f), ui.Size);
+        Assert.AreEqual(new UISize(320f, 180f), ui.Size);
         AssertRect(root.Bounds, 0f, 0f, 320f, 180f, "root");
         AssertRect(child.LastBounds!.Value, 0f, 0f, 320f, 50f, "child");
     }
@@ -360,7 +360,7 @@ public sealed class UiLayoutTests
     {
         var root = new BoxNode
         {
-            Style = new UiStyle
+            Style = new UIStyle
             {
                 Width = 100f,
                 Height = 100f,
@@ -370,17 +370,17 @@ public sealed class UiLayoutTests
         var child = new Probe(80f, 80f);
         root.Child = child;
 
-        var ui = new UiRoot();
+        var ui = new UIRoot();
         ui.SetRoot(root);
         ui.Layout(100f, 100f);
 
-        Assert.AreSame(child, ui.HitTest(new UiOffset(50f, 50f)));
+        Assert.AreSame(child, ui.HitTest(new UIOffset(50f, 50f)));
 
         // The padding ring belongs to the box itself, so it still hits the box.
-        Assert.AreSame(root, ui.HitTest(new UiOffset(5f, 5f)));
+        Assert.AreSame(root, ui.HitTest(new UIOffset(5f, 5f)));
 
         // Outside the root rectangle nothing is hit.
-        Assert.IsNull(ui.HitTest(new UiOffset(150f, 150f)));
+        Assert.IsNull(ui.HitTest(new UIOffset(150f, 150f)));
     }
 
     [TestMethod]
@@ -390,14 +390,14 @@ public sealed class UiLayoutTests
         {
             Axis = FlexAxis.Horizontal,
             CrossAxisAlignment = CrossAxisAlignment.Start,
-            Style = new UiStyle { Width = 200f, Height = 50f },
+            Style = new UIStyle { Width = 200f, Height = 50f },
         };
         var first = new Probe(30f, 10f);
         var second = new Probe(30f, 10f);
         root.Add(first);
         root.Add(second);
 
-        var ui = new UiRoot();
+        var ui = new UIRoot();
         ui.SetRoot(root);
         ui.Layout(200f, 50f);
         AssertClose(30f, second.Bounds.X, "second.X before");

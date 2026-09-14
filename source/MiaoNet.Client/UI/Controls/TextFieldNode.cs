@@ -10,7 +10,7 @@ namespace Celeste.Mod.MiaoNet.UI.Controls;
 // the text after it, and the caret itself.
 //
 // the caret sits at the start of the ime composition, not the end.
-public sealed class TextFieldNode : UiNode
+public sealed class TextFieldNode : UINode
 {
     private readonly ITextRenderer renderer;
 
@@ -50,34 +50,34 @@ public sealed class TextFieldNode : UiNode
         }
     }
 
-    protected override UiSize OnMeasure(BoxConstraints constraints)
-        => constraints.Constrain(new UiSize(constraints.MaxWidth, LineHeight));
+    protected override UISize OnMeasure(BoxConstraints constraints)
+        => constraints.Constrain(new UISize(constraints.MaxWidth, LineHeight));
 
-    protected override void PaintSelf(IUiCanvas canvas, float opacity)
+    protected override void PaintSelf(IUICanvas canvas, float opacity)
     {
-        TextStyle style = TextStyle() with { Color = MiaoNetUiTheme.Input.Text * opacity };
+        TextStyle style = TextStyle() with { Color = MiaoNetUITheme.Input.Text * opacity };
         float baseline = Bounds.Bottom;
         float x = Bounds.X;
 
-        renderer.Draw(canvas, Controller.TextBeforeCaret, new UiOffset(x, baseline), style);
+        renderer.Draw(canvas, Controller.TextBeforeCaret, new UIOffset(x, baseline), style);
         x += TextBeforeCaretWidth;
 
         if (Controller.ImeText is { Length: > 0 } ime)
         {
-            TextStyle imeStyle = style with { Color = MiaoNetUiTheme.Input.ImeText * opacity };
-            renderer.Draw(canvas, ime, new UiOffset(x, baseline), imeStyle);
+            TextStyle imeStyle = style with { Color = MiaoNetUITheme.Input.ImeText * opacity };
+            renderer.Draw(canvas, ime, new UIOffset(x, baseline), imeStyle);
             x += renderer.Measure(ime, imeStyle).Width;
         }
 
-        renderer.Draw(canvas, Controller.TextAfterCaret, new UiOffset(x, baseline), style);
+        renderer.Draw(canvas, Controller.TextAfterCaret, new UIOffset(x, baseline), style);
 
         if (Controller.ShowCaret)
         {
             float caretX = CaretX;
             canvas.DrawLine(
-                new UiOffset(caretX, Bounds.Bottom),
-                new UiOffset(caretX, Bounds.Bottom - LineHeight),
-                MiaoNetUiTheme.Input.Caret * opacity,
+                new UIOffset(caretX, Bounds.Bottom),
+                new UIOffset(caretX, Bounds.Bottom - LineHeight),
+                MiaoNetUITheme.Input.Caret * opacity,
                 CaretWidth);
         }
     }
@@ -86,7 +86,7 @@ public sealed class TextFieldNode : UiNode
     {
         Scale = Scale,
         LineHeight = LineHeight,
-        Color = MiaoNetUiTheme.Input.Text,
+        Color = MiaoNetUITheme.Input.Text,
         HorizontalAnchor = HorizontalAnchor.Left,
         VerticalAnchor = VerticalAnchor.Bottom,
     };

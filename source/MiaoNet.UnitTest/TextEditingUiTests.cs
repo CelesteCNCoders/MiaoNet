@@ -24,10 +24,10 @@ public sealed class TextEditingUiTests
 
     private sealed class FakeTextRenderer : ITextRenderer
     {
-        public UiSize Measure(string text, TextStyle style)
+        public UISize Measure(string text, TextStyle style)
             => new(text.Length * CharWidth * style.Scale, 12f * style.Scale);
 
-        public void Draw(IUiCanvas canvas, string text, UiOffset position, TextStyle style)
+        public void Draw(IUICanvas canvas, string text, UIOffset position, TextStyle style)
         {
         }
 
@@ -251,7 +251,7 @@ public sealed class TextEditingUiTests
 
     // ---------------------------------------------------------------- input box geometry
 
-    private static (UiRoot Ui, ChatInputNode Input, TextFieldNode Field, CompletionPopupNode Popup) BuildInputBox(
+    private static (UIRoot Ui, ChatInputNode Input, TextFieldNode Field, CompletionPopupNode Popup) BuildInputBox(
         TextEditingController controller,
         bool focused,
         float viewportWidth = 400f,
@@ -269,12 +269,12 @@ public sealed class TextEditingUiTests
 
         var host = new AlignNode
         {
-            Alignment = UiAlignment.TopLeft,
+            Alignment = UIAlignment.TopLeft,
             Child = input,
-            Style = new UiStyle { Width = viewportWidth, Height = viewportHeight },
+            Style = new UIStyle { Width = viewportWidth, Height = viewportHeight },
         };
 
-        var ui = new UiRoot();
+        var ui = new UIRoot();
         ui.SetRoot(host);
         if (focused)
         {

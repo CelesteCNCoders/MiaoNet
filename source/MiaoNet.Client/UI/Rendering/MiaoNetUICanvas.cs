@@ -12,7 +12,7 @@ namespace Celeste.Mod.MiaoNet.UI.Rendering;
 // Draw.SpriteBatch.Begin / End pair.
 // scissor state is captured when a batch begins, so a clip change restarts the batch with the
 // same state the host used, only swapping the rasterizer state.
-public sealed class MiaoNetUiCanvas : IUiCanvas
+public sealed class MiaoNetUICanvas : IUICanvas
 {
     private static readonly RasterizerState ClippedRasterizer = new() { ScissorTestEnable = true };
     private static readonly RasterizerState UnclippedRasterizer = RasterizerState.CullNone;
@@ -38,13 +38,13 @@ public sealed class MiaoNetUiCanvas : IUiCanvas
         currentClip = null;
     }
 
-    public void FillRect(UiRect rect, UiColor color)
+    public void FillRect(UIRect rect, UIColor color)
         => Draw.Rect(rect.X, rect.Y, rect.Width, rect.Height, color.ToXna());
 
-    public void DrawLine(UiOffset from, UiOffset to, UiColor color, float thickness)
+    public void DrawLine(UIOffset from, UIOffset to, UIColor color, float thickness)
         => Draw.Line(from.ToVector2(), to.ToVector2(), color.ToXna(), thickness);
 
-    public void PushClip(UiRect rect)
+    public void PushClip(UIRect rect)
     {
         Rectangle requested = ToScissor(rect);
         Rectangle clipped = currentClip is { } parent ? Rectangle.Intersect(parent, requested) : requested;
@@ -67,7 +67,7 @@ public sealed class MiaoNetUiCanvas : IUiCanvas
 
     // maps a logical rect to backbuffer scissor coords. the arithmetic lives in UiScissor so it
     // can be unit tested without XNA.
-    private static Rectangle ToScissor(UiRect rect)
+    private static Rectangle ToScissor(UIRect rect)
     {
         Matrix matrix = Engine.ScreenMatrix;
         var transform = new UiTransform2D(
@@ -76,7 +76,7 @@ public sealed class MiaoNetUiCanvas : IUiCanvas
             matrix.M41, matrix.M42);
 
         Viewport viewport = Engine.Graphics.GraphicsDevice.Viewport;
-        UiPixelRect mapped = UiScissor.Map(rect, transform, viewport.Width, viewport.Height);
+        UiPixelRect mapped = UIScissor.Map(rect, transform, viewport.Width, viewport.Height);
         return new Rectangle(mapped.X, mapped.Y, mapped.Width, mapped.Height);
     }
 

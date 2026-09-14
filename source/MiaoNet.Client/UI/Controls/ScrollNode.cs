@@ -27,7 +27,7 @@ public class ScrollNode : SingleChildNode
     public bool Clip { get; set; } = true;
 
     // measured size of the content child
-    public UiSize ContentSize { get; private set; }
+    public UISize ContentSize { get; private set; }
 
     // largest useful offset for the current content and viewport
     public float MaxScroll => MathF.Max(0f, ContentSize.Height - Bounds.Height);
@@ -35,7 +35,7 @@ public class ScrollNode : SingleChildNode
     public float ClampOffset(float value)
         => Math.Clamp(value, 0f, MaxScroll);
 
-    protected override UiSize OnMeasure(BoxConstraints constraints)
+    protected override UISize OnMeasure(BoxConstraints constraints)
     {
         var contentConstraints = new BoxConstraints(
             constraints.MinWidth,
@@ -43,22 +43,22 @@ public class ScrollNode : SingleChildNode
             0f,
             float.PositiveInfinity);
 
-        UiSize content = Child?.Measure(contentConstraints) ?? UiSize.Zero;
+        UISize content = Child?.Measure(contentConstraints) ?? UISize.Zero;
         ContentSize = content;
 
         float height = float.IsInfinity(constraints.MaxHeight)
             ? content.Height
             : MathF.Min(content.Height, constraints.MaxHeight);
 
-        return constraints.Constrain(new UiSize(content.Width, height));
+        return constraints.Constrain(new UISize(content.Width, height));
     }
 
-    protected override void OnArrange(UiRect bounds)
+    protected override void OnArrange(UIRect bounds)
     {
-        Child?.Arrange(new UiRect(bounds.X, bounds.Y - Offset, ContentSize.Width, ContentSize.Height));
+        Child?.Arrange(new UIRect(bounds.X, bounds.Y - Offset, ContentSize.Width, ContentSize.Height));
     }
 
-    protected override void OnBeforeChildren(IUiCanvas canvas)
+    protected override void OnBeforeChildren(IUICanvas canvas)
     {
         if (Clip)
         {
@@ -66,7 +66,7 @@ public class ScrollNode : SingleChildNode
         }
     }
 
-    protected override void OnAfterChildren(IUiCanvas canvas)
+    protected override void OnAfterChildren(IUICanvas canvas)
     {
         if (Clip)
         {
@@ -74,7 +74,7 @@ public class ScrollNode : SingleChildNode
         }
     }
 
-    protected override UiRect? CullRectFor(UiRect? inherited)
+    protected override UIRect? CullRectFor(UIRect? inherited)
     {
         if (!Clip)
         {
@@ -84,12 +84,12 @@ public class ScrollNode : SingleChildNode
         return inherited is { } outer ? Intersect(outer, Bounds) : Bounds;
     }
 
-    private static UiRect Intersect(UiRect a, UiRect b)
+    private static UIRect Intersect(UIRect a, UIRect b)
     {
         float x = MathF.Max(a.X, b.X);
         float y = MathF.Max(a.Y, b.Y);
         float right = MathF.Min(a.Right, b.Right);
         float bottom = MathF.Min(a.Bottom, b.Bottom);
-        return new UiRect(x, y, MathF.Max(0f, right - x), MathF.Max(0f, bottom - y));
+        return new UIRect(x, y, MathF.Max(0f, right - x), MathF.Max(0f, bottom - y));
     }
 }

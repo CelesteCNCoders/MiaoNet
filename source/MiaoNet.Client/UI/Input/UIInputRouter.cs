@@ -10,77 +10,77 @@ namespace Celeste.Mod.MiaoNet.UI.Input;
 // Rules is the one place that says who gets what. consumers don't read it, they claim the actions
 // it gives them through Register() and register a reaction, so the rule and the code that relies
 // on it can't drift apart. Seal() refuses to let the process start if they do.
-public sealed class UiInputRouter
+public sealed class UIInputRouter
 {
     // the whole routing table. one row per action, so an action can never reach two consumers.
     //
     // each row is a focus list rather than a predicate on purpose: the list can be enumerated and
     // checked, and [None, Chat] says "everything except the player list" more honestly than a
     // negated comparison would.
-    public static readonly IReadOnlyList<UiInputRule> Rules =
+    public static readonly IReadOnlyList<UIInputRule> Rules =
     [
         // --- opening the chat: only from the neutral state -------------------------------
         // whether the scene allows opening at all is still the consumer's call through
         // IsSuitableToOpenUI; this table only settles focus.
-        new(UiInputAction.ChatToggle, UiInputConsumer.Chat, UiFocusOwner.None),
-        new(UiInputAction.ChatCommandToggle, UiInputConsumer.Chat, UiFocusOwner.None),
+        new(UIInputAction.ChatToggle, UIInputConsumer.Chat, UIFocusOwner.None),
+        new(UIInputAction.ChatCommandToggle, UIInputConsumer.Chat, UIFocusOwner.None),
 
         // --- toggling the player list: never while the chat owns the keyboard -------------
         // Tab is also the completion key, and the chat wins whenever it's open.
         new(
-            UiInputAction.PlayerListToggle,
-            UiInputConsumer.PlayerList,
-            UiFocusOwner.None,
-            UiFocusOwner.PlayerList),
+            UIInputAction.PlayerListToggle,
+            UIInputConsumer.PlayerList,
+            UIFocusOwner.None,
+            UIFocusOwner.PlayerList),
 
         // --- chat editing: chat focus required -------------------------------------------
-        new(UiInputAction.Submit, UiInputConsumer.Chat, UiFocusOwner.Chat),
-        new(UiInputAction.Cancel, UiInputConsumer.Chat, UiFocusOwner.Chat),
-        new(UiInputAction.ChannelPrevious, UiInputConsumer.Chat, UiFocusOwner.Chat),
-        new(UiInputAction.ChannelNext, UiInputConsumer.Chat, UiFocusOwner.Chat),
-        new(UiInputAction.HistoryUp, UiInputConsumer.Chat, UiFocusOwner.Chat),
-        new(UiInputAction.HistoryDown, UiInputConsumer.Chat, UiFocusOwner.Chat),
-        new(UiInputAction.CompletionUp, UiInputConsumer.Chat, UiFocusOwner.Chat),
-        new(UiInputAction.CompletionDown, UiInputConsumer.Chat, UiFocusOwner.Chat),
-        new(UiInputAction.CaretLeft, UiInputConsumer.Chat, UiFocusOwner.Chat),
-        new(UiInputAction.CaretRight, UiInputConsumer.Chat, UiFocusOwner.Chat),
-        new(UiInputAction.CompletionAccept, UiInputConsumer.Chat, UiFocusOwner.Chat),
-        new(UiInputAction.Paste, UiInputConsumer.Chat, UiFocusOwner.Chat),
+        new(UIInputAction.Submit, UIInputConsumer.Chat, UIFocusOwner.Chat),
+        new(UIInputAction.Cancel, UIInputConsumer.Chat, UIFocusOwner.Chat),
+        new(UIInputAction.ChannelPrevious, UIInputConsumer.Chat, UIFocusOwner.Chat),
+        new(UIInputAction.ChannelNext, UIInputConsumer.Chat, UIFocusOwner.Chat),
+        new(UIInputAction.HistoryUp, UIInputConsumer.Chat, UIFocusOwner.Chat),
+        new(UIInputAction.HistoryDown, UIInputConsumer.Chat, UIFocusOwner.Chat),
+        new(UIInputAction.CompletionUp, UIInputConsumer.Chat, UIFocusOwner.Chat),
+        new(UIInputAction.CompletionDown, UIInputConsumer.Chat, UIFocusOwner.Chat),
+        new(UIInputAction.CaretLeft, UIInputConsumer.Chat, UIFocusOwner.Chat),
+        new(UIInputAction.CaretRight, UIInputConsumer.Chat, UIFocusOwner.Chat),
+        new(UIInputAction.CompletionAccept, UIInputConsumer.Chat, UIFocusOwner.Chat),
+        new(UIInputAction.Paste, UIInputConsumer.Chat, UIFocusOwner.Chat),
 
         // --- paging the chat message list: no focus of its own ---------------------------
         // it works while walking and only the player list excludes it.
-        new(UiInputAction.ChatListScrollUp, UiInputConsumer.Chat, UiFocusOwner.None, UiFocusOwner.Chat),
-        new(UiInputAction.ChatListScrollDown, UiInputConsumer.Chat, UiFocusOwner.None, UiFocusOwner.Chat),
+        new(UIInputAction.ChatListScrollUp, UIInputConsumer.Chat, UIFocusOwner.None, UIFocusOwner.Chat),
+        new(UIInputAction.ChatListScrollDown, UIInputConsumer.Chat, UIFocusOwner.None, UIFocusOwner.Chat),
 
         // --- scrolling the player list: only while it is open ----------------------------
-        new(UiInputAction.PlayerListScrollUp, UiInputConsumer.PlayerList, UiFocusOwner.PlayerList),
-        new(UiInputAction.PlayerListScrollDown, UiInputConsumer.PlayerList, UiFocusOwner.PlayerList),
+        new(UIInputAction.PlayerListScrollUp, UIInputConsumer.PlayerList, UIFocusOwner.PlayerList),
+        new(UIInputAction.PlayerListScrollDown, UIInputConsumer.PlayerList, UIFocusOwner.PlayerList),
     ];
 
-    private static readonly Dictionary<UiInputAction, UiInputRule> RulesByAction = BuildIndex();
+    private static readonly Dictionary<UIInputAction, UIInputRule> RulesByAction = BuildIndex();
 
-    private readonly Dictionary<UiInputConsumer, UiInputRegistrations> registrations = [];
+    private readonly Dictionary<UIInputConsumer, UIInputRegistrations> registrations = [];
     private readonly List<Reaction> reactions = [];
 
-    private UiFocusOwner focus;
+    private UIFocusOwner focus;
     private bool isSealed;
 
     // which UI owns the keyboard. set explicitly when a panel opens or closes.
-    public UiFocusOwner Focus => focus;
+    public UIFocusOwner Focus => focus;
 
     // true while some UI owns the keyboard.
-    public bool HasFocus => focus != UiFocusOwner.None;
+    public bool HasFocus => focus != UIFocusOwner.None;
 
     // wheel delta for the chat message list this frame, in pixel units. zero when
     // the player list owns the keyboard, so the delta is dropped instead of queued.
     public float ChatScrollDelta { get; private set; }
 
-    public void SetFocus(UiFocusOwner owner) => focus = owner;
+    public void SetFocus(UIFocusOwner owner) => focus = owner;
 
     // the handle for one consumer's claims. idempotent: every class of the same consumer gets the
     // same handle, which is how the chat's input box and its message list share one arbitration
     // slot.
-    public UiInputRegistrations Register(UiInputConsumer consumer)
+    public UIInputRegistrations Register(UIInputConsumer consumer)
     {
         if (isSealed)
         {
@@ -88,9 +88,9 @@ public sealed class UiInputRouter
                 $"cannot register {consumer} input after Seal(); register during component construction");
         }
 
-        if (!registrations.TryGetValue(consumer, out UiInputRegistrations? set))
+        if (!registrations.TryGetValue(consumer, out UIInputRegistrations? set))
         {
-            set = new UiInputRegistrations(this, consumer);
+            set = new UIInputRegistrations(this, consumer);
             registrations.Add(consumer, set);
         }
 
@@ -109,17 +109,17 @@ public sealed class UiInputRouter
         }
 
         List<string>? problems = null;
-        foreach (UiInputRule rule in Rules)
+        foreach (UIInputRule rule in Rules)
         {
-            if (!registrations.TryGetValue(rule.Consumer, out UiInputRegistrations? set) || !set.Owns(rule.Action))
+            if (!registrations.TryGetValue(rule.Consumer, out UIInputRegistrations? set) || !set.Owns(rule.Action))
             {
                 (problems ??= []).Add($"{rule.Action} is routed to {rule.Consumer}, but nothing claimed it");
             }
         }
 
-        foreach (UiInputRegistrations set in registrations.Values)
+        foreach (UIInputRegistrations set in registrations.Values)
         {
-            foreach (UiInputAction action in set.Owned)
+            foreach (UIInputAction action in set.Owned)
             {
                 if (RuleFor(action) is not { } rule || rule.Consumer != set.Consumer)
                 {
@@ -140,27 +140,27 @@ public sealed class UiInputRouter
     // arbitrates one frame of input. every action ends up with at most one consumer, and reactions
     // run here once before any component updates, so priority does not depend on the order of
     // MiaoNetContext.components.
-    public void Route(UiInputFrame frame)
+    public void Route(UIInputFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
 
-        foreach (UiInputRegistrations set in registrations.Values)
+        foreach (UIInputRegistrations set in registrations.Values)
         {
             set.BeginFrame();
         }
 
         // the frame is arbitrated for the focus it started with. a reaction that moves the focus
         // invalidates the rest of the frame.
-        UiFocusOwner routedFocus = focus;
+        UIFocusOwner routedFocus = focus;
 
-        ChatScrollDelta = Applies(UiInputAction.ChatListScrollUp, routedFocus) ? frame.ChatScrollDelta : 0f;
+        ChatScrollDelta = Applies(UIInputAction.ChatListScrollUp, routedFocus) ? frame.ChatScrollDelta : 0f;
 
-        foreach (UiInputAction action in frame.Pressed)
+        foreach (UIInputAction action in frame.Pressed)
         {
             Deliver(action, pressed: true, routedFocus);
         }
 
-        foreach (UiInputAction action in frame.Held)
+        foreach (UIInputAction action in frame.Held)
         {
             Deliver(action, pressed: false, routedFocus);
         }
@@ -183,34 +183,34 @@ public sealed class UiInputRouter
         }
     }
 
-    internal UiInputRule? RuleFor(UiInputAction action)
+    internal UIInputRule? RuleFor(UIInputAction action)
         => RulesByAction.GetValueOrDefault(action);
 
-    internal void AddReaction(UiInputRegistrations owner, UiInputAction action, Action handler)
+    internal void AddReaction(UIInputRegistrations owner, UIInputAction action, Action handler)
         => reactions.Add(new Reaction(owner, action, handler));
 
-    private static bool Applies(UiInputAction action, UiFocusOwner focus)
-        => RulesByAction.TryGetValue(action, out UiInputRule? rule) && rule.Applies(focus);
+    private static bool Applies(UIInputAction action, UIFocusOwner focus)
+        => RulesByAction.TryGetValue(action, out UIInputRule? rule) && rule.Applies(focus);
 
-    private void Deliver(UiInputAction action, bool pressed, UiFocusOwner routedFocus)
+    private void Deliver(UIInputAction action, bool pressed, UIFocusOwner routedFocus)
     {
-        if (!RulesByAction.TryGetValue(action, out UiInputRule? rule) || !rule.Applies(routedFocus))
+        if (!RulesByAction.TryGetValue(action, out UIInputRule? rule) || !rule.Applies(routedFocus))
         {
             return;
         }
 
-        if (registrations.TryGetValue(rule.Consumer, out UiInputRegistrations? set))
+        if (registrations.TryGetValue(rule.Consumer, out UIInputRegistrations? set))
         {
             set.Deliver(action, pressed);
         }
     }
 
     // indexes Rules, rejecting a duplicate action so one action can't reach two consumers.
-    private static Dictionary<UiInputAction, UiInputRule> BuildIndex()
+    private static Dictionary<UIInputAction, UIInputRule> BuildIndex()
     {
-        Dictionary<UiInputAction, UiInputRule> index = [];
+        Dictionary<UIInputAction, UIInputRule> index = [];
         StringBuilder? duplicates = null;
-        foreach (UiInputRule rule in Rules)
+        foreach (UIInputRule rule in Rules)
         {
             if (!index.TryAdd(rule.Action, rule))
             {
@@ -229,5 +229,5 @@ public sealed class UiInputRouter
         return index;
     }
 
-    private readonly record struct Reaction(UiInputRegistrations Owner, UiInputAction Action, Action Handler);
+    private readonly record struct Reaction(UIInputRegistrations Owner, UIInputAction Action, Action Handler);
 }

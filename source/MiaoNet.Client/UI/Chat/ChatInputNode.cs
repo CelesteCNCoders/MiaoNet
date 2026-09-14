@@ -38,7 +38,7 @@ public sealed class ChatInputNode : MultiChildNode
 
     public float BoxHeight => LineHeight + (2f * Padding);
 
-    protected override UiSize OnMeasure(BoxConstraints constraints)
+    protected override UISize OnMeasure(BoxConstraints constraints)
     {
         Field.LineHeight = LineHeight;
         Field.Scale = Scale;
@@ -49,12 +49,12 @@ public sealed class ChatInputNode : MultiChildNode
         Popup.Measure(BoxConstraints.Unbounded);
 
         float width = float.IsInfinity(constraints.MaxWidth) ? 0f : constraints.MaxWidth;
-        return constraints.Constrain(new UiSize(width, BoxHeight));
+        return constraints.Constrain(new UISize(width, BoxHeight));
     }
 
-    protected override void OnArrange(UiRect bounds)
+    protected override void OnArrange(UIRect bounds)
     {
-        var textArea = new UiRect(
+        var textArea = new UIRect(
             bounds.X + Padding,
             bounds.Y + Padding,
             MathF.Max(0f, bounds.Width - (2f * Padding)),
@@ -68,14 +68,14 @@ public sealed class ChatInputNode : MultiChildNode
             return;
         }
 
-        UiSize size = Popup.MeasuredSize;
-        Popup.Arrange(new UiRect(
+        UISize size = Popup.MeasuredSize;
+        Popup.Arrange(new UIRect(
             bounds.X + Padding + Field.TextBeforeCaretWidth,
             bounds.Y - size.Height,
             size.Width,
             size.Height));
     }
 
-    protected override void PaintSelf(IUiCanvas canvas, float opacity)
-        => canvas.FillRect(Bounds, MiaoNetUiTheme.Input.Background * opacity);
+    protected override void PaintSelf(IUICanvas canvas, float opacity)
+        => canvas.FillRect(Bounds, MiaoNetUITheme.Input.Background * opacity);
 }

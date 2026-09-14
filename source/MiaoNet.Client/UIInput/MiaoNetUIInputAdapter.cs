@@ -3,7 +3,7 @@ using Celeste.Mod.MiaoNet.UI.Input;
 using Microsoft.Xna.Framework.Input;
 
 // Not "Celeste.Mod.MiaoNet.Input": that would shadow Celeste.Input (Gamepad/Jump/Rumble).
-namespace Celeste.Mod.MiaoNet.UiInput;
+namespace Celeste.Mod.MiaoNet.UIInput;
 
 // polls the game's input once per frame and turns it into UiInputActions. with UiInputRouter
 // this is the only place in the client that reads UI input; components consume the arbitrated
@@ -14,7 +14,7 @@ namespace Celeste.Mod.MiaoNet.UiInput;
 //     uses the raw edge, so holding Up doesn't scroll history;
 //   - opening bindings are consumed unconditionally, even when the scene would refuse to open the
 //     UI.
-public sealed class MiaoNetUiInputAdapter : IDisposable
+public sealed class MiaoNetUIInputAdapter : IDisposable
 {
     // analogue trigger threshold.
     private const float TriggerThreshold = 0.4f;
@@ -25,8 +25,8 @@ public sealed class MiaoNetUiInputAdapter : IDisposable
     // interval between repeats of a held caret/completion button.
     private const float RepeatInterval = 0.05f;
 
-    private readonly UiInputRouter router;
-    private readonly UiInputFrame frame = new();
+    private readonly UIInputRouter router;
+    private readonly UIInputFrame frame = new();
 
     private readonly VirtualButton caretLeft;
     private readonly VirtualButton caretRight;
@@ -36,7 +36,7 @@ public sealed class MiaoNetUiInputAdapter : IDisposable
     private float lastWheelValue = float.NaN;
     private bool disposed;
 
-    public MiaoNetUiInputAdapter(UiInputRouter router)
+    public MiaoNetUIInputAdapter(UIInputRouter router)
     {
         ArgumentNullException.ThrowIfNull(router);
         this.router = router;
@@ -54,39 +54,39 @@ public sealed class MiaoNetUiInputAdapter : IDisposable
         MiaoNetModuleSettings settings = MiaoNetModule.Settings;
 
         // opening bindings: consumed unconditionally.
-        PressBinding(settings.ChatButton, UiInputAction.ChatToggle);
-        PressBinding(settings.ChatCommandButton, UiInputAction.ChatCommandToggle);
+        PressBinding(settings.ChatButton, UIInputAction.ChatToggle);
+        PressBinding(settings.ChatCommandButton, UIInputAction.ChatCommandToggle);
 
         if (settings.PlayerListButton.Pressed)
         {
             settings.PlayerListButton.ConsumePress();
-            frame.Press(UiInputAction.PlayerListToggle);
+            frame.Press(UIInputAction.PlayerListToggle);
         }
 
         if (settings.PlayerListButton.Check)
         {
-            frame.Hold(UiInputAction.PlayerListToggle);
+            frame.Hold(UIInputAction.PlayerListToggle);
         }
 
         // the player list's scroll keys are levels, not edges.
         if (settings.PlayerListScrollUp.Check)
         {
-            frame.Hold(UiInputAction.PlayerListScrollUp);
+            frame.Hold(UIInputAction.PlayerListScrollUp);
         }
 
         if (settings.PlayerListScrollDown.Check)
         {
-            frame.Hold(UiInputAction.PlayerListScrollDown);
+            frame.Hold(UIInputAction.PlayerListScrollDown);
         }
 
         if (MInput.Keyboard.Pressed(Keys.Escape))
         {
-            frame.Press(UiInputAction.Cancel);
+            frame.Press(UIInputAction.Cancel);
         }
 
         if (MInput.Keyboard.Pressed(Keys.Enter))
         {
-            frame.Press(UiInputAction.Submit);
+            frame.Press(UIInputAction.Submit);
         }
 
         PollCaretOrChannelSwitch();
@@ -95,42 +95,42 @@ public sealed class MiaoNetUiInputAdapter : IDisposable
         if (completionUp.Pressed)
         {
             completionUp.ConsumePress();
-            frame.Press(UiInputAction.CompletionUp);
+            frame.Press(UIInputAction.CompletionUp);
         }
         else if (completionDown.Pressed)
         {
             completionDown.ConsumePress();
-            frame.Press(UiInputAction.CompletionDown);
+            frame.Press(UIInputAction.CompletionDown);
         }
 
         // input history is edge-only, so it reads the raw key instead of the repeating button.
         if (MInput.Keyboard.Pressed(Keys.Up))
         {
-            frame.Press(UiInputAction.HistoryUp);
+            frame.Press(UIInputAction.HistoryUp);
         }
         else if (MInput.Keyboard.Pressed(Keys.Down))
         {
-            frame.Press(UiInputAction.HistoryDown);
+            frame.Press(UIInputAction.HistoryDown);
         }
 
         if (MInput.Keyboard.Pressed(Keys.Tab))
         {
-            frame.Press(UiInputAction.CompletionAccept);
+            frame.Press(UIInputAction.CompletionAccept);
         }
 
         if (MInput.Keyboard.Pressed(Keys.V) && ControlHeld())
         {
-            frame.Press(UiInputAction.Paste);
+            frame.Press(UIInputAction.Paste);
         }
 
         // PageUp/PageDown are levels, with PageUp taking precedence when both are held.
         if (MInput.Keyboard.Check(Keys.PageUp))
         {
-            frame.Hold(UiInputAction.ChatListScrollUp);
+            frame.Hold(UIInputAction.ChatListScrollUp);
         }
         else if (MInput.Keyboard.Check(Keys.PageDown))
         {
-            frame.Hold(UiInputAction.ChatListScrollDown);
+            frame.Hold(UIInputAction.ChatListScrollDown);
         }
 
         frame.ChatScrollDelta = WheelDelta();
@@ -162,11 +162,11 @@ public sealed class MiaoNetUiInputAdapter : IDisposable
         {
             if (MInput.Keyboard.Pressed(Keys.Left))
             {
-                frame.Press(UiInputAction.ChannelPrevious);
+                frame.Press(UIInputAction.ChannelPrevious);
             }
             else if (MInput.Keyboard.Pressed(Keys.Right))
             {
-                frame.Press(UiInputAction.ChannelNext);
+                frame.Press(UIInputAction.ChannelNext);
             }
 
             return;
@@ -175,16 +175,16 @@ public sealed class MiaoNetUiInputAdapter : IDisposable
         if (caretLeft.Pressed)
         {
             caretLeft.ConsumePress();
-            frame.Press(UiInputAction.CaretLeft);
+            frame.Press(UIInputAction.CaretLeft);
         }
         else if (caretRight.Pressed)
         {
             caretRight.ConsumePress();
-            frame.Press(UiInputAction.CaretRight);
+            frame.Press(UIInputAction.CaretRight);
         }
     }
 
-    private void PressBinding(ButtonBinding? binding, UiInputAction action)
+    private void PressBinding(ButtonBinding? binding, UIInputAction action)
     {
         if (binding is null || !binding.Pressed)
         {

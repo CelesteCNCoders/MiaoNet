@@ -9,41 +9,41 @@ namespace Celeste.Mod.MiaoNet.UI.Layout;
 public sealed class StackNode : MultiChildNode
 {
     // used when a child is smaller than the stack
-    public UiAlignment Alignment { get; set; } = UiAlignment.TopLeft;
+    public UIAlignment Alignment { get; set; } = UIAlignment.TopLeft;
 
-    protected override UiSize OnMeasure(BoxConstraints constraints)
+    protected override UISize OnMeasure(BoxConstraints constraints)
     {
         BoxConstraints childConstraints = constraints.Loosen();
         float width = 0f;
         float height = 0f;
 
-        foreach (UiNode child in Children)
+        foreach (UINode child in Children)
         {
             if (!child.IsVisible)
             {
                 continue;
             }
 
-            UiSize size = child.Measure(childConstraints);
+            UISize size = child.Measure(childConstraints);
             width = MathF.Max(width, size.Width);
             height = MathF.Max(height, size.Height);
         }
 
-        return constraints.Constrain(new UiSize(width, height));
+        return constraints.Constrain(new UISize(width, height));
     }
 
-    protected override void OnArrange(UiRect bounds)
+    protected override void OnArrange(UIRect bounds)
     {
-        foreach (UiNode child in Children)
+        foreach (UINode child in Children)
         {
             if (!child.IsVisible)
             {
                 continue;
             }
 
-            UiSize size = child.MeasuredSize;
-            UiOffset offset = Alignment.OffsetFor(bounds.Size, size);
-            child.Arrange(new UiRect(bounds.X + offset.X, bounds.Y + offset.Y, size.Width, size.Height));
+            UISize size = child.MeasuredSize;
+            UIOffset offset = Alignment.OffsetFor(bounds.Size, size);
+            child.Arrange(new UIRect(bounds.X + offset.X, bounds.Y + offset.Y, size.Width, size.Height));
         }
     }
 }

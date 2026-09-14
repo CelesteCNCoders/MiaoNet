@@ -5,7 +5,7 @@ namespace Celeste.Mod.MiaoNet.UI.Rendering;
 
 // IUiTexture over a Monocle texture, for the avatar-less status icons such as paused,
 // live mode, taking golden and the debug map marker.
-public sealed class MiaoNetTexture : IUiTexture
+public sealed class MiaoNetTexture : IUITexture
 {
     private readonly MTexture texture;
 
@@ -16,9 +16,9 @@ public sealed class MiaoNetTexture : IUiTexture
     public float Height => texture.Height;
 
     public void Draw(
-        IUiCanvas canvas,
-        UiOffset position,
-        UiColor tint,
+        IUICanvas canvas,
+        UIOffset position,
+        UIColor tint,
         float scale,
         HorizontalAnchor horizontalAnchor = HorizontalAnchor.Left,
         VerticalAnchor verticalAnchor = VerticalAnchor.Top)

@@ -69,7 +69,7 @@ public sealed record PlayerListMetrics(
     }
 
     // icons are scaled so their height matches the line height, so work the width out from that
-    public static float IconWidth(IUiTexture texture, float lineHeight)
+    public static float IconWidth(IUITexture texture, float lineHeight)
         => texture.Height <= 0f ? 0f : lineHeight / texture.Height * texture.Width;
 
     private static float MeasureRowContentWidth(
@@ -90,7 +90,7 @@ public sealed record PlayerListMetrics(
                 continue;
             }
 
-            IUiTexture? texture = icons.For(status);
+            IUITexture? texture = icons.For(status);
             if (texture is null)
             {
                 continue;

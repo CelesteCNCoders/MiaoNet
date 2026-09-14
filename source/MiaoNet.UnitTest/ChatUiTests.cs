@@ -25,10 +25,10 @@ public sealed class ChatUiTests
 
     private sealed class FakeTextRenderer : ITextRenderer
     {
-        public UiSize Measure(string text, TextStyle style)
+        public UISize Measure(string text, TextStyle style)
             => new(text.Length * CharWidth * style.Scale, 12f * style.Scale);
 
-        public void Draw(IUiCanvas canvas, string text, UiOffset position, TextStyle style)
+        public void Draw(IUICanvas canvas, string text, UIOffset position, TextStyle style)
         {
         }
 
@@ -59,7 +59,7 @@ public sealed class ChatUiTests
         {
             StableKey = keys[index],
             TimeText = withTime ? "00:00:00" : null,
-            Runs = [new ChatTextRun("msg", UiColor.White, TextDecoration.None)],
+            Runs = [new ChatTextRun("msg", UIColor.White, TextDecoration.None)],
         };
     }
 
@@ -278,7 +278,7 @@ public sealed class ChatUiTests
     {
         StableKey = new object(),
         TimeText = time,
-        Runs = [new ChatTextRun(new string('m', characters), UiColor.White, TextDecoration.None)],
+        Runs = [new ChatTextRun(new string('m', characters), UIColor.White, TextDecoration.None)],
     };
 
     private static ChatMessageNode MeasureRow(ChatMessageRow row, float messagePadding)
@@ -322,35 +322,35 @@ public sealed class ChatUiTests
     {
         var canvas = new RecordingCanvas();
         ChatMessageNode node = MeasureRow(Row(10), 4f);
-        node.Arrange(new UiRect(10.4f, 20.6f, 30.3f, 32f));
+        node.Arrange(new UIRect(10.4f, 20.6f, 30.3f, 32f));
 
         node.PaintTree(canvas, 1f);
 
         Assert.HasCount(1, canvas.Fills, "one background fill");
-        UiRect rect = canvas.Fills[0];
+        UIRect rect = canvas.Fills[0];
         AssertClose(10f, rect.X, "snapped X");
         AssertClose(20f, rect.Y, "snapped Y");
         AssertClose(30f, rect.Width, "snapped width");
         AssertClose(32f, rect.Height, "snapped height");
     }
 
-    private sealed class RecordingCanvas : IUiCanvas
+    private sealed class RecordingCanvas : IUICanvas
     {
-        public List<UiRect> Fills { get; } = [];
+        public List<UIRect> Fills { get; } = [];
 
-        public List<UiColor> FillColors { get; } = [];
+        public List<UIColor> FillColors { get; } = [];
 
-        public void FillRect(UiRect rect, UiColor color)
+        public void FillRect(UIRect rect, UIColor color)
         {
             Fills.Add(rect);
             FillColors.Add(color);
         }
 
-        public void DrawLine(UiOffset from, UiOffset to, UiColor color, float thickness)
+        public void DrawLine(UIOffset from, UIOffset to, UIColor color, float thickness)
         {
         }
 
-        public void PushClip(UiRect rect)
+        public void PushClip(UIRect rect)
         {
         }
 
@@ -368,7 +368,7 @@ public sealed class ChatUiTests
         var source = new FakeChatSource(3);          // 3 * 32 = 96, well under the 384 viewport
         ChatScreenNode screen = BuildChatScreen(controller, source, active: false, messagePadding: 4f);
 
-        var ui = new UiRoot();
+        var ui = new UIRoot();
         ui.SetRoot(screen);
         LayoutWithController(screen, controller, ui, source.Count);
 
@@ -377,7 +377,7 @@ public sealed class ChatUiTests
         AssertClose(0f, controller.MaxScroll, "a short log still cannot scroll");
 
         ChatMessageListNode list = screen.Messages;
-        UiNode newest = list.Children[list.Children.Count - 1];
+        UINode newest = list.Children[list.Children.Count - 1];
         AssertClose(list.Bounds.Bottom, newest.Bounds.Bottom, "the newest row ends on the list bottom");
     }
 
@@ -388,7 +388,7 @@ public sealed class ChatUiTests
         var source = new FakeChatSource(3);
         ChatScreenNode screen = BuildChatScreen(controller, source, active: false, messagePadding: 4f);
 
-        var ui = new UiRoot();
+        var ui = new UIRoot();
         ui.SetRoot(screen);
         LayoutWithController(screen, controller, ui, source.Count);
 
@@ -398,7 +398,7 @@ public sealed class ChatUiTests
         Assert.IsFalse(screen.Tabs.IsVisible, "tab strip hidden while the chat is closed");
         Assert.IsFalse(screen.Input.IsVisible, "input box hidden while the chat is closed");
         Assert.DoesNotContain(
-            MiaoNetUiTheme.Input.Background,
+            MiaoNetUITheme.Input.Background,
             canvas.FillColors,
             "the input box background is not painted while closed");
     }
@@ -410,7 +410,7 @@ public sealed class ChatUiTests
         var source = new FakeChatSource(3);
         ChatScreenNode screen = BuildChatScreen(controller, source, active: true, messagePadding: 4f);
 
-        var ui = new UiRoot();
+        var ui = new UIRoot();
         ui.SetRoot(screen);
         LayoutWithController(screen, controller, ui, source.Count);
 
@@ -420,7 +420,7 @@ public sealed class ChatUiTests
         Assert.IsTrue(screen.Tabs.IsVisible, "tab strip visible while the chat is open");
         Assert.IsTrue(screen.Input.IsVisible, "input box visible while the chat is open");
         Assert.Contains(
-            MiaoNetUiTheme.Input.Background,
+            MiaoNetUITheme.Input.Background,
             canvas.FillColors,
             "the input box background is painted while open");
     }
@@ -437,7 +437,7 @@ public sealed class ChatUiTests
             messagePadding: 4f,
             scale: 0.5f);
 
-        var ui = new UiRoot();
+        var ui = new UIRoot();
         ui.SetRoot(screen);
 
         // Only ONE layout pass: the nodes are created during it, so this catches a first-frame
@@ -457,7 +457,7 @@ public sealed class ChatUiTests
 
     // layout, then sync the controller the way the host does: item extent, message count and
     // viewport height, then the top-down offset derived from the bottom scroll.
-    private static void LayoutWithController(ChatScreenNode screen, ChatListController controller, UiRoot ui, int messageCount)
+    private static void LayoutWithController(ChatScreenNode screen, ChatListController controller, UIRoot ui, int messageCount)
     {
         ui.Layout(ScreenWidth, ScreenHeight);
         controller.ItemExtent = screen.Messages.MessageLineHeight;
@@ -474,7 +474,7 @@ public sealed class ChatUiTests
         var source = new FakeChatSource(100);
         ChatScreenNode screen = BuildChatScreen(controller, source, active: false, messagePadding: 4f);
 
-        var ui = new UiRoot();
+        var ui = new UIRoot();
         ui.SetRoot(screen);
         LayoutWithController(screen, controller, ui, source.Count);
 
@@ -493,7 +493,7 @@ public sealed class ChatUiTests
         var source = new FakeChatSource(100);
         ChatScreenNode screen = BuildChatScreen(controller, source, active: false, messagePadding: 4f);
 
-        var ui = new UiRoot();
+        var ui = new UIRoot();
         ui.SetRoot(screen);
         LayoutWithController(screen, controller, ui, source.Count);
 
@@ -515,7 +515,7 @@ public sealed class ChatUiTests
         var source = new FakeChatSource(100);
         ChatScreenNode screen = BuildChatScreen(controller, source, active: true, messagePadding: 4f);
 
-        var ui = new UiRoot();
+        var ui = new UIRoot();
         ui.SetRoot(screen);
         ui.Layout(ScreenWidth, ScreenHeight);
 
@@ -543,7 +543,7 @@ public sealed class ChatUiTests
         var fullLog = new FakeChatSource(100);
         ChatScreenNode screen = BuildChatScreen(controller, fullLog, active: true, messagePadding: 4f);
 
-        var ui = new UiRoot();
+        var ui = new UIRoot();
         ui.SetRoot(screen);
         SyncWithController(screen, controller, ui);
 
@@ -623,7 +623,7 @@ public sealed class ChatUiTests
 
     // layout and sync the controller the way the host does. no message count here on purpose:
     // SetMessages pushes it.
-    private static void SyncWithController(ChatScreenNode screen, ChatListController controller, UiRoot ui)
+    private static void SyncWithController(ChatScreenNode screen, ChatListController controller, UIRoot ui)
     {
         ui.Layout(ScreenWidth, ScreenHeight);
         controller.ItemExtent = screen.Messages.MessageLineHeight;

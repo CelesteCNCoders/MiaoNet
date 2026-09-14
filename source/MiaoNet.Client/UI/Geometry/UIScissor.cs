@@ -15,7 +15,7 @@ public readonly record struct UiTransform2D(
     public static readonly UiTransform2D Identity = new(1f, 0f, 0f, 1f, 0f, 0f);
 
     // same math as Vector2.Transform
-    public UiOffset Transform(UiOffset point)
+    public UIOffset Transform(UIOffset point)
         => new(
             (point.X * M11) + (point.Y * M21) + M41,
             (point.X * M12) + (point.Y * M22) + M42);
@@ -28,14 +28,14 @@ public readonly record struct UiPixelRect(int X, int Y, int Width, int Height);
 // separated from MiaoNetUiCanvas so the arithmetic fed to GraphicsDevice.ScissorRectangle can
 // be unit tested: getting it wrong silently clips the ui, and it's the one part of the render
 // path you can't really check in-game (the player list viewport is the whole screen anyway).
-public static class UiScissor
+public static class UIScissor
 {
     // smallest integer rect covering the transformed rect, clamped to the viewport;
     // a rect fully outside comes back as zero-area
-    public static UiPixelRect Map(UiRect rect, UiTransform2D transform, int viewportWidth, int viewportHeight)
+    public static UiPixelRect Map(UIRect rect, UiTransform2D transform, int viewportWidth, int viewportHeight)
     {
-        UiOffset a = transform.Transform(new UiOffset(rect.X, rect.Y));
-        UiOffset b = transform.Transform(new UiOffset(rect.Right, rect.Bottom));
+        UIOffset a = transform.Transform(new UIOffset(rect.X, rect.Y));
+        UIOffset b = transform.Transform(new UIOffset(rect.Right, rect.Bottom));
 
         float left = MathF.Min(a.X, b.X);
         float top = MathF.Min(a.Y, b.Y);
