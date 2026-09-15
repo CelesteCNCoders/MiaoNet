@@ -5,9 +5,13 @@ using Microsoft.Xna.Framework.Input;
 // Not "Celeste.Mod.MiaoNet.Input": that would shadow Celeste.Input (Gamepad/Jump/Rumble).
 namespace Celeste.Mod.MiaoNet.UIInput;
 
-// polls the game's input once per frame and turns it into UiInputActions. with UIInputRouter
+// polls the game's input once per frame and turns it into UIInputActions. with UIInputRouter
 // this is the only place in the client that reads UI input; components consume the arbitrated
 // result.
+//
+// Poll is deliberately a flat list of "this input drives this action" lines. the four ways an
+// input can be read -- a settings binding as an edge or as a level, a raw key as an edge or as a
+// level, and a repeating button -- each live in exactly one helper below.
 //
 // two easy-to-miss details:
 //   - caret movement and completion navigation use repeating virtual buttons, while input history
@@ -52,86 +56,40 @@ public sealed class MiaoNetUIInputAdapter : IDisposable
     {
         frame.Clear();
         MiaoNetModuleSettings settings = MiaoNetModule.Settings;
+        bool shift = ShiftHeld();
 
-        // opening bindings: consumed unconditionally.
-        PressBinding(settings.ChatButton, UIInputAction.ChatToggle);
-        PressBinding(settings.ChatCommandButton, UIInputAction.ChatCommandToggle);
+        // settings bindings. a press is consumed unconditionally, so a binding the scene refuses to
+        // act on still never leaks through to the game.
+        Press(settings.ChatButton, UIInputAction.ChatToggle);
+        Press(settings.ChatCommandButton, UIInputAction.ChatCommandToggle);
+        Press(settings.PlayerListButton, UIInputAction.PlayerListToggle);
+        Hold(settings.PlayerListButton, UIInputAction.PlayerListToggle);
+        Hold(settings.PlayerListScrollUp, UIInputAction.PlayerListScrollUp);
+        Hold(settings.PlayerListScrollDown, UIInputAction.PlayerListScrollDown);
 
-        if (settings.PlayerListButton.Pressed)
-        {
-            settings.PlayerListButton.ConsumePress();
-            frame.Press(UIInputAction.PlayerListToggle);
-        }
+        // plain keys. edges only, so holding them does not repeat.
+        Press(Keys.Escape, UIInputAction.Cancel);
+        Press(Keys.Enter, UIInputAction.Submit);
+        Press(Keys.Tab, UIInputAction.CompletionAccept);
+        Press(Keys.V, UIInputAction.Paste, ControlHeld());
 
-        if (settings.PlayerListButton.Check)
-        {
-            frame.Hold(UIInputAction.PlayerListToggle);
-        }
+        // Up/Down do double duty: the repeating buttons drive the completion popup while it is up,
+        // and the raw edges drive the input history otherwise. the chat picks one by whether a
+        // popup exists.
+        Repeat(completionUp, UIInputAction.CompletionUp);
+        Repeat(completionDown, UIInputAction.CompletionDown);
+        Press(Keys.Up, UIInputAction.HistoryUp);
+        Press(Keys.Down, UIInputAction.HistoryDown);
 
-        // the player list's scroll keys are levels, not edges.
-        if (settings.PlayerListScrollUp.Check)
-        {
-            frame.Hold(UIInputAction.PlayerListScrollUp);
-        }
+        // shift turns the horizontal keys into a channel switch instead of moving the caret.
+        Press(Keys.Left, UIInputAction.ChannelPrevious, shift);
+        Press(Keys.Right, UIInputAction.ChannelNext, shift);
+        Repeat(caretLeft, UIInputAction.CaretLeft, when: !shift);
+        Repeat(caretRight, UIInputAction.CaretRight, when: !shift);
 
-        if (settings.PlayerListScrollDown.Check)
-        {
-            frame.Hold(UIInputAction.PlayerListScrollDown);
-        }
-
-        if (MInput.Keyboard.Pressed(Keys.Escape))
-        {
-            frame.Press(UIInputAction.Cancel);
-        }
-
-        if (MInput.Keyboard.Pressed(Keys.Enter))
-        {
-            frame.Press(UIInputAction.Submit);
-        }
-
-        PollCaretOrChannelSwitch();
-
-        // completion navigation repeats while held.
-        if (completionUp.Pressed)
-        {
-            completionUp.ConsumePress();
-            frame.Press(UIInputAction.CompletionUp);
-        }
-        else if (completionDown.Pressed)
-        {
-            completionDown.ConsumePress();
-            frame.Press(UIInputAction.CompletionDown);
-        }
-
-        // input history is edge-only, so it reads the raw key instead of the repeating button.
-        if (MInput.Keyboard.Pressed(Keys.Up))
-        {
-            frame.Press(UIInputAction.HistoryUp);
-        }
-        else if (MInput.Keyboard.Pressed(Keys.Down))
-        {
-            frame.Press(UIInputAction.HistoryDown);
-        }
-
-        if (MInput.Keyboard.Pressed(Keys.Tab))
-        {
-            frame.Press(UIInputAction.CompletionAccept);
-        }
-
-        if (MInput.Keyboard.Pressed(Keys.V) && ControlHeld())
-        {
-            frame.Press(UIInputAction.Paste);
-        }
-
-        // PageUp/PageDown are levels, with PageUp taking precedence when both are held.
-        if (MInput.Keyboard.Check(Keys.PageUp))
-        {
-            frame.Hold(UIInputAction.ChatListScrollUp);
-        }
-        else if (MInput.Keyboard.Check(Keys.PageDown))
-        {
-            frame.Hold(UIInputAction.ChatListScrollDown);
-        }
+        // levels: held while down. when both are held the chat list gives PageUp precedence.
+        Hold(Keys.PageUp, UIInputAction.ChatListScrollUp);
+        Hold(Keys.PageDown, UIInputAction.ChatListScrollDown);
 
         frame.ChatScrollDelta = WheelDelta();
 
@@ -152,39 +110,8 @@ public sealed class MiaoNetUIInputAdapter : IDisposable
         completionDown.Deregister();
     }
 
-    // shift turns the horizontal keys into a channel switch; otherwise they move the caret.
-    private void PollCaretOrChannelSwitch()
-    {
-        bool shift = MInput.Keyboard.CurrentState.IsKeyDown(Keys.LeftShift)
-            || MInput.Keyboard.CurrentState.IsKeyDown(Keys.RightShift);
-
-        if (shift)
-        {
-            if (MInput.Keyboard.Pressed(Keys.Left))
-            {
-                frame.Press(UIInputAction.ChannelPrevious);
-            }
-            else if (MInput.Keyboard.Pressed(Keys.Right))
-            {
-                frame.Press(UIInputAction.ChannelNext);
-            }
-
-            return;
-        }
-
-        if (caretLeft.Pressed)
-        {
-            caretLeft.ConsumePress();
-            frame.Press(UIInputAction.CaretLeft);
-        }
-        else if (caretRight.Pressed)
-        {
-            caretRight.ConsumePress();
-            frame.Press(UIInputAction.CaretRight);
-        }
-    }
-
-    private void PressBinding(ButtonBinding? binding, UIInputAction action)
+    // a key from the settings. always consumes the press, even when nothing ends up acting on it.
+    private void Press(ButtonBinding? binding, UIInputAction action)
     {
         if (binding is null || !binding.Pressed)
         {
@@ -192,6 +119,43 @@ public sealed class MiaoNetUIInputAdapter : IDisposable
         }
 
         binding.ConsumePress();
+        frame.Press(action);
+    }
+
+    // a settings key held down.
+    private void Hold(ButtonBinding? binding, UIInputAction action)
+    {
+        if (binding is not null && binding.Check)
+        {
+            frame.Hold(action);
+        }
+    }
+
+    private void Press(Keys key, UIInputAction action, bool when = true)
+    {
+        if (when && MInput.Keyboard.Pressed(key))
+        {
+            frame.Press(action);
+        }
+    }
+
+    private void Hold(Keys key, UIInputAction action)
+    {
+        if (MInput.Keyboard.Check(key))
+        {
+            frame.Hold(action);
+        }
+    }
+
+    // a virtual button that repeats while held.
+    private void Repeat(VirtualButton button, UIInputAction action, bool when = true)
+    {
+        if (!when || !button.Pressed)
+        {
+            return;
+        }
+
+        button.ConsumePress();
         frame.Press(action);
     }
 
@@ -209,6 +173,9 @@ public sealed class MiaoNetUIInputAdapter : IDisposable
         lastWheelValue = wheel;
         return delta;
     }
+
+    private static bool ShiftHeld()
+        => MInput.Keyboard.Check(Keys.LeftShift) || MInput.Keyboard.Check(Keys.RightShift);
 
     private static bool ControlHeld()
         => MInput.Keyboard.Check(Keys.LeftControl) || MInput.Keyboard.Check(Keys.RightControl);

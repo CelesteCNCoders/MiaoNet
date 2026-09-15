@@ -50,7 +50,7 @@ public sealed class UiInputRouterTests
 
             foreach (UIInputRule rule in UIInputRouter.Rules)
             {
-                bool isChat = rule.Consumer == UIInputConsumer.Chat;
+                bool isChat = OwnedByChat(rule.Action);
                 UIInputRegistrations set = isChat ? Chat : PlayerList;
                 List<UIInputAction> log = isChat ? ChatFired : PlayerListFired;
 
@@ -90,6 +90,16 @@ public sealed class UiInputRouterTests
         }
     }
 
+    // ownership lives with the registration now, so the harness has to say who owns what. this
+    // mirrors what the real components claim; Seal is what checks the real one.
+    private static bool OwnedByChat(UIInputAction action) => action switch
+    {
+        UIInputAction.PlayerListToggle => false,
+        UIInputAction.PlayerListScrollUp => false,
+        UIInputAction.PlayerListScrollDown => false,
+        _ => true,
+    };
+
     // ---------------------------------------------------------------- the table itself
 
     [TestMethod]
@@ -113,7 +123,7 @@ public sealed class UiInputRouterTests
     public void Rules_RejectAnEmptyFocusList()
     {
         Assert.ThrowsExactly<ArgumentException>(
-            () => new UIInputRule(UIInputAction.Submit, UIInputConsumer.Chat));
+            () => new UIInputRule(UIInputAction.Submit));
     }
 
     // ---------------------------------------------------------------- one consumer only
@@ -362,14 +372,16 @@ public sealed class UiInputRouterTests
     }
 
     [TestMethod]
-    public void Claim_RejectsAnActionOwnedByAnotherConsumer()
+    public void Seal_RejectsTwoConsumersClaimingTheSameAction()
     {
+        // ownership comes from the registration, so nothing stops the second claim on the spot; the
+        // table is what has to notice, because one action may only ever have one owner.
         var router = new UIInputRouter();
-        UIInputRegistrations chat = router.Register(UIInputConsumer.Chat);
+        router.Register(UIInputConsumer.Chat).On(UIInputAction.PlayerListToggle, () => { });
+        router.Register(UIInputConsumer.PlayerList).OwnHeld(UIInputAction.PlayerListToggle);
 
-        InvalidOperationException error = Assert.ThrowsExactly<InvalidOperationException>(
-            () => chat.On(UIInputAction.PlayerListToggle, () => { }));
-        Assert.Contains("PlayerList", error.Message);
+        InvalidOperationException error = Assert.ThrowsExactly<InvalidOperationException>(router.Seal);
+        Assert.Contains("claimed by both", error.Message);
     }
 
     [TestMethod]
