@@ -2,15 +2,16 @@ using System;
 
 namespace Celeste.Mod.MiaoNet.UI.Input;
 
-// one row of the routing table: which module an action belongs to, and which focus states it's live
-// in.
+// one row of the routing table: an action and the focus states it's live in.
+//
+// who owns the action is not here on purpose. the consumer that registers it declares that, so
+// ownership has exactly one source; this table only answers "is it live right now".
 //
 // the focus list is the whole arbitration rule. no predicate form on purpose: an explicit list can
-// be printed, diffed and checked exhaustively, so "one consumer per action" stays true by
-// construction instead of by review.
+// be printed, diffed and checked exhaustively.
 public sealed class UIInputRule
 {
-    public UIInputRule(UIInputAction action, UIInputConsumer consumer, params UIFocusOwner[] focuses)
+    public UIInputRule(UIInputAction action, params UIFocusOwner[] focuses)
     {
         ArgumentNullException.ThrowIfNull(focuses);
         if (focuses.Length == 0)
@@ -19,13 +20,10 @@ public sealed class UIInputRule
         }
 
         Action = action;
-        Consumer = consumer;
         Focuses = focuses;
     }
 
     public UIInputAction Action { get; }
-
-    public UIInputConsumer Consumer { get; }
 
     // the focus states this action is live in; any other focus drops it.
     public UIFocusOwner[] Focuses { get; }

@@ -22,39 +22,35 @@ public sealed class UIInputRouter
         // --- opening the chat: only from the neutral state -------------------------------
         // whether the scene allows opening at all is still the consumer's call through
         // IsSuitableToOpenUI; this table only settles focus.
-        new(UIInputAction.ChatToggle, UIInputConsumer.Chat, UIFocusOwner.None),
-        new(UIInputAction.ChatCommandToggle, UIInputConsumer.Chat, UIFocusOwner.None),
+        new(UIInputAction.ChatToggle, UIFocusOwner.None),
+        new(UIInputAction.ChatCommandToggle, UIFocusOwner.None),
 
         // --- toggling the player list: never while the chat owns the keyboard -------------
         // Tab is also the completion key, and the chat wins whenever it's open.
-        new(
-            UIInputAction.PlayerListToggle,
-            UIInputConsumer.PlayerList,
-            UIFocusOwner.None,
-            UIFocusOwner.PlayerList),
+        new(UIInputAction.PlayerListToggle, UIFocusOwner.None, UIFocusOwner.PlayerList),
 
         // --- chat editing: chat focus required -------------------------------------------
-        new(UIInputAction.Submit, UIInputConsumer.Chat, UIFocusOwner.Chat),
-        new(UIInputAction.Cancel, UIInputConsumer.Chat, UIFocusOwner.Chat),
-        new(UIInputAction.ChannelPrevious, UIInputConsumer.Chat, UIFocusOwner.Chat),
-        new(UIInputAction.ChannelNext, UIInputConsumer.Chat, UIFocusOwner.Chat),
-        new(UIInputAction.HistoryUp, UIInputConsumer.Chat, UIFocusOwner.Chat),
-        new(UIInputAction.HistoryDown, UIInputConsumer.Chat, UIFocusOwner.Chat),
-        new(UIInputAction.CompletionUp, UIInputConsumer.Chat, UIFocusOwner.Chat),
-        new(UIInputAction.CompletionDown, UIInputConsumer.Chat, UIFocusOwner.Chat),
-        new(UIInputAction.CaretLeft, UIInputConsumer.Chat, UIFocusOwner.Chat),
-        new(UIInputAction.CaretRight, UIInputConsumer.Chat, UIFocusOwner.Chat),
-        new(UIInputAction.CompletionAccept, UIInputConsumer.Chat, UIFocusOwner.Chat),
-        new(UIInputAction.Paste, UIInputConsumer.Chat, UIFocusOwner.Chat),
+        new(UIInputAction.Submit, UIFocusOwner.Chat),
+        new(UIInputAction.Cancel, UIFocusOwner.Chat),
+        new(UIInputAction.ChannelPrevious, UIFocusOwner.Chat),
+        new(UIInputAction.ChannelNext, UIFocusOwner.Chat),
+        new(UIInputAction.HistoryUp, UIFocusOwner.Chat),
+        new(UIInputAction.HistoryDown, UIFocusOwner.Chat),
+        new(UIInputAction.CompletionUp, UIFocusOwner.Chat),
+        new(UIInputAction.CompletionDown, UIFocusOwner.Chat),
+        new(UIInputAction.CaretLeft, UIFocusOwner.Chat),
+        new(UIInputAction.CaretRight, UIFocusOwner.Chat),
+        new(UIInputAction.CompletionAccept, UIFocusOwner.Chat),
+        new(UIInputAction.Paste, UIFocusOwner.Chat),
 
         // --- paging the chat message list: no focus of its own ---------------------------
         // it works while walking and only the player list excludes it.
-        new(UIInputAction.ChatListScrollUp, UIInputConsumer.Chat, UIFocusOwner.None, UIFocusOwner.Chat),
-        new(UIInputAction.ChatListScrollDown, UIInputConsumer.Chat, UIFocusOwner.None, UIFocusOwner.Chat),
+        new(UIInputAction.ChatListScrollUp, UIFocusOwner.None, UIFocusOwner.Chat),
+        new(UIInputAction.ChatListScrollDown, UIFocusOwner.None, UIFocusOwner.Chat),
 
         // --- scrolling the player list: only while it is open ----------------------------
-        new(UIInputAction.PlayerListScrollUp, UIInputConsumer.PlayerList, UIFocusOwner.PlayerList),
-        new(UIInputAction.PlayerListScrollDown, UIInputConsumer.PlayerList, UIFocusOwner.PlayerList),
+        new(UIInputAction.PlayerListScrollUp, UIFocusOwner.PlayerList),
+        new(UIInputAction.PlayerListScrollDown, UIFocusOwner.PlayerList),
     ];
 
     private static readonly Dictionary<UIInputAction, UIInputRule> RulesByAction = BuildIndex();
@@ -109,11 +105,20 @@ public sealed class UIInputRouter
         }
 
         List<string>? problems = null;
+        HashSet<UIInputAction> claimed = [];
+
         foreach (UIInputRule rule in Rules)
         {
-            if (!registrations.TryGetValue(rule.Consumer, out UIInputRegistrations? set) || !set.Owns(rule.Action))
+            UIInputRegistrations? owner = OwnerOf(rule.Action);
+            if (owner is null)
             {
-                (problems ??= []).Add($"{rule.Action} is routed to {rule.Consumer}, but nothing claimed it");
+                (problems ??= []).Add($"{rule.Action} is routed, but nothing claimed it");
+                continue;
+            }
+
+            if (!claimed.Add(rule.Action))
+            {
+                (problems ??= []).Add($"{rule.Action} was claimed by more than one consumer");
             }
         }
 
@@ -121,9 +126,9 @@ public sealed class UIInputRouter
         {
             foreach (UIInputAction action in set.Owned)
             {
-                if (RuleFor(action) is not { } rule || rule.Consumer != set.Consumer)
+                if (RuleFor(action) is null)
                 {
-                    (problems ??= []).Add($"{set.Consumer} claimed {action}, which the routing table does not give it");
+                    (problems ??= []).Add($"{set.Consumer} claimed {action}, which has no routing rule");
                 }
             }
         }
@@ -186,6 +191,21 @@ public sealed class UIInputRouter
     internal UIInputRule? RuleFor(UIInputAction action)
         => RulesByAction.GetValueOrDefault(action);
 
+    // who claimed this action. ownership is declared by the registration, not by the table, so this
+    // is the one place that answers it.
+    private UIInputRegistrations? OwnerOf(UIInputAction action)
+    {
+        foreach (UIInputRegistrations set in registrations.Values)
+        {
+            if (set.Owns(action))
+            {
+                return set;
+            }
+        }
+
+        return null;
+    }
+
     internal void AddReaction(UIInputRegistrations owner, UIInputAction action, Action handler)
         => reactions.Add(new Reaction(owner, action, handler));
 
@@ -199,10 +219,7 @@ public sealed class UIInputRouter
             return;
         }
 
-        if (registrations.TryGetValue(rule.Consumer, out UIInputRegistrations? set))
-        {
-            set.Deliver(action, pressed);
-        }
+        OwnerOf(action)?.Deliver(action, pressed);
     }
 
     // indexes Rules, rejecting a duplicate action so one action can't reach two consumers.
@@ -216,14 +233,14 @@ public sealed class UIInputRouter
             {
                 (duplicates ??= new StringBuilder()).AppendLine(
                     System.Globalization.CultureInfo.InvariantCulture,
-                    $"  {rule.Action}: {index[rule.Action].Consumer} and {rule.Consumer}");
+                    $"  {rule.Action}");
             }
         }
 
         if (duplicates is not null)
         {
             throw new InvalidOperationException(
-                "an action cannot be routed to two consumers:\n" + duplicates);
+                "the routing table has duplicate rows:\n" + duplicates);
         }
 
         return index;

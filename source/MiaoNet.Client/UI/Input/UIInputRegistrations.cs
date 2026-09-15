@@ -91,18 +91,12 @@ public sealed class UIInputRegistrations
         }
     }
 
-    // claims an action, rejecting one that isn't ours or a phase we already claimed.
+    // claims an action, rejecting one with no routing rule or a phase already claimed.
     private void Claim(UIInputAction action, bool pressed)
     {
-        if (router.RuleFor(action) is not { } rule)
+        if (router.RuleFor(action) is null)
         {
             throw new InvalidOperationException($"{action} has no routing rule; add one to UIInputRouter.Rules");
-        }
-
-        if (rule.Consumer != Consumer)
-        {
-            throw new InvalidOperationException(
-                $"{Consumer} cannot claim {action}: the routing table gives it to {rule.Consumer}");
         }
 
         // one action can be both an edge and a level (the player list toggle is), but not the same

@@ -101,10 +101,10 @@ buttonBinding.Button.AutoConsumeBuffer = true;
 
 ---
 
-## 3. 路由表：动作 → 消费者
+## 3. 路由表：动作 → 生效焦点
 
-`UIInputRouter.Rules` 只声明「这个动作归谁、在哪些焦点下生效」，不写消费者的代码。
-「认领它的类」是实现侧的对端。
+`UIInputRouter.Rules` 只声明「这个动作在哪些焦点状态下生效」。它**不写归属**：谁拥有一个动作，
+由消费者注册时自己声明，归属只有一个来源。「认领它的类」是实现侧的对端。
 
 | 动作 | `None` | `Chat` | `PlayerList` | 认领它的类 |
 |---|---|---|---|---|
@@ -116,9 +116,12 @@ buttonBinding.Button.AutoConsumeBuffer = true;
 
 「—」既表示未投递，也表示该输入已被消费掉，不会落给别的消费者。
 
-`ChatListScrollUp/Down` 的消费者是 chat，但认领它的是 `UIComponent`——因为真正驱动消息列表
-滚动的是 `UIComponent`。注册句柄按**消费者**而非按类共享，所以两者拿到的是同一个
-`UIInputRegistrations`；这也是"注册是模块化"与"注册是按类划分"的区别所在。
+`ChatListScrollUp/Down` 归 chat，但认领它的是 `UIComponent`——因为真正驱动消息列表滚动的是
+`UIComponent`。注册句柄按**消费者**而非按类共享，所以 `ChatComponent` 与 `UIComponent` 拿到的是
+同一个 `UIInputRegistrations`；这也是"注册是模块化"与"注册是按类划分"的区别所在。
+
+「一个动作只有一个所有者」由 `Seal()` 强制：归属既然只由注册声明，就没有第二处能提前拦住
+第二个认领者，所以这条不变式落在启动校验里，而不是构造期。
 
 ---
 
@@ -165,7 +168,7 @@ chatInput.OwnHeld(UIInputAction.ChatListScrollUp);
 | 违反 | 后果 | 检测 |
 |---|---|---|
 | 某个动作被路由但无人认领 | 按键静默失效 | `Seal` 报 `nothing claimed it` |
-| 认领了不属于自己的动作 | 两个模块抢同一个键 | `Claim` 立即抛出 |
+| 两个消费者认领同一个动作 | 两个模块抢同一个键 | `Seal` 报 `claimed by both` |
 | 同一个动作反应注册两次 | 一次按键执行两次 | `Claim` 立即抛出 |
 | 路由表里同一动作出现两行 | 动作落到两个消费者 | 静态构造 `BuildIndex` 抛出 |
 
@@ -179,7 +182,7 @@ chatInput.OwnHeld(UIInputAction.ChatListScrollUp);
 ## 6. 如何新增一个按键
 
 1. 在 `UIInputAction` 加一个具名动作。
-2. 在 `UIInputRouter.Rules` 加一行：动作 → 消费者 + 生效焦点列表（一个动作只能有一行）。
+2. 在 `UIInputRouter.Rules` 加一行：动作 + 生效焦点列表（一个动作只能有一行）。
 3. 在 `MiaoNetUIInputAdapter.Poll` 里把物理输入翻译成 `frame.Press(...)` 或 `frame.Hold(...)`，
    并决定是否 `ConsumePress()`。
 4. 在消费者的构造里认领：`Register(consumer).On(action, ...)` 或 `.OwnHeld(action)`；
