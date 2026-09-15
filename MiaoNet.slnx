@@ -3,7 +3,7 @@
     <Project Path="source/ChatInputBox/ChatInputBox/ChatInputBox.msbuildproj" Type="13b669be-bb05-4ddf-9536-439f39a36129" />
     <Project Path="source/ChatInputBox/ChatInputBoxExample/ChatInputBoxExample.csproj" />
   </Folder>
-  <Folder Name="/Documentation/" >
+  <Folder Name="/Documentation/">
     <File Path="README.md" />
     <File Path="Contributing.md" />
     <File Path="docs/developing-MiaoNet.md" />
@@ -11,8 +11,8 @@
     <File Path="docs/coding-style.md" />
   </Folder>
   <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
     <File Path=".gitignore" />
-    <File Path="source/.editorconfig" />
     <File Path="source/Directory.Build.props" />
   </Folder>
   <Project Path="source/MiaoNet.Client/MiaoNet.Client.csproj" />
