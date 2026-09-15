@@ -66,7 +66,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
     private bool tired;
     private bool flash;
     // TODO sync hitbox size?
-    private readonly Hitbox normalHitbox = new Hitbox(8f, 16f, -4f, -16f);
+    private readonly Hitbox normalHitbox = new Hitbox(8f, 11f, -4f, -11f);
     private readonly Hitbox duckHitbox = new Hitbox(8f, 6f, -4f, -6f);
     private Hitbox hitbox;
     private readonly Holdable selfHoldable;
@@ -449,7 +449,7 @@ public sealed class MiaoNetGhost : MiaoNetGhostEntity
         {
             Logger.Error(
                 LT.MiaoNet,
-                $"Received {deltas.Length} follower deltas but there's only {followers.Count} followers."
+                $"Received {deltas.Length} follower deltas but there are only {followers.Count} followers."
             );
             // let it crash
         }

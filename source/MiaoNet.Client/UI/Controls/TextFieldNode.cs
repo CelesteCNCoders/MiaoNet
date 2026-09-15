@@ -35,6 +35,16 @@ public sealed class TextFieldNode : UINode
     // width of the text before the caret; the completion popup anchors here
     public float TextBeforeCaretWidth => renderer.Measure(Controller.TextBeforeCaret, TextStyle()).Width;
 
+    // where the ime composition starts, in logical screen coords. this is the composition start
+    // and not CaretX: the candidate window belongs at the beginning of the composition, before the
+    // part that has already been converted.
+    public float ImeAnchorX => Bounds.X + TextBeforeCaretWidth;
+
+    // logical width of the composition in progress, 0 when there is none
+    public float ImeTextWidth => Controller.ImeText is { Length: > 0 } ime
+        ? renderer.Measure(ime, TextStyle()).Width
+        : 0f;
+
     // caret x, including the consumed ime prefix
     public float CaretX
     {

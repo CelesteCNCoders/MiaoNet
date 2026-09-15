@@ -5,7 +5,7 @@ using Microsoft.Xna.Framework.Input;
 // Not "Celeste.Mod.MiaoNet.Input": that would shadow Celeste.Input (Gamepad/Jump/Rumble).
 namespace Celeste.Mod.MiaoNet.UIInput;
 
-// polls the game's input once per frame and turns it into UiInputActions. with UiInputRouter
+// polls the game's input once per frame and turns it into UiInputActions. with UIInputRouter
 // this is the only place in the client that reads UI input; components consume the arbitrated
 // result.
 //

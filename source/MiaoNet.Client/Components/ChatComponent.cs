@@ -275,7 +275,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
             AddChatMessage(packet.DateTime, received.Text, tabName, foldKey, foldedText);
         }
         else
-            Logger.Warn(LT.MiaoNet, $"Null chat message received for type {packet.Type}. Content: {packet.Content}");
+            Logger.Warn(LT.MiaoNet, $"Received a null chat message for type {packet.Type}, content: {packet.Content}.");
 
         if (received.MentionsSelf)
             Audio.Play(MiaoNetSFX.ChatMention);

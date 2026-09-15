@@ -7,7 +7,7 @@ namespace Celeste.Mod.MiaoNet.UI.Input;
 //
 // a registration is per consumer, not per class. the chat's input box and its message list are
 // different classes but the same consumer, and the routing table arbitrates by consumer, so they
-// share the handle from UiInputRouter.Register().
+// share the handle from UIInputRouter.Register().
 //
 // every action has to be claimed exactly once across all consumers. a rule with no claimant, a
 // claim with no rule, and two claimants for one action are all rejected, so "one consumer per
@@ -96,7 +96,7 @@ public sealed class UIInputRegistrations
     {
         if (router.RuleFor(action) is not { } rule)
         {
-            throw new InvalidOperationException($"{action} has no routing rule; add one to UiInputRouter.Rules");
+            throw new InvalidOperationException($"{action} has no routing rule; add one to UIInputRouter.Rules");
         }
 
         if (rule.Consumer != Consumer)

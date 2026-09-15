@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Celeste.Mod.MiaoNet.UI.Controls;
 using Celeste.Mod.MiaoNet.UI.Geometry;
 using Celeste.Mod.MiaoNet.UI.Layout;
@@ -327,5 +328,53 @@ public sealed class PlayerListUiTests
             }
         }
         return count;
+    }
+
+    // ---------------------------------------------------------------- wiring guard
+
+    // the status badges are built from GlobalFlags, and nothing notifies the list when that
+    // changes: other players arrive as a packet, and the self player's flags are written straight
+    // onto the player. the old immediate-mode renderer re-read them every frame, so a snapshot that
+    // is never refreshed shows stale badges forever and no behavioural test can see it.
+    [TestMethod]
+    public void PlayerList_WatchesGlobalFlagsForChanges()
+    {
+        string? root = FindRepoRoot();
+        if (root is null)
+        {
+            Assert.Inconclusive($"repository root not found above {AppContext.BaseDirectory}");
+            return;
+        }
+
+        string path = Path.Combine(root, "source", "MiaoNet.Client", "Components", "PlayerListComponent.Ui.cs");
+        Assert.IsTrue(File.Exists(path), $"not found: {path}");
+
+        string text = File.ReadAllText(path);
+        Assert.Contains("GlobalFlags", text, "the list has to read GlobalFlags to refresh its badges");
+
+        // and it has to do that from an update, not only when it builds the rows: building happens
+        // on UIVersion changes, which is exactly what is missing for the flags.
+        int update = text.IndexOf("override void Update", StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, update, "PlayerListComponent needs an Update that watches the flags");
+        Assert.Contains(
+            "GlobalFlags",
+            text[update..],
+            "and the GlobalFlags watch has to live in that Update, next to the version bump");
+    }
+
+    private static string? FindRepoRoot()
+    {
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "MiaoNet.slnx")))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        return null;
     }
 }

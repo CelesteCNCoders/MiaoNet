@@ -52,6 +52,6 @@ Celeste / Monocle 类型。
 测试项目则在 `source/MiaoNet.UnitTest/Chat/Color.cs` 里提供了一个同命名空间的 `Color` 垫片。
 换句话说 **`ChatTextSegment.Color` 在两侧不是同一个类型**——共享的只是源码文本。
 
-要让这条约束名副其实，需要把 `Color` 换成 `UiColor` 并删掉垫片；代价是 `MiaoNetFont`
-（世界空间文本渲染，4 处 `seg.Color * alpha`）要多一次 `UiColor` → XNA `Color` 的转换。
+要让这条约束名副其实，需要把 `Color` 换成 `UIColor` 并删掉垫片；代价是 `MiaoNetFont`
+（世界空间文本渲染，4 处 `seg.Color * alpha`）要多一次 `UIColor` → XNA `Color` 的转换。
 尚未做。

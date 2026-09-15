@@ -135,10 +135,11 @@ public class PooledStringManagerTests
 
         static byte[] SendOne(PooledString ps, PooledStringManager mgr)
         {
-            using var ms = new MemoryStream();
-            var w = new RefBinaryWriter(ms);
+            ByteArrayBufferWriter buffer = new();
+            var w = new RefBinaryWriter(buffer);
             w.Write(ps, mgr);
-            return ms.ToArray();
+            w.Flush();
+            return buffer.WrittenSpan.ToArray();
         }
 
         static string ReceiveOne(byte[] payload, PooledStringManager mgr)
@@ -169,11 +170,12 @@ public class PooledStringManagerTests
         var receiver = new PooledStringManager(Enumerable.Empty<string>());
 
         // empty string
-        using (var ms = new MemoryStream())
         {
-            var w = new RefBinaryWriter(ms);
+            ByteArrayBufferWriter buffer = new();
+            var w = new RefBinaryWriter(buffer);
             w.Write(new PooledString(""), sender);
-            var r = new RefBinaryReader(ms.ToArray());
+            w.Flush();
+            var r = new RefBinaryReader(buffer.WrittenSpan);
             var s = PooledString.Deserialize(ref r, receiver);
             Assert.AreEqual("", (string)s);
         }
@@ -181,11 +183,12 @@ public class PooledStringManagerTests
         string boundary = new string('A', PooledStringManager.MaxRemoteStringUtf8Bytes);
         Assert.AreEqual(PooledStringManager.MaxRemoteStringUtf8Bytes, Encoding.UTF8.GetByteCount(boundary));
 
-        using (var ms = new MemoryStream())
         {
-            var w = new RefBinaryWriter(ms);
+            ByteArrayBufferWriter buffer = new();
+            var w = new RefBinaryWriter(buffer);
             w.Write(new PooledString(boundary), sender);
-            var r = new RefBinaryReader(ms.ToArray());
+            w.Flush();
+            var r = new RefBinaryReader(buffer.WrittenSpan);
             var s = PooledString.Deserialize(ref r, receiver);
             Assert.AreEqual(boundary, (string)s);
         }
@@ -366,20 +369,22 @@ public class PooledStringManagerTests
         var payloads = new byte[values.Length][];
         for (int i = 0; i < values.Length; i++)
         {
-            using var ms = new MemoryStream();
-            var w = new RefBinaryWriter(ms);
+            ByteArrayBufferWriter buffer = new();
+            var w = new RefBinaryWriter(buffer);
             w.Write(values[i], sender);
-            var r = new RefBinaryReader(ms.ToArray());
+            w.Flush();
+            var r = new RefBinaryReader(buffer.WrittenSpan);
             Assert.AreEqual(values[i].Value, (string)PooledString.Deserialize(ref r, receiver));
         }
 
         // References to IDs already learned are safe to resolve concurrently and out of order.
         for (int i = 0; i < values.Length; i++)
         {
-            using var ms = new MemoryStream();
-            var w = new RefBinaryWriter(ms);
+            ByteArrayBufferWriter buffer = new();
+            var w = new RefBinaryWriter(buffer);
             w.Write(values[i], sender);
-            payloads[i] = ms.ToArray();
+            w.Flush();
+            payloads[i] = buffer.WrittenSpan.ToArray();
         }
 
         Parallel.For(0, payloads.Length, i =>

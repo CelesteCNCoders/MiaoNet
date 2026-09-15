@@ -39,6 +39,9 @@ public sealed class ChatMessageListNode : VirtualListNode
 
     public float TextOpacity { get; set; } = 1f;
 
+    // FancyFoldCounter: off draws the fold counter as a plain static label
+    public bool FancyCounter { get; set; } = true;
+
     // line height plus padding; also the virtual list's item extent.
     public float MessageLineHeight => LineHeight + (2f * MessagePaddingY);
 
@@ -85,7 +88,7 @@ public sealed class ChatMessageListNode : VirtualListNode
             return;
         }
 
-        message.ApplyMetrics(MessagePaddingY, LineHeight, Scale, BackgroundOpacity, TextOpacity);
+        message.ApplyMetrics(MessagePaddingY, LineHeight, Scale, BackgroundOpacity, TextOpacity, FancyCounter);
 
         object key = source.GetKey(index);
         message.Fade = controller.FadeOf(key);

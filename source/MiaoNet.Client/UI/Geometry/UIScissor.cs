@@ -21,11 +21,11 @@ public readonly record struct UiTransform2D(
             (point.X * M12) + (point.Y * M22) + M42);
 }
 
-// integer pixel bounds produced by UiScissor.Map
+// integer pixel bounds produced by UIScissor.Map
 public readonly record struct UiPixelRect(int X, int Y, int Width, int Height);
 
 // maps a logical rect onto backbuffer scissor coordinates.
-// separated from MiaoNetUiCanvas so the arithmetic fed to GraphicsDevice.ScissorRectangle can
+// separated from MiaoNetUICanvas so the arithmetic fed to GraphicsDevice.ScissorRectangle can
 // be unit tested: getting it wrong silently clips the ui, and it's the one part of the render
 // path you can't really check in-game (the player list viewport is the whole screen anyway).
 public static class UIScissor

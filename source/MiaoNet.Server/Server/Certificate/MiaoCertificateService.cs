@@ -40,7 +40,7 @@ public sealed class MiaoCertificateService : BackgroundService, IMiaoCertificate
         cert = newCert;
         logger.LogInformation(
             AppEvents.Certificate,
-            "Reloaded, not before: {a}, not after: {b}, name: {c}.",
+            "Certificate reloaded, not before: {a}, not after: {b}, name: {c}.",
             cert.NotBefore,
             cert.NotAfter,
             cert.SubjectName.Name
@@ -52,19 +52,19 @@ public sealed class MiaoCertificateService : BackgroundService, IMiaoCertificate
 
     private void CheckAndReload()
     {
-        logger.LogInformation(AppEvents.Certificate, "Check if certificate is reload needed...");
+        logger.LogInformation(AppEvents.Certificate, "Checking if the certificate needs to be reloaded...");
         var certModifiedTime = File.GetLastWriteTimeUtc(certPath);
         var KeyModifiedTime = File.GetLastWriteTimeUtc(keyPath);
         if (lastCertModifiedTime != certModifiedTime || lastKeyModifiedTime != KeyModifiedTime)
         {
-            logger.LogInformation(AppEvents.Certificate, "Certificate modified: cert: {cd}, key: {kd}.", certModifiedTime, KeyModifiedTime);
+            logger.LogInformation(AppEvents.Certificate, "Certificate files modified: cert {cd}, key {kd}.", certModifiedTime, KeyModifiedTime);
             lastCertModifiedTime = certModifiedTime;
             lastKeyModifiedTime = KeyModifiedTime;
             Reload();
         }
         else
         {
-            logger.LogInformation(AppEvents.Certificate, "No need to reload certificate.");
+            logger.LogInformation(AppEvents.Certificate, "Certificate reload is not needed.");
         }
     }
 

@@ -63,7 +63,7 @@ public abstract class UINode
     // whether hittest can return this node itself.
     public bool IsHitTestVisible { get; set; } = true;
 
-    // paint-only opacity, multiplied into the inherited one. unlike UiStyle.Opacity it doesn't
+    // paint-only opacity, multiplied into the inherited one. unlike UIStyle.Opacity it doesn't
     // invalidate measurement, so edge fading can tweak it every frame without a relayout.
     public float Opacity { get; set; } = 1f;
 

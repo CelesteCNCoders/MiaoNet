@@ -5,7 +5,7 @@ using Celeste.Mod.MiaoNet.UI.Input;
 
 namespace MiaoNet.UnitTest;
 
-// the arbitration contract of UiInputRouter. these tests watch routing the way a consumer does:
+// the arbitration contract of UIInputRouter. these tests watch routing the way a consumer does:
 // register reactions and see which ones fire. nothing reads a routing result directly, so a
 // reaction that stops being delivered fails even if the table still looks fine.
 [TestClass]

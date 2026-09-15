@@ -41,7 +41,7 @@
 |---|---|---|
 | `GLOBAL.SCALE` | 缩放值 | `s = 0.25 * 3.2^t`，`t = clamp((v-1)/19, 0, 1)`，`v ∈ [1,20]` 整数设置值 |
 
-由 `UiScale.FromSetting` 计算；玩家列表与聊天各用一份缩放值（`PlayerListUIScaleValue` / `ChatUIScaleValue`）。
+由 `UIScale.FromSetting` 计算；玩家列表与聊天各用一份缩放值（`PlayerListUIScaleValue` / `ChatUIScaleValue`）。
 
 参考值表：
 
@@ -74,7 +74,7 @@
 | `GLOBAL.SNAP.COMPLETION` | 补全浮层像素对齐 | 否 |
 | `GLOBAL.SNAP.PLAYLIST` | 玩家列表像素对齐 | 否 |
 
-由 `UiStyle.PixelSnap` 控制：默认关，聊天消息与标签栏打开。统一开启或统一关闭会改变外观。
+由 `UIStyle.PixelSnap` 控制：默认关，聊天消息与标签栏打开。统一开启或统一关闭会改变外观。
 
 ---
 
@@ -489,7 +489,7 @@ totalMaxLineWidth = maxLineWidth + maxPingWidth + 2 * PL.ROW.PAD_X
 | `COLOR.PL.MAP_SIDE` | `Lerp(TitleAccentColor, LightGray, 0.8)` | 区域模式 |
 | `COLOR.PL.ICON` | `Color.White` | 全部状态图标 |
 
-全部颜色收敛为 `MiaoNetUiTheme` 的命名样式；节点内不出现字面颜色。
+全部颜色收敛为 `MiaoNetUITheme` 的命名样式；节点内不出现字面颜色。
 
 ---
 
@@ -497,18 +497,18 @@ totalMaxLineWidth = maxLineWidth + maxPingWidth + 2 * PL.ROW.PAD_X
 
 | 参数组 | 承载节点/样式 |
 |---|---|
-| `GLOBAL.SCALE` / `GLOBAL.LH` | `UiScale.FromSetting`、`MiaoNetFont.ENZhsLineHeight`、各节点的 `Scale` / `LineHeight` |
+| `GLOBAL.SCALE` / `GLOBAL.LH` | `UIScale.FromSetting`、`MiaoNetFont.ENZhsLineHeight`、各节点的 `Scale` / `LineHeight` |
 | `GLOBAL.ANCHOR.*` | `TextStyle.HorizontalAnchor` / `VerticalAnchor`（`TextNode`） |
-| `GLOBAL.SNAP.*` | `UiStyle.PixelSnap` |
-| `CHAT.MSG.*` | `ChatMessageNode` + `ChatLayout` + `MiaoNetUiTheme.Chat` |
+| `GLOBAL.SNAP.*` | `UIStyle.PixelSnap` |
+| `CHAT.MSG.*` | `ChatMessageNode` + `ChatLayout` + `MiaoNetUITheme.Chat` |
 | `CHAT.LIST.*` | `ChatMessageListNode`（`VirtualListNode`）+ `ChatListController` + `ChatScreenNode` |
 | `CHAT.ANIM.*` | `ChatListController` + `ChatMessageNode` |
 | `ANIM.COUNTER.*` | `FoldCounter` |
-| `CHAT.TAB.*` | `ChatTabBarNode` + `MiaoNetUiTheme.Tab` |
-| `CHAT.INPUT.*` | `ChatInputNode` + `TextFieldNode` + `TextEditingController` + `MiaoNetUiTheme.Input` |
-| `CHAT.COMPL.*` | `CompletionPopupNode` + `MiaoNetUiTheme.Completion` |
+| `CHAT.TAB.*` | `ChatTabBarNode` + `MiaoNetUITheme.Tab` |
+| `CHAT.INPUT.*` | `ChatInputNode` + `TextFieldNode` + `TextEditingController` + `MiaoNetUITheme.Input` |
+| `CHAT.COMPL.*` | `CompletionPopupNode` + `MiaoNetUITheme.Completion` |
 | `PL.PANEL.*` | `PlayerListPanelNode`（`ScrollNode`）+ `PlayerListChannelNode` + `PlayerListLayout` |
 | `PL.ROW.*` | `PlayerRowNode` + `PlayerListMetrics` + `PlayerListLayout` |
 | `PL.ICON.*` | `PlayerRowNode` + `PlayerListMetrics` + `PlayerListIcons` |
 | `PL.SCROLL.*` | `PlayerListController` |
-| `COLOR.*` | `MiaoNetUiTheme` |
+| `COLOR.*` | `MiaoNetUITheme` |

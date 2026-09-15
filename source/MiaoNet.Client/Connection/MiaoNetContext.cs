@@ -156,7 +156,6 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         long generation = connectionLifecycle.Begin();
 #if USE_CELEMIAO_AUTH
         string? authenticationCode = ClientRC.AuthenticationCode;
-        ClientRC.AuthenticationCode = null;
         ConnectionOperation operation = new(
             generation,
             ShowAvatar,
@@ -216,7 +215,6 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         // Stop publishing the connection before invoking extensible cleanup code.
         // A cleanup callback can fail or re-enter this method, but observers must
         // never see a live connection paired with an already-cleared client state.
-        bool hadConnection = connection is not null;
         activeConnectionOperation = null;
         connection = null;
         clientState = null;
@@ -249,8 +247,6 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         [
             new("close connection operation", () => operation.CloseConnection(false)),
         ];
-        if (hadConnection)
-            finalSteps.Add(new("persist avatar state", AvatarManager.PersistStateToDisk));
 
         List<CleanupFailure> failures = [.. BestEffortCleanup.Run(cleanupSteps, finalSteps)];
 
@@ -304,7 +300,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         }
         catch (Exception e)
         {
-            Logger.Error(LT.MiaoNet, "Exception occurred during updating!");
+            Logger.Error(LT.MiaoNet, "Exception occurred while updating.");
             Logger.LogDetailed(e, LT.MiaoNet);
             DisconnectByException(e);
         }
@@ -322,6 +318,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             MiaoNetModule.Settings.TokenData = operation.RefreshedAuthenticationData;
             Logger.Info(LT.MiaoNetConnection, "Server sent new auth data, accepted.");
         }
+        ClientRC.AuthenticationCode = null;
 #endif
         clientState = new(packetClientInitial);
         PlayerPresenceMessage = packetClientInitial.PlayerPresenceMessage;
@@ -379,7 +376,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
             if (!Uri.TryCreate(playerInfo.AvatarUrl, UriKind.Absolute, out Uri? uri))
             {
-                Logger.Warn(LT.MiaoNetAvatar, $"Invalid url \"{playerInfo.AvatarUrl}\" for player {playerInfo.DisplayName}.");
+                Logger.Warn(LT.MiaoNetAvatar, $"Invalid URL \"{playerInfo.AvatarUrl}\" for player {playerInfo.DisplayName}.");
                 QueueForOperation(operation.Generation, () =>
                 {
                     Emoji.Register(sid, GFX.Gui["miaonet/missing_avatar"], 64, 64);
@@ -388,7 +385,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                 return;
             }
 
-            string avatarPath = await AvatarManager.GetAsync(uri).ConfigureAwait(false);
+            string avatarPath = await AvatarManager.GetAsync(uri);
 
             QueueForOperation(operation.Generation, () =>
             {
@@ -399,7 +396,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
                 }
                 catch (Exception e)
                 {
-                    Logger.Error(LT.MiaoNetAvatar, $"Failed to create texture of \"{playerInfo.AvatarUrl}\" for player {playerInfo.DisplayName}");
+                    Logger.Error(LT.MiaoNetAvatar, $"Failed to create a texture from \"{playerInfo.AvatarUrl}\" for player {playerInfo.DisplayName}.");
                     Logger.LogDetailed(e);
                     tex = GFX.Gui["miaonet/missing_avatar"];
                 }
@@ -411,8 +408,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         {
             Logger.Error(
                 LT.MiaoNetAvatar,
-                $"Error on avatar preparing for player \"{playerInfo}\" " +
-                $"of id {playerID} with url {playerInfo.AvatarUrl}."
+                $"Error while preparing the avatar of {playerInfo} (id {playerID}), url: {playerInfo.AvatarUrl}."
             );
             Logger.LogDetailed(e);
         }
@@ -459,7 +455,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         }
         catch (Exception e)
         {
-            Logger.Error(LT.MiaoNet, "Exception occurred during rendering!");
+            Logger.Error(LT.MiaoNet, "Exception occurred while rendering.");
             Logger.LogDetailed(e, LT.MiaoNet);
             DisconnectByException(e);
         }

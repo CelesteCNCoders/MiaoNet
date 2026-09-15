@@ -3,7 +3,7 @@ using Celeste.Mod.MiaoNet.UI.Styling;
 
 namespace Celeste.Mod.MiaoNet.UI.Rendering;
 
-// IUiTexture over a Monocle texture, for the avatar-less status icons such as paused,
+// IUITexture over a Monocle texture, for the avatar-less status icons such as paused,
 // live mode, taking golden and the debug map marker.
 public sealed class MiaoNetTexture : IUITexture
 {

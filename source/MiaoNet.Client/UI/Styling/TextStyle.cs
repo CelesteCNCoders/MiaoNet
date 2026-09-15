@@ -30,7 +30,7 @@ public enum VerticalAnchor
 }
 
 // per-text drawing attributes; immutable so it can be shared and combined with `with`.
-// the actual text backend comes from UiStyle.TextRenderer.
+// the actual text backend comes from UIStyle.TextRenderer.
 public sealed record TextStyle
 {
     public static readonly TextStyle Default = new();

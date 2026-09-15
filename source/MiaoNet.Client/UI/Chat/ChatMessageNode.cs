@@ -35,6 +35,10 @@ public sealed class ChatMessageNode : UINode
 
     public float Scale { get; set; } = 1f;
 
+    // FancyFoldCounter: when off the counter is a plain static label, no pop, no shake, no
+    // rainbow, and the row does not reserve shake width for it.
+    public bool FancyCounter { get; set; } = true;
+
     // from ChatBackgroundOpacity.
     public float BackgroundOpacity { get; set; } = 0.5f;
 
@@ -57,17 +61,20 @@ public sealed class ChatMessageNode : UINode
         float lineHeight,
         float scale,
         float backgroundOpacity,
-        float textOpacity)
+        float textOpacity,
+        bool fancyCounter)
     {
         bool measureDirty = MessagePaddingY != messagePaddingY
             || LineHeight != lineHeight
-            || Scale != scale;
+            || Scale != scale
+            || FancyCounter != fancyCounter;
 
         MessagePaddingY = messagePaddingY;
         LineHeight = lineHeight;
         Scale = scale;
         BackgroundOpacity = backgroundOpacity;
         TextOpacity = textOpacity;
+        FancyCounter = fancyCounter;
 
         if (measureDirty)
         {
@@ -154,10 +161,18 @@ public sealed class ChatMessageNode : UINode
 
     private float CounterScale()
     {
+        if (!FancyCounter)
+        {
+            return 1f;
+        }
+
         float progress = Math.Clamp(CounterPopProgress, 0f, 1f);
         return FoldCounter.GetScale(row.RepeatCount)
             + FoldCounter.GetPopScale(ChatLayout.ElasticOut(progress));
     }
+
+    private float CounterShake()
+        => FancyCounter ? FoldCounter.GetShakeAmplitude(row.RepeatCount) * Scale : 0f;
 
     private float CounterWidth()
     {
@@ -165,7 +180,7 @@ public sealed class ChatMessageNode : UINode
         float scale = Scale * CounterScale();
         float text = renderer.Measure(CounterText(), RunStyle(UIColor.White) with { Scale = scale }).Width;
         float gap = ChatLayout.CounterGap * Scale;
-        return gap + text + (FoldCounter.GetShakeAmplitude(row.RepeatCount) * Scale);
+        return gap + text + CounterShake();
     }
 
     private string CounterText() => $"X{row.RepeatCount}";
@@ -174,7 +189,7 @@ public sealed class ChatMessageNode : UINode
     {
         float scale = Scale * CounterScale();
         float gap = ChatLayout.CounterGap * Scale;
-        float shake = FoldCounter.GetShakeAmplitude(row.RepeatCount) * Scale;
+        float shake = CounterShake();
 
         var offset = new UIOffset(0f, 0f);
         if (shake > 0f)
@@ -184,8 +199,12 @@ public sealed class ChatMessageNode : UINode
                 ((Random.Shared.NextSingle() * 2f) - 1f) * shake);
         }
 
-        RgbColor rgb = FoldCounter.GetColor(row.RepeatCount, CounterAnimClock);
-        var color = new UIColor(rgb.R, rgb.G, rgb.B, 1f);
+        UIColor color = UIColor.White;
+        if (FancyCounter)
+        {
+            RgbColor rgb = FoldCounter.GetColor(row.RepeatCount, CounterAnimClock);
+            color = new UIColor(rgb.R, rgb.G, rgb.B, 1f);
+        }
 
         // centred on the row so the pop animation grows symmetrically.
         float centerY = Bounds.Y + (MessageLineHeight * 0.5f);

@@ -281,13 +281,14 @@ public sealed class ChatUiTests
         Runs = [new ChatTextRun(new string('m', characters), UIColor.White, TextDecoration.None)],
     };
 
-    private static ChatMessageNode MeasureRow(ChatMessageRow row, float messagePadding)
+    private static ChatMessageNode MeasureRow(ChatMessageRow row, float messagePadding, bool fancyCounter = true)
     {
         var node = new ChatMessageNode(new FakeTextRenderer(), row)
         {
             LineHeight = LineHeight,
             MessagePaddingY = messagePadding,
             Scale = 1f,
+            FancyCounter = fancyCounter,
         };
         node.Measure(new BoxConstraints(0f, float.PositiveInfinity, node.MessageLineHeight, node.MessageLineHeight));
         return node;
@@ -306,6 +307,89 @@ public sealed class ChatUiTests
     {
         // B3: 10 characters * 10 + 2 * 8 = 116
         AssertClose(116f, MeasureRow(Row(10), 4f).MeasuredSize.Width, "B3 background width");
+    }
+
+    [TestMethod]
+    public void FoldCounter_SubtleModeDropsThePopScaleAndShakeWidth()
+    {
+        // CHAT.ANIM.COUNTER_FANCY: with FancyFoldCounter off the counter is a plain X{n} at scale 1
+        // with no shake, so the row must not reserve pop-scale or shake width either.
+        var folded = new ChatMessageRow
+        {
+            StableKey = new object(),
+            RepeatCount = 30,
+            Runs = [new ChatTextRun("m", UIColor.White, TextDecoration.None)],
+        };
+
+        ChatMessageNode fancy = MeasureRow(folded, 4f, fancyCounter: true);
+        ChatMessageNode subtle = MeasureRow(folded, 4f, fancyCounter: false);
+
+        Assert.IsGreaterThan(
+            subtle.MeasuredSize.Width,
+            fancy.MeasuredSize.Width,
+            "the animated counter reserves pop scale and shake width, the subtle one does not");
+    }
+
+    [TestMethod]
+    public void FoldCounter_SubtleModeDrawsTheCounterUnscaled()
+    {
+        var folded = new ChatMessageRow
+        {
+            StableKey = new object(),
+            RepeatCount = 30,
+            Runs = [new ChatTextRun("m", UIColor.White, TextDecoration.None)],
+        };
+
+        AssertClose(
+            1f,
+            CounterDrawScale(folded, fancyCounter: false),
+            "subtle: the counter is drawn at the row scale, with no pop scale");
+        Assert.IsGreaterThan(
+            1f,
+            CounterDrawScale(folded, fancyCounter: true),
+            "fancy: the pop animation scales the counter up");
+    }
+
+    // draws a folded row and returns the scale the counter itself was drawn at
+    private static float CounterDrawScale(ChatMessageRow row, bool fancyCounter)
+    {
+        var renderer = new RecordingTextRenderer();
+        var node = new ChatMessageNode(renderer, row)
+        {
+            LineHeight = LineHeight,
+            MessagePaddingY = 4f,
+            Scale = 1f,
+            FancyCounter = fancyCounter,
+            Fade = 1f,
+            CounterPopProgress = 1f,
+        };
+        node.Measure(new BoxConstraints(0f, float.PositiveInfinity, node.MessageLineHeight, node.MessageLineHeight));
+        node.Arrange(new UIRect(0f, 0f, node.MeasuredSize.Width, node.MeasuredSize.Height));
+        node.PaintTree(new RecordingCanvas(), 1f);
+
+        string counter = $"X{row.RepeatCount}";
+        foreach ((string text, TextStyle style) in renderer.Draws)
+        {
+            if (text == counter)
+            {
+                return style.Scale;
+            }
+        }
+
+        Assert.Fail($"the counter {counter} was never drawn");
+        return 0f;
+    }
+
+    private sealed class RecordingTextRenderer : ITextRenderer
+    {
+        public readonly List<(string Text, TextStyle Style)> Draws = [];
+
+        public UISize Measure(string text, TextStyle style) => new(text.Length * CharWidth * style.Scale, 12f * style.Scale);
+
+        public void Draw(IUICanvas canvas, string text, UIOffset position, TextStyle style)
+            => Draws.Add((text, style));
+
+        public bool CanRender(int character, TextStyle style) => true;
     }
 
     [TestMethod]

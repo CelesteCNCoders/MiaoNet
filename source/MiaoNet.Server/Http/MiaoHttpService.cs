@@ -54,7 +54,7 @@ public sealed partial class MiaoHttpService : BackgroundService
     public override Task StartAsync(CancellationToken cancellationToken)
     {
         httpListener.Start();
-        logger.LogInformation(AppEvents.Http, "HttpListener start to listen on {ps}.", string.Join(';', httpListener.Prefixes));
+        logger.LogInformation(AppEvents.Http, "HttpListener started, listening on {ps}.", string.Join(';', httpListener.Prefixes));
 
         return base.StartAsync(cancellationToken);
     }
@@ -87,46 +87,36 @@ public sealed partial class MiaoHttpService : BackgroundService
     {
         try
         {
-            Uri? uri = context.Request.Url;
-            if (uri is null)
+            try
             {
-                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                return;
+                Uri? uri = context.Request.Url;
+                if (uri is null)
+                {
+                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                    return;
+                }
+
+                string path = uri.AbsolutePath;
+                NameValueCollection query = HttpUtility.ParseQueryString(uri.Query);
+
+                if (requestHandlers.TryGetValue(path, out var handler))
+                    await handler(query, context);
+                else
+                    context.Response.StatusCode = (int)HttpStatusCode.NotFound;
             }
-
-            string path = uri.AbsolutePath;
-            NameValueCollection query = HttpUtility.ParseQueryString(uri.Query);
-
-            await HandleRequestAsync(path, query, context);
+            catch (Exception e)
+            {
+                logger.LogError(AppEvents.Http, e, "Error while handling request \"{url}\" from {ep}.", context.Request.RawUrl, context.Request.RemoteEndPoint);
+                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+            }
+            finally
+            {
+                context.Response.Close();
+            }
         }
         catch (Exception e)
         {
-            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-            logger.LogError(AppEvents.Http, e, "Error when handling request \"{url}\" from {ep}", context.Request.RawUrl, context.Request.RemoteEndPoint);
-        }
-        finally
-        {
-            context.Response.Close();
-        }
-    }
-
-    private async Task HandleRequestAsync(string path, NameValueCollection query, HttpListenerContext context)
-    {
-        try
-        {
-            if (requestHandlers.TryGetValue(path, out var handler))
-                await handler(query, context);
-            else
-                context.Response.StatusCode = (int)HttpStatusCode.NotFound;
-        }
-        catch (Exception e)
-        {
-            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-            logger.LogError(
-                AppEvents.Http, e,
-                "Error when handling request \"{url}\" from {ep}",
-                context.Request.RawUrl, context.Request.RemoteEndPoint
-            );
+            logger.LogError(AppEvents.Http, e, "Failed to finish request \"{url}\".", context.Request.RawUrl);
         }
     }
 

@@ -10,9 +10,9 @@
 | 门控 | 定义位置 | 作用 |
 |---|---|---|
 | `HasConnection` | `MiaoNetContext.Update` | 为假时 `components.ForEach(Update)` 不执行 → **所有** MiaoNet 按键失效 |
-| `active`（`ChatComponent`） | 聊天组件 | 打开聊天输入框；与 `UiFocusOwner.Chat` 同步 |
+| `active`（`ChatComponent`） | 聊天组件 | 打开聊天输入框；与 `UIFocusOwner.Chat` 同步 |
 | `IsSuitableToOpenUI` | `MiaoNetContext` | 打开任一 UI 的前置条件；**不**门控已打开的 UI 的按键 |
-| `HasComponentFocus` | `MiaoNetContext` | `UiInput.HasFocus` 的只读投影：为真时 `IsSuitableToOpenUI` 为假 |
+| `HasComponentFocus` | `MiaoNetContext` | `UIInput.HasFocus` 的只读投影：为真时 `IsSuitableToOpenUI` 为假 |
 | `playerList.IsOpen` | `UIComponent` | 玩家列表与聊天列表滚动的互斥；也为假时 `PageUp`/`PageDown`/滚轮归聊天列表 |
 | `settings.Fireworks` + `!level.Paused` + 冷却 | `MainComponent` | 烟花按键 |
 | `settings.EnableEmoteWheel` + `MInput.ControllerHasFocus` | `EmoteComponent` | 手柄接管时才启用表情轮盘 |
@@ -37,7 +37,7 @@
 
 「吞噬」列说明该输入是否被标记为已消费，以及用什么手段。
 
-### 2.1 聊天：打开路径（`UiFocusOwner.None`）
+### 2.1 聊天：打开路径（`UIFocusOwner.None`）
 
 | 动作 | 绑定来源 | 默认键 | 行为 | 吞噬 |
 |---|---|---|---|---|
@@ -46,7 +46,7 @@
 
 > 两者是各自独立的设置项绑定，不互斥。
 
-### 2.2 聊天：编辑路径（`UiFocusOwner.Chat`）
+### 2.2 聊天：编辑路径（`UIFocusOwner.Chat`）
 
 进入此焦点后 `Engine.Scene.Paused = true`。
 
@@ -103,7 +103,7 @@ buttonBinding.Button.AutoConsumeBuffer = true;
 
 ## 3. 路由表：动作 → 消费者
 
-`UiInputRouter.Rules` 只声明「这个动作归谁、在哪些焦点下生效」，不写消费者的代码。
+`UIInputRouter.Rules` 只声明「这个动作归谁、在哪些焦点下生效」，不写消费者的代码。
 「认领它的类」是实现侧的对端。
 
 | 动作 | `None` | `Chat` | `PlayerList` | 认领它的类 |
@@ -118,13 +118,13 @@ buttonBinding.Button.AutoConsumeBuffer = true;
 
 `ChatListScrollUp/Down` 的消费者是 chat，但认领它的是 `UIComponent`——因为真正驱动消息列表
 滚动的是 `UIComponent`。注册句柄按**消费者**而非按类共享，所以两者拿到的是同一个
-`UiInputRegistrations`；这也是"注册是模块化"与"注册是按类划分"的区别所在。
+`UIInputRegistrations`；这也是"注册是模块化"与"注册是按类划分"的区别所在。
 
 ---
 
 ## 4. 焦点归属
 
-| 开着的是 | `UiFocusOwner` |
+| 开着的是 | `UIFocusOwner` |
 |---|---|
 | 都没开 | `None` |
 | 聊天输入框 | `Chat` |
@@ -133,10 +133,10 @@ buttonBinding.Button.AutoConsumeBuffer = true;
 焦点由输入层**显式持有**，而不是散落的可写标志：它由「实际开着什么」决定，因此不会像可写
 标志那样被遗忘而卡住。
 
-- `UiInput.SetFocus(...)` 在打开与关闭时由组件调用：`ChatComponent.Activate`/`Deactivate`
+- `UIInput.SetFocus(...)` 在打开与关闭时由组件调用：`ChatComponent.Activate`/`Deactivate`
   设置 `Chat`/`None`，`UIComponent` 在玩家列表开关时设置 `PlayerList`/`None`。
 - 断线时由 `MiaoNetContext` 复位为 `None`；`UIComponent.OnDisconnected` 在列表开着时同样显式释放。
-- `MiaoNetContext.HasComponentFocus` 是 `UiInput.HasFocus` 的**只读投影**，不再可写。
+- `MiaoNetContext.HasComponentFocus` 是 `UIInput.HasFocus` 的**只读投影**，不再可写。
 
 ---
 
@@ -145,12 +145,12 @@ buttonBinding.Button.AutoConsumeBuffer = true;
 消费者在构造时通过 `Register` 认领路由表给它的动作；注册是幂等的，同一个消费者拿到同一个句柄。
 
 ```csharp
-input = context.UiInput.Register(UiInputConsumer.Chat);   // 幂等：同一个消费者拿到同一个句柄
-input.On(UiInputAction.Cancel, CancelEditing);            // 边沿反应
-input.On(UiInputAction.Submit, SubmitEditing);
+input = context.UIInput.Register(UIInputConsumer.Chat);   // 幂等：同一个消费者拿到同一个句柄
+input.On(UIInputAction.Cancel, CancelEditing);            // 边沿反应
+input.On(UIInputAction.Submit, SubmitEditing);
 // "按住"是电平而非事件，因此认领后轮询，而不是配一个每帧重置的假反应
-chatInput.OwnHeld(UiInputAction.ChatListScrollUp);
-... if (chatInput.IsHeld(UiInputAction.ChatListScrollUp)) delta += ...;
+chatInput.OwnHeld(UIInputAction.ChatListScrollUp);
+... if (chatInput.IsHeld(UIInputAction.ChatListScrollUp)) delta += ...;
 ```
 
 **边沿 vs 按住**：
@@ -178,9 +178,9 @@ chatInput.OwnHeld(UiInputAction.ChatListScrollUp);
 
 ## 6. 如何新增一个按键
 
-1. 在 `UiInputAction` 加一个具名动作。
-2. 在 `UiInputRouter.Rules` 加一行：动作 → 消费者 + 生效焦点列表（一个动作只能有一行）。
-3. 在 `MiaoNetUiInputAdapter.Poll` 里把物理输入翻译成 `frame.Press(...)` 或 `frame.Hold(...)`，
+1. 在 `UIInputAction` 加一个具名动作。
+2. 在 `UIInputRouter.Rules` 加一行：动作 → 消费者 + 生效焦点列表（一个动作只能有一行）。
+3. 在 `MiaoNetUIInputAdapter.Poll` 里把物理输入翻译成 `frame.Press(...)` 或 `frame.Hold(...)`，
    并决定是否 `ConsumePress()`。
 4. 在消费者的构造里认领：`Register(consumer).On(action, ...)` 或 `.OwnHeld(action)`；
    新的消费者需要自己的 `Register`。

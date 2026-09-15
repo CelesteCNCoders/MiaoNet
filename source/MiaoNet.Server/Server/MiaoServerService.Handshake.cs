@@ -48,23 +48,22 @@ partial class MiaoServerService
         when (e.CancellationToken == cts.Token)
         {
             networkConnection?.Dispose();
-            pendingConnection.Dispose();
-            logger.LogInformation(AppEvents.Connection, "{addr} Handshake timeouted.", addr);
+            logger.LogInformation(AppEvents.Connection, "{addr} handshake timed out.", addr);
             return;
         }
         catch (Exception e)
         {
             networkConnection?.Dispose();
-            pendingConnection.Dispose();
             logger.LogError(
                 AppEvents.Connection, e,
-                "Error when completing pending connection({addr}).",
+                "Error while completing pending connection from {addr}.",
                 addr
             );
             return;
         }
         finally
         {
+            pendingConnection.Dispose();
             cts.Dispose();
         }
 
@@ -117,7 +116,7 @@ partial class MiaoServerService
                     BinaryPrimitives.WriteUInt16LittleEndian(span[5..7], build);
                     logger.LogInformation(
                         AppEvents.Connection,
-                        "{addr} version {v1}.{v2}.{v3} does not match current version.",
+                        "{addr} version {v1}.{v2}.{v3} does not match the server version.",
                         networkConnection.RemoteAddress, majorClient, minorClient, buildClient
                     );
                     await stream.WriteAsync(memory[0..(1 + VersionLength)], token);
@@ -159,33 +158,39 @@ partial class MiaoServerService
             {
                 var memory = buffer.AsMemory(0, size);
                 await stream.ReadExactlyAsync(memory, token);
-                var span = memory.Span;
-                RefBinaryReader reader = new(span);
-                handshakeData = reader.Read<HandshakeData>();
+                handshakeData = RefBinarySerialization.Deserialize<HandshakeData>(memory.Span);
             }
             finally
             {
                 pool.Return(buffer);
             }
 
-            var authResult = await authenticator.AuthenticateAsync(
-                handshakeData.AuthenticationData,
-                handshakeData.IsAuthorize,
-                token
-            );
+            AuthenticationResult authResult;
+            using (logger.BeginScope("connection {addr}", networkConnection.RemoteAddress))
+            {
+                authResult = await authenticator.AuthenticateAsync(
+                    handshakeData.AuthenticationData,
+                    handshakeData.IsAuthorize,
+                    token
+                );
+            }
+
+            if (authResult.IsFailed)
+            {
+                logger.LogInformation(
+                    AppEvents.Auth,
+                    "{addr} failed to authenticate: {result}.",
+                    networkConnection.RemoteAddress,
+                    authResult.Type
+                );
+            }
 
             string? failedReason = authResult.IsFailed ? authResult.SuspendMessage : null;
             HandshakeAckData ack = new(authResult.Type, authResult.TokenData, failedReason);
 
-            MemoryStream ms = new(32);
-            ms.Seek(2, SeekOrigin.Begin);
-            RefBinaryWriter writer = new(ms);
-            writer.Write(ack);
-            ushort ackSize = (ushort)(ms.Position - sizeof(ushort));
-            ms.Seek(0, SeekOrigin.Begin);
-            writer.Write(ackSize);
-            Memory<byte> memoryToSend = ms.GetBuffer().AsMemory(0, ackSize + sizeof(ushort));
-            await stream.WriteAsync(memoryToSend, token);
+            ByteArrayBufferWriter frame = new(32);
+            PacketFraming.WriteSizePrefixed(frame, ack);
+            await stream.WriteAsync(frame.WrittenMemory, token);
 
             return authResult.IsFailed ? null : new HandshakeResult(authResult.PlayerInfo, handshakeData, ack);
         }

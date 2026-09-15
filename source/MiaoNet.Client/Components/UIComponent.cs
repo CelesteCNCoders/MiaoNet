@@ -8,6 +8,7 @@ using Celeste.Mod.MiaoNet.UI.PlayerList;
 using Celeste.Mod.MiaoNet.UI.Rendering;
 using Celeste.Mod.MiaoNet.UI.Scene;
 using Celeste.Mod.MiaoNet.UI.Styling;
+using Microsoft.Xna.Framework.Input;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -122,6 +123,35 @@ public sealed class UIComponent : MiaoNetComponent
         EnsureHostSize();
         ui.Layout(hostWidth, hostHeight);
         SyncPlayerListAfterLayout();
+        UpdateInputMethodRect();
+    }
+
+    // point the platform's ime candidate window at the composition. the node hands over logical
+    // coordinates and everything xna-shaped stays here, so the ui core stays xna-free.
+    //
+    // the rect is the whole input band, not the text line: that is what the platform was given
+    // before, and it has to run after layout or it is a frame behind.
+    private void UpdateInputMethodRect()
+    {
+        if (!chatData.Active)
+        {
+            return;
+        }
+
+        UIRect box = chatScreen.Input.Bounds;
+        float xScale = Engine.ViewWidth / (float)Engine.Width;
+        float yScale = Engine.ViewHeight / (float)Engine.Height;
+        UiPixelRect rect = UIImeRect.Map(
+            chatField.ImeAnchorX,
+            box.Y,
+            chatField.ImeTextWidth,
+            box.Height,
+            xScale,
+            yScale,
+            Engine.Viewport.X,
+            Engine.Viewport.Y);
+
+        TextInputEXT.SetInputRectangle(new Rectangle(rect.X, rect.Y, rect.Width, rect.Height));
     }
 
     public override void Render()
@@ -265,6 +295,7 @@ public sealed class UIComponent : MiaoNetComponent
         chatMessages.Scale = scale;
         chatMessages.BackgroundOpacity = settings.ChatBackgroundOpacityValue;
         chatMessages.TextOpacity = settings.ChatTextOpacityValue;
+        chatMessages.FancyCounter = settings.FancyFoldCounter;
         chatMessages.RefreshMetrics();
 
         chatTabs.LineHeight = lineHeight;

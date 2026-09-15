@@ -22,8 +22,7 @@ public sealed partial class MiaoServerConnection : IDisposable
     private readonly Socket socket;
     private readonly SslStream sslStream;
 
-    // TODO we need to stop using this
-    private readonly MemoryStream sendMemoryStream;
+    private readonly ByteArrayBufferWriter sendBuffer;
 
     private readonly ConcurrentQueue<IContextualPacket> sendQueue;
     private readonly SemaphoreSlim sendSemaphore;
@@ -33,7 +32,7 @@ public sealed partial class MiaoServerConnection : IDisposable
         this.socket = socket;
         this.sslStream = sslStream;
 
-        sendMemoryStream = new(512);
+        sendBuffer = new(512);
 
         sendQueue = new();
         sendSemaphore = new(0);
@@ -146,15 +145,9 @@ public sealed partial class MiaoServerConnection : IDisposable
     public async Task<HandshakeAckData> MakeHandshakeAsync(HandshakeData handshakeData, CancellationToken token)
     {
         {
-            MemoryStream ms = new MemoryStream(64);
-            ms.Seek(2, SeekOrigin.Begin);
-            RefBinaryWriter writer = new(ms);
-            writer.Write(handshakeData);
-            ushort size = (ushort)(ms.Position - sizeof(ushort));
-            ms.Seek(0, SeekOrigin.Begin);
-            writer.Write(size);
-            var memory = ms.GetBuffer().AsMemory(0, size + sizeof(ushort));
-            await sslStream.WriteAsync(memory, token);
+            ByteArrayBufferWriter frame = new(64);
+            PacketFraming.WriteSizePrefixed(frame, handshakeData);
+            await sslStream.WriteAsync(frame.WrittenMemory, token);
         }
 
         {
@@ -177,9 +170,7 @@ public sealed partial class MiaoServerConnection : IDisposable
                 var memory = buffer.AsMemory(0, size);
                 await sslStream.ReadExactlyAsync(memory, token);
 
-                RefBinaryReader reader = new(memory.Span);
-                var ack = reader.Read<HandshakeAckData>();
-                return ack;
+                return RefBinarySerialization.Deserialize<HandshakeAckData>(memory.Span);
             }
             finally
             {
@@ -252,9 +243,8 @@ public sealed partial class MiaoServerConnection : IDisposable
 
     private async Task SendPacketAsync(IContextualPacket packet, IPacketSerializationContext context, CancellationToken token)
     {
-        sendMemoryStream.Position = 0;
-        PacketFraming.WritePacket(sendMemoryStream, packet, context);
-        int frameSize = checked((int)sendMemoryStream.Position);
-        await sslStream.WriteAsync(sendMemoryStream.GetBuffer().AsMemory(0, frameSize), token);
+        sendBuffer.Clear();
+        PacketFraming.WritePacket(sendBuffer, packet, context);
+        await sslStream.WriteAsync(sendBuffer.WrittenMemory, token);
     }
 }

@@ -21,11 +21,13 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
 
     public readonly string Name;
 
+    private readonly PlayerLocation location;
+
     private MiaoServerConnection connection = null!;
 
     public PooledStringManager PooledStringManager { get; }
 
-    public MockInstance(string name)
+    public MockInstance(string name, PlayerLocation location)
     {
         PooledStringManager = new(KnownPooledStrings.All);
         _ = ProcessAsync().ContinueWith(t =>
@@ -36,6 +38,7 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
             }
         });
         Name = name;
+        this.location = location;
     }
 
     private async Task FrameLoop()
@@ -65,10 +68,7 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
         }
 
         PlayerInfo playerInfo = new(-1, Name, string.Empty, string.Empty, Color.White);
-        MemoryStream ms = new(32);
-        RefBinaryWriter writer = new(ms);
-        writer.Write(playerInfo);
-        byte[] authData = ms.GetBuffer().AsSpan(0, checked((int)ms.Position)).ToArray();
+        byte[] authData = RefBinarySerialization.Serialize(playerInfo);
         HandshakeData handshakeData = new(0, false, authData, []);
 
         var ack = await connection.MakeHandshakeAsync(handshakeData, default);
@@ -81,7 +81,7 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
 
         connection.QueuePacket(
             new PacketPlayerLocationChanged(
-                new PlayerLocation("Celeste/LostLevels", AreaMode.Normal, "intro-00-past"),
+                location,
                 new PlayerState()
                 {
                     Position = position,

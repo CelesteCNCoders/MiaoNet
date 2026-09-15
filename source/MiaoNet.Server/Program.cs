@@ -41,8 +41,13 @@ public static partial class Program
             .AddConfiguration(builder.Configuration.GetRequiredSection("Logging"))
             .AddSimpleConsole();
 
+        // TODO rolling: enable FileSizeLimitBytes once NReco stops "gluing" the index
+        // to the file name (logs/2026-09-151.log)
         if (!builder.Environment.IsDevelopment())
-            builder.Logging.AddFile($"logs/{DateTime.Now:yyyy-MM-dd}.log");
+            builder.Logging.AddFile(
+                Path.Combine("logs", $"{DateTime.Now:yyyy-MM-dd}.log"),
+                o => builder.Configuration.GetSection("Logging:File").Bind(o)
+            );
 
         builder.Services.AddSingleton<NetworkListenerFactory>(p =>
             o => new TlsTcpListener(

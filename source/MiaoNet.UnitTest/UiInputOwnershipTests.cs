@@ -6,7 +6,7 @@ using Celeste.Mod.MiaoNet.UI.Input;
 
 namespace MiaoNet.UnitTest;
 
-// the ownership rule: MiaoNetUiInputAdapter.Poll consumes the settings bindings and runs before
+// the ownership rule: MiaoNetUIInputAdapter.Poll consumes the settings bindings and runs before
 // any component updates, so a component that reads a binding directly always sees it already
 // consumed and silently stops working. it's a wiring mistake, not a logic error, so check the
 // source instead.
@@ -64,15 +64,15 @@ public sealed class UiInputOwnershipTests
         Assert.HasCount(
             0,
             offenders,
-            "components must read MiaoNetContext.UiInput through their UiInputRegistrations "
+            "components must read MiaoNetContext.UIInput through their UIInputRegistrations "
             + "handle instead of the binding; the adapter has already consumed it:\n" + string.Join("\n", offenders));
     }
 
     // only the adapter may consume these bindings; everything else has to go through the dispatch
     private static bool IsOwner(string relativePath)
-        => relativePath.EndsWith("UiInput/MiaoNetUiInputAdapter.cs", StringComparison.Ordinal);
+        => relativePath.EndsWith("UIInput/MiaoNetUIInputAdapter.cs", StringComparison.Ordinal);
 
-    // every action in the routing table is claimed by a component. UiInputRouter.Seal is the real
+    // every action in the routing table is claimed by a component. UIInputRouter.Seal is the real
     // check and it runs at startup; this mirrors it at build time because the failure — a routed
     // key nobody reacts to — is otherwise only found by pressing that key in game. it scans the
     // component sources because the components can't be constructed without the game.
@@ -95,8 +95,8 @@ public sealed class UiInputOwnershipTests
             string text = File.ReadAllText(file);
             foreach (UIInputAction action in Enum.GetValues<UIInputAction>())
             {
-                if (text.Contains($".On(UiInputAction.{action},", StringComparison.Ordinal)
-                    || text.Contains($".OwnHeld(UiInputAction.{action})", StringComparison.Ordinal))
+                if (text.Contains($".On(UIInputAction.{action},", StringComparison.Ordinal)
+                    || text.Contains($".OwnHeld(UIInputAction.{action})", StringComparison.Ordinal))
                 {
                     claimed.Add(action);
                 }

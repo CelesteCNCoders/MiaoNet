@@ -29,6 +29,36 @@ public sealed partial class PlayerListComponent
 
     private void BumpUIVersion() => UIVersion++;
 
+    // the status badges read GlobalFlags and nothing tells us when it changes: other players arrive
+    // as a packet, and the self player's flags are written straight onto the player. so watch the
+    // whole roster here instead of waiting for a notification that never comes.
+    private int lastGlobalFlagsSignature;
+
+    public override void Update()
+    {
+        int signature = ComputeGlobalFlagsSignature();
+        if (signature == lastGlobalFlagsSignature)
+        {
+            return;
+        }
+
+        lastGlobalFlagsSignature = signature;
+        BumpUIVersion();
+    }
+
+    private int ComputeGlobalFlagsSignature()
+    {
+        int hash = 17;
+        foreach (PlayerListChannelEntry channel in channelPlayerList)
+        {
+            foreach (PlayerListEntry entry in channel.Players)
+            {
+                hash = (hash * 31) + (int)entry.Player.GlobalFlags;
+            }
+        }
+        return hash;
+    }
+
     internal List<PlayerListChannel> BuildUIChannels()
     {
         bool liveMode = MiaoNetModule.Settings.LiveMode;

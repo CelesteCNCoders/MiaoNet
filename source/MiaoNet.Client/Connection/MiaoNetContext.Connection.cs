@@ -107,7 +107,7 @@ partial class MiaoNetContext
             threadCts.Cancel();
             if (t.IsFaulted)
             {
-                Logger.Error(LT.MiaoNetConnection, "Unhandled exception in connection thread!");
+                Logger.Error(LT.MiaoNetConnection, "Unhandled exception in the connection thread!");
                 // throw to main thread
                 QueueForOperation(operation.Generation, () => throw t.Exception!);
             }
@@ -175,14 +175,11 @@ partial class MiaoNetContext
             string? prefix = settings.Prefix;
             Color color = settings.Color is null ? Color.White : Calc.HexToColor(settings.Color);
             PlayerInfo playerInfo = new(-1, name, prefix ?? string.Empty, settings.AvatarUrl ?? string.Empty, color);
-            MemoryStream ms = new(32);
-            RefBinaryWriter writer = new(ms);
-            writer.Write(playerInfo);
-            byte[] authData = ms.GetBuffer().AsSpan(0, checked((int)ms.Position)).ToArray();
+            byte[] authData = RefBinarySerialization.Serialize(playerInfo);
             handshakeData = new(langCode, false, authData, netMods);
 #endif
 
-            Logger.Info(LT.MiaoNetConnection, $"Trying connecting to {ep}...");
+            Logger.Info(LT.MiaoNetConnection, $"Trying to connect to {ep}...");
             MiaoServerConnection? connection = null;
 
             IAsyncEnumerator<IContextualPacket>? packetsAsyncEnumerator = null;
@@ -212,6 +209,10 @@ partial class MiaoNetContext
                 if (r != AuthenticationResultType.Success)
                 {
                     operation.CloseConnection(true);
+#if USE_CELEMIAO_AUTH
+                    if (r is AuthenticationResultType.InvalidTokenData)
+                        ClientRC.AuthenticationCode = null;
+#endif
                     string? reason = handshakeAck.DeniedReason;
                     string status = r switch
                     {
@@ -236,9 +237,9 @@ partial class MiaoNetContext
                 if (packetInitial is not PacketClientInitial clientInitial)
                 {
                     if (packetInitial is null)
-                        Logger.Warn(LT.MiaoNetConnection, $"Remote sent empty or invalid initial reply.");
+                        Logger.Warn(LT.MiaoNetConnection, "Remote sent an empty or invalid initial reply.");
                     else
-                        Logger.Warn(LT.MiaoNetConnection, $"Remote sent a weird initial packet {packetInitial.GetType()}.");
+                        Logger.Warn(LT.MiaoNetConnection, $"Remote sent an unexpected initial packet {packetInitial.GetType()}.");
                     await DisposePacketsAsync();
                     operation.CloseConnection(false);
                     QueueDisconnectStatus(ConnectionStatus.DisconnectedExceptionally);
@@ -276,7 +277,7 @@ partial class MiaoNetContext
             {
                 await DisposePacketsAsync();
                 operation.CloseConnection(false);
-                Logger.Info(LT.MiaoNetConnection, "Connection cancelled");
+                Logger.Info(LT.MiaoNetConnection, "Connection cancelled.");
                 QueueDisconnectStatus(ConnectionStatus.Cancelled);
                 return;
             }
@@ -284,7 +285,7 @@ partial class MiaoNetContext
             {
                 await DisposePacketsAsync();
                 operation.CloseConnection(false);
-                Logger.Error(LT.MiaoNetConnection, $"Ssl error: {e.SslPolicyErrors}. {e.X509ChainStatusFlags}");
+                Logger.Error(LT.MiaoNetConnection, $"SSL error: {e.SslPolicyErrors}, {e.X509ChainStatusFlags}.");
                 Logger.LogDetailed(e, LT.MiaoNetConnection);
                 if (e.X509ChainStatusFlags.HasFlag(X509ChainStatusFlags.RevocationStatusUnknown | X509ChainStatusFlags.OfflineRevocation))
                     QueueDisconnectStatus(ConnectionStatus.ConnectionSslRevocationCheckFailed);
@@ -297,7 +298,7 @@ partial class MiaoNetContext
                 await DisposePacketsAsync();
                 operation.CloseConnection(false);
                 SocketException? se = (e as IOException)?.InnerException as SocketException;
-                Logger.Error(LT.MiaoNetConnection, $"Error when connecting: {e}");
+                Logger.Error(LT.MiaoNetConnection, $"Error while connecting: {e}");
                 QueueDisconnectStatus(ConnectionStatus.ConnectFailedWithReason((se ?? e).Message));
                 return;
             }
@@ -383,7 +384,7 @@ partial class MiaoNetContext
             }
             catch (Exception e)
             {
-                Logger.Error(LT.MiaoNetConnection, $"Error during connection: {e}");
+                Logger.Error(LT.MiaoNetConnection, $"Error during the connection: {e}");
                 if (e is IOException && e.InnerException is SocketException se)
                     e = se;
                 QueueDisconnectStatus(ConnectionStatus.DisconnectedWithReason(e.Message));

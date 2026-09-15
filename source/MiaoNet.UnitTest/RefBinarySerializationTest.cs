@@ -13,8 +13,8 @@ public class RefBinaryReaderWriterTests
     [TestMethod]
     public void TestBasicTypes()
     {
-        using var ms = new MemoryStream();
-        var writer = new RefBinaryWriter(ms);
+        ByteArrayBufferWriter buffer = new();
+        var writer = new RefBinaryWriter(buffer);
 
         // Write basic types
         writer.Write(true);
@@ -29,8 +29,8 @@ public class RefBinaryReaderWriterTests
         writer.Write(3.141592653589793);
         writer.Write((Half)2.5f);
 
-        ms.Position = 0;
-        var reader = new RefBinaryReader(ms.ToArray());
+        writer.Flush();
+        var reader = new RefBinaryReader(buffer.WrittenSpan);
 
         // Read basic types
         Assert.IsTrue(reader.ReadBoolean());
@@ -49,8 +49,8 @@ public class RefBinaryReaderWriterTests
     [TestMethod]
     public void Test7BitEncodedInt()
     {
-        using var ms = new MemoryStream();
-        var writer = new RefBinaryWriter(ms);
+        ByteArrayBufferWriter buffer = new();
+        var writer = new RefBinaryWriter(buffer);
 
         // Write 7-bit encoded integers
         writer.Write7BitEncodedInt(0);
@@ -62,8 +62,8 @@ public class RefBinaryReaderWriterTests
         writer.Write7BitEncodedInt(2097152);
         writer.Write7BitEncodedInt(int.MaxValue);
 
-        ms.Position = 0;
-        var reader = new RefBinaryReader(ms.ToArray());
+        writer.Flush();
+        var reader = new RefBinaryReader(buffer.WrittenSpan);
 
         // Read 7-bit encoded integers
         Assert.AreEqual(0, reader.Read7BitEncodedInt());
@@ -79,8 +79,8 @@ public class RefBinaryReaderWriterTests
     [TestMethod]
     public void Test7BitEncodedInt64()
     {
-        using var ms = new MemoryStream();
-        var writer = new RefBinaryWriter(ms);
+        ByteArrayBufferWriter buffer = new();
+        var writer = new RefBinaryWriter(buffer);
 
         // Write 7-bit encoded long integers
         writer.Write7BitEncodedInt64(0);
@@ -92,8 +92,8 @@ public class RefBinaryReaderWriterTests
         writer.Write7BitEncodedInt64(2097152);
         writer.Write7BitEncodedInt64(long.MaxValue);
 
-        ms.Position = 0;
-        var reader = new RefBinaryReader(ms.ToArray());
+        writer.Flush();
+        var reader = new RefBinaryReader(buffer.WrittenSpan);
 
         // Read 7-bit encoded long integers
         Assert.AreEqual(0, reader.Read7BitEncodedInt64());
@@ -109,14 +109,14 @@ public class RefBinaryReaderWriterTests
     [TestMethod]
     public void TestSpanOperations()
     {
-        using var ms = new MemoryStream();
-        var writer = new RefBinaryWriter(ms);
+        ByteArrayBufferWriter buffer = new();
+        var writer = new RefBinaryWriter(buffer);
 
         byte[] data = [1, 2, 3, 4, 5, 6, 7, 8];
         writer.WriteSpan(data);
 
-        ms.Position = 0;
-        var reader = new RefBinaryReader(ms.ToArray());
+        writer.Flush();
+        var reader = new RefBinaryReader(buffer.WrittenSpan);
 
         var readSpan = reader.ReadSpan(8);
         CollectionAssert.AreEqual(data, readSpan.ToArray());
@@ -125,14 +125,14 @@ public class RefBinaryReaderWriterTests
     [TestMethod]
     public void TestVersion()
     {
-        using var ms = new MemoryStream();
-        var writer = new RefBinaryWriter(ms);
+        ByteArrayBufferWriter buffer = new();
+        var writer = new RefBinaryWriter(buffer);
 
         var version = new Version(1, 2, 3);
         writer.Write(version);
 
-        ms.Position = 0;
-        var reader = new RefBinaryReader(ms.ToArray());
+        writer.Flush();
+        var reader = new RefBinaryReader(buffer.WrittenSpan);
 
         var readVersion = reader.ReadVersion();
         Assert.AreEqual(version.Major, readVersion.Major);
@@ -143,14 +143,14 @@ public class RefBinaryReaderWriterTests
     [TestMethod]
     public void TestString()
     {
-        using var ms = new MemoryStream();
-        var writer = new RefBinaryWriter(ms);
+        ByteArrayBufferWriter buffer = new();
+        var writer = new RefBinaryWriter(buffer);
 
         string testString = "Hello, 世界! 🌍";
         writer.Write(testString);
 
-        ms.Position = 0;
-        var reader = new RefBinaryReader(ms.ToArray());
+        writer.Flush();
+        var reader = new RefBinaryReader(buffer.WrittenSpan);
 
         var readString = reader.ReadString();
         Assert.AreEqual(testString, readString);
@@ -159,15 +159,15 @@ public class RefBinaryReaderWriterTests
     [TestMethod]
     public void TestStringWithCustomEncoding()
     {
-        using var ms = new MemoryStream();
-        var writer = new RefBinaryWriter(ms);
+        ByteArrayBufferWriter buffer = new();
+        var writer = new RefBinaryWriter(buffer);
 
         string testString = "Hello, 世界!";
         Encoding encoding = Encoding.Unicode;
         writer.Write(testString, encoding);
 
-        ms.Position = 0;
-        var reader = new RefBinaryReader(ms.ToArray());
+        writer.Flush();
+        var reader = new RefBinaryReader(buffer.WrittenSpan);
 
         var readString = reader.ReadString(encoding);
         Assert.AreEqual(testString, readString);
@@ -176,15 +176,15 @@ public class RefBinaryReaderWriterTests
     [TestMethod]
     public void TestColor()
     {
-        using var ms = new MemoryStream();
-        var writer = new RefBinaryWriter(ms);
+        ByteArrayBufferWriter buffer = new();
+        var writer = new RefBinaryWriter(buffer);
 
         var color = new Color();
         color = new Color(255, 128, 64, 32);
         writer.Write(color);
 
-        ms.Position = 0;
-        var reader = new RefBinaryReader(ms.ToArray());
+        writer.Flush();
+        var reader = new RefBinaryReader(buffer.WrittenSpan);
 
         var readColor = reader.ReadColor();
         Assert.AreEqual(color.R, readColor.R);
@@ -196,14 +196,14 @@ public class RefBinaryReaderWriterTests
     [TestMethod]
     public void TestSerializableType()
     {
-        using var ms = new MemoryStream();
-        var writer = new RefBinaryWriter(ms);
+        ByteArrayBufferWriter buffer = new();
+        var writer = new RefBinaryWriter(buffer);
 
         var person = new Person { Name = "John", Age = 30 };
         writer.Write(person);
 
-        ms.Position = 0;
-        var reader = new RefBinaryReader(ms.ToArray());
+        writer.Flush();
+        var reader = new RefBinaryReader(buffer.WrittenSpan);
 
         var readPerson = reader.Read<Person>();
         Assert.AreEqual(person.Name, readPerson.Name);
@@ -213,8 +213,8 @@ public class RefBinaryReaderWriterTests
     [TestMethod]
     public void TestList()
     {
-        using var ms = new MemoryStream();
-        var writer = new RefBinaryWriter(ms);
+        ByteArrayBufferWriter buffer = new();
+        var writer = new RefBinaryWriter(buffer);
 
         var people = new List<Person>
         {
@@ -224,8 +224,8 @@ public class RefBinaryReaderWriterTests
         };
         writer.Write(people);
 
-        ms.Position = 0;
-        var reader = new RefBinaryReader(ms.ToArray());
+        writer.Flush();
+        var reader = new RefBinaryReader(buffer.WrittenSpan);
 
         var readPeople = reader.ReadArray<Person>();
         Assert.HasCount(people.Count, readPeople);
@@ -250,14 +250,14 @@ public class RefBinaryReaderWriterTests
     [TestMethod]
     public void TestLargeString()
     {
-        using var ms = new MemoryStream();
-        var writer = new RefBinaryWriter(ms);
+        ByteArrayBufferWriter buffer = new();
+        var writer = new RefBinaryWriter(buffer);
 
         string largeString = new string('A', 10000);
         writer.Write(largeString);
 
-        ms.Position = 0;
-        var reader = new RefBinaryReader(ms.ToArray());
+        writer.Flush();
+        var reader = new RefBinaryReader(buffer.WrittenSpan);
 
         var readString = reader.ReadString();
         Assert.AreEqual(largeString, readString);
@@ -266,8 +266,8 @@ public class RefBinaryReaderWriterTests
     [TestMethod]
     public void TestMaxValues()
     {
-        using var ms = new MemoryStream();
-        var writer = new RefBinaryWriter(ms);
+        ByteArrayBufferWriter buffer = new();
+        var writer = new RefBinaryWriter(buffer);
 
         writer.Write(byte.MaxValue);
         writer.Write(short.MaxValue);
@@ -277,8 +277,8 @@ public class RefBinaryReaderWriterTests
         writer.Write(long.MaxValue);
         writer.Write(ulong.MaxValue);
 
-        ms.Position = 0;
-        var reader = new RefBinaryReader(ms.ToArray());
+        writer.Flush();
+        var reader = new RefBinaryReader(buffer.WrittenSpan);
 
         Assert.AreEqual(byte.MaxValue, reader.ReadByte());
         Assert.AreEqual(short.MaxValue, reader.ReadInt16());
@@ -292,15 +292,15 @@ public class RefBinaryReaderWriterTests
     [TestMethod]
     public void TestMinValues()
     {
-        using var ms = new MemoryStream();
-        var writer = new RefBinaryWriter(ms);
+        ByteArrayBufferWriter buffer = new();
+        var writer = new RefBinaryWriter(buffer);
 
         writer.Write(short.MinValue);
         writer.Write(int.MinValue);
         writer.Write(long.MinValue);
 
-        ms.Position = 0;
-        var reader = new RefBinaryReader(ms.ToArray());
+        writer.Flush();
+        var reader = new RefBinaryReader(buffer.WrittenSpan);
 
         Assert.AreEqual(short.MinValue, reader.ReadInt16());
         Assert.AreEqual(int.MinValue, reader.ReadInt32());
@@ -310,8 +310,8 @@ public class RefBinaryReaderWriterTests
     [TestMethod]
     public void TestSpecialFloatValues()
     {
-        using var ms = new MemoryStream();
-        var writer = new RefBinaryWriter(ms);
+        ByteArrayBufferWriter buffer = new();
+        var writer = new RefBinaryWriter(buffer);
 
         writer.Write(float.NaN);
         writer.Write(float.PositiveInfinity);
@@ -320,8 +320,8 @@ public class RefBinaryReaderWriterTests
         writer.Write(double.PositiveInfinity);
         writer.Write(double.NegativeInfinity);
 
-        ms.Position = 0;
-        var reader = new RefBinaryReader(ms.ToArray());
+        writer.Flush();
+        var reader = new RefBinaryReader(buffer.WrittenSpan);
 
         Assert.IsTrue(float.IsNaN(reader.ReadSingle()));
         Assert.IsTrue(float.IsPositiveInfinity(reader.ReadSingle()));

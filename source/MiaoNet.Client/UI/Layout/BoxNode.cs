@@ -6,7 +6,7 @@ using Celeste.Mod.MiaoNet.UI.Scene;
 namespace Celeste.Mod.MiaoNet.UI.Layout;
 
 // one child plus padding, with an optional background and border.
-// padding comes from UiStyle.Padding; the box's own rect covers the padded area, so its
+// padding comes from UIStyle.Padding; the box's own rect covers the padded area, so its
 // painted background matches the outer bounds.
 public class BoxNode : SingleChildNode
 {

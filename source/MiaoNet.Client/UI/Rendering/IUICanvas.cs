@@ -3,7 +3,7 @@ using Celeste.Mod.MiaoNet.UI.Geometry;
 namespace Celeste.Mod.MiaoNet.UI.Rendering;
 
 // drawing surface the ui tree paints into. the backend owns the sprite batch lifetime and
-// converts UiColor to the game's color type; the layout core never touches XNA directly.
+// converts UIColor to the game's color type; the layout core never touches XNA directly.
 public interface IUICanvas
 {
     void FillRect(UIRect rect, UIColor color);

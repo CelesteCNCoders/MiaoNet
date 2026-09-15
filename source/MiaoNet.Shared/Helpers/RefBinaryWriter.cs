@@ -1,32 +1,80 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Text;
 using BP = System.Buffers.Binary.BinaryPrimitives;
-using System.Diagnostics;
 
 namespace MiaoNet.Shared;
 
 /// <summary>
 /// A ByRefLike <see cref="BinaryWriter"/>.
-/// It's suggested that always pass it as a reference (that is <see langword="ref"/> <see cref="RefBinaryWriter"/>).
+/// Always pass it as a reference (that is <see langword="ref"/> <see cref="RefBinaryWriter"/>).
 /// </summary>
-public readonly ref struct RefBinaryWriter
+public ref struct RefBinaryWriter
 {
-    private readonly Stream stream;
+    public const int WindowSize = 4096;
 
-    public RefBinaryWriter(Stream stream)
-        => this.stream = stream;
+    // sizeof(Half)
+    private const int HalfSize = 2;
 
-    public void WriteSpan(ReadOnlySpan<byte> span)
-        => stream.Write(span);
+    private readonly IBufferWriter<byte> output;
+    private Span<byte> window;
+    private int offset;
+
+    public RefBinaryWriter(IBufferWriter<byte> output)
+    {
+        this.output = output;
+        window = default;
+        offset = 0;
+    }
+
+    public void Flush()
+    {
+        if (offset != 0)
+        {
+            output.Advance(offset);
+            offset = 0;
+        }
+    }
+
+    private void NextWindow(int sizeHint)
+    {
+        Flush();
+        Span<byte> span = output.GetSpan(Math.Max(sizeHint, WindowSize));
+        window = span.Length > WindowSize ? span[..WindowSize] : span;
+        offset = 0;
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void WriteSpanInlined(ReadOnlySpan<byte> span)
-        => stream.Write(span);
-
     public void Write(byte value)
-        => stream.WriteByte(value);
+    {
+        if (offset == window.Length)
+            NextWindow(1);
+        window[offset++] = value;
+    }
+
+    public void WriteSpan(scoped ReadOnlySpan<byte> span)
+    {
+        if (span.Length <= window.Length - offset)
+        {
+            span.CopyTo(window[offset..]);
+            offset += span.Length;
+            return;
+        }
+
+        Flush();
+
+        if (span.Length >= WindowSize)
+        {
+            span.CopyTo(output.GetSpan(span.Length));
+            output.Advance(span.Length);
+            window = default;
+            return;
+        }
+
+        Span<byte> next = output.GetSpan(WindowSize);
+        window = next.Length > WindowSize ? next[..WindowSize] : next;
+        span.CopyTo(window);
+        offset = span.Length;
+    }
 
     // from System.IO.BinaryWriter
     /// <inheritdoc cref="BinaryWriter.Write7BitEncodedInt(int)"/>
@@ -55,70 +103,89 @@ public readonly ref struct RefBinaryWriter
     }
 
 #pragma warning disable IDE0049
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write(Boolean value)
-        => stream.WriteByte(value ? (byte)1 : (byte)0);
+        => Write(value ? (byte)1 : (byte)0);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write(Int16 value)
     {
-        Span<byte> span = stackalloc byte[sizeof(Int16)];
-        BP.WriteInt16LittleEndian(span, value);
-        WriteSpanInlined(span);
+        if (window.Length - offset < sizeof(Int16))
+            NextWindow(sizeof(Int16));
+        BP.WriteInt16LittleEndian(window[offset..], value);
+        offset += sizeof(Int16);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write(Int32 value)
     {
-        Span<byte> span = stackalloc byte[sizeof(Int32)];
-        BP.WriteInt32LittleEndian(span, value);
-        WriteSpanInlined(span);
+        if (window.Length - offset < sizeof(Int32))
+            NextWindow(sizeof(Int32));
+        BP.WriteInt32LittleEndian(window[offset..], value);
+        offset += sizeof(Int32);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write(Int64 value)
     {
-        Span<byte> span = stackalloc byte[sizeof(Int64)];
-        BP.WriteInt64LittleEndian(span, value);
-        WriteSpanInlined(span);
+        if (window.Length - offset < sizeof(Int64))
+            NextWindow(sizeof(Int64));
+        BP.WriteInt64LittleEndian(window[offset..], value);
+        offset += sizeof(Int64);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write(Single value)
     {
-        Span<byte> span = stackalloc byte[sizeof(Single)];
-        BP.WriteSingleLittleEndian(span, value);
-        WriteSpanInlined(span);
+        if (window.Length - offset < sizeof(Single))
+            NextWindow(sizeof(Single));
+        BP.WriteSingleLittleEndian(window[offset..], value);
+        offset += sizeof(Single);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write(Double value)
     {
-        Span<byte> span = stackalloc byte[sizeof(Double)];
-        BP.WriteDoubleLittleEndian(span, value);
-        WriteSpanInlined(span);
+        if (window.Length - offset < sizeof(Double))
+            NextWindow(sizeof(Double));
+        BP.WriteDoubleLittleEndian(window[offset..], value);
+        offset += sizeof(Double);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write(Half value)
     {
-        Span<byte> span = stackalloc byte[Marshal.SizeOf<Half>()];
-        BP.WriteHalfLittleEndian(span, value);
-        WriteSpanInlined(span);
+        if (window.Length - offset < HalfSize)
+            NextWindow(HalfSize);
+        BP.WriteHalfLittleEndian(window[offset..], value);
+        offset += HalfSize;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write(UInt16 value)
     {
-        Span<byte> span = stackalloc byte[sizeof(UInt16)];
-        BP.WriteUInt16LittleEndian(span, value);
-        WriteSpanInlined(span);
+        if (window.Length - offset < sizeof(UInt16))
+            NextWindow(sizeof(UInt16));
+        BP.WriteUInt16LittleEndian(window[offset..], value);
+        offset += sizeof(UInt16);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write(UInt32 value)
     {
-        Span<byte> span = stackalloc byte[sizeof(UInt32)];
-        BP.WriteUInt32LittleEndian(span, value);
-        WriteSpanInlined(span);
+        if (window.Length - offset < sizeof(UInt32))
+            NextWindow(sizeof(UInt32));
+        BP.WriteUInt32LittleEndian(window[offset..], value);
+        offset += sizeof(UInt32);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write(UInt64 value)
     {
-        Span<byte> span = stackalloc byte[sizeof(UInt64)];
-        BP.WriteUInt64LittleEndian(span, value);
-        WriteSpanInlined(span);
+        if (window.Length - offset < sizeof(UInt64))
+            NextWindow(sizeof(UInt64));
+        BP.WriteUInt64LittleEndian(window[offset..], value);
+        offset += sizeof(UInt64);
     }
 #pragma warning restore
 }

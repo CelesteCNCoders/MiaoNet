@@ -6,7 +6,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace Celeste.Mod.MiaoNet.UI.Rendering;
 
-// IUiCanvas over Monocle's sprite batch. we draw through Draw.Rect and Draw.Line so it shares
+// IUICanvas over Monocle's sprite batch. we draw through Draw.Rect and Draw.Line so it shares
 // the batch the host already started, and clip with the graphics device scissor rectangle.
 // the host has to call BeginFrame before painting and EndFrame after, inside an active
 // Draw.SpriteBatch.Begin / End pair.
@@ -65,7 +65,7 @@ public sealed class MiaoNetUICanvas : IUICanvas
         ApplyClip();
     }
 
-    // maps a logical rect to backbuffer scissor coords. the arithmetic lives in UiScissor so it
+    // maps a logical rect to backbuffer scissor coords. the arithmetic lives in UIScissor so it
     // can be unit tested without XNA.
     private static Rectangle ToScissor(UIRect rect)
     {

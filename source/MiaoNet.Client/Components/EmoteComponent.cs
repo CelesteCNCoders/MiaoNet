@@ -130,7 +130,7 @@ public sealed class EmoteComponent : MiaoNetComponent
         {
             Logger.Warn(
                 LT.MiaoNetEmoteComponent,
-                $"No ghost for player {player.Info} can be attached with emote {emote.Prefix}/{emote.Frames[0]}."
+                $"Received emote {emote.Prefix}/{emote.Frames[0]} from {player.Info}, but there is no ghost to attach it to."
             );
         }
     }
@@ -149,7 +149,7 @@ public sealed class EmoteComponent : MiaoNetComponent
         {
             Logger.Warn(
                 LT.MiaoNetEmoteComponent,
-                $"No ghost for player {player.Info} can be attached with emote text \"{text}\"."
+                $"Received emote text \"{text}\" from {player.Info}, but there is no ghost to attach it to."
             );
         }
     }

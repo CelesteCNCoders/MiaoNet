@@ -227,6 +227,69 @@ public sealed class ParameterSpecTests
         Assert.AreEqual(0, outside.Height);
     }
 
+    // ---------------------------------------------------------------- ime candidate rect
+
+    [TestMethod]
+    public void ImeRect_MapsTheCompositionAnchorWithoutScaling()
+    {
+        UiPixelRect mapped = UIImeRect.Map(
+            anchorX: 106f,
+            anchorY: 700f,
+            width: 24f,
+            height: 24f,
+            xScale: 1f,
+            yScale: 1f,
+            viewportX: 0,
+            viewportY: 0);
+
+        Assert.AreEqual(106, mapped.X, "CHAT.INPUT.IME_RECT x");
+        Assert.AreEqual(700, mapped.Y, "CHAT.INPUT.IME_RECT y");
+        Assert.AreEqual(24, mapped.Width);
+        Assert.AreEqual(24, mapped.Height);
+    }
+
+    [TestMethod]
+    public void ImeRect_AppliesTheBackbufferScaleAndViewport()
+    {
+        // A windowed backbuffer: logical 1280x720 rendered 2x into a view offset inside the window.
+        UiPixelRect mapped = UIImeRect.Map(
+            anchorX: 100f,
+            anchorY: 200f,
+            width: 30f,
+            height: 20f,
+            xScale: 2f,
+            yScale: 2f,
+            viewportX: 7,
+            viewportY: 11);
+
+        Assert.AreEqual(207, mapped.X, "viewport offset plus scaled anchor");
+        Assert.AreEqual(411, mapped.Y);
+        Assert.AreEqual(60, mapped.Width);
+        Assert.AreEqual(40, mapped.Height);
+    }
+
+    [TestMethod]
+    public void ImeRect_NeverCollapsesToZeroWidth()
+    {
+        // With no composition in progress the old renderer still pushed a 1px rect; a zero-width
+        // rect makes some backends fall back to the default candidate position.
+        UiPixelRect mapped = UIImeRect.Map(10f, 20f, 0f, 24f, 1f, 1f, 0, 0);
+
+        Assert.AreEqual(1, mapped.Width, "an empty composition still yields a 1px rect");
+        Assert.AreEqual(24, mapped.Height);
+    }
+
+    [TestMethod]
+    public void ImeRect_TruncatesTowardsZeroLikeTheRenderer()
+    {
+        UiPixelRect mapped = UIImeRect.Map(10.9f, 20.9f, 30.9f, 40.9f, 1f, 1f, 0, 0);
+
+        Assert.AreEqual(10, mapped.X, "the renderer cast the float sum, it did not round");
+        Assert.AreEqual(20, mapped.Y);
+        Assert.AreEqual(30, mapped.Width);
+        Assert.AreEqual(40, mapped.Height);
+    }
+
     // ---------------------------------------------------------------- fold counter
 
     [TestMethod]
