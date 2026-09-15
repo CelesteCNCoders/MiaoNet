@@ -151,6 +151,9 @@ public sealed class UIComponent : MiaoNetComponent
             Engine.Viewport.X,
             Engine.Viewport.Y);
 
+        // Known issue: with only a few pinyin letters typed, the candidate window covers
+        // the input row, and it only avoids it once more input arrives. A plain SDL2-only
+        // project shows the same thing, so this is probably an SDL2-side issue.
         TextInputEXT.SetInputRectangle(new Rectangle(rect.X, rect.Y, rect.Width, rect.Height));
     }
 
