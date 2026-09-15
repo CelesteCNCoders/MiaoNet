@@ -16,7 +16,9 @@ dotnet --version
 dotnet sln MiaoNet.slnx list
 ```
 
-`MiaoNet.Shared`、`MiaoNet.ClientShared` 和 `ChatInputBox` 是 `Microsoft.Build.NoTargets` 源码项目，实际代码通过 `Compile Include` 链接进消费者。若 IDE 对这些项目的分析异常，可暂时卸载对应的 NoTargets 项目；这不影响消费者项目的构建。
+`MiaoNet.Shared` 和 `MiaoNet.ClientShared` 是 `Microsoft.Build.NoTargets` 源码项目，实际代码通过 `Compile Include` 链接进消费者。若 IDE 对这些项目的分析异常，可暂时卸载对应的 NoTargets 项目；这不影响消费者项目的构建。
+
+聊天的数据模型与编辑内核在 `source/MiaoNet.Client/Chat/`，它没有独立项目：客户端直接编译，`MiaoNet.UnitTest` 也 `Compile Include` 同一批源码来测，所以这批文件必须保持 XNA-free。
 
 ## 设置 Celeste 路径
 
@@ -50,8 +52,6 @@ Linux 的 Steam 安装通常位于：
 | `MiaoNet.Shared` | `net8.0` NoTargets | 协议与共享数据源码 |
 | `MiaoNet.ClientShared` | `net8.0` NoTargets | 客户端连接源码 |
 | `MiaoNet.MockClient` | `net8.0` | 模拟连接与基础压测 |
-| `ChatInputBox` | `net8.0` NoTargets | 聊天 UI 源码组件 |
-| `ChatInputBoxExample` | `net8.0` | ChatInputBox Everest 示例 |
 | `MiaoNet.UnitTest` | `net10.0` | MSTest 测试 |
 | `PacketDumpInspector` | `net8.0` | 数据包转储检查工具 |
 

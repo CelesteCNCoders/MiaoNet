@@ -18,7 +18,8 @@
 - 请求和响应通过 `PacketRequest<TResponse>`、`PacketResponse` 及相同的 `RequestID` 关联。
 - 平台差异使用现有条件编译符号：`MIAO_CLIENT`、`MIAO_SERVER`、`MIAO_MOCKCLIENT` 和 `INSPECTOR`。
 - 调试或部署行为通过 MSBuild 属性控制：`UseLocalhostPfx`、`UseCeleMiaoAuth`；不要硬编码个人环境路径或凭据。
-- `MiaoNet.Shared`、`MiaoNet.ClientShared` 和 `ChatInputBox` 以源码形式链接到消费者。改动后应构建实际消费者并运行相关测试。
+- `MiaoNet.Shared` 和 `MiaoNet.ClientShared` 以源码形式链接到消费者。改动后应构建实际消费者并运行相关测试。
+- `source/MiaoNet.Client/Chat/` 下的聊天数据模型与编辑内核要保持 XNA-free：单测工程用 `Compile Include` 编译同一批源码，一旦引入 XNA 类型那边就编不过。
 - 受游戏引擎限制需要 Hook 或 patch 时，先检查 `Game/` 和 `ModInterop/` 中是否已有对应生命周期与兼容模式。
 
 ## 验证

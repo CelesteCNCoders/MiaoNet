@@ -7,3 +7,7 @@ artifacts
 **/Properties/launchSettings.json
 *.csproj.user
 source/MiaoNet.Client/MiaoNet*.zip
+
+# .NET 构建产物
+[Oo]bj/
+[Bb]in/
