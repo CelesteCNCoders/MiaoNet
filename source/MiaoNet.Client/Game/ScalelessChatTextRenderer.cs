@@ -35,7 +35,7 @@ internal sealed class ScalelessChatTextRenderer : IScalelessTextRenderer
 
     public void Draw(ChatText text, Vector2 position, float yJustify, float alpha)
         => MiaoNetFont.Draw(
-            text, position, yJustify, 
+            text, position, yJustify,
             Vector2.One * Scale,
             alpha
         );

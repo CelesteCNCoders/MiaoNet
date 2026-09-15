@@ -14,6 +14,6 @@ public sealed class LocalMiaoCertificateService : IMiaoCertificateService
         cert = X509CertificateLoader.LoadPkcs12(certRawData, null);
     }
 
-    public X509Certificate2 GetCertificate() 
+    public X509Certificate2 GetCertificate()
         => cert;
 }

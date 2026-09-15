@@ -25,7 +25,7 @@ public sealed class ChatMessageListView
             : [];
     private List<ChatItem> fullChatLog => chatMessageManager.ChatLog;
 
-    
+
     public float BackgroundOpacity { get; set; } = 0.5f;
 
     public float TextOpacity { get; set; } = 1f;
@@ -42,7 +42,7 @@ public sealed class ChatMessageListView
 
     // drives the rainbow color of the fold counter
     private float counterAnimClock;
-    
+
     public float MessageYPadding { get; set; } = 8f;
 
     public string? ActiveTabName => chatMessageManager.ActiveTabName;
@@ -58,7 +58,7 @@ public sealed class ChatMessageListView
         }
         return viewState;
     }
-    
+
 
     public ChatMessageListView(ChatMessageManager chatMessageManager, IScalelessTextRenderer textRenderer)
     {
@@ -161,7 +161,7 @@ public sealed class ChatMessageListView
 
         const float Margin = 16f;
         const float Padding = 8f;
-        
+
         float inputBoxTopY = Engine.Height - Margin - textRenderer.LineHeight - Padding * 2f;
         float tabViewTopY = inputBoxTopY - textRenderer.LineHeight - Padding * 2f;
 
@@ -173,7 +173,7 @@ public sealed class ChatMessageListView
 
         float curY = baseLoc.Y;
         int firstVisibleMessageIndex = chatLog.Count - 1;
-        
+
         if (active)
         {
             curY += scroll;
@@ -235,7 +235,7 @@ public sealed class ChatMessageListView
         return true;
 
     }
-    
+
     public void CleanUp()
     {
         viewStates.Clear();

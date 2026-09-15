@@ -108,7 +108,7 @@ public class ChatMessageManager
     public void SetActiveTab(string name)
     {
         var targetTabIndex = tab.FindIndex(t => t.Name == name);
-        if  (targetTabIndex < 0) return;
+        if (targetTabIndex < 0) return;
         activeTabIndex = targetTabIndex;
     }
 

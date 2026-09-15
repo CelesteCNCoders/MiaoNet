@@ -21,7 +21,7 @@ internal sealed class SingleThreadedTaskScheduler : TaskScheduler
         syncCtx.Post(state => TryExecuteTask((Task)state!), task);
     }
 
-    protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued) 
+    protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
         => SynchronizationContext.Current == syncCtx && TryExecuteTask(task);
 
     protected override IEnumerable<Task> GetScheduledTasks() => [];

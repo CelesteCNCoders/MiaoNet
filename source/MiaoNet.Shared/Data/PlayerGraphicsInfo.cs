@@ -83,7 +83,7 @@ public sealed class PlayerGraphicsInfo : IRefBinarySerializable<PlayerGraphicsIn
         > 2 => Dash2HairInfo
     };
 
-    public PlayerGraphicsInfo Clone() 
+    public PlayerGraphicsInfo Clone()
         => new(Dash0HairInfo, Dash1HairInfo, Dash2HairInfo, FeatherHairInfo);
 
     object ICloneable.Clone()

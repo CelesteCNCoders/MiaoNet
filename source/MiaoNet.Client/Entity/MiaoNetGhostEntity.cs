@@ -54,7 +54,7 @@ public abstract class MiaoNetGhostEntity : MiaoNetEntity
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected void BaseRender() => base.Render();
 
-    public sealed override void Render() 
+    public sealed override void Render()
     {
         // do nothing as if it's invisible
         // but do not set Visible to false

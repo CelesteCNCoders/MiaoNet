@@ -1,6 +1,6 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using MiaoNet.Server;
 using MiaoNet.Shared;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MiaoNet.UnitTest;
 

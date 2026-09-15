@@ -75,7 +75,7 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
     public PlayerInfo SelfPlayerInfo { get; }
 
     public IReadOnlyCollection<Channel> Channels { get; }
-    
+
     public IReadOnlyCollection<Player> Players { get; }
 
     public PlayerPresenceMessage PlayerPresenceMessage { get; }

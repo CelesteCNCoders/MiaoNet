@@ -7,7 +7,7 @@ namespace MiaoNet.Server;
 
 partial class MiaoServerService : IMiaoServerService
 {
-    IReadOnlyDictionary<int, MiaoClientConnection> IMiaoServerService.Players 
+    IReadOnlyDictionary<int, MiaoClientConnection> IMiaoServerService.Players
         => ServerState.Players;
 
     IReadOnlyDictionary<int, ServerChannel> IMiaoServerService.Channels

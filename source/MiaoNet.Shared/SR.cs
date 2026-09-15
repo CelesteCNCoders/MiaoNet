@@ -2,7 +2,7 @@ namespace MiaoNet.Shared;
 
 internal static class SR
 {
-    public const string MissingPooledString 
+    public const string MissingPooledString
         = "A pooled string(id {0}) is missing but doesn't contain value.";
     public const string PooledStringValueNotMatch
         = "A pooled string is found locally(\"{0}\") but remote provided a different value(\"{1}\").";

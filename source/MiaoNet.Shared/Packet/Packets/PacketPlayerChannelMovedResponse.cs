@@ -48,7 +48,7 @@ public sealed class PacketPlayerChannelMovedResponse : IContextualPacket<PacketP
     {
         return new(
             reader.ReadInt32(),
-            reader.ReadBoolean() 
+            reader.ReadBoolean()
                 ? reader.ReadArray<PlayerMovedInitialDataWithID, PooledStringManager>(context.PooledStringManager)
                 : null,
             reader.ReadBoolean()

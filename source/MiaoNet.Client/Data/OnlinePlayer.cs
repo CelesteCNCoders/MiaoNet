@@ -38,11 +38,11 @@ public sealed class OnlinePlayer
         includePrefix &= !string.IsNullOrEmpty(Info.Prefix);
 
         return includeAvatarEmoji
-            ? includePrefix 
-                ? $":\0mn_avt_{ID}: [{Info.Prefix}] {Info.Name}" 
+            ? includePrefix
+                ? $":\0mn_avt_{ID}: [{Info.Prefix}] {Info.Name}"
                 : $":\0mn_avt_{ID}: {Info.Name}"
-            : includePrefix 
-                ? $"[{Info.Prefix}] {Info.Name}" 
+            : includePrefix
+                ? $"[{Info.Prefix}] {Info.Name}"
                 : Info.Name;
     }
 }

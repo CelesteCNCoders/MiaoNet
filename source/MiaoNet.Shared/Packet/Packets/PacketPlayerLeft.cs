@@ -11,7 +11,7 @@ public sealed class PacketPlayerLeft : PacketPlayerNotification, IContextlessPac
 
     public LeftReason Reason { get; set; }
 
-    public PacketPlayerLeft(int playerID) 
+    public PacketPlayerLeft(int playerID)
         : base(playerID)
     {
     }
