@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
 using MiaoNet.Shared;
@@ -8,8 +7,6 @@ namespace MiaoNet.UnitTest;
 [TestClass]
 public class PooledStringManagerTests
 {
-    // Server unit test environment defines CONCURRENT; no runtime check needed.
-
     [TestMethod]
     public void GetOrCreateID_BasicSequence_NoInitial()
     {
@@ -244,123 +241,7 @@ public class PooledStringManagerTests
     }
 
     [TestMethod]
-    public void Concurrent_GetOrCreateID_SameValue_OnlyOneNew()
-    {
-        var m = new PooledStringManager(Enumerable.Empty<string>());
-        int n = 64;
-        var start = new ManualResetEventSlim(false);
-        var results = new (bool existed, int id)[n];
-        var tasks = new Task[n];
-        for (int i = 0; i < n; i++)
-        {
-            int idx = i;
-            tasks[i] = Task.Run(() =>
-            {
-                start.Wait(TestContext.CancellationToken);
-                bool existed = m.GetOrCreateID("Walk", out int id);
-                results[idx] = (existed, id);
-            }, TestContext.CancellationToken);
-        }
-        start.Set();
-        Task.WaitAll(tasks, TestContext.CancellationToken);
-
-        // Ensure all ids are the same
-        int theId = results[0].id;
-        Assert.IsTrue(results.All(r => r.id == theId));
-        // Exactly one should report newly created (existed == false)
-        int news = results.Count(r => r.existed == false);
-        Assert.AreEqual(1, news);
-    }
-
-    [TestMethod]
-    public void Concurrent_GetOrCreateID_DistinctValues_AllUnique()
-    {
-        var m = new PooledStringManager(Enumerable.Empty<string>());
-        int n = 500;
-        var start = new ManualResetEventSlim(false);
-        var ids = new ConcurrentBag<int>();
-        var tasks = new Task[n];
-        for (int i = 0; i < n; i++)
-        {
-            int idx = i;
-            tasks[i] = Task.Run(() =>
-            {
-                start.Wait(TestContext.CancellationToken);
-                bool existed = m.GetOrCreateID($"S{idx}", out int id);
-                Assert.IsFalse(existed);
-                ids.Add(id);
-            }, TestContext.CancellationToken);
-        }
-        start.Set();
-        Task.WaitAll(tasks, TestContext.CancellationToken);
-
-        var arr = ids.ToArray();
-        Assert.AreEqual(n, arr.Distinct().Count());
-        // Monotonic not guaranteed under concurrency, but range should be 1..n
-        Assert.IsGreaterThanOrEqualTo(1, arr.Min());
-        Assert.IsLessThanOrEqualTo(n, arr.Max());
-    }
-
-    [TestMethod]
-    public void Concurrent_GetAndRecord_SameId_SameValue_AllOk()
-    {
-        var m = new PooledStringManager(Enumerable.Empty<string>());
-        int n = 64;
-        var start = new ManualResetEventSlim(false);
-        var outputs = new ConcurrentBag<string>();
-        var tasks = new Task[n];
-        for (int i = 0; i < n; i++)
-        {
-            tasks[i] = Task.Run(() =>
-            {
-                start.Wait(TestContext.CancellationToken);
-                string s = m.GetAndRecord(1, "Jump");
-                outputs.Add(s);
-            }, TestContext.CancellationToken);
-        }
-        start.Set();
-        Task.WaitAll(tasks, TestContext.CancellationToken);
-
-        Assert.HasCount(n, outputs);
-        Assert.IsTrue(outputs.All(s => s == "Jump"));
-    }
-
-    [TestMethod]
-    public void Concurrent_GetAndRecord_SameId_DifferentValue_OneWins()
-    {
-        var m = new PooledStringManager(Enumerable.Empty<string>());
-        var start = new ManualResetEventSlim(false);
-
-        Exception? e1 = null, e2 = null;
-        string? r1 = null, r2 = null;
-
-        var t1 = Task.Run(() =>
-        {
-            start.Wait(TestContext.CancellationToken);
-            try { r1 = m.GetAndRecord(1, "A"); } catch (Exception ex) { e1 = ex; }
-        }, TestContext.CancellationToken);
-        var t2 = Task.Run(() =>
-        {
-            start.Wait(TestContext.CancellationToken);
-            try { r2 = m.GetAndRecord(1, "B"); } catch (Exception ex) { e2 = ex; }
-        }, TestContext.CancellationToken);
-
-        start.Set();
-        Task.WaitAll(t1, t2);
-
-        // Exactly one should succeed and the other must throw mismatch
-        int success = (r1 == "A" ? 1 : 0) + (r2 == "B" ? 1 : 0);
-        int failures = (e1 != null ? 1 : 0) + (e2 != null ? 1 : 0);
-        Assert.AreEqual(1, success);
-        Assert.AreEqual(1, failures);
-
-        // The winner's value becomes the mapping
-        string mapped = m.GetAndRecord(1, null);
-        Assert.IsTrue(mapped is "A" or "B");
-    }
-
-    [TestMethod]
-    public void EndToEnd_ManyValues_ParallelDeserialize_SafeWhenConcurrent()
+    public void EndToEnd_ManyValues_ResolveRepeatedlyAfterLearning()
     {
         var sender = new PooledStringManager(Enumerable.Empty<string>());
         var receiver = new PooledStringManager(Enumerable.Empty<string>());
@@ -378,7 +259,7 @@ public class PooledStringManagerTests
             Assert.AreEqual(values[i].Value, (string)PooledString.Deserialize(ref r, receiver));
         }
 
-        // References to IDs already learned are safe to resolve concurrently and out of order.
+        // References to IDs already learned carry no value and resolve to the same string.
         for (int i = 0; i < values.Length; i++)
         {
             ByteArrayBufferWriter buffer = new();
@@ -388,12 +269,12 @@ public class PooledStringManagerTests
             payloads[i] = buffer.WrittenSpan.ToArray();
         }
 
-        Parallel.For(0, payloads.Length, i =>
+        for (int i = 0; i < payloads.Length; i++)
         {
             var r = new RefBinaryReader(payloads[i]);
             var s = PooledString.Deserialize(ref r, receiver);
             Assert.AreEqual(values[i].Value, (string)s);
-        });
+        }
     }
 
     public TestContext TestContext { get; set; }
