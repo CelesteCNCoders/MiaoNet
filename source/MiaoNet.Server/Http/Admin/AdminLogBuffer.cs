@@ -13,7 +13,8 @@ public sealed class AdminLogBuffer
         LogLevel Level,
         string Category,
         string Message,
-        string? Exception
+        string? Exception,
+        string? Scope
     );
 
     private readonly Entry[] entries;
@@ -37,11 +38,14 @@ public sealed class AdminLogBuffer
         }
     }
 
-    public void Record(LogLevel level, string category, string message, string? exception)
+    /// <param name="scope">
+    /// 该条日志的 logger scope 文本(嵌套时逐层连接), 没有作用域时为 null.
+    /// </param>
+    public void Record(LogLevel level, string category, string message, string? exception, string? scope)
     {
         lock (sync)
         {
-            entries[head] = new Entry(nextId++, DateTime.UtcNow, level, category, message, exception);
+            entries[head] = new Entry(nextId++, DateTime.UtcNow, level, category, message, exception, scope);
             head = (head + 1) % entries.Length;
             if (count < entries.Length)
                 count++;

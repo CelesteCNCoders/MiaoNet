@@ -11,7 +11,7 @@ public class AdminBufferTest
     {
         AdminLogBuffer buffer = new(capacity: 4);
         for (int i = 0; i < 6; i++)
-            buffer.Record(LogLevel.Information, "Test", $"msg{i}", null);
+            buffer.Record(LogLevel.Information, "Test", $"msg{i}", null, null);
 
         Assert.AreEqual(5, buffer.LatestId);
 
@@ -53,5 +53,32 @@ public class AdminBufferTest
         Assert.AreEqual("overflow", all[2].Content);
 
         Assert.IsEmpty(buffer.GetAfter(3, 100));
+    }
+
+    [TestMethod]
+    public void TestLogBufferScope()
+    {
+        AdminLogBuffer buffer = new();
+        using ILoggerFactory factory = LoggerFactory.Create(
+            builder => builder.AddProvider(new AdminLogBufferLoggerProvider(buffer))
+        );
+        ILogger logger = factory.CreateLogger("MiaoNet.Server.Test");
+
+        logger.LogInformation("no scope");
+        using (logger.BeginScope("connection {addr}", "1.2.3.4:5678"))
+        {
+            logger.LogInformation("one scope");
+            using (logger.BeginScope("player {id}", 42))
+                logger.LogWarning("two scopes");
+        }
+        logger.LogInformation("scope left");
+
+        var all = buffer.GetAfter(-1, 100);
+        Assert.HasCount(4, all);
+        Assert.IsNull(all[0].Scope);
+        Assert.AreEqual("connection 1.2.3.4:5678", all[1].Scope);
+        Assert.AreEqual("connection 1.2.3.4:5678 => player 42", all[2].Scope);
+        Assert.AreEqual(LogLevel.Warning, all[2].Level);
+        Assert.IsNull(all[3].Scope);
     }
 }

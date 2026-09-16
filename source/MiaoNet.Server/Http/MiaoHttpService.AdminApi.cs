@@ -81,7 +81,8 @@ public sealed partial class MiaoHttpService
                 level = e.Level.ToString(),
                 category = e.Category,
                 message = e.Message,
-                exception = e.Exception
+                exception = e.Exception,
+                scope = e.Scope
             }),
             latest = adminLogBuffer.LatestId
         });

@@ -613,6 +613,12 @@
             font-size: 11px;
         }
 
+        .log-scope {
+            color: #c792ea;
+            margin-right: 8px;
+            font-size: 11px;
+        }
+
         .log-exc {
             color: #ff3860;
             white-space: pre-wrap;
@@ -1301,7 +1307,9 @@
             div.className = "line lv-" + e.level;
             const cat = (e.category || "").split(".").pop();
             div.innerHTML = '<span class="time">' + fmtTime(e.time) + "</span>" +
-                '<span class="log-cat">[' + e.level + "] " + esc(cat) + "</span>" + esc(e.message) +
+                '<span class="log-cat">[' + e.level + "] " + esc(cat) + "</span>" +
+                (e.scope ? '<span class="log-scope">=> ' + esc(e.scope) + "</span>" : "") +
+                esc(e.message) +
                 (e.exception ? '<div class="log-exc">' + esc(e.exception) + "</div>" : "");
             return div;
         }
