@@ -52,8 +52,8 @@ public sealed class PacketPlayerChannelMovedNotification : PacketPlayerNotificat
 
     public void Serialize(ref RefBinaryWriter writer, IPacketSerializationContext context)
     {
-        writer.Write(PlayerID);
-        writer.Write(ChannelID);
+        writer.Write7BitEncodedInt(PlayerID);
+        writer.Write7BitEncodedInt(ChannelID);
         if (InitialData is null)
         {
             writer.Write(false);
@@ -79,8 +79,8 @@ public sealed class PacketPlayerChannelMovedNotification : PacketPlayerNotificat
         IPacketSerializationContext context
     )
     {
-        int playerID = reader.ReadInt32();
-        int channelID = reader.ReadInt32();
+        int playerID = reader.Read7BitEncodedInt();
+        int channelID = reader.Read7BitEncodedInt();
         PlayerMovedInitialData? initialData = reader.ReadBoolean()
             ? reader.Read<PlayerMovedInitialData, PooledStringManager>(context.PooledStringManager)
             : null;

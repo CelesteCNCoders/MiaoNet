@@ -31,12 +31,12 @@ public sealed partial class PlayerSessionData
         public void Serialize(ref RefBinaryWriter writer)
         {
             writer.Write(Key);
-            writer.Write(Value);
+            writer.Write7BitEncodedInt(Value);
         }
 
         public static StringIntPair Deserialize(ref RefBinaryReader reader)
         {
-            return new(reader.ReadString(), reader.ReadInt32());
+            return new(reader.ReadString(), reader.Read7BitEncodedInt());
         }
     }
 
@@ -68,13 +68,13 @@ public sealed partial class PlayerSessionData
 
         public void Serialize(ref RefBinaryWriter writer)
         {
-            writer.Write(Dashes);
+            writer.Write7BitEncodedInt(Dashes);
             writer.Write(DreamDash);
             writer.Write(Backpack);
             writer.Write(NoRefills);
         }
 
         public static PlayerInventory Deserialize(ref RefBinaryReader reader)
-            => new(reader.ReadInt32(), reader.ReadBoolean(), reader.ReadBoolean(), reader.ReadBoolean());
+            => new(reader.Read7BitEncodedInt(), reader.ReadBoolean(), reader.ReadBoolean(), reader.ReadBoolean());
     }
 }

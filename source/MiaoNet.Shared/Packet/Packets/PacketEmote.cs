@@ -10,12 +10,12 @@ public sealed class PacketEmote : PacketPlayerNotification, IContextlessPacket<P
 
     public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(PlayerID);
+        writer.Write7BitEncodedInt(PlayerID);
         writer.Write(Emote);
     }
 
     public static PacketEmote Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadInt32(), reader.Read<EmoteData>());
+        => new(reader.Read7BitEncodedInt(), reader.Read<EmoteData>());
 }
 
 public sealed class PacketSendEmote : IContextlessPacket<PacketSendEmote>

@@ -14,12 +14,12 @@ public sealed class PacketChannelCreated : IContextlessPacket<PacketChannelCreat
 
     public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(ChannelID);
+        writer.Write7BitEncodedInt(ChannelID);
         writer.Write(ChannelInfo);
     }
 
     public static PacketChannelCreated Deserialize(ref RefBinaryReader reader)
     {
-        return new(reader.ReadInt32(), reader.Read<ChannelInfo>());
+        return new(reader.Read7BitEncodedInt(), reader.Read<ChannelInfo>());
     }
 }

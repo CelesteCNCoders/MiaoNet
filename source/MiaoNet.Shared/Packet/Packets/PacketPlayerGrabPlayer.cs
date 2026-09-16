@@ -30,7 +30,7 @@ public sealed class PacketPlayerGrabPlayer : IContextlessPacket<PacketPlayerGrab
 
     public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(PlayerID);
+        writer.Write7BitEncodedInt(PlayerID);
         if (!IsRelease)
         {
             writer.Write(false);
@@ -44,7 +44,7 @@ public sealed class PacketPlayerGrabPlayer : IContextlessPacket<PacketPlayerGrab
 
     public static PacketPlayerGrabPlayer Deserialize(ref RefBinaryReader reader)
     {
-        int playerID = reader.ReadInt32();
+        int playerID = reader.Read7BitEncodedInt();
         bool isRelease = reader.ReadBoolean();
         if (!isRelease)
             return new(playerID);

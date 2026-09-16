@@ -9,7 +9,7 @@ namespace MiaoNet.Shared;
 [DebuggerDisplay("{Value}")]
 public readonly struct PooledString : IContextualRefBinarySerializable<PooledString, PooledStringManager>
 {
-    private const int Int32HighestBitMask = 1 << 0x1F;
+    private const int HasValueFlagMask = 1;
 
     public string Value { get; }
 
@@ -29,21 +29,21 @@ public readonly struct PooledString : IContextualRefBinarySerializable<PooledStr
     {
         if (pooledStringManager.GetOrCreateID(Value, out int id))
         {
-            writer.Write(id);
+            writer.Write7BitEncodedInt(id << 1);
         }
         else
         {
-            writer.Write(id | Int32HighestBitMask);
+            writer.Write7BitEncodedInt((id << 1) | HasValueFlagMask);
             writer.Write(Value);
         }
     }
 
     public static PooledString Deserialize(ref RefBinaryReader reader, PooledStringManager pooledStringManager)
     {
-        int sid = reader.ReadInt32();
+        int sid = reader.Read7BitEncodedInt();
 
-        int id = sid & ~Int32HighestBitMask;
-        bool hasValue = (sid & Int32HighestBitMask) == Int32HighestBitMask;
+        int id = sid >> 1;
+        bool hasValue = (sid & HasValueFlagMask) != 0;
 
         return pooledStringManager.GetAndRecord(id, hasValue ? reader.ReadString() : null);
     }

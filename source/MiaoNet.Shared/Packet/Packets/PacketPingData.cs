@@ -16,8 +16,8 @@ public sealed class PacketPingData : IContextlessPacket<PacketPingData>
         writer.Write((ushort)Data.Count);
         foreach (var (playerID, ping) in Data)
         {
-            writer.Write(playerID);
-            writer.Write(ping);
+            writer.Write7BitEncodedInt(playerID);
+            writer.Write7BitEncodedInt(ping);
         }
     }
 
@@ -26,7 +26,7 @@ public sealed class PacketPingData : IContextlessPacket<PacketPingData>
         ushort count = reader.ReadUInt16();
         PairPlayerPing[] data = new PairPlayerPing[count];
         for (int i = 0; i < count; i++)
-            data[i] = (reader.ReadInt32(), reader.ReadInt32());
+            data[i] = (reader.Read7BitEncodedInt(), reader.Read7BitEncodedInt());
         return new PacketPingData(data);
     }
 }

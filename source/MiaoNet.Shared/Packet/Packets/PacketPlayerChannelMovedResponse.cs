@@ -23,7 +23,7 @@ public sealed class PacketPlayerChannelMovedResponse : IContextualPacket<PacketP
 
     public void Serialize(ref RefBinaryWriter writer, IPacketSerializationContext context)
     {
-        writer.Write(ChannelID);
+        writer.Write7BitEncodedInt(ChannelID);
         if (Players is null)
         {
             writer.Write(false);
@@ -47,7 +47,7 @@ public sealed class PacketPlayerChannelMovedResponse : IContextualPacket<PacketP
     public static PacketPlayerChannelMovedResponse Deserialize(ref RefBinaryReader reader, IPacketSerializationContext context)
     {
         return new(
-            reader.ReadInt32(),
+            reader.Read7BitEncodedInt(),
             reader.ReadBoolean()
                 ? reader.ReadArray<PlayerMovedInitialDataWithID, PooledStringManager>(context.PooledStringManager)
                 : null,

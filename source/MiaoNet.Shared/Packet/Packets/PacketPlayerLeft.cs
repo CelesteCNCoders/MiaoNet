@@ -17,8 +17,8 @@ public sealed class PacketPlayerLeft : PacketPlayerNotification, IContextlessPac
     }
 
     public void Serialize(ref RefBinaryWriter writer)
-        => writer.Write(PlayerID);
+        => writer.Write7BitEncodedInt(PlayerID);
 
     public static PacketPlayerLeft Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadInt32());
+        => new(reader.Read7BitEncodedInt());
 }

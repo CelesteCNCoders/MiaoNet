@@ -43,7 +43,7 @@ public sealed class PacketPlayerLocationChangedNotification : PacketPlayerNotifi
 
     public void Serialize(ref RefBinaryWriter writer, IPacketSerializationContext context)
     {
-        writer.Write(PlayerID);
+        writer.Write7BitEncodedInt(PlayerID);
         writer.Write(Location);
         writer.WriteNullable(InitialState, context.PooledStringManager);
     }
@@ -53,7 +53,7 @@ public sealed class PacketPlayerLocationChangedNotification : PacketPlayerNotifi
         IPacketSerializationContext context
     )
     {
-        int playerID = reader.ReadInt32();
+        int playerID = reader.Read7BitEncodedInt();
         PlayerLocation location = reader.Read<PlayerLocation>();
         PlayerState? initialState = reader.ReadNullable<PlayerState, PooledStringManager>(context.PooledStringManager);
 

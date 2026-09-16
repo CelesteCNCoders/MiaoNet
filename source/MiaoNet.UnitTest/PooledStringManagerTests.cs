@@ -156,6 +156,7 @@ public class PooledStringManagerTests
         var bytes2 = SendOne(new PooledString("Jump"), sender);
         var got2 = ReceiveOne(bytes2, receiver);
         Assert.AreEqual("Jump", got2);
+        Assert.HasCount(1, bytes2);
 
         // different value obtains a different id on sender, and receiver learns it
         var bytes3 = SendOne(new PooledString("Run"), sender);

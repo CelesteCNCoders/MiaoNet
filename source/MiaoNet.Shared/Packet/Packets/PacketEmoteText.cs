@@ -9,12 +9,12 @@ public sealed class PacketEmoteText : PacketPlayerNotification, IContextlessPack
 
     public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(PlayerID);
+        writer.Write7BitEncodedInt(PlayerID);
         writer.Write(Text);
     }
 
     public static PacketEmoteText Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadInt32(), reader.ReadString());
+        => new(reader.Read7BitEncodedInt(), reader.ReadString());
 }
 
 public sealed class PacketSendEmoteText : IContextlessPacket<PacketSendEmoteText>

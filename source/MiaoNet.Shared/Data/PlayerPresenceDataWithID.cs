@@ -18,10 +18,10 @@ public readonly struct PlayerPresenceDataWithID : IRefBinarySerializable<PlayerP
 
     public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(PlayerID);
+        writer.Write7BitEncodedInt(PlayerID);
         writer.Write(Data);
     }
 
     public static PlayerPresenceDataWithID Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadInt32(), reader.Read<PlayerPresenceData>());
+        => new(reader.Read7BitEncodedInt(), reader.Read<PlayerPresenceData>());
 }

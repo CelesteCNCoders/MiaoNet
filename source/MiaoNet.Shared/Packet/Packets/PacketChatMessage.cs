@@ -34,7 +34,7 @@ public sealed class PacketChatMessage : IContextlessPacket<PacketChatMessage>
         => new(
             reader.ReadDateTime(),
             (ChatMessageType)reader.ReadByte(),
-            reader.ReadBoolean() ? reader.ReadInt32() : null,
+            reader.ReadBoolean() ? reader.Read7BitEncodedInt() : null,
             reader.ReadString()
         );
 
@@ -45,7 +45,7 @@ public sealed class PacketChatMessage : IContextlessPacket<PacketChatMessage>
         if (SourcePlayer.HasValue)
         {
             writer.Write(true);
-            writer.Write((int)SourcePlayer);
+            writer.Write7BitEncodedInt(SourcePlayer.Value);
         }
         else
         {
@@ -93,15 +93,15 @@ public sealed class PacketSendPrivateChatMessage :
 
     public override void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(RequestID);
-        writer.Write(TargetPlayerID);
+        writer.Write7BitEncodedInt(RequestID);
+        writer.Write7BitEncodedInt(TargetPlayerID);
         writer.Write(Content);
     }
 
     public static PacketSendPrivateChatMessage Deserialize(ref RefBinaryReader reader)
     {
-        int reqID = reader.ReadInt32();
-        return new(reader.ReadInt32(), reader.ReadString()) { RequestID = reqID };
+        int reqID = reader.Read7BitEncodedInt();
+        return new(reader.Read7BitEncodedInt(), reader.ReadString()) { RequestID = reqID };
     }
 }
 
@@ -128,14 +128,14 @@ public sealed class PacketSendPrivateChatMessageResponse :
 
     public override void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(RequestID);
+        writer.Write7BitEncodedInt(RequestID);
         writer.Write(DateTime);
         writer.Write((byte)Result);
     }
 
     public static PacketSendPrivateChatMessageResponse Deserialize(ref RefBinaryReader reader)
     {
-        int reqID = reader.ReadInt32();
+        int reqID = reader.Read7BitEncodedInt();
         return new(reader.ReadDateTime(), (SendResult)reader.ReadByte()) { RequestID = reqID };
     }
 }

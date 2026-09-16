@@ -16,14 +16,14 @@ public sealed class PacketTeleportRequest :
 
     public override void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(RequestID);
-        writer.Write(TargetPlayerID);
+        writer.Write7BitEncodedInt(RequestID);
+        writer.Write7BitEncodedInt(TargetPlayerID);
     }
 
     public static PacketTeleportRequest Deserialize(ref RefBinaryReader reader)
     {
-        int reqID = reader.ReadInt32();
-        return new(reader.ReadInt32()) { RequestID = reqID };
+        int reqID = reader.Read7BitEncodedInt();
+        return new(reader.Read7BitEncodedInt()) { RequestID = reqID };
     }
 }
 
@@ -55,7 +55,7 @@ public sealed class PacketTeleportResponse :
 
     public override void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(RequestID);
+        writer.Write7BitEncodedInt(RequestID);
         writer.Write((byte)FailedReason);
         if (!IsFailed)
             writer.Write(Session);
@@ -63,7 +63,7 @@ public sealed class PacketTeleportResponse :
 
     public static PacketTeleportResponse Deserialize(ref RefBinaryReader reader)
     {
-        int reqID = reader.ReadInt32();
+        int reqID = reader.Read7BitEncodedInt();
         TeleportFailedReason failedReason = (TeleportFailedReason)reader.ReadByte();
         PlayerSessionData? session = failedReason == TeleportFailedReason.None
             ? reader.Read<PlayerSessionData>()

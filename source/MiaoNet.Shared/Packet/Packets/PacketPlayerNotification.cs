@@ -20,12 +20,12 @@ public sealed class PacketPlayerNotification<TPacket> : IContextlessPacket<Packe
 
     public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(PlayerID);
+        writer.Write7BitEncodedInt(PlayerID);
         writer.Write(Packet);
     }
 
     public static PacketPlayerNotification<TPacket> Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadInt32(), reader.Read<TPacket>());
+        => new(reader.Read7BitEncodedInt(), reader.Read<TPacket>());
 }
 
 public sealed class PacketContextualPlayerNotification<TPacket>
@@ -43,12 +43,12 @@ public sealed class PacketContextualPlayerNotification<TPacket>
 
     public void Serialize(ref RefBinaryWriter writer, IPacketSerializationContext context)
     {
-        writer.Write(PlayerID);
+        writer.Write7BitEncodedInt(PlayerID);
         writer.Write(Packet, context);
     }
 
     public static PacketContextualPlayerNotification<TPacket> Deserialize(
         ref RefBinaryReader reader,
         IPacketSerializationContext context
-    ) => new(reader.ReadInt32(), reader.Read<TPacket, IPacketSerializationContext>(context));
+    ) => new(reader.Read7BitEncodedInt(), reader.Read<TPacket, IPacketSerializationContext>(context));
 }

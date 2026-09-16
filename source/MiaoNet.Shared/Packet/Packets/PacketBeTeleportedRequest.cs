@@ -16,14 +16,14 @@ public sealed class PacketBeTeleportedRequest :
 
     public override void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(RequestID);
-        writer.Write(SourcePlayerID);
+        writer.Write7BitEncodedInt(RequestID);
+        writer.Write7BitEncodedInt(SourcePlayerID);
     }
 
     public static PacketBeTeleportedRequest Deserialize(ref RefBinaryReader reader)
     {
-        int reqID = reader.ReadInt32();
-        return new(reader.ReadInt32()) { RequestID = reqID };
+        int reqID = reader.Read7BitEncodedInt();
+        return new(reader.Read7BitEncodedInt()) { RequestID = reqID };
     }
 }
 
@@ -46,7 +46,7 @@ public sealed class PacketBeTeleportedResponse :
 
     public override void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(RequestID);
+        writer.Write7BitEncodedInt(RequestID);
         if (Accepted)
         {
             writer.Write(true);
@@ -60,7 +60,7 @@ public sealed class PacketBeTeleportedResponse :
 
     public static PacketBeTeleportedResponse Deserialize(ref RefBinaryReader reader)
     {
-        int reqID = reader.ReadInt32();
+        int reqID = reader.Read7BitEncodedInt();
         bool accept = reader.ReadBoolean();
         return new(accept ? reader.Read<PlayerSessionData>() : null) { RequestID = reqID };
     }

@@ -106,7 +106,7 @@ public sealed class PacketFramingTests
     public async Task ReadPacketPreservesExistingWireFormat()
     {
         byte[] frame = WriteFrame(new PacketPing());
-        Assert.AreEqual(sizeof(int), BinaryPrimitives.ReadUInt16LittleEndian(frame));
+        Assert.AreEqual(1, BinaryPrimitives.ReadUInt16LittleEndian(frame));
         Assert.AreEqual(
             PacketRegistry.GetPacketID(new PacketPing()),
             BinaryPrimitives.ReadUInt16LittleEndian(frame.AsSpan(sizeof(ushort)))
