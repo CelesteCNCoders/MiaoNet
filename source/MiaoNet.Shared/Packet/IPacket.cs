@@ -26,3 +26,10 @@ public interface IContextlessPacket<out T> : IContextlessPacket, IContextualPack
         IPacketSerializationContext context
     ) => T.Deserialize(ref reader);
 }
+
+public interface IPacketRequest : IContextualPacket;
+
+public interface IPacketRequest<out TResponse> : IPacketRequest
+    where TResponse : IPacketResponse;
+
+public interface IPacketResponse : IContextualPacket;

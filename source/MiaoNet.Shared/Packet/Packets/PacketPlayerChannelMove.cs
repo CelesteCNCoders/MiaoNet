@@ -22,8 +22,8 @@ public sealed class PacketPlayerChannelMove : IContextlessPacket<PacketPlayerCha
 }
 
 // server to client
-public sealed class PacketPlayerChannelMovedNotification : PacketPlayerNotification,
-    IContextualPacket<PacketPlayerChannelMovedNotification>
+public sealed class PacketPlayerChannelMovedNotification
+    : IContextualPacket<PacketPlayerChannelMovedNotification>
 {
     public int ChannelID { get; }
 
@@ -33,17 +33,16 @@ public sealed class PacketPlayerChannelMovedNotification : PacketPlayerNotificat
     // "summary" data (location + global flags); sent to same-channel receivers
     public PlayerPresenceData? Presence { get; }
 
-    public PacketPlayerChannelMovedNotification(int playerID, int channelID)
-        : this(playerID, channelID, null, null)
+    public PacketPlayerChannelMovedNotification(int channelID)
+        : this(channelID, null, null)
     {
     }
 
     public PacketPlayerChannelMovedNotification(
-        int playerID,
         int channelID,
         PlayerMovedInitialData? initialData,
         PlayerPresenceData? presence
-    ) : base(playerID)
+    )
     {
         ChannelID = channelID;
         InitialData = initialData;
@@ -52,7 +51,6 @@ public sealed class PacketPlayerChannelMovedNotification : PacketPlayerNotificat
 
     public void Serialize(ref RefBinaryWriter writer, IPacketSerializationContext context)
     {
-        writer.Write7BitEncodedInt(PlayerID);
         writer.Write7BitEncodedInt(ChannelID);
         if (InitialData is null)
         {
@@ -79,7 +77,6 @@ public sealed class PacketPlayerChannelMovedNotification : PacketPlayerNotificat
         IPacketSerializationContext context
     )
     {
-        int playerID = reader.Read7BitEncodedInt();
         int channelID = reader.Read7BitEncodedInt();
         PlayerMovedInitialData? initialData = reader.ReadBoolean()
             ? reader.Read<PlayerMovedInitialData, PooledStringManager>(context.PooledStringManager)
@@ -88,6 +85,6 @@ public sealed class PacketPlayerChannelMovedNotification : PacketPlayerNotificat
             ? reader.Read<PlayerPresenceData>()
             : null;
 
-        return new(playerID, channelID, initialData, presence);
+        return new(channelID, initialData, presence);
     }
 }

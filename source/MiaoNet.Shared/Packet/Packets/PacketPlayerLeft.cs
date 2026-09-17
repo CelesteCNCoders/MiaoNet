@@ -1,6 +1,6 @@
 namespace MiaoNet.Shared;
 
-public sealed class PacketPlayerLeft : PacketPlayerNotification, IContextlessPacket<PacketPlayerLeft>
+public sealed class PacketPlayerLeft : IContextlessPacket<PacketPlayerLeft>
 {
     public enum LeftReason
     {
@@ -9,11 +9,11 @@ public sealed class PacketPlayerLeft : PacketPlayerNotification, IContextlessPac
         Interrupted
     }
 
-    public LeftReason Reason { get; set; }
+    public int PlayerID { get; }
 
     public PacketPlayerLeft(int playerID)
-        : base(playerID)
     {
+        PlayerID = playerID;
     }
 
     public void Serialize(ref RefBinaryWriter writer)

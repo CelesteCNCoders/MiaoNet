@@ -4,7 +4,7 @@ namespace MiaoNet.Shared;
 
 // client to server
 public sealed class PacketTeleportRequest :
-    PacketRequest<PacketTeleportResponse>,
+    IPacketRequest<PacketTeleportResponse>,
     IContextlessPacket<PacketTeleportRequest>
 {
     public int TargetPlayerID { get; }
@@ -14,22 +14,20 @@ public sealed class PacketTeleportRequest :
         TargetPlayerID = targetPlayerID;
     }
 
-    public override void Serialize(ref RefBinaryWriter writer)
+    public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write7BitEncodedInt(RequestID);
         writer.Write7BitEncodedInt(TargetPlayerID);
     }
 
     public static PacketTeleportRequest Deserialize(ref RefBinaryReader reader)
     {
-        int reqID = reader.Read7BitEncodedInt();
-        return new(reader.Read7BitEncodedInt()) { RequestID = reqID };
+        return new(reader.Read7BitEncodedInt());
     }
 }
 
 // server to client
 public sealed class PacketTeleportResponse :
-    PacketResponse,
+    IPacketResponse,
     IContextlessPacket<PacketTeleportResponse>
 {
     public enum TeleportFailedReason
@@ -53,9 +51,8 @@ public sealed class PacketTeleportResponse :
         Session = session;
     }
 
-    public override void Serialize(ref RefBinaryWriter writer)
+    public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write7BitEncodedInt(RequestID);
         writer.Write((byte)FailedReason);
         if (!IsFailed)
             writer.Write(Session);
@@ -63,11 +60,10 @@ public sealed class PacketTeleportResponse :
 
     public static PacketTeleportResponse Deserialize(ref RefBinaryReader reader)
     {
-        int reqID = reader.Read7BitEncodedInt();
         TeleportFailedReason failedReason = (TeleportFailedReason)reader.ReadByte();
         PlayerSessionData? session = failedReason == TeleportFailedReason.None
             ? reader.Read<PlayerSessionData>()
             : null;
-        return new(failedReason, session) { RequestID = reqID };
+        return new(failedReason, session);
     }
 }

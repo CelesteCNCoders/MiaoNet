@@ -4,14 +4,14 @@ namespace Celeste.Mod.MiaoNet;
 
 partial class MiaoNetContext
 {
-    public delegate void PacketPlayerNotificationHandler(OnlinePlayer player);
-    public delegate void PacketPlayerNotificationHandler<TPacket>(OnlinePlayer player, TPacket packet);
+    public delegate void PlayerNotificationHandler(OnlinePlayer player);
+    public delegate void PlayerNotificationHandler<TPacket>(OnlinePlayer player, TPacket packet);
 
     public event Action<ClientState>? ClientInitialized;
     public event Action<OnlinePlayer>? PlayerJoined;
     public event Action<OnlinePlayer>? PlayerLeft;
-    public event PacketPlayerNotificationHandler<PacketPlayerFrame>? PlayerFrameNotification;
-    public event PacketPlayerNotificationHandler<PacketPlayerLocationChangedNotification>? PlayerLocationChanged;
+    public event PlayerNotificationHandler<PacketPlayerFrame>? PlayerFrameNotification;
+    public event PlayerNotificationHandler<PacketPlayerLocationChangedNotification>? PlayerLocationChanged;
     public event Action<PacketPlayerLocationChangedResponse>? PlayerLocationChangeResponded;
     public event Action<OnlinePlayer?, PacketChatMessage>? ChatMessageReceived;
     public event Action<OnlinePlayer, EmoteData>? EmoteReceived;
@@ -24,33 +24,33 @@ partial class MiaoNetContext
     public event Action<OnlinePlayer, Vector2?>? PlayerGrabPlayer;
     public event Action<OnlinePlayer>? PlayerGrabJumpOut;
     public event Action<PacketPlayerChannelMovedResponse>? SelfChannelMoved;
-    public event PacketPlayerNotificationHandler<PacketPlayerChannelMovedNotification>? PlayerChannelMoved;
+    public event PlayerNotificationHandler<PacketPlayerChannelMovedNotification>? PlayerChannelMoved;
 
     private void RegisterPacketHandlers(PacketHandlerRegister r)
     {
         r.Register<PacketPlayerJoined>(HandlePacket);
         r.Register<PacketPlayerLeft>(HandlePacket);
-        r.Register<PacketContextualPlayerNotification<PacketPlayerFrame>>(HandlePacket);
+        r.Register<PacketPlayerFrame>(HandlePacket);
         r.Register<PacketPlayerLocationChangedNotification>(HandlePacket);
         r.Register<PacketPlayerLocationChangedResponse>(HandlePacket);
         r.Register<PacketChatMessage>(HandlePacket);
         r.Register<PacketEmote>(HandlePacket);
         r.Register<PacketEmoteText>(HandlePacket);
-        r.Register<PacketPlayerNotification<PacketPlayerLiveState>>(HandlePacket);
-        r.Register<PacketPlayerNotification<PacketUpdateGlobalFlag>>(HandlePacket);
+        r.Register<PacketPlayerLiveState>(HandlePacket);
+        r.Register<PacketUpdateGlobalFlag>(HandlePacket);
         r.Register<PacketBeTeleportedRequest>(HandlePacket);
         r.Register<PacketPingData>(HandlePacket);
-        r.Register<PacketPlayerNotification<PacketCreateFireworks>>(HandlePacket);
+        r.Register<PacketCreateFireworks>(HandlePacket);
         r.Register<PacketDisconnected>(HandlePacket);
         r.Register<PacketPlayerGrabPlayer>(HandlePacket);
         r.Register<PacketPlayerGrabJumpOut>(HandlePacket);
-        r.Register<PacketContextualPlayerNotification<PacketPlayerPlayedAudio>>(HandlePacket);
+        r.Register<PacketPlayerPlayedAudio>(HandlePacket);
         r.Register<PacketPlayerChannelMovedResponse>(HandlePacket);
         r.Register<PacketPlayerChannelMovedNotification>(HandlePacket);
         r.Register<PacketChannelCreated>(HandlePacket);
     }
 
-    private void HandlePacket(PacketDisconnected packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketDisconnected packet)
     {
         OnDisconnected();
         if (packet.Reason == DisconnectReason.Kicked && packet.Message is not null)
@@ -62,40 +62,41 @@ partial class MiaoNetContext
         StatusComponent.ShowStatusMessage(packet.Message ?? ConnectionStatus.Disconnected);
     }
 
-    private void HandlePacket(PacketPlayerJoined packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketPlayerJoined packet)
     {
         EnsureState();
         var player = ClientState.OnNewPlayerJoined(packet.ChannelID, packet.PlayerID, packet.PlayerInfo, PlayerGlobalFlags.None);
         PlayerJoined?.Invoke(player);
     }
 
-    private void HandlePacket(PacketPlayerLeft packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketPlayerLeft packet)
     {
         EnsureState();
-        var player = ClientState.GetPlayer(packet.PlayerID);
-        ClientState.OnPlayerLeft(packet.PlayerID);
-        frameQueues.Remove(packet.PlayerID);
+        int playerID = packet.PlayerID;
+        var player = ClientState.GetPlayer(playerID);
+        ClientState.OnPlayerLeft(playerID);
+        frameQueues.Remove(playerID);
         PlayerLeft?.Invoke(player);
         player.State = null;
     }
 
-    private void HandlePacket(PacketContextualPlayerNotification<PacketPlayerFrame> packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketPlayerFrame packet)
     {
         EnsureState();
-        if (!ClientState.TryGetPlayer(packet.PlayerID, out OnlinePlayer? player))
+        if (!ClientState.TryGetPlayer(envelope.SenderPlayerID, out OnlinePlayer? player))
             return;
         var state = player.State;
         if (state is not null)
         {
-            state.ApplyDelta(packet.Packet.StateDelta);
+            state.ApplyDelta(packet.StateDelta);
         }
         else
         {
             Logger.Warn(LT.MiaoNetSync, $"Received a frame notification for {player.Info}, but there is no initial state.");
             return;
         }
-        GetFrameQueue(player.ID).Enqueue(packet.Packet.StateDelta);
-        PlayerFrameNotification?.Invoke(player, packet.Packet);
+        GetFrameQueue(player.ID).Enqueue(packet.StateDelta);
+        PlayerFrameNotification?.Invoke(player, packet);
     }
 
     private void ConsumeFrameQueues()
@@ -136,13 +137,14 @@ partial class MiaoNetContext
         return queue;
     }
 
-    private void HandlePacket(PacketPlayerLocationChangedNotification packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketPlayerLocationChangedNotification packet)
     {
         EnsureState();
-        var player = ClientState.GetPlayer(packet.PlayerID);
+        int playerID = envelope.SenderPlayerID;
+        var player = ClientState.GetPlayer(playerID);
         player.Location = packet.Location;
 
-        frameQueues.Remove(packet.PlayerID);
+        frameQueues.Remove(playerID);
 
         bool roomOnly = packet.InitialState is null
             && packet.Location.IsInMap
@@ -154,7 +156,7 @@ partial class MiaoNetContext
         PlayerLocationChanged?.Invoke(player, packet);
     }
 
-    private void HandlePacket(PacketPlayerLocationChangedResponse packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketPlayerLocationChangedResponse packet)
     {
         EnsureState();
         frameQueues.Clear();
@@ -163,7 +165,7 @@ partial class MiaoNetContext
         PlayerLocationChangeResponded?.Invoke(packet);
     }
 
-    private void HandlePacket(PacketChatMessage packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketChatMessage packet)
     {
         EnsureState();
         OnlinePlayer? player = null;
@@ -172,50 +174,49 @@ partial class MiaoNetContext
         ChatMessageReceived?.Invoke(player, packet);
     }
 
-    private void HandlePacket(PacketEmote packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketEmote packet)
     {
         EnsureState();
-        var player = ClientState.GetPlayer(packet.PlayerID);
+        var player = ClientState.GetPlayer(envelope.SenderPlayerID);
         EmoteReceived?.Invoke(player, packet.Emote);
     }
 
-    private void HandlePacket(PacketEmoteText packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketEmoteText packet)
     {
         EnsureState();
-        var player = ClientState.GetPlayer(packet.PlayerID);
+        var player = ClientState.GetPlayer(envelope.SenderPlayerID);
         EmoteTextReceived?.Invoke(player, packet.Text);
     }
 
-    private void HandlePacket(PacketPlayerNotification<PacketPlayerLiveState> packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketPlayerLiveState packet)
     {
         EnsureState();
-        var p = packet.Packet;
-        var player = ClientState.GetPlayer(packet.PlayerID);
-        if (p.Type is not LiveStateType.Die)
+        var player = ClientState.GetPlayer(envelope.SenderPlayerID);
+        if (packet.Type is not LiveStateType.Die)
         {
             var state = player.State;
             if (state is not null)
             {
-                state.Position = p.Vector2;
+                state.Position = packet.Vector2;
             }
             else
             {
                 Logger.Warn(LT.MiaoNetSync, $"Received a live state notification for {player.Info}, but there is no initial state.");
             }
         }
-        PlayerLiveStateNotification?.Invoke(player, packet.Packet.Type, packet.Packet.Vector2);
+        PlayerLiveStateNotification?.Invoke(player, packet.Type, packet.Vector2);
     }
 
-    private void HandlePacket(PacketPlayerNotification<PacketUpdateGlobalFlag> packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketUpdateGlobalFlag packet)
     {
         EnsureState();
-        var player = ClientState.GetPlayer(packet.PlayerID);
+        var player = ClientState.GetPlayer(envelope.SenderPlayerID);
         var p = player.GlobalFlags;
-        player.GlobalFlags = packet.Packet.Flags;
+        player.GlobalFlags = packet.Flags;
         PlayerGlobalFlagsChanged?.Invoke(player, p);
     }
 
-    private void HandlePacket(PacketBeTeleportedRequest request)
+    private void HandlePacket(PacketEnvelope envelope, PacketBeTeleportedRequest request)
     {
         EnsureState();
         if (Engine.Scene is not Level level)
@@ -234,17 +235,17 @@ partial class MiaoNetContext
             else
                 goto Reject;
         }
-        Response(request, new PacketBeTeleportedResponse(
+        Response(envelope, new PacketBeTeleportedResponse(
             PlayerSessionData.CreateFrom(level!.Session, position)
         ));
         return;
 
     Reject:
-        Response(request, new PacketBeTeleportedResponse(null));
+        Response(envelope, new PacketBeTeleportedResponse(null));
         return;
     }
 
-    private void HandlePacket(PacketPingData packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketPingData packet)
     {
         EnsureState();
         foreach (var (playerID, ping) in packet.Data)
@@ -253,32 +254,32 @@ partial class MiaoNetContext
         PingDataReceived?.Invoke();
     }
 
-    private void HandlePacket(PacketPlayerGrabPlayer packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketPlayerGrabPlayer packet)
     {
         EnsureState();
         PlayerGrabPlayer?.Invoke(ClientState.GetPlayer(packet.PlayerID), packet.IsRelease ? packet.Force : null);
     }
 
-    private void HandlePacket(PacketPlayerGrabJumpOut packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketPlayerGrabJumpOut packet)
     {
         EnsureState();
         PlayerGrabJumpOut?.Invoke(ClientState.GetPlayer(packet.PlayerID));
     }
 
-    private void HandlePacket(PacketContextualPlayerNotification<PacketPlayerPlayedAudio> packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketPlayerPlayedAudio packet)
     {
         EnsureState();
-        PlayerAudioPlayed?.Invoke(ClientState.GetPlayer(packet.PlayerID), packet.Packet.PlayerPlayedAudio);
+        PlayerAudioPlayed?.Invoke(ClientState.GetPlayer(envelope.SenderPlayerID), packet.PlayerPlayedAudio);
     }
 
-    private void HandlePacket(PacketPlayerNotification<PacketCreateFireworks> packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketCreateFireworks packet)
     {
         EnsureState();
-        var player = ClientState.Players[packet.PlayerID];
-        PlayerCreatedFireworks?.Invoke(player, packet.Packet.Color, packet.Packet.InitialSpeed);
+        var player = ClientState.Players[envelope.SenderPlayerID];
+        PlayerCreatedFireworks?.Invoke(player, packet.Color, packet.InitialSpeed);
     }
 
-    private void HandlePacket(PacketPlayerChannelMovedResponse packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketPlayerChannelMovedResponse packet)
     {
         EnsureState();
         ClientState.OnSelfChannelMove(packet.ChannelID, packet.ChannelPlayers);
@@ -291,17 +292,18 @@ partial class MiaoNetContext
         SelfChannelMoved?.Invoke(packet);
     }
 
-    private void HandlePacket(PacketPlayerChannelMovedNotification packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketPlayerChannelMovedNotification packet)
     {
         EnsureState();
-        ClientState.OnPlayerChannelMove(packet.PlayerID, packet.ChannelID, packet.Presence, out var pl);
+        int playerID = envelope.SenderPlayerID;
+        ClientState.OnPlayerChannelMove(playerID, packet.ChannelID, packet.Presence, out var pl);
         if (packet.InitialData is not null)
-            ClientState.ApplyPlayerMovedInitialData(packet.PlayerID, packet.InitialData.Value);
-        frameQueues.Remove(packet.PlayerID);
+            ClientState.ApplyPlayerMovedInitialData(playerID, packet.InitialData.Value);
+        frameQueues.Remove(playerID);
         PlayerChannelMoved?.Invoke(pl, packet);
     }
 
-    private void HandlePacket(PacketChannelCreated packet)
+    private void HandlePacket(PacketEnvelope envelope, PacketChannelCreated packet)
     {
         EnsureState();
         ClientState.OnNewChannelCreated(packet.ChannelID, packet.ChannelInfo);

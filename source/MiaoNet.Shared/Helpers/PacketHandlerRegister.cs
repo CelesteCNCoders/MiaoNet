@@ -15,7 +15,7 @@ public sealed class PacketHandlerRegister : IPacketHandlerRegister
     public void Register<TPacket>(PacketHandler<TPacket> handler) where TPacket : IContextualPacket
     {
         // QUESTION can this be more optimized?
-        void HandlePacket(IContextualPacket p) => handler((TPacket)p);
+        void HandlePacket(PacketEnvelope envelope, IContextualPacket p) => handler(envelope, (TPacket)p);
 
         Dictionary.Add(typeof(TPacket), HandlePacket);
     }
@@ -28,8 +28,8 @@ public sealed class PacketHandlerRegister : IPacketHandlerRegister
     public void Register<TPacket>(PacketHandler<TPacket> handler) where TPacket : IContextualPacket
     {
         // QUESTION can this be more optimized?
-        Task HandlePacketAsync(Server.MiaoClientConnection c, IContextualPacket p) 
-            => handler(c, (TPacket)p);
+        Task HandlePacketAsync(Server.MiaoClientConnection c, PacketEnvelope envelope, IContextualPacket p)
+            => handler(c, envelope, (TPacket)p);
 
         Dictionary.Add(typeof(TPacket), HandlePacketAsync);
     }

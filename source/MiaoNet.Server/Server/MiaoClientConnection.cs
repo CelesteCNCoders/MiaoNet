@@ -18,8 +18,8 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     public const int TcpBufferSize = 2048;
     public const int MaxPendingRequests = 64;
 
-    public delegate Task ResponseHandler(PacketResponse response);
-    public delegate Task ResponseHandler<in TResponse>(TResponse response) where TResponse : PacketResponse;
+    public delegate Task ResponseHandler(IPacketResponse response);
+    public delegate Task ResponseHandler<in TResponse>(TResponse response) where TResponse : IPacketResponse;
 
     private int currentRequestID;
     private sealed class PendingRequest(
@@ -52,7 +52,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
     public PooledStringManager PooledStringManager { get; }
 
-    private readonly Channel<IContextualPacket> sendChannel;
+    private readonly Channel<EnvelopedPacket> sendChannel;
 
     // TODO refactor
     public MiaoClientConnection(
@@ -75,7 +75,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         pendingRequests = new();
 
         UnboundedChannelOptions options = new() { SingleReader = true };
-        sendChannel = Channel.CreateUnbounded<IContextualPacket>(options);
+        sendChannel = Channel.CreateUnbounded<EnvelopedPacket>(options);
         PooledStringManager = new(KnownPooledStrings.All);
     }
 
@@ -123,20 +123,26 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     #region Packet
 
     public ValueTask QueuePacketAsync(IContextualPacket packet)
-        => sendChannel.Writer.WriteAsync(packet);
+        => QueuePacketAsync(default, packet);
+
+    public ValueTask QueuePacketAsync(PacketEnvelope envelope, IContextualPacket packet)
+        => sendChannel.Writer.WriteAsync(new(envelope, packet));
 
     public bool TryQueuePacket(IContextualPacket packet)
-        => sendChannel.Writer.TryWrite(packet);
+        => TryQueuePacket(default, packet);
+
+    public bool TryQueuePacket(PacketEnvelope envelope, IContextualPacket packet)
+        => sendChannel.Writer.TryWrite(new(envelope, packet));
 
     // TODO maybe we can add a UserParam parameter to avoid closure
     public async ValueTask<bool> RequestAsync<TResponse>(
-        PacketRequest<TResponse> packet,
+        IPacketRequest<TResponse> packet,
         ResponseHandler<TResponse> callback,
         TimeSpan timeout,
         Func<Task>? timeoutHandler = null,
         CancellationToken cancellationToken = default
     )
-        where TResponse : PacketResponse
+        where TResponse : IPacketResponse
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timeout, TimeSpan.Zero);
         if (Interlocked.Increment(ref pendingRequestCount) > MaxPendingRequests)
@@ -146,7 +152,6 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         }
 
         int id = Interlocked.Increment(ref currentRequestID);
-        packet.RequestID = id;
         CancellationTokenSource timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         PendingRequest pending = new(
             response => callback((TResponse)response),
@@ -161,20 +166,17 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         }
 
         _ = ExpireRequestAsync(id, pending, timeout);
-        await QueuePacketAsync(packet);
+        await QueuePacketAsync(PacketEnvelope.FromRequest(id), packet);
         return true;
     }
 
-    public ValueTask ResponseAsync<TResponse>(PacketRequest<TResponse> request, TResponse response)
-        where TResponse : PacketResponse
-    {
-        response.RequestID = request.RequestID;
-        return QueuePacketAsync(response);
-    }
+    public ValueTask ResponseAsync<TResponse>(PacketEnvelope requestEnvelope, TResponse response)
+        where TResponse : IPacketResponse
+        => QueuePacketAsync(PacketEnvelope.ReplyTo(requestEnvelope.RequestID), response);
 
-    public ResponseHandler? OnResponse(PacketResponse response)
+    public ResponseHandler? TakeResponseHandler(int requestID)
     {
-        if (TryTakePendingRequest(response.RequestID, out var pending))
+        if (TryTakePendingRequest(requestID, out var pending))
         {
             pending.CancellationTokenSource.Cancel();
             ResponseHandler handler = pending.Handler;
@@ -184,10 +186,9 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
         logger.LogWarning(
             AppEvents.Connection,
-            "Response {id} from {player} has no matching pending request, type is {type}.",
-            response.RequestID,
-            Player,
-            response.GetType().FullName
+            "Response {id} from {player} has no matching pending request.",
+            requestID,
+            Player
         );
 
         return null;
@@ -291,10 +292,10 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
         long leftoverBytes = await ProcessPacketsAsync(
             pipe.Reader,
             this,
-            async (packet, bytesConsumed) =>
+            async (frame, bytesConsumed) =>
             {
                 metricsService.RecordPacketTcpDownload(1, bytesConsumed);
-                await server.HandlePacketAsync(this, packet);
+                await server.HandlePacketAsync(this, frame.Envelope, frame.Packet);
             },
             token
         );
@@ -313,7 +314,7 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
     internal static async Task<long> ProcessPacketsAsync(
         PipeReader pipeReader,
         IPacketSerializationContext context,
-        Func<IContextualPacket, int, ValueTask> packetHandler,
+        Func<EnvelopedPacket, int, ValueTask> packetHandler,
         CancellationToken token
     )
     {
@@ -327,10 +328,10 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
                 while (true)
                 {
                     long lengthBeforePacket = buffer.Length;
-                    if (!TryParsePacket(ref buffer, out IContextualPacket? packet, context))
+                    if (!TryParsePacket(ref buffer, out EnvelopedPacket frame, context))
                         break;
                     int bytesConsumed = checked((int)(lengthBeforePacket - buffer.Length));
-                    await packetHandler(packet, bytesConsumed);
+                    await packetHandler(frame, bytesConsumed);
                 }
 
                 long leftover = buffer.Length;
@@ -368,9 +369,9 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
                 bool flush = false;
                 while (channelReader.TryRead(out var packet))
                 {
-                    PacketFraming.WritePacket(batch, packet, this);
+                    PacketFraming.WritePacket(batch, packet.Envelope, packet.Packet, this);
                     packetsCount++;
-                    if (!packet.CanBatch || batch.WrittenCount >= batchSize)
+                    if (!packet.Packet.CanBatch || batch.WrittenCount >= batchSize)
                     {
                         flush = true;
                         break;
@@ -414,25 +415,26 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
     internal static bool TryParsePacket(
         ref ReadOnlySequence<byte> sequence,
-        [NotNullWhen(true)] out IContextualPacket? packet,
+        out EnvelopedPacket frame,
         IPacketSerializationContext context
     )
     {
-        const int HeadSize = sizeof(ushort) * 2;
+        const int HeadSize = Connection.PacketHeaderSize;
         if (sequence.Length < HeadSize)
         {
-            packet = null;
+            frame = default;
             return false;
         }
         Span<byte> headSpan = stackalloc byte[HeadSize];
         sequence.Slice(0, HeadSize).CopyTo(headSpan);
         ushort size = BinaryPrimitives.ReadUInt16LittleEndian(headSpan);
-        ushort id = BinaryPrimitives.ReadUInt16LittleEndian(headSpan.Slice(sizeof(ushort)));
+        byte id = headSpan[sizeof(ushort)];
+        byte flags = headSpan[sizeof(ushort) + sizeof(byte)];
 
         ReadOnlySequence<byte> payloadSequence = sequence.Slice(HeadSize);
         if (payloadSequence.Length < size)
         {
-            packet = null;
+            frame = default;
             return false;
         }
 
@@ -446,8 +448,9 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
             sequence = payloadSequence.Slice(size);
 
             RefBinaryReader reader = new(payloadSpan);
+            PacketEnvelope envelope = PacketEnvelope.ReadOptional(ref reader, (PacketEnvelopeFlags)flags);
             var readHandler = PacketRegistry.GetPacketReader(id);
-            packet = readHandler(ref reader, context);
+            frame = new(envelope, readHandler(ref reader, context));
             return true;
         }
         finally

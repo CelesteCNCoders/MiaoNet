@@ -7,35 +7,64 @@ namespace MiaoNet.UnitTest;
 public class SmallIntEncodingTests
 {
     [TestMethod]
-    public void RequestIDIs7BitEncoded()
+    public void EnvelopeRequestIDIs7BitEncoded()
     {
-        Assert.AreEqual(1, PayloadSize(new PacketPing { RequestID = 0 }));
-        Assert.AreEqual(1, PayloadSize(new PacketPing { RequestID = 127 }));
-        Assert.AreEqual(2, PayloadSize(new PacketPing { RequestID = 128 }));
-        Assert.AreEqual(2, PayloadSize(new PacketPing { RequestID = 16383 }));
-        Assert.AreEqual(3, PayloadSize(new PacketPing { RequestID = 16384 }));
-        Assert.AreEqual(5, PayloadSize(new PacketPing { RequestID = int.MaxValue }));
+        Assert.AreEqual(1, EnvelopeSize(PacketEnvelope.FromRequest(0)));
+        Assert.AreEqual(1, EnvelopeSize(PacketEnvelope.FromRequest(127)));
+        Assert.AreEqual(2, EnvelopeSize(PacketEnvelope.FromRequest(128)));
+        Assert.AreEqual(2, EnvelopeSize(PacketEnvelope.FromRequest(16383)));
+        Assert.AreEqual(3, EnvelopeSize(PacketEnvelope.FromRequest(16384)));
+        Assert.AreEqual(5, EnvelopeSize(PacketEnvelope.FromRequest(int.MaxValue)));
     }
 
     [TestMethod]
-    public void SmallPlayerIDFitsInASingleByte()
+    public void EnvelopeSenderPlayerIDFitsInASingleByte()
     {
-        Assert.AreEqual(1, PayloadSize(new PacketPlayerLeft(7)));
-        Assert.AreEqual(2, PayloadSize(new PacketPlayerLeft(300)));
+        Assert.AreEqual(1, EnvelopeSize(PacketEnvelope.FromSender(7)));
+        Assert.AreEqual(2, EnvelopeSize(PacketEnvelope.FromSender(300)));
     }
 
     [TestMethod]
-    public void NegativeValuesStillTakeFiveBytes()
+    public void EnvelopeNegativeValuesStillTakeFiveBytes()
     {
-        Assert.AreEqual(5, PayloadSize(new PacketPlayerLeft(-1)));
-        Assert.AreEqual(5, PayloadSize(new PacketPlayerLeft(int.MinValue)));
+        Assert.AreEqual(5, EnvelopeSize(PacketEnvelope.FromSender(-1)));
+        Assert.AreEqual(5, EnvelopeSize(PacketEnvelope.FromSender(int.MinValue)));
     }
 
     [TestMethod]
-    public void PlayerLeftRoundTrips()
+    public void EnvelopeRoundTrips()
     {
-        Assert.AreEqual(12345, RoundTrip(new PacketPlayerLeft(12345)).PlayerID);
-        Assert.AreEqual(-1, RoundTrip(new PacketPlayerLeft(-1)).PlayerID);
+        PacketEnvelope request = EnvelopeRoundTrip(PacketEnvelope.FromRequest(12345));
+        Assert.IsTrue(request.HasRequestID);
+        Assert.IsFalse(request.IsResponse);
+        Assert.IsFalse(request.HasSender);
+        Assert.AreEqual(12345, request.RequestID);
+
+        PacketEnvelope response = EnvelopeRoundTrip(PacketEnvelope.ReplyTo(-1));
+        Assert.IsTrue(response.HasRequestID);
+        Assert.IsTrue(response.IsResponse);
+        Assert.AreEqual(-1, response.RequestID);
+
+        PacketEnvelope sender = EnvelopeRoundTrip(PacketEnvelope.FromSender(4321));
+        Assert.IsTrue(sender.HasSender);
+        Assert.IsFalse(sender.HasRequestID);
+        Assert.AreEqual(4321, sender.SenderPlayerID);
+    }
+
+    [TestMethod]
+    public void EnvelopeRejectsReadingFieldsWithoutFlag()
+    {
+        PacketEnvelope empty = default;
+        Assert.ThrowsExactly<InvalidOperationException>(() => { _ = empty.SenderPlayerID; });
+        Assert.ThrowsExactly<InvalidOperationException>(() => { _ = empty.RequestID; });
+
+        PacketEnvelope sender = PacketEnvelope.FromSender(1);
+        Assert.AreEqual(1, sender.SenderPlayerID);
+        Assert.ThrowsExactly<InvalidOperationException>(() => { _ = sender.RequestID; });
+
+        PacketEnvelope request = PacketEnvelope.FromRequest(2);
+        Assert.AreEqual(2, request.RequestID);
+        Assert.ThrowsExactly<InvalidOperationException>(() => { _ = request.SenderPlayerID; });
     }
 
     [TestMethod]
@@ -68,6 +97,28 @@ public class SmallIntEncodingTests
 
     private static int PayloadSize<T>(T packet) where T : IRefBinarySerializable
         => RefBinarySerialization.Serialize(packet).Length;
+
+    private static int EnvelopeSize(PacketEnvelope envelope)
+    {
+        ByteArrayBufferWriter buffer = new(16);
+        RefBinaryWriter writer = new(buffer);
+        envelope.WriteOptional(ref writer);
+        writer.Flush();
+        return buffer.WrittenCount;
+    }
+
+    private static PacketEnvelope EnvelopeRoundTrip(PacketEnvelope envelope)
+    {
+        ByteArrayBufferWriter buffer = new(16);
+        RefBinaryWriter writer = new(buffer);
+        writer.Write((byte)envelope.Flags);
+        envelope.WriteOptional(ref writer);
+        writer.Flush();
+
+        RefBinaryReader reader = new(buffer.WrittenSpan);
+        byte flags = reader.ReadByte();
+        return PacketEnvelope.ReadOptional(ref reader, (PacketEnvelopeFlags)flags);
+    }
 
     private static T RoundTrip<T>(T value) where T : IRefBinarySerializable<T>
         => RefBinarySerialization.Deserialize<T>(RefBinarySerialization.Serialize(value));

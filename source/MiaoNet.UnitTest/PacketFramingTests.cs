@@ -28,7 +28,7 @@ public sealed class PacketFramingTests
         ByteArrayBufferWriter output = new();
 
         PacketTooLargeException exception = Assert.ThrowsExactly<PacketTooLargeException>(
-            () => PacketFraming.WritePacket(output, packet, context)
+            () => PacketFraming.WritePacket(output, default, packet, context)
         );
 
         Assert.AreEqual(packet.GetType(), exception.PacketType);
@@ -39,6 +39,7 @@ public sealed class PacketFramingTests
     [TestMethod]
     public void WritePacketAcceptsPayloadAtProtocolLimit()
     {
+        // ChatChannel(byte) + string length(ushort)
         const int packetFieldsSize = sizeof(byte) + sizeof(ushort);
         var packet = new PacketSendChatMessage(
             default,
@@ -46,7 +47,7 @@ public sealed class PacketFramingTests
         );
         ByteArrayBufferWriter output = new();
 
-        PacketFraming.WritePacket(output, packet, context);
+        PacketFraming.WritePacket(output, default, packet, context);
 
         Assert.AreEqual(
             Connection.MaxPayloadSize,
@@ -78,7 +79,7 @@ public sealed class PacketFramingTests
     {
         using var stream = new MemoryStream();
 
-        IContextualPacket? packet = await PacketFraming.ReadPacketAsync(
+        EnvelopedPacket? packet = await PacketFraming.ReadPacketAsync(
             stream,
             context,
             CancellationToken.None
@@ -90,7 +91,7 @@ public sealed class PacketFramingTests
     [TestMethod]
     public async Task ReadPacketThrowsOnTruncatedPayload()
     {
-        byte[] frame = WriteFrame(new PacketPing());
+        byte[] frame = WriteFrame(new PacketSendChatMessage(default, "hello"));
         using var stream = new MemoryStream(frame, 0, frame.Length - 1);
 
         PacketTruncatedException exception = await Assert.ThrowsExactlyAsync<PacketTruncatedException>(
@@ -103,23 +104,24 @@ public sealed class PacketFramingTests
     }
 
     [TestMethod]
-    public async Task ReadPacketPreservesExistingWireFormat()
+    public async Task ReadPacketHandlesZeroLengthPayload()
     {
         byte[] frame = WriteFrame(new PacketPing());
-        Assert.AreEqual(1, BinaryPrimitives.ReadUInt16LittleEndian(frame));
+        Assert.AreEqual(0, BinaryPrimitives.ReadUInt16LittleEndian(frame));
         Assert.AreEqual(
             PacketRegistry.GetPacketID(new PacketPing()),
-            BinaryPrimitives.ReadUInt16LittleEndian(frame.AsSpan(sizeof(ushort)))
+            frame[sizeof(ushort)]
         );
+        Assert.AreEqual((byte)0, frame[Connection.PacketHeaderSize - 1]);
         using var stream = new MemoryStream(frame);
 
-        IContextualPacket? packet = await PacketFraming.ReadPacketAsync(
+        EnvelopedPacket? packet = await PacketFraming.ReadPacketAsync(
             stream,
             context,
             CancellationToken.None
         );
 
-        Assert.IsInstanceOfType<PacketPing>(packet);
+        Assert.IsInstanceOfType<PacketPing>(packet!.Value.Packet);
     }
 
     [TestMethod]
@@ -134,27 +136,42 @@ public sealed class PacketFramingTests
         frameC.CopyTo(all, frameA.Length + frameB.Length);
         using var stream = new MemoryStream(all);
 
-        IContextualPacket? packet1 = await PacketFraming.ReadPacketAsync(stream, context, CancellationToken.None);
-        IContextualPacket? packet2 = await PacketFraming.ReadPacketAsync(stream, context, CancellationToken.None);
-        IContextualPacket? packet3 = await PacketFraming.ReadPacketAsync(stream, context, CancellationToken.None);
-        IContextualPacket? packet4 = await PacketFraming.ReadPacketAsync(stream, context, CancellationToken.None);
+        EnvelopedPacket? packet1 = await PacketFraming.ReadPacketAsync(stream, context, CancellationToken.None);
+        EnvelopedPacket? packet2 = await PacketFraming.ReadPacketAsync(stream, context, CancellationToken.None);
+        EnvelopedPacket? packet3 = await PacketFraming.ReadPacketAsync(stream, context, CancellationToken.None);
+        EnvelopedPacket? packet4 = await PacketFraming.ReadPacketAsync(stream, context, CancellationToken.None);
 
-        Assert.IsInstanceOfType<PacketPing>(packet1);
-        Assert.IsInstanceOfType<PacketPong>(packet2);
-        Assert.IsInstanceOfType<PacketSendChatMessage>(packet3);
+        Assert.IsInstanceOfType<PacketPing>(packet1!.Value.Packet);
+        Assert.IsInstanceOfType<PacketPong>(packet2!.Value.Packet);
+        Assert.IsInstanceOfType<PacketSendChatMessage>(packet3!.Value.Packet);
         Assert.IsNull(packet4);
+    }
+
+    [TestMethod]
+    public async Task ReadPacketCarriesEnvelopeAndPayload()
+    {
+        byte[] frame = WriteFrame(new PacketSendChatMessage(default, "hello"), PacketEnvelope.FromSender(4321));
+
+        // the last header byte is the flags byte
+        Assert.AreEqual((byte)PacketEnvelopeFlags.HasSender, frame[Connection.PacketHeaderSize - 1]);
+
+        using var stream = new MemoryStream(frame);
+        EnvelopedPacket? packet = await PacketFraming.ReadPacketAsync(stream, context, CancellationToken.None);
+
+        Assert.IsNotNull(packet);
+        Assert.IsTrue(packet.Value.Envelope.HasSender);
+        Assert.IsFalse(packet.Value.Envelope.HasRequestID);
+        Assert.AreEqual(4321, packet.Value.Envelope.SenderPlayerID);
+        Assert.IsInstanceOfType<PacketSendChatMessage>(packet.Value.Packet);
     }
 
     [TestMethod]
     public async Task ReadPacketWrapsDeserializationFailureInInvalidPacketDataException()
     {
-        byte[] payload = { 0 }; // 只有 ChatChannel 字段,缺少字符串长度与内容
+        byte[] payload = { 0 };
         byte[] frame = new byte[Connection.PacketHeaderSize + payload.Length];
         BinaryPrimitives.WriteUInt16LittleEndian(frame, (ushort)payload.Length);
-        BinaryPrimitives.WriteUInt16LittleEndian(
-            frame.AsSpan(sizeof(ushort)),
-            PacketRegistry.GetPacketID(new PacketSendChatMessage(default, string.Empty))
-        );
+        frame[sizeof(ushort)] = PacketRegistry.GetPacketID(new PacketSendChatMessage(default, string.Empty));
         payload.CopyTo(frame.AsSpan(Connection.PacketHeaderSize));
         using var stream = new MemoryStream(frame);
 
@@ -179,9 +196,9 @@ public sealed class PacketFramingTests
         long leftover = await MiaoClientConnection.ProcessPacketsAsync(
             pipe.Reader,
             context,
-            (packet, _) =>
+            (frame, _) =>
             {
-                receivedPackets.Add(packet);
+                receivedPackets.Add(frame.Packet);
                 return ValueTask.CompletedTask;
             },
             CancellationToken.None
@@ -195,6 +212,7 @@ public sealed class PacketFramingTests
     [TestMethod]
     public async Task CompletedPipeProcessesMaximumPayloadWithoutLargeStackAllocation()
     {
+        // ChatChannel(byte) + string length(ushort)
         const int packetFieldsSize = sizeof(byte) + sizeof(ushort);
         byte[] frame = WriteFrame(new PacketSendChatMessage(
             default,
@@ -211,9 +229,9 @@ public sealed class PacketFramingTests
         long leftover = await MiaoClientConnection.ProcessPacketsAsync(
             pipe.Reader,
             context,
-            (packet, bytesConsumed) =>
+            (receivedPacket, bytesConsumed) =>
             {
-                Assert.IsInstanceOfType<PacketSendChatMessage>(packet);
+                Assert.IsInstanceOfType<PacketSendChatMessage>(receivedPacket.Packet);
                 Assert.AreEqual(frame.Length, bytesConsumed);
                 received++;
                 return ValueTask.CompletedTask;
@@ -237,9 +255,9 @@ public sealed class PacketFramingTests
         long leftover = await MiaoClientConnection.ProcessPacketsAsync(
             pipe.Reader,
             context,
-            (packet, _) =>
+            (frame, _) =>
             {
-                receivedPackets.Add(packet);
+                receivedPackets.Add(frame.Packet);
                 return ValueTask.CompletedTask;
             },
             CancellationToken.None
@@ -258,8 +276,22 @@ public sealed class PacketFramingTests
         bool parsed = MiaoClientConnection.TryParsePacket(ref sequence, out var packet, context);
 
         Assert.IsTrue(parsed);
-        Assert.IsInstanceOfType<PacketPing>(packet);
+        Assert.IsInstanceOfType<PacketPing>(packet.Packet);
+        Assert.IsFalse(packet.Envelope.HasSender);
         Assert.AreEqual(0L, sequence.Length);
+    }
+
+    [TestMethod]
+    public void TryParsePacketParsesEnvelope()
+    {
+        byte[] frame = WriteFrame(new PacketPing(), PacketEnvelope.ReplyTo(16384));
+        ReadOnlySequence<byte> sequence = new(frame);
+
+        bool parsed = MiaoClientConnection.TryParsePacket(ref sequence, out var packet, context);
+
+        Assert.IsTrue(parsed);
+        Assert.IsTrue(packet.Envelope.IsResponse);
+        Assert.AreEqual(16384, packet.Envelope.RequestID);
     }
 
     [TestMethod]
@@ -271,7 +303,7 @@ public sealed class PacketFramingTests
         bool parsed = MiaoClientConnection.TryParsePacket(ref sequence, out var packet, context);
 
         Assert.IsFalse(parsed);
-        Assert.IsNull(packet);
+        Assert.IsNull(packet.Packet);
     }
 
     [TestMethod]
@@ -283,7 +315,7 @@ public sealed class PacketFramingTests
         bool parsed = MiaoClientConnection.TryParsePacket(ref sequence, out var packet, context);
 
         Assert.IsFalse(parsed);
-        Assert.IsNull(packet);
+        Assert.IsNull(packet.Packet);
     }
 
     [TestMethod]
@@ -298,11 +330,11 @@ public sealed class PacketFramingTests
 
         bool parsed1 = MiaoClientConnection.TryParsePacket(ref sequence, out var packet1, context);
         Assert.IsTrue(parsed1);
-        Assert.IsInstanceOfType<PacketPing>(packet1);
+        Assert.IsInstanceOfType<PacketPing>(packet1.Packet);
 
         bool parsed2 = MiaoClientConnection.TryParsePacket(ref sequence, out var packet2, context);
         Assert.IsTrue(parsed2);
-        Assert.IsInstanceOfType<PacketPong>(packet2);
+        Assert.IsInstanceOfType<PacketPong>(packet2.Packet);
 
         Assert.AreEqual(0L, sequence.Length);
     }
@@ -316,14 +348,14 @@ public sealed class PacketFramingTests
         bool parsed = MiaoClientConnection.TryParsePacket(ref sequence, out var packet, context);
 
         Assert.IsTrue(parsed);
-        Assert.IsInstanceOfType<PacketSendChatMessage>(packet);
+        Assert.IsInstanceOfType<PacketSendChatMessage>(packet.Packet);
         Assert.AreEqual(0L, sequence.Length);
     }
 
-    private byte[] WriteFrame(IContextualPacket packet)
+    private byte[] WriteFrame(IContextualPacket packet, PacketEnvelope envelope = default)
     {
         ByteArrayBufferWriter output = new();
-        PacketFraming.WritePacket(output, packet, context);
+        PacketFraming.WritePacket(output, envelope, packet, context);
         return output.WrittenSpan.ToArray();
     }
 

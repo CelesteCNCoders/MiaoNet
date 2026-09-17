@@ -20,8 +20,8 @@ public sealed partial class MiaoNetCommand
         public void QueuePacket(IContextualPacket packet)
             => MiaoNetContext.QueuePacket(packet);
 
-        public void Request<TResponse>(PacketRequest<TResponse> packet, Action<TResponse> callback)
-            where TResponse : PacketResponse
+        public void Request<TResponse>(IPacketRequest<TResponse> packet, Action<TResponse> callback)
+            where TResponse : IPacketResponse
             => MiaoNetContext.Request(packet, callback);
 
         public void AddLocalChat(ChatText message)

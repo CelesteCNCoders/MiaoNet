@@ -24,7 +24,7 @@ public sealed partial class MiaoServerConnection : IDisposable
 
     private readonly ByteArrayBufferWriter sendBuffer;
 
-    private readonly ConcurrentQueue<IContextualPacket> sendQueue;
+    private readonly ConcurrentQueue<EnvelopedPacket> sendQueue;
     private readonly SemaphoreSlim sendSemaphore;
 
     private MiaoServerConnection(Socket socket, SslStream sslStream)
@@ -201,7 +201,7 @@ public sealed partial class MiaoServerConnection : IDisposable
     {
         while (!token.IsCancellationRequested)
         {
-            while (sendQueue.TryDequeue(out IContextualPacket? packet))
+            while (sendQueue.TryDequeue(out EnvelopedPacket packet))
                 await SendPacketAsync(packet, context, token);
             if (token.IsCancellationRequested)
                 return;
@@ -211,7 +211,7 @@ public sealed partial class MiaoServerConnection : IDisposable
 
     // hmmm I think using async enumerable is somehow not the best way
     // but I can't think up any better
-    public async IAsyncEnumerable<IContextualPacket> ReceivePacketsLoopAsync(
+    public async IAsyncEnumerable<EnvelopedPacket> ReceivePacketsLoopAsync(
         IPacketSerializationContext context,
         [EnumeratorCancellation] CancellationToken token
     )
@@ -219,7 +219,7 @@ public sealed partial class MiaoServerConnection : IDisposable
         byte[] headerBuffer = new byte[Connection.PacketHeaderSize];
         while (!token.IsCancellationRequested)
         {
-            IContextualPacket? packet = await PacketFraming.ReadPacketAsync(
+            EnvelopedPacket? packet = await PacketFraming.ReadPacketAsync(
                 sslStream,
                 headerBuffer,
                 context,
@@ -229,22 +229,25 @@ public sealed partial class MiaoServerConnection : IDisposable
             if (packet is null)
                 yield break;
             else
-                yield return packet;
+                yield return packet.Value;
         }
     }
 
     public int QueuePacket(IContextualPacket packet)
+        => QueuePacket(default, packet);
+
+    public int QueuePacket(PacketEnvelope envelope, IContextualPacket packet)
     {
-        sendQueue.Enqueue(packet);
+        sendQueue.Enqueue(new(envelope, packet));
         int count = sendQueue.Count;
         sendSemaphore.Release();
         return count;
     }
 
-    private async Task SendPacketAsync(IContextualPacket packet, IPacketSerializationContext context, CancellationToken token)
+    private async Task SendPacketAsync(EnvelopedPacket packet, IPacketSerializationContext context, CancellationToken token)
     {
         sendBuffer.Clear();
-        PacketFraming.WritePacket(sendBuffer, packet, context);
+        PacketFraming.WritePacket(sendBuffer, packet.Envelope, packet.Packet, context);
         await sslStream.WriteAsync(sendBuffer.WrittenMemory, token);
     }
 }

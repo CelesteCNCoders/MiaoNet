@@ -4,7 +4,7 @@ namespace MiaoNet.Shared;
 
 // server to client
 public sealed class PacketBeTeleportedRequest :
-    PacketRequest<PacketBeTeleportedResponse>,
+    IPacketRequest<PacketBeTeleportedResponse>,
     IContextlessPacket<PacketBeTeleportedRequest>
 {
     public int SourcePlayerID { get; }
@@ -14,22 +14,20 @@ public sealed class PacketBeTeleportedRequest :
         SourcePlayerID = sourcePlayerID;
     }
 
-    public override void Serialize(ref RefBinaryWriter writer)
+    public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write7BitEncodedInt(RequestID);
         writer.Write7BitEncodedInt(SourcePlayerID);
     }
 
     public static PacketBeTeleportedRequest Deserialize(ref RefBinaryReader reader)
     {
-        int reqID = reader.Read7BitEncodedInt();
-        return new(reader.Read7BitEncodedInt()) { RequestID = reqID };
+        return new(reader.Read7BitEncodedInt());
     }
 }
 
 // client to server
 public sealed class PacketBeTeleportedResponse :
-    PacketResponse,
+    IPacketResponse,
     IContextlessPacket<PacketBeTeleportedResponse>
 {
     // need we have a deny reason...?
@@ -44,9 +42,8 @@ public sealed class PacketBeTeleportedResponse :
         Session = session;
     }
 
-    public override void Serialize(ref RefBinaryWriter writer)
+    public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write7BitEncodedInt(RequestID);
         if (Accepted)
         {
             writer.Write(true);
@@ -60,8 +57,7 @@ public sealed class PacketBeTeleportedResponse :
 
     public static PacketBeTeleportedResponse Deserialize(ref RefBinaryReader reader)
     {
-        int reqID = reader.Read7BitEncodedInt();
         bool accept = reader.ReadBoolean();
-        return new(accept ? reader.Read<PlayerSessionData>() : null) { RequestID = reqID };
+        return new(accept ? reader.Read<PlayerSessionData>() : null);
     }
 }

@@ -12,9 +12,9 @@ public enum DisconnectReason : byte
 // server -> client
 public sealed class PacketDisconnected : IContextlessPacket<PacketDisconnected>
 {
-    public DisconnectReason Reason { get; set; }
+    public DisconnectReason Reason { get; }
 
-    public string? Message { get; set; }
+    public string? Message { get; }
 
     public PacketDisconnected(DisconnectReason reason, string? message = null)
     {

@@ -120,13 +120,14 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
         return;
     }
 
-    private async Task HandlePacketsAsync(IAsyncEnumerable<IContextualPacket> packets, CancellationToken token)
+    private async Task HandlePacketsAsync(IAsyncEnumerable<EnvelopedPacket> packets, CancellationToken token)
     {
-        await foreach (var packet in packets)
+        await foreach (var frame in packets)
         {
-            if (packet is PacketPing packetPing)
+            var packet = frame.Packet;
+            if (packet is PacketPing)
             {
-                connection.QueuePacket(new PacketPong() { RequestID = packetPing.RequestID });
+                connection.QueuePacket(PacketEnvelope.ReplyTo(frame.Envelope.RequestID), new PacketPong());
             }
             else if (packet is PacketBeTeleportedRequest teleportRequest)
             {
@@ -151,8 +152,8 @@ public sealed class MockInstance : IPacketSerializationContext, IDisposable
                     time: 0,
                     coreMode: CoreModes.None
                 );
-                var response = new PacketBeTeleportedResponse(session) { RequestID = teleportRequest.RequestID };
-                connection.QueuePacket(response);
+                var response = new PacketBeTeleportedResponse(session);
+                connection.QueuePacket(PacketEnvelope.ReplyTo(frame.Envelope.RequestID), response);
             }
         }
     }

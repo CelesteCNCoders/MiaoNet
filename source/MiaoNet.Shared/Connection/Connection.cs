@@ -13,7 +13,7 @@ public static class Connection
 
     public const int HandshakeHeadLength = 16;
 
-    public const int PacketHeaderSize = sizeof(ushort) * 2;
+    public const int PacketHeaderSize = sizeof(ushort) + sizeof(byte) + sizeof(byte);
 
     public const int MaxPayloadSize = ushort.MaxValue;
 

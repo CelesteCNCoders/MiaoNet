@@ -319,7 +319,8 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
     #region tons of broadcasting
 
-    private static Task BroadcastContextuallyToAsync(
+    private static Task BroadcastToAsync(
+        PacketEnvelope envelope,
         IContextualPacket packet,
         IEnumerable<MiaoClientConnection> connections,
         Predicate<MiaoClientConnection> predicate
@@ -328,9 +329,9 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         List<Task>? bounded = null;
         foreach (var connection in connections.Where(c => predicate(c)))
         {
-            if (!connection.TryQueuePacket(packet))
+            if (!connection.TryQueuePacket(envelope, packet))
             {
-                (bounded ??= new()).Add(connection.QueuePacketAsync(packet).AsTask());
+                (bounded ??= new()).Add(connection.QueuePacketAsync(envelope, packet).AsTask());
             }
         }
 
@@ -339,70 +340,60 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         return Task.CompletedTask;
     }
 
-    private static Task BroadcastToScopeAsync(IContextualPacket packet, IPlayerScope scope)
-        => BroadcastContextuallyToAsync(packet, scope.Players, _ => true);
+    private static Task BroadcastToScopeAsync(
+        IContextualPacket packet,
+        IPlayerScope scope,
+        PacketEnvelope envelope = default
+    ) => BroadcastToAsync(envelope, packet, scope.Players, _ => true);
 
     private static Task BroadcastToScopeAsync(
         IContextualPacket packet,
         IPlayerScope scope,
-        Predicate<MiaoClientConnection> predicate
-    ) => BroadcastContextuallyToAsync(packet, scope.Players, predicate);
-
-    private static Task BroadcastToScopeExceptAsync(IContextualPacket packet, IPlayerScope scope, int excludedPlayerId)
-        => BroadcastContextuallyToAsync(packet, scope.Players, c => c.ID != excludedPlayerId);
+        Predicate<MiaoClientConnection> predicate,
+        PacketEnvelope envelope = default
+    ) => BroadcastToAsync(envelope, packet, scope.Players, predicate);
 
     private static Task BroadcastToScopeExceptAsync(
         IContextualPacket packet,
         IPlayerScope scope,
         int excludedPlayerId,
-        Predicate<MiaoClientConnection> predicate
-    ) => BroadcastContextuallyToAsync(packet, scope.Players, c => c.ID != excludedPlayerId && predicate(c));
-
-    private static Task BroadcastToScopeAsync(IContextlessPacket packet, IPlayerScope scope)
-        => BroadcastContextuallyToAsync(packet, scope.Players, _ => true);
-
-    private static Task BroadcastToScopeAsync(
-        IContextlessPacket packet,
-        IPlayerScope scope,
-        Predicate<MiaoClientConnection> predicate
-    ) => BroadcastContextuallyToAsync(packet, scope.Players, predicate);
-
-    private static Task BroadcastToScopeExceptAsync(IContextlessPacket packet, IPlayerScope scope, int excludedPlayerId)
-        => BroadcastContextuallyToAsync(packet, scope.Players, c => c.ID != excludedPlayerId);
+        PacketEnvelope envelope = default
+    ) => BroadcastToAsync(envelope, packet, scope.Players, c => c.ID != excludedPlayerId);
 
     private static Task BroadcastToScopeExceptAsync(
-        IContextlessPacket packet,
+        IContextualPacket packet,
         IPlayerScope scope,
         int excludedPlayerId,
-        Predicate<MiaoClientConnection> predicate
-    ) => BroadcastContextuallyToAsync(packet, scope.Players, c => c.ID != excludedPlayerId && predicate(c));
+        Predicate<MiaoClientConnection> predicate,
+        PacketEnvelope envelope = default
+    ) => BroadcastToAsync(envelope, packet, scope.Players, c => c.ID != excludedPlayerId && predicate(c));
 
-    public Task BroadcastAsync(IContextlessPacket packet)
-        => BroadcastToScopeAsync(packet, serverState);
+    public Task BroadcastAsync(IContextualPacket packet, PacketEnvelope envelope = default)
+        => BroadcastToScopeAsync(packet, serverState, envelope);
 
     #endregion
 
-    public async ValueTask HandlePacketAsync(MiaoClientConnection connection, IContextualPacket packet)
+    public async ValueTask HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, IContextualPacket packet)
     {
-        if (packet is PacketResponse res)
+        if (envelope.IsResponse)
         {
-            var handler = connection.OnResponse(res);
+            var handler = connection.TakeResponseHandler(envelope.RequestID);
             if (handler is null)
             {
                 logger.LogWarning(
                     AppEvents.Connection,
                     "Received unknown response {rid} from {p}, type is {type}.",
-                    res.RequestID,
+                    envelope.RequestID,
                     connection.Player,
                     packet.GetType()
                 );
                 return;
             }
-            await handler(res);
+            await handler((IPacketResponse)packet);
         }
         else
         {
-            bool handled = await packetDispatcher.DispatchPacketAsync(connection, packet);
+            bool handled = await packetDispatcher.DispatchPacketAsync(connection, envelope, packet);
             if (!handled)
             {
                 logger.LogWarning(

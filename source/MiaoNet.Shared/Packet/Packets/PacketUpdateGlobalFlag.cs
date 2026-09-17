@@ -2,7 +2,7 @@ namespace MiaoNet.Shared;
 
 public sealed class PacketUpdateGlobalFlag : IContextlessPacket<PacketUpdateGlobalFlag>
 {
-    public PlayerGlobalFlags Flags { get; set; }
+    public PlayerGlobalFlags Flags { get; }
 
     public PacketUpdateGlobalFlag(PlayerGlobalFlags flag)
     {
