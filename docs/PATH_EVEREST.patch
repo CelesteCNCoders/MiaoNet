@@ -1,0 +1,28 @@
+From bd94ffd1576e932c8c75b9b3db8c81a0ade80ea2 Mon Sep 17 00:00:00 2001
+From: Saplonily <Saplonily@outlook.com>
+Date: Fri, 21 Aug 2026 21:25:45 +0800
+Subject: [PATCH] Supports custom PathEverest
+
+---
+ Celeste.Mod.mm/Mod/Everest/Everest.cs | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/Celeste.Mod.mm/Mod/Everest/Everest.cs b/Celeste.Mod.mm/Mod/Everest/Everest.cs
+index bd537138f..878743792 100644
+--- a/Celeste.Mod.mm/Mod/Everest/Everest.cs
++++ b/Celeste.Mod.mm/Mod/Everest/Everest.cs
+@@ -352,11 +352,12 @@ internal static void Boot() {
+ 
+             if (!File.Exists(Path.Combine(PathGame, "EverestXDGFlag"))) {
+                 XDGPaths = false;
+-                PathEverest = PathGame;
++                PathEverest = Environment.GetEnvironmentVariable("EVEREST_PATH_EVEREST") ?? PathGame;
+             } else {
+                 XDGPaths = true;
+                 string dataDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+-                Directory.CreateDirectory(PathEverest = Path.Combine(dataDir, "Everest"));
++                PathEverest = Environment.GetEnvironmentVariable("EVEREST_PATH_EVEREST") ?? Path.Combine(dataDir, "Everest");
++                Directory.CreateDirectory(PathEverest);
+                 Directory.CreateDirectory(Path.Combine(dataDir, "Everest", "Mods")); // Make sure it exists before content gets initialized
+             }
+ 
