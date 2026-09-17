@@ -50,8 +50,7 @@ public sealed partial class CeleMiaoAuthenticator : IMiaoAuthenticator
             NumberHandling = JsonNumberHandling.AllowReadingFromString
         };
         this.httpClient = httpClient;
-        // TODO add version info
-        string ua = "MiaoNet.Server.CeleMiaoAuthenticator";
+        string ua = $"MiaoNet.Server/{Connection.Version.ToString(3)}";
         logger.LogInformation(AppEvents.Auth, "Using User-Agent \"{ua}\".", ua);
         httpClient.BaseAddress = new Uri(BaseAddress);
         httpClient.DefaultRequestHeaders.Add("User-Agent", ua);
