@@ -17,6 +17,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Chat 数据模型与编辑内核（XNA-free；客户端也从这里编译同一批源码）。 -->
+    <Compile Include="..\MiaoNet.Client\Chat\**\*.cs" LinkBase="0-Shared/Chat" />
     <Compile Include="..\MiaoNet.Client\Command\CommandParser.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Command\CommandSegmentType.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Command\MiaoNetCommand.cs" LinkBase="0-Shared/Command" />
@@ -25,7 +27,24 @@
     <Compile Include="..\MiaoNet.ClientShared\ConnectionLifecycleCoordinator.cs" LinkBase="0-Shared" />
     <Compile Include="..\MiaoNet.ClientShared\BestEffortCleanup.cs" LinkBase="0-Shared" />
     <Compile Include="..\MiaoNet.Shared\SafeGuard.cs" LinkBase="0-Shared/Command" />
-    <Compile Include="..\ChatInputBox\ChatInputBox\ChatText*.cs" LinkBase="0-Shared/ChatInputBox" />
+
+    <!--
+      UI layout core. These sources must stay free of XNA / Celeste types, otherwise this
+      project (which does not reference Celeste) cannot compile them.
+    -->
+    <Compile Include="..\MiaoNet.Client\UI\Geometry\**\*.cs" LinkBase="0-Shared/UI/Geometry" />
+    <Compile Include="..\MiaoNet.Client\UI\Layout\**\*.cs" LinkBase="0-Shared/UI/Layout" />
+    <Compile Include="..\MiaoNet.Client\UI\Scene\**\*.cs" LinkBase="0-Shared/UI/Scene" />
+    <Compile Include="..\MiaoNet.Client\UI\Styling\**\*.cs" LinkBase="0-Shared/UI/Styling" />
+    <Compile Include="..\MiaoNet.Client\UI\Controls\**\*.cs" LinkBase="0-Shared/UI/Controls" />
+    <Compile Include="..\MiaoNet.Client\UI\PlayerList\**\*.cs" LinkBase="0-Shared/UI/PlayerList" />
+    <Compile Include="..\MiaoNet.Client\UI\Chat\**\*.cs" LinkBase="0-Shared/UI/Chat" />
+    <Compile Include="..\MiaoNet.Client\UI\Input\**\*.cs" LinkBase="0-Shared/UI/Input" />
+    <Compile Include="..\MiaoNet.Client\UI\Status\**\*.cs" LinkBase="0-Shared/UI/Status" />
+    <Compile Include="..\MiaoNet.Client\UI\DebugMap\**\*.cs" LinkBase="0-Shared/UI/DebugMap" />
+    <Compile Include="..\MiaoNet.Client\UI\Rendering\IUICanvas.cs" LinkBase="0-Shared/UI/Rendering" />
+    <Compile Include="..\MiaoNet.Client\UI\Rendering\ITextRenderer.cs" LinkBase="0-Shared/UI/Rendering" />
+    <Compile Include="..\MiaoNet.Client\UI\Rendering\IUITexture.cs" LinkBase="0-Shared/UI/Rendering" />
   </ItemGroup>
 
   <ItemGroup>

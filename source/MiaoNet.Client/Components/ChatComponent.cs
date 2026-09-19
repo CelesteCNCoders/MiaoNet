@@ -1,5 +1,7 @@
 using System.Diagnostics;
-using Celeste.Mod.ChatInputBox;
+using Celeste.Mod.MiaoNet.Chat;
+using Celeste.Mod.MiaoNet.UI.Controls;
+using Celeste.Mod.MiaoNet.UI.Input;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Input;
 
@@ -37,18 +39,22 @@ public sealed partial class ChatComponent : MiaoNetComponent
     private readonly PauseUpdateOverlay dummyOverlay;
 
     private bool active;
-    private readonly InputBox inputBox;
-    private readonly ChatMessageBox chatMessageBox;
+    private readonly TextEditingController editor;
+    private readonly ChatMessageManager chatManager;
+
+    private string initialTabTitle = string.Empty;
 
     private readonly CommandParser cmdParser;
 
     private readonly ChatMessageFactory chatMessageFactory;
 
-    private readonly ScalelessChatTextRenderer textRenderer;
 
     private string lastInput = string.Empty;
     private readonly List<string> inputHistory;
     private int historyIndex;
+
+    // our claims on arbitrated input, reactions get registered once in the ctor
+    private readonly UIInputRegistrations input;
 
     public bool Active => active;
 
@@ -56,14 +62,17 @@ public sealed partial class ChatComponent : MiaoNetComponent
         : base(context)
     {
         inputHistory = new();
-        float scale = MiaoNetModule.Settings.ChatUIScaleValue;
-        textRenderer = new ScalelessChatTextRenderer(scale, MiaoNetFont.ENZhsLineHeight * scale);
         dummyOverlay = new();
         cmdParser = new(MiaoNetCommand.Commands);
         chatMessageFactory = new(context);
-        inputBox = new InputBox(textRenderer, new ChatCompletionProvider(context, cmdParser));
-        chatMessageBox = new(textRenderer);
+        editor = new TextEditingController(
+            new ChatCompletionProvider(context, cmdParser),
+            MiaoNetFont.CanRender);
+        chatManager = new();
         ChatMessageBoxSetup();
+
+        input = context.UIInput.Register(UIInputConsumer.Chat);
+        RegisterInputReactions();
 
         context.ChatMessageReceived += Context_ChatMessageReceived;
         context.PlayerJoined += Context_PlayerJoined;
@@ -74,28 +83,153 @@ public sealed partial class ChatComponent : MiaoNetComponent
         Settings_SettingsChanged(settings, SettingsCategory.VisualsUI);
     }
 
+    // what the chat does with each action it owns. the routing table already decides when each is
+    // live, so no focus guard here. order only matters because changing focus ends the frame
+    // (Activate/Deactivate), so closing the box can't also submit/page like the old returns did.
+    private void RegisterInputReactions()
+    {
+        input.On(UIInputAction.ChatToggle, OpenChat);
+        input.On(UIInputAction.ChatCommandToggle, OpenCommandChat);
+
+        input.On(UIInputAction.Cancel, CancelEditing);
+        input.On(UIInputAction.Submit, SubmitEditing);
+
+        input.On(UIInputAction.ChannelPrevious, () =>
+        {
+            chatManager.CycleTabForward();
+            SyncChatChannelWithTab();
+        });
+        input.On(UIInputAction.ChannelNext, () =>
+        {
+            chatManager.CycleTabBackward();
+            SyncChatChannelWithTab();
+        });
+
+        // completions and history share the arrow keys; which one gets them depends on whether
+        // the popup is up, so this guard lives here instead of in the routing table.
+        input.On(UIInputAction.CompletionUp, () => SelectCompletion(-1));
+        input.On(UIInputAction.CompletionDown, () => SelectCompletion(+1));
+        input.On(UIInputAction.HistoryUp, () => StepHistory(-1));
+        input.On(UIInputAction.HistoryDown, () => StepHistory(+1));
+
+        input.On(UIInputAction.CaretLeft, () => editor.MoveCaretBackward());
+        input.On(UIInputAction.CaretRight, () => editor.MoveCaretForward());
+        input.On(UIInputAction.CompletionAccept, () => editor.AcceptCompletion());
+        input.On(UIInputAction.Paste, () => editor.Paste(TextInput.GetClipboardText()));
+    }
+
+    private void OpenChat()
+    {
+        if (context.IsSuitableToOpenUI)
+        {
+            Activate();
+        }
+    }
+
+    private void OpenCommandChat()
+    {
+        if (!context.IsSuitableToOpenUI)
+        {
+            return;
+        }
+
+        Activate();
+        editor.SetText(CommandParser.CommandPrefix);
+    }
+
+    private void CancelEditing()
+    {
+        MInputHack.ConsumeAllInputs();
+        Deactivate();
+    }
+
+    private void SubmitEditing()
+    {
+        MInputHack.ConsumeAllInputs();
+        string text = editor.Text;
+        string trimmedText = text.Trim();
+        if (trimmedText != string.Empty)
+        {
+            inputHistory.Add(trimmedText);
+            if (!trimmedText.StartsWith(CommandParser.CommandPrefix, StringComparison.Ordinal))
+            {
+                if (!MiaoNetModule.Settings.LiveMode)
+                    SendChat(trimmedText);
+                else
+                    AddLocalChat(MiaoNetChatText.CreateCommandError(Dialog.Get("miaonet_chat_disabled")));
+            }
+            else
+            {
+                HandleCommand(trimmedText);
+            }
+        }
+
+        Deactivate();
+    }
+
+    // does nothing while no completion popup is up
+    private void SelectCompletion(int step)
+    {
+        if (!editor.HasCompletions)
+        {
+            return;
+        }
+
+        if (step < 0)
+        {
+            editor.SelectPreviousCompletion();
+        }
+        else
+        {
+            editor.SelectNextCompletion();
+        }
+    }
+
+    // history is edge-only: holding up/down doesn't keep scrolling
+    private void StepHistory(int step)
+    {
+        if (editor.HasCompletions)
+        {
+            // while the popup is up, the arrows move its selection
+            return;
+        }
+
+        int i = step < 0 ? Math.Max(historyIndex + step, 0) : Math.Min(historyIndex + step, inputHistory.Count);
+        if (i == historyIndex)
+        {
+            return;
+        }
+
+        // only remember the draft when stepping back off the bottom of the history
+        if (step < 0 && historyIndex == inputHistory.Count)
+        {
+            lastInput = editor.Text;
+        }
+
+        historyIndex = i;
+        editor.SetSuppressCompletions();
+        editor.SetText(i == inputHistory.Count ? lastInput : inputHistory[i]);
+    }
+
+    private void AddChatMessage(ChatText message, string? tabName = null)
+        => chatManager.AddChatMessage(new ChatItem(message), default, tabName);
+
+    private void AddChatMessage(
+        DateTime dateTime,
+        ChatText message,
+        string? tabName = null,
+        string? foldKey = null,
+        ChatText? foldedText = null)
+        => chatManager.AddChatMessage(new ChatItem(dateTime, message), dateTime, tabName, foldKey, foldedText);
+
     private void Settings_SettingsChanged(MiaoNetModuleSettings settings, SettingsCategory category)
     {
         if (category is not SettingsCategory.VisualsUI)
             return;
-        chatMessageBox.ChatMessageListView.MessageYPadding = settings.ChatMessagePadding;
-        chatMessageBox.ChatMessageListView.BackgroundOpacity = settings.ChatBackgroundOpacityValue;
-        chatMessageBox.ChatMessageListView.TextOpacity = settings.ChatTextOpacityValue;
-        chatMessageBox.ChatMessageListView.ShowDuration = settings.ChatDisplayDuration;
-        chatMessageBox.ChatMessageListView.NewMessagesShowing = settings.NewMessagesShowing switch
-        {
-            NewMessageShowingMode.ShowAll => ChatInputBox.NewMessageShowingMode.ShowAll,
-            NewMessageShowingMode.WithTab => ChatInputBox.NewMessageShowingMode.WithTab,
-            NewMessageShowingMode.HideAll => ChatInputBox.NewMessageShowingMode.HideAll,
-            _ => ChatInputBox.NewMessageShowingMode.ShowAll
-        };
-        chatMessageBox.ChatMessageListView.IdleHeight = settings.IdleChatHeightValue;
-        chatMessageBox.ChatMessageListView.ActiveHeight = settings.ActiveChatHeightValue;
-        chatMessageBox.FoldWindowSeconds = settings.FoldWindowSeconds;
-        chatMessageBox.ChatMessageListView.FancyFoldCounter = settings.FancyFoldCounter;
-        float scale = settings.ChatUIScaleValue;
-        textRenderer.Scale = scale;
-        textRenderer.LineHeight = MiaoNetFont.ENZhsLineHeight * scale;
+
+        // UIComponent reads the presentation settings every frame; only the fold window belongs
+        // to the log model here.
+        chatManager.FoldWindowSeconds = settings.FoldWindowSeconds;
     }
 
     private void Context_PlayerJoined(OnlinePlayer player)
@@ -138,7 +272,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
             if (MiaoNetModule.Settings.MessageFolding)
                 (foldKey, foldedText) = chatMessageFactory.CreateFoldInfo(player, packet, received.Content);
 
-            chatMessageBox.AddChatMessage(packet.DateTime, received.Text, tabName, foldKey, foldedText);
+            AddChatMessage(packet.DateTime, received.Text, tabName, foldKey, foldedText);
         }
         else
             Logger.Warn(LT.MiaoNet, $"Received a null chat message for type {packet.Type}, content: {packet.Content}.");
@@ -149,7 +283,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
     private void SyncChatChannelWithTab()
     {
-        var chatTabName = chatMessageBox.ActiveTabName ?? ChatChannelMatcher.GetLocalizedName(ChatChannel.Global);
+        var chatTabName = chatManager.ActiveTabName ?? ChatChannelMatcher.GetLocalizedName(ChatChannel.Global);
         var chatChannel = ChatChannelMatcher.MatchLocalized(chatTabName!);
         if (chatChannel != (ChatChannel)(-1))
         {
@@ -159,140 +293,33 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
     public override void Update()
     {
-        var settings = MiaoNetModule.Settings;
-
-        if (!active)
-        {
-            var btn = settings.ChatButton;
-            var btnCmd = settings.ChatCommandButton;
-            if (btn.Pressed)
-            {
-                btn.ConsumePress();
-                if (context.IsSuitableToOpenUI)
-                    Activate();
-            }
-            else if (btnCmd.Pressed)
-            {
-                btnCmd.ConsumePress();
-                if (context.IsSuitableToOpenUI)
-                {
-                    Activate();
-                    inputBox.SetText(CommandParser.CommandPrefix);
-                }
-            }
-        }
-        else
+        // the reactions registered in the ctor already ran: UIInputRouter.Route arbitrates and
+        // fires them once per frame before any component updates. so what's left is the per-frame
+        // stuff that doesn't need input -- keeping the scene paused and the caret blink.
+        if (active)
         {
             Engine.Scene.Paused = true;
-
-            if (MInput.Keyboard.Pressed(Keys.Escape))
-            {
-                MInputHack.ConsumeAllInputs();
-                Deactivate();
-                return;
-            }
-            else if (MInput.Keyboard.Pressed(Keys.Enter))
-            {
-                MInputHack.ConsumeAllInputs();
-                string text = inputBox.Text;
-                string trimmedText = text.Trim();
-                if (trimmedText != string.Empty)
-                {
-                    inputHistory.Add(trimmedText);
-                    if (!trimmedText.StartsWith(CommandParser.CommandPrefix, StringComparison.Ordinal))
-                    {
-                        if (!MiaoNetModule.Settings.LiveMode)
-                            SendChat(trimmedText);
-                        else
-                            AddLocalChat(MiaoNetChatText.CreateCommandError(Dialog.Get("miaonet_chat_disabled")));
-                    }
-                    else
-                    {
-                        HandleCommand(trimmedText);
-                    }
-                }
-
-                Deactivate();
-                return;
-            }
-
-            if (MInput.Keyboard.CurrentState.IsKeyDown(Keys.LeftShift) ||
-                MInput.Keyboard.CurrentState.IsKeyDown(Keys.RightShift))
-            {
-                if (MInput.Keyboard.Pressed(Keys.Left))
-                {
-                    chatMessageBox.CycleTabForward();
-                    SyncChatChannelWithTab();
-                }
-                else if (MInput.Keyboard.Pressed(Keys.Right))
-                {
-                    chatMessageBox.CycleTabBackward();
-                    SyncChatChannelWithTab();
-                }
-            }
-
-
-            if (!inputBox.HasCompletions)
-            {
-                if (MInput.Keyboard.Pressed(Keys.Up))
-                {
-                    int i = historyIndex;
-                    i -= 1;
-                    if (i < 0) i = 0;
-                    if (i != historyIndex)
-                    {
-                        if (historyIndex == inputHistory.Count)
-                            lastInput = inputBox.Text;
-                        historyIndex = i;
-                        inputBox.SetSuppressCompletions();
-                        inputBox.SetText(inputHistory[i]);
-                    }
-                }
-                else if (MInput.Keyboard.Pressed(Keys.Down))
-                {
-                    int i = historyIndex;
-                    i += 1;
-                    if (i > inputHistory.Count)
-                        i = inputHistory.Count;
-                    if (i != historyIndex)
-                    {
-                        historyIndex = i;
-                        if (i == inputHistory.Count)
-                        {
-                            inputBox.SetSuppressCompletions();
-                            inputBox.SetText(lastInput);
-                        }
-                        else
-                        {
-                            inputBox.SetSuppressCompletions();
-                            inputBox.SetText(inputHistory[i]);
-                        }
-                    }
-                }
-            }
-
-            inputBox.Update();
+            editor.Update(Engine.RawDeltaTime);
         }
-        chatMessageBox.Update();
     }
 
     public void SendChat(string text)
         => context.QueuePacket(new PacketSendChatMessage(MiaoNetModule.Settings.ChatChannel, text));
 
     public void AddLocalChat(ChatText message)
-        => chatMessageBox.AddChatMessage(message);
+        => AddChatMessage(message);
 
     public void OnSentPrivateMessage(DateTime dateTime, OnlinePlayer other, string text)
-        => chatMessageBox.AddChatMessage(dateTime, chatMessageFactory.CreateSentPrivateMessage(other, text), null);
+        => AddChatMessage(dateTime, chatMessageFactory.CreateSentPrivateMessage(other, text), null);
 
     public void ClearChat()
-        => chatMessageBox.CleanHistory();
+        => chatManager.CleanHistory();
 
     public void HandleCommand(string text)
     {
         var result = cmdParser.Parse(text, out var cmdName, out var cmd, out var args);
 
-        chatMessageBox.AddChatMessage(MiaoNetChatText.CreateCommandEcho(text));
+        AddChatMessage(MiaoNetChatText.CreateCommandEcho(text));
 
         if (result != CommandParser.ParseResult.Success)
         {
@@ -331,14 +358,14 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
     private void ChatMessageBoxSetup()
     {
-        chatMessageBox.CleanUp();
-        chatMessageBox.ChatTabListView.InitialTabTitle = Dialog.Get("miaonet_initial_chat_tab_name");
+        chatManager.CleanUp();
+        initialTabTitle = Dialog.Get("miaonet_initial_chat_tab_name");
         foreach (ChatChannel type in Enum.GetValues(typeof(ChatChannel)))
         {
             string? localizedTabName = ChatChannelMatcher.GetLocalizedName(type);
             if (localizedTabName == null)
                 throw new UnreachableException();
-            chatMessageBox.AddTab(localizedTabName);
+            chatManager.AddTab(localizedTabName);
         }
     }
 
@@ -346,8 +373,9 @@ public sealed partial class ChatComponent : MiaoNetComponent
     {
         active = true;
         historyIndex = inputHistory.Count;
-        inputBox.Activate();
-        chatMessageBox.Activate();
+        editor.Activate();
+        TextInput.OnInput += OnCharInput;
+        TextInputEXT.TextEditing += OnTextEditing;
         previousCommandsEnabled = Engine.Commands.Enabled;
         Engine.Commands.Enabled = false;
         previousScenePaused = Engine.Scene.Paused;
@@ -359,15 +387,16 @@ public sealed partial class ChatComponent : MiaoNetComponent
             level.Add(dummyOverlay);
             level.AllowHudHide = false;
         }
-        context.HasComponentFocus = true;
+        context.UIInput.SetFocus(UIFocusOwner.Chat);
     }
 
     private void Deactivate()
     {
         active = false;
-        inputBox.Deactivate();
+        TextInput.OnInput -= OnCharInput;
+        TextInputEXT.TextEditing -= OnTextEditing;
+        editor.Deactivate();
         lastInput = string.Empty;
-        chatMessageBox.Deactivate();
         Engine.Commands.Enabled = previousCommandsEnabled;
         Engine.Scene.Paused = previousScenePaused;
 
@@ -376,13 +405,14 @@ public sealed partial class ChatComponent : MiaoNetComponent
             level.CompletelyRemove(dummyOverlay);
             level.AllowHudHide = previousAllowHudHide;
         }
-        context.HasComponentFocus = false;
+        context.UIInput.SetFocus(UIFocusOwner.None);
     }
 
-    public override void Render()
-    {
-        chatMessageBox.Render();
-        if (active)
-            inputBox.Render();
-    }
+    // the editing kernel; UIComponent draws it
+    internal TextEditingController Editor => editor;
+
+    private void OnCharInput(char chr) => editor.InputChar(chr);
+
+    private void OnTextEditing(string? text, int start, int length)
+        => editor.SetImeComposition(text, start, length);
 }

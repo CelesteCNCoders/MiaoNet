@@ -1,9 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Xna.Framework.Graphics;
+using Celeste.Mod.MiaoNet.UI.Controls;
+using Celeste.Mod.MiaoNet.UI.Geometry;
+using Celeste.Mod.MiaoNet.UI.Rendering;
+using Celeste.Mod.MiaoNet.UI.Scene;
+using Celeste.Mod.MiaoNet.UI.Status;
+using Celeste.Mod.MiaoNet.UI.Styling;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -15,6 +15,13 @@ public sealed class StatusComponent : MiaoNetComponent
     private const float MaxSpinSpeed = 8f;
     private const float Duration = 6f;
     private const float FadeDuration = 1f / 12f;
+
+    private readonly UIRoot ui = new();
+    private readonly MiaoNetUICanvas canvas = new();
+
+    private StatusCogwheelNode? cog;
+    private TextNode? message;
+    private StatusPanelNode? panel;
 
     private bool spinning;
     private float spinSpeed;
@@ -79,46 +86,62 @@ public sealed class StatusComponent : MiaoNetComponent
         rotation = Calc.WrapAngle(rotation);
     }
 
+    // drawn through the retained UI, but from here instead of renderableComponents: the status
+    // has to show while connecting and after a disconnect, exactly when the components list is
+    // not rendered. the call site stays unconditional: this component must render regardless of
+    // connection state.
     public override void Render()
     {
         if (statusMessage is null)
             return;
+
         if (timer > 0f || ease > 0f)
         {
-            var tex = GFX.Gui["reloader/cogwheel"];
-            Vector2 pos = new Vector2(64f, Engine.Height - 64f);
-            const float Scale = 1f / 3.5f;
-            Color color = Color.White * ease;
-            DrawOutlineCentered(tex, pos + new Vector2(tex.Width, -tex.Height) / 2f * Scale, color, Scale, rotation);
-            pos.X += tex.Width * Scale + 32f;
-            MiaoNetFont.DrawOutline(statusMessage!, pos, Vector2.UnitY, Vector2.One, color);
+            EnsureNodes();
+
+            UIColor color = UIColor.White * ease;
+            cog!.Rotation = rotation;
+            cog.Tint = color.ToXna();
+            message!.Text = statusMessage;
+            message.TextStyle = message.TextStyle with { Color = color };
+
+            ui.Layout(Engine.Width, Engine.Height);
+            canvas.BeginFrame();
+            try
+            {
+                ui.Paint(canvas);
+            }
+            finally
+            {
+                canvas.EndFrame();
+            }
         }
     }
 
-    private static void DrawOutlineCentered(MTexture texture, Vector2 position, Color color, float scale, float rotation)
+    // defer the texture lookup to first use so this can be built before the game content is
+    // ready.
+    private void EnsureNodes()
     {
-        float scaleFix = texture.ScaleFix;
-        scale *= scaleFix;
-        Rectangle clipRect = texture.ClipRect;
-        Vector2 origin = (texture.Center - texture.DrawOffset) / scaleFix;
-        for (int i = -1; i <= 1; i++)
+        if (panel is not null)
         {
-            for (int j = -1; j <= 1; j++)
-            {
-                if (i != 0 || j != 0)
-                {
-                    float alpha = color.A / 255f;
-                    Draw.SpriteBatch.Draw(
-                        texture.Texture.Texture_Safe,
-                        position + new Vector2(i, j),
-                        clipRect,
-                        Color.Black * MathF.Pow(alpha, 3f), // diff from original DrawOutlineCentered
-                        rotation, origin, scale, SpriteEffects.None, 0f
-                    );
-                }
-            }
+            return;
         }
 
-        Draw.SpriteBatch.Draw(texture.Texture.Texture_Safe, position, clipRect, color, rotation, origin, scale, SpriteEffects.None, 0f);
+        cog = new StatusCogwheelNode(GFX.Gui["reloader/cogwheel"]);
+        message = new TextNode
+        {
+            Style = new UIStyle { TextRenderer = MiaoNetTextRenderer.Instance },
+            TextStyle = new TextStyle
+            {
+                Scale = 1f,
+                LineHeight = MiaoNetFont.ENZhsLineHeight,
+                HorizontalAnchor = HorizontalAnchor.Left,
+                VerticalAnchor = VerticalAnchor.Bottom,
+                Decorations = TextDecoration.Outline,
+            },
+        };
+
+        panel = new StatusPanelNode(cog, message);
+        ui.SetRoot(panel);
     }
 }

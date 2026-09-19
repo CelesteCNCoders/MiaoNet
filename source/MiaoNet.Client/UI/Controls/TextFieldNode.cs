@@ -1,0 +1,103 @@
+using System;
+using Celeste.Mod.MiaoNet.UI.Geometry;
+using Celeste.Mod.MiaoNet.UI.Rendering;
+using Celeste.Mod.MiaoNet.UI.Scene;
+using Celeste.Mod.MiaoNet.UI.Styling;
+
+namespace Celeste.Mod.MiaoNet.UI.Controls;
+
+// renders a TextEditingController's editing state: text before the caret, the ime composition,
+// the text after it, and the caret itself.
+//
+// the caret sits at the start of the ime composition, not the end.
+public sealed class TextFieldNode : UINode
+{
+    private readonly ITextRenderer renderer;
+
+    public TextFieldNode(ITextRenderer renderer, TextEditingController controller)
+    {
+        ArgumentNullException.ThrowIfNull(renderer);
+        ArgumentNullException.ThrowIfNull(controller);
+
+        this.renderer = renderer;
+        Controller = controller;
+    }
+
+    public TextEditingController Controller { get; }
+
+    public float LineHeight { get; set; }
+
+    public float Scale { get; set; } = 1f;
+
+    // CHAT.INPUT.CARET_W
+    public float CaretWidth { get; set; } = 2f;
+
+    // width of the text before the caret; the completion popup anchors here
+    public float TextBeforeCaretWidth => renderer.Measure(Controller.TextBeforeCaret, TextStyle()).Width;
+
+    // where the ime composition starts, in logical screen coords. this is the composition start
+    // and not CaretX: the candidate window belongs at the beginning of the composition, before the
+    // part that has already been converted.
+    public float ImeAnchorX => Bounds.X + TextBeforeCaretWidth;
+
+    // logical width of the composition in progress, 0 when there is none
+    public float ImeTextWidth => Controller.ImeText is { Length: > 0 } ime
+        ? renderer.Measure(ime, TextStyle()).Width
+        : 0f;
+
+    // caret x, including the consumed ime prefix
+    public float CaretX
+    {
+        get
+        {
+            float x = Bounds.X + TextBeforeCaretWidth;
+            if (Controller.ImeText is { } ime)
+            {
+                string prefix = ime[..Math.Clamp(Controller.ImeStart, 0, ime.Length)];
+                x += renderer.Measure(prefix, TextStyle()).Width;
+            }
+            return x;
+        }
+    }
+
+    protected override UISize OnMeasure(BoxConstraints constraints)
+        => constraints.Constrain(new UISize(constraints.MaxWidth, LineHeight));
+
+    protected override void PaintSelf(IUICanvas canvas, float opacity)
+    {
+        TextStyle style = TextStyle() with { Color = MiaoNetUITheme.Input.Text * opacity };
+        float baseline = Bounds.Bottom;
+        float x = Bounds.X;
+
+        renderer.Draw(canvas, Controller.TextBeforeCaret, new UIOffset(x, baseline), style);
+        x += TextBeforeCaretWidth;
+
+        if (Controller.ImeText is { Length: > 0 } ime)
+        {
+            TextStyle imeStyle = style with { Color = MiaoNetUITheme.Input.ImeText * opacity };
+            renderer.Draw(canvas, ime, new UIOffset(x, baseline), imeStyle);
+            x += renderer.Measure(ime, imeStyle).Width;
+        }
+
+        renderer.Draw(canvas, Controller.TextAfterCaret, new UIOffset(x, baseline), style);
+
+        if (Controller.ShowCaret)
+        {
+            float caretX = CaretX;
+            canvas.DrawLine(
+                new UIOffset(caretX, Bounds.Bottom),
+                new UIOffset(caretX, Bounds.Bottom - LineHeight),
+                MiaoNetUITheme.Input.Caret * opacity,
+                CaretWidth);
+        }
+    }
+
+    private TextStyle TextStyle() => new()
+    {
+        Scale = Scale,
+        LineHeight = LineHeight,
+        Color = MiaoNetUITheme.Input.Text,
+        HorizontalAnchor = HorizontalAnchor.Left,
+        VerticalAnchor = VerticalAnchor.Bottom,
+    };
+}

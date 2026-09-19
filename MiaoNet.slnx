@@ -1,9 +1,5 @@
 <Solution>
-  <Folder Name="/ChatInputBox/">
-    <Project Path="source/ChatInputBox/ChatInputBox/ChatInputBox.msbuildproj" Type="13b669be-bb05-4ddf-9536-439f39a36129" />
-    <Project Path="source/ChatInputBox/ChatInputBoxExample/ChatInputBoxExample.csproj" />
-  </Folder>
-  <Folder Name="/Documentation/">
+  <Folder Name="/Documentation/" >
     <File Path="README.md" />
   </Folder>
   <Folder Name="/Solution Items/">

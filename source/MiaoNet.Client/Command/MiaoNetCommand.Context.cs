@@ -1,4 +1,4 @@
-using Celeste.Mod.ChatInputBox;
+using Celeste.Mod.MiaoNet.Chat;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
