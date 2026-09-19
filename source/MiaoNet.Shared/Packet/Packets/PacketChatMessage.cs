@@ -12,13 +12,13 @@ public enum ChatMessageType : byte
 
 public sealed class PacketChatMessage : IContextlessPacket<PacketChatMessage>
 {
-    public DateTime DateTime { get; set; }
+    public DateTime DateTime { get; }
 
-    public ChatMessageType Type { get; set; }
+    public ChatMessageType Type { get; }
 
-    public int? SourcePlayer { get; set; }
+    public int? SourcePlayer { get; }
 
-    public string Content { get; set; }
+    public string Content { get; }
 
     public PacketChatMessage(DateTime dateTime, ChatMessageType type, int? sourcePlayer, string content)
     {
@@ -34,7 +34,7 @@ public sealed class PacketChatMessage : IContextlessPacket<PacketChatMessage>
         => new(
             reader.ReadDateTime(),
             (ChatMessageType)reader.ReadByte(),
-            reader.ReadBoolean() ? reader.ReadInt32() : null,
+            reader.ReadBoolean() ? reader.Read7BitEncodedInt() : null,
             reader.ReadString()
         );
 
@@ -45,7 +45,7 @@ public sealed class PacketChatMessage : IContextlessPacket<PacketChatMessage>
         if (SourcePlayer.HasValue)
         {
             writer.Write(true);
-            writer.Write((int)SourcePlayer);
+            writer.Write7BitEncodedInt(SourcePlayer.Value);
         }
         else
         {
@@ -78,7 +78,7 @@ public sealed class PacketSendChatMessage : IContextlessPacket<PacketSendChatMes
 }
 
 public sealed class PacketSendPrivateChatMessage :
-    PacketRequest<PacketSendPrivateChatMessageResponse>,
+    IPacketRequest<PacketSendPrivateChatMessageResponse>,
     IContextlessPacket<PacketSendPrivateChatMessage>
 {
     public int TargetPlayerID { get; }
@@ -91,22 +91,20 @@ public sealed class PacketSendPrivateChatMessage :
         Content = content;
     }
 
-    public override void Serialize(ref RefBinaryWriter writer)
+    public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(RequestID);
-        writer.Write(TargetPlayerID);
+        writer.Write7BitEncodedInt(TargetPlayerID);
         writer.Write(Content);
     }
 
     public static PacketSendPrivateChatMessage Deserialize(ref RefBinaryReader reader)
     {
-        int reqID = reader.ReadInt32();
-        return new(reader.ReadInt32(), reader.ReadString()) { RequestID = reqID };
+        return new(reader.Read7BitEncodedInt(), reader.ReadString());
     }
 }
 
 public sealed class PacketSendPrivateChatMessageResponse :
-    PacketResponse,
+    IPacketResponse,
     IContextlessPacket<PacketSendPrivateChatMessageResponse>
 {
     public enum SendResult
@@ -126,16 +124,14 @@ public sealed class PacketSendPrivateChatMessageResponse :
         Result = result;
     }
 
-    public override void Serialize(ref RefBinaryWriter writer)
+    public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(RequestID);
         writer.Write(DateTime);
         writer.Write((byte)Result);
     }
 
     public static PacketSendPrivateChatMessageResponse Deserialize(ref RefBinaryReader reader)
     {
-        int reqID = reader.ReadInt32();
-        return new(reader.ReadDateTime(), (SendResult)reader.ReadByte()) { RequestID = reqID };
+        return new(reader.ReadDateTime(), (SendResult)reader.ReadByte());
     }
 }

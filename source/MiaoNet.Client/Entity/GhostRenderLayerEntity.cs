@@ -57,10 +57,10 @@ public sealed class GhostRenderLayerEntity : MiaoNetEntity
         gd.SetRenderTarget(GameplayBuffers.Gameplay);
         Draw.SpriteBatch.Begin(
             SpriteSortMode.Deferred,
-            BlendState.AlphaBlend, 
+            BlendState.AlphaBlend,
             SamplerState.PointClamp,
-            DepthStencilState.None, 
-            RasterizerState.CullNone, 
+            DepthStencilState.None,
+            RasterizerState.CullNone,
             effect,
             level.Camera.Matrix
         );

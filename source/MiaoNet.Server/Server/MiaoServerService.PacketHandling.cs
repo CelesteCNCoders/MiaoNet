@@ -1,7 +1,7 @@
-using Microsoft.Extensions.Logging;
-using MiaoNet.Shared;
-using System.Diagnostics;
 using System.Buffers;
+using System.Diagnostics;
+using MiaoNet.Shared;
+using Microsoft.Extensions.Logging;
 
 namespace MiaoNet.Server;
 
@@ -13,8 +13,8 @@ public sealed partial class MiaoServerService
         r.Register<PacketPlayerLocationChanged>(HandlePacketAsync);
         r.Register<PacketPlayerChannelMove>(HandlePacketAsync);
         r.Register<PacketSendChatMessage>(HandlePacketAsync);
-        r.Register<PacketSendEmote>(HandlePacketAsync);
-        r.Register<PacketSendEmoteText>(HandlePacketAsync);
+        r.Register<PacketEmote>(HandlePacketAsync);
+        r.Register<PacketEmoteText>(HandlePacketAsync);
         r.Register<PacketPlayerLiveState>(HandlePacketAsync);
         r.Register<PacketUpdateGlobalFlag>(HandlePacketAsync);
         r.Register<PacketTeleportRequest>(HandlePacketAsync);
@@ -25,7 +25,7 @@ public sealed partial class MiaoServerService
         r.Register<PacketCreateFireworks>(HandlePacketAsync);
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerFrame packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, PacketPlayerFrame packet)
     {
         var player = connection.Player;
         if (player.State is null)
@@ -59,13 +59,14 @@ public sealed partial class MiaoServerService
             state.ApplyDelta(delta);
         }
         await BroadcastToScopeExceptAsync(
-            new PacketContextualPlayerNotification<PacketPlayerFrame>(connection.ID, packet),
+            packet,
             u,
-            connection.ID
+            connection.ID,
+            envelope: PacketEnvelope.FromSender(connection.ID)
         );
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerLocationChanged packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, PacketPlayerLocationChanged packet)
     {
         var player = connection.Player;
         var oldLocation = player.Location;
@@ -84,9 +85,10 @@ public sealed partial class MiaoServerService
             using (stateLock.AcquireWriteLock())
             {
                 othersTask = BroadcastToScopeExceptAsync(
-                    new PacketPlayerLocationChangedNotification(player.ID, newLocation, null),
+                    new PacketPlayerLocationChangedNotification(newLocation, null),
                     player.Channel,
-                    connection.ID
+                    connection.ID,
+                    envelope: PacketEnvelope.FromSender(player.ID)
                 );
 
                 // if the player is going to debug map
@@ -121,9 +123,10 @@ public sealed partial class MiaoServerService
         {
             player.Location = newLocation;
             await BroadcastToScopeExceptAsync(
-                new PacketPlayerLocationChangedNotification(player.ID, newLocation, null),
+                new PacketPlayerLocationChangedNotification(newLocation, null),
                 player.Channel,
-                connection.ID
+                connection.ID,
+                envelope: PacketEnvelope.FromSender(player.ID)
             );
             return;
         }
@@ -159,18 +162,20 @@ public sealed partial class MiaoServerService
             mapTo?.StateLock.EnterWriteLock();
             try
             {
-                var generalPacket = new PacketPlayerLocationChangedNotification(player.ID, newLocation, null);
-                var withStatePacket = new PacketPlayerLocationChangedNotification(player.ID, newLocation, packet.InitialState);
+                var generalPacket = new PacketPlayerLocationChangedNotification(newLocation, null);
+                var withStatePacket = new PacketPlayerLocationChangedNotification(newLocation, packet.InitialState);
 
                 var mapPlayers = mapTo?.GetPlayerMovedInitialDatas(connection) ?? [];
                 var responsePacket = new PacketPlayerLocationChangedResponse(mapPlayers);
 
+                PacketEnvelope playerEnvelope = PacketEnvelope.FromSender(player.ID);
+
                 generalTask = mapTo is not null
-                    ? BroadcastToScopeExceptAsync(generalPacket, player.Channel, connection.ID, c => !mapTo.Players.Contains(c))
-                    : BroadcastToScopeExceptAsync(generalPacket, player.Channel, connection.ID);
+                    ? BroadcastToScopeExceptAsync(generalPacket, player.Channel, connection.ID, c => !mapTo.Players.Contains(c), playerEnvelope)
+                    : BroadcastToScopeExceptAsync(generalPacket, player.Channel, connection.ID, playerEnvelope);
 
                 withStateTask = mapTo is not null
-                    ? BroadcastToScopeExceptAsync(withStatePacket, mapTo, connection.ID)
+                    ? BroadcastToScopeExceptAsync(withStatePacket, mapTo, connection.ID, playerEnvelope)
                     : Task.CompletedTask;
                 responseTask = connection.QueuePacketAsync(responsePacket);
 
@@ -189,7 +194,7 @@ public sealed partial class MiaoServerService
         await responseTask;
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerChannelMove packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, PacketPlayerChannelMove packet)
     {
         var player = connection.Player;
 
@@ -261,17 +266,16 @@ public sealed partial class MiaoServerService
 
                 // same-map players in the target channel get state + presence
                 var sameMapNotification = new PacketPlayerChannelMovedNotification(
-                    connection.ID,
                     targetChannel.ID,
                     player.State is null ? null : new PlayerMovedInitialData(player.State),
                     new PlayerPresenceData(player.Location, player.GlobalFlags)
                 );
+                PacketEnvelope playerEnvelope = PacketEnvelope.FromSender(connection.ID);
                 sameMapTask = mapTo is not null
-                    ? BroadcastToScopeExceptAsync(sameMapNotification, mapTo, connection.ID)
+                    ? BroadcastToScopeExceptAsync(sameMapNotification, mapTo, connection.ID, playerEnvelope)
                     : Task.CompletedTask;
 
                 var sameChannelNotification = new PacketPlayerChannelMovedNotification(
-                    connection.ID,
                     targetChannel.ID,
                     null,
                     new PlayerPresenceData(player.Location, player.GlobalFlags)
@@ -280,20 +284,21 @@ public sealed partial class MiaoServerService
                     sameChannelNotification,
                     targetChannel,
                     connection.ID,
-                    c => mapTo is null || !mapTo.Players.Contains(c)
+                    c => mapTo is null || !mapTo.Players.Contains(c),
+                    playerEnvelope
                 );
 
                 // players in other channels get only a "moved" notification
                 // and for private channels, the virtual id is used instead of the real channel id
                 var crossChannelNotification = new PacketPlayerChannelMovedNotification(
-                    connection.ID,
                     targetChannel.IsPrivate ? ChannelInfo.PrivateChannelVirtualID : targetChannel.ID
                 );
                 crossChannelTask = BroadcastToScopeExceptAsync(
                     crossChannelNotification,
                     serverState,
                     connection.ID,
-                    c => c.Player.Channel != targetChannel
+                    c => c.Player.Channel != targetChannel,
+                    playerEnvelope
                 );
             }
             finally
@@ -313,7 +318,7 @@ public sealed partial class MiaoServerService
         await crossChannelTask;
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketSendChatMessage packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, PacketSendChatMessage packet)
     {
         logger.LogInformation(AppEvents.GameChat, "[{channel}] {player}: {msg}", packet.ChatChannel, connection.Player.Info, packet.Content);
         if (packet.Content.Length > 64)
@@ -350,47 +355,51 @@ public sealed partial class MiaoServerService
         }
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketSendEmote packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, PacketEmote packet)
     {
         await BroadcastToScopeExceptAsync(
-            new PacketEmote(connection.ID, packet.Emote),
+            packet,
             serverState,
             connection.ID,
-            c => c.PlayerShouldSyncFrom(connection)
+            c => c.PlayerShouldSyncFrom(connection),
+            PacketEnvelope.FromSender(connection.ID)
         );
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketSendEmoteText packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, PacketEmoteText packet)
     {
         await BroadcastToScopeExceptAsync(
-            new PacketEmoteText(connection.ID, packet.Text),
+            packet,
             serverState,
             connection.ID,
-            c => c.PlayerShouldSyncFrom(connection)
+            c => c.PlayerShouldSyncFrom(connection),
+            PacketEnvelope.FromSender(connection.ID)
         );
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerLiveState packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, PacketPlayerLiveState packet)
     {
         await BroadcastToScopeExceptAsync(
-            new PacketPlayerNotification<PacketPlayerLiveState>(connection.ID, packet),
+            packet,
             serverState,
             connection.ID,
-            c => c.PlayerShouldSyncFrom(connection)
+            c => c.PlayerShouldSyncFrom(connection),
+            PacketEnvelope.FromSender(connection.ID)
         );
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketUpdateGlobalFlag packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, PacketUpdateGlobalFlag packet)
     {
         connection.Player.GlobalFlags = packet.Flags;
         await BroadcastToScopeExceptAsync(
-            new PacketPlayerNotification<PacketUpdateGlobalFlag>(connection.ID, packet),
+            packet,
             connection.Player.Channel,
-            connection.ID
+            connection.ID,
+            PacketEnvelope.FromSender(connection.ID)
         );
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketTeleportRequest request)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, PacketTeleportRequest request)
     {
         // teleporting is only allowed within the same channel
         if (ServerState.Players.TryGetValue(request.TargetPlayerID, out var target)
@@ -412,8 +421,8 @@ public sealed partial class MiaoServerService
                     target.Player.Info
                 );
                 await connection.ResponseAsync(
-                    request,
-                    new(PacketTeleportResponse.TeleportFailedReason.OtherDoesNotResponse, null)
+                    envelope,
+                    new PacketTeleportResponse(PacketTeleportResponse.TeleportFailedReason.OtherDoesNotResponse, null)
                 );
             }
 
@@ -423,16 +432,16 @@ public sealed partial class MiaoServerService
                 {
                     logger.LogInformation(AppEvents.Game, "{p}'s teleport request to {p2} was accepted.", connection.Player.Info, target.Player.Info);
                     return connection.ResponseAsync(
-                        request,
-                        new(PacketTeleportResponse.TeleportFailedReason.None, response.Session)
+                        envelope,
+                        new PacketTeleportResponse(PacketTeleportResponse.TeleportFailedReason.None, response.Session)
                     ).AsTask();
                 }
                 else
                 {
                     logger.LogInformation(AppEvents.Game, "{p}'s teleport request to {p2} was rejected.", connection.Player.Info, target.Player.Info);
                     return connection.ResponseAsync(
-                        request,
-                        new(PacketTeleportResponse.TeleportFailedReason.OtherDenied, null)
+                        envelope,
+                        new PacketTeleportResponse(PacketTeleportResponse.TeleportFailedReason.OtherDenied, null)
                     ).AsTask();
                 }
             }
@@ -446,8 +455,8 @@ public sealed partial class MiaoServerService
                     target.Player.Info
                 );
                 return connection.ResponseAsync(
-                    request,
-                    new(PacketTeleportResponse.TeleportFailedReason.OtherDoesNotResponse, null)
+                    envelope,
+                    new PacketTeleportResponse(PacketTeleportResponse.TeleportFailedReason.OtherDoesNotResponse, null)
                 ).AsTask();
             }
         }
@@ -460,13 +469,13 @@ public sealed partial class MiaoServerService
                 request.TargetPlayerID
             );
             await connection.ResponseAsync(
-                request,
-                new(PacketTeleportResponse.TeleportFailedReason.NoSuchPlayer, null)
+                envelope,
+                new PacketTeleportResponse(PacketTeleportResponse.TeleportFailedReason.NoSuchPlayer, null)
             );
         }
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketSendPrivateChatMessage request)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, PacketSendPrivateChatMessage request)
     {
         // private messaging is allowed across channels (cross-channel players are
         // name-only, but that still lets you whisper them by name)
@@ -483,7 +492,7 @@ public sealed partial class MiaoServerService
             await target.QueuePacketAsync(
                 new PacketChatMessage(DateTime.UtcNow, ChatMessageType.PrivateMessage, connection.ID, request.Content)
             );
-            await connection.ResponseAsync(request, new(DateTime.UtcNow, PacketSendPrivateChatMessageResponse.SendResult.Success));
+            await connection.ResponseAsync(envelope, new PacketSendPrivateChatMessageResponse(DateTime.UtcNow, PacketSendPrivateChatMessageResponse.SendResult.Success));
         }
         else
         {
@@ -494,13 +503,13 @@ public sealed partial class MiaoServerService
                 request.TargetPlayerID
             );
             await connection.ResponseAsync(
-                request,
-                new(DateTime.UtcNow, PacketSendPrivateChatMessageResponse.SendResult.NoSuchPlayer)
+                envelope,
+                new PacketSendPrivateChatMessageResponse(DateTime.UtcNow, PacketSendPrivateChatMessageResponse.SendResult.NoSuchPlayer)
             );
         }
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerGrabPlayer packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, PacketPlayerGrabPlayer packet)
     {
         if (!ServerState.Players.TryGetValue(packet.PlayerID, out var p))
             return;
@@ -529,7 +538,7 @@ public sealed partial class MiaoServerService
         await p.QueuePacketAsync(send);
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerGrabJumpOut packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, PacketPlayerGrabJumpOut packet)
     {
         if (!ServerState.Players.TryGetValue(packet.PlayerID, out var p))
             return;
@@ -541,27 +550,27 @@ public sealed partial class MiaoServerService
         await p.QueuePacketAsync(send);
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketPlayerPlayedAudio packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, PacketPlayerPlayedAudio packet)
     {
-        var p = new PacketContextualPlayerNotification<PacketPlayerPlayedAudio>(connection.ID, packet);
         await BroadcastToScopeExceptAsync(
-            p,
+            packet,
             serverState,
             connection.ID,
-            c => c.PlayerShouldSyncFrom(connection)
+            c => c.PlayerShouldSyncFrom(connection),
+            PacketEnvelope.FromSender(connection.ID)
         );
     }
 
-    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketCreateFireworks packet)
+    private async Task HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, PacketCreateFireworks packet)
     {
         if (connection.Player.TryConsumeFireworksToken())
         {
-            PacketPlayerNotification<PacketCreateFireworks> notification = new(connection.ID, packet);
             await BroadcastToScopeExceptAsync(
-                notification,
+                packet,
                 serverState,
                 connection.ID,
-                c => c.PlayerShouldSyncFrom(connection)
+                c => c.PlayerShouldSyncFrom(connection),
+                PacketEnvelope.FromSender(connection.ID)
             );
         }
         else

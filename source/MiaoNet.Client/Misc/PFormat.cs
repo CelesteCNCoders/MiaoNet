@@ -13,7 +13,7 @@ public static partial class PFormat
     [GeneratedRegex(@"\((\d+)\)", RegexOptions.CultureInvariant)]
     private static partial Regex GetReplaceRegex();
 
-    public static string Format(string format, params object?[] args) 
+    public static string Format(string format, params object?[] args)
         => Format(CultureInfo.CurrentCulture, format, args);
 
     public static string Format(IFormatProvider? provider, string format, params object?[] args)
@@ -24,8 +24,8 @@ public static partial class PFormat
             if (index < args.Length)
             {
                 object? arg = args[index];
-                return arg is IFormattable formattable 
-                    ? formattable.ToString(null, provider) 
+                return arg is IFormattable formattable
+                    ? formattable.ToString(null, provider)
                     : arg?.ToString() ?? string.Empty;
             }
             else

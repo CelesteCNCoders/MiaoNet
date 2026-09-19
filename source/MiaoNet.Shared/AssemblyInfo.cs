@@ -6,9 +6,7 @@ using MiaoNet.Shared;
     typeof(PacketPlayerLeft),
 
     typeof(PacketPlayerFrame),
-    typeof(PacketContextualPlayerNotification<PacketPlayerFrame>),
     typeof(PacketPlayerLiveState),
-    typeof(PacketPlayerNotification<PacketPlayerLiveState>),
 
     typeof(PacketPlayerLocationChanged),
     typeof(PacketPlayerLocationChangedNotification),
@@ -18,12 +16,9 @@ using MiaoNet.Shared;
     typeof(PacketSendChatMessage),
 
     typeof(PacketEmote),
-    typeof(PacketSendEmote),
     typeof(PacketEmoteText),
-    typeof(PacketSendEmoteText),
 
     typeof(PacketUpdateGlobalFlag),
-    typeof(PacketPlayerNotification<PacketUpdateGlobalFlag>),
 
     typeof(PacketTeleportRequest),
     typeof(PacketTeleportResponse),
@@ -40,13 +35,11 @@ using MiaoNet.Shared;
     typeof(PacketDisconnected),
 
     typeof(PacketPlayerPlayedAudio),
-    typeof(PacketContextualPlayerNotification<PacketPlayerPlayedAudio>),
 
     typeof(PacketPlayerGrabPlayer),
     typeof(PacketPlayerGrabJumpOut),
 
     typeof(PacketCreateFireworks),
-    typeof(PacketPlayerNotification<PacketCreateFireworks>),
 
     typeof(PacketPlayerChannelMove),
     typeof(PacketPlayerChannelMovedResponse),

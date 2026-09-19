@@ -280,7 +280,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         if (received.MentionsSelf)
             Audio.Play(MiaoNetSFX.ChatMention);
     }
-    
+
     private void SyncChatChannelWithTab()
     {
         var chatTabName = chatManager.ActiveTabName ?? ChatChannelMatcher.GetLocalizedName(ChatChannel.Global);
@@ -362,7 +362,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         initialTabTitle = Dialog.Get("miaonet_initial_chat_tab_name");
         foreach (ChatChannel type in Enum.GetValues(typeof(ChatChannel)))
         {
-            string? localizedTabName = ChatChannelMatcher.GetLocalizedName(type); 
+            string? localizedTabName = ChatChannelMatcher.GetLocalizedName(type);
             if (localizedTabName == null)
                 throw new UnreachableException();
             chatManager.AddTab(localizedTabName);

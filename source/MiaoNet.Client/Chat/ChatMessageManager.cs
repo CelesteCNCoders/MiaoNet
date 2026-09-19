@@ -114,7 +114,7 @@ public class ChatMessageManager
     {
         Version++;
         var targetTabIndex = tab.FindIndex(t => t.Name == name);
-        if  (targetTabIndex < 0) return;
+        if (targetTabIndex < 0) return;
         activeTabIndex = targetTabIndex;
     }
 

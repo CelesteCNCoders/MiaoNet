@@ -5,10 +5,10 @@ using System.Runtime.CompilerServices;
 namespace MiaoNet.Shared;
 
 #if MIAO_CLIENT || MIAO_MOCKCLIENT || INSPECTOR
-public delegate void PacketHandler<TPacket>(TPacket packet)
+public delegate void PacketHandler<TPacket>(PacketEnvelope envelope, TPacket packet)
     where TPacket : IContextualPacket;
 #elif MIAO_SERVER
-public delegate Task PacketHandler<TPacket>(Server.MiaoClientConnection connection, TPacket packet) 
+public delegate Task PacketHandler<TPacket>(Server.MiaoClientConnection connection, PacketEnvelope envelope, TPacket packet)
     where TPacket : IContextualPacket;
 #endif
 
@@ -22,11 +22,11 @@ public sealed class PacketDispatcher
         dictionary = register.Dictionary.ToFrozenDictionary();
     }
 
-    public bool DispatchPacket(IContextualPacket packet)
+    public bool DispatchPacket(PacketEnvelope envelope, IContextualPacket packet)
     {
         if (dictionary.TryGetValue(packet.GetType(), out PacketHandler<IContextualPacket>? d))
         {
-            d(packet);
+            d(envelope, packet);
             return true;
         }
         else
@@ -45,11 +45,11 @@ public sealed class PacketDispatcher
         dictionary = register.Dictionary.Select(pair => new KeyValuePair<Type, PacketHandler<IContextualPacket>>(pair.Key, pair.Value)).ToFrozenDictionary();
     }
 
-    public async ValueTask<bool> DispatchPacketAsync(Server.MiaoClientConnection connection, IContextualPacket packet)
+    public async ValueTask<bool> DispatchPacketAsync(Server.MiaoClientConnection connection, PacketEnvelope envelope, IContextualPacket packet)
     {
         if (dictionary.TryGetValue(packet.GetType(), out var handler))
         {
-            await handler(connection, packet);
+            await handler(connection, envelope, packet);
             return true;
         }
         else

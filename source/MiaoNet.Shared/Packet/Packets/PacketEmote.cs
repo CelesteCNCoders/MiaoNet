@@ -1,33 +1,15 @@
 namespace MiaoNet.Shared;
 
-// we could make this just a generic notification...
-public sealed class PacketEmote : PacketPlayerNotification, IContextlessPacket<PacketEmote>
+public sealed class PacketEmote : IContextlessPacket<PacketEmote>
 {
     public EmoteData Emote { get; }
 
-    public PacketEmote(int playerID, EmoteData emote) : base(playerID)
+    public PacketEmote(EmoteData emote)
         => Emote = emote;
-
-    public void Serialize(ref RefBinaryWriter writer)
-    {
-        writer.Write(PlayerID);
-        writer.Write(Emote);
-    }
-
-    public static PacketEmote Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadInt32(), reader.Read<EmoteData>());
-}
-
-public sealed class PacketSendEmote : IContextlessPacket<PacketSendEmote>
-{
-    public EmoteData Emote { get; }
-
-    public PacketSendEmote(EmoteData emote)
-        => Emote = emote;
-
-    public static PacketSendEmote Deserialize(ref RefBinaryReader reader)
-        => new(reader.Read<EmoteData>());
 
     public void Serialize(ref RefBinaryWriter writer)
         => writer.Write(Emote);
+
+    public static PacketEmote Deserialize(ref RefBinaryReader reader)
+        => new(reader.Read<EmoteData>());
 }

@@ -27,15 +27,14 @@ public sealed class PacketPlayerLocationChanged : IContextualPacket<PacketPlayer
 }
 
 // server to client
-public sealed class PacketPlayerLocationChangedNotification : PacketPlayerNotification,
-    IContextualPacket<PacketPlayerLocationChangedNotification>
+public sealed class PacketPlayerLocationChangedNotification
+    : IContextualPacket<PacketPlayerLocationChangedNotification>
 {
     public PlayerLocation Location { get; }
 
-    public PlayerState? InitialState { get; set; }
+    public PlayerState? InitialState { get; }
 
-    public PacketPlayerLocationChangedNotification(int playerID, PlayerLocation location, PlayerState? initialState)
-        : base(playerID)
+    public PacketPlayerLocationChangedNotification(PlayerLocation location, PlayerState? initialState)
     {
         Location = location;
         InitialState = initialState;
@@ -43,7 +42,6 @@ public sealed class PacketPlayerLocationChangedNotification : PacketPlayerNotifi
 
     public void Serialize(ref RefBinaryWriter writer, IPacketSerializationContext context)
     {
-        writer.Write(PlayerID);
         writer.Write(Location);
         writer.WriteNullable(InitialState, context.PooledStringManager);
     }
@@ -52,13 +50,10 @@ public sealed class PacketPlayerLocationChangedNotification : PacketPlayerNotifi
         ref RefBinaryReader reader,
         IPacketSerializationContext context
     )
-    {
-        int playerID = reader.ReadInt32();
-        PlayerLocation location = reader.Read<PlayerLocation>();
-        PlayerState? initialState = reader.ReadNullable<PlayerState, PooledStringManager>(context.PooledStringManager);
-
-        return new(playerID, location, initialState);
-    }
+        => new(
+            reader.Read<PlayerLocation>(),
+            reader.ReadNullable<PlayerState, PooledStringManager>(context.PooledStringManager)
+        );
 }
 
 // server to client

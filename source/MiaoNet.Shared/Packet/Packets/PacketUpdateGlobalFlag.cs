@@ -2,7 +2,7 @@ namespace MiaoNet.Shared;
 
 public sealed class PacketUpdateGlobalFlag : IContextlessPacket<PacketUpdateGlobalFlag>
 {
-    public PlayerGlobalFlags Flags { get; set; }
+    public PlayerGlobalFlags Flags { get; }
 
     public PacketUpdateGlobalFlag(PlayerGlobalFlags flag)
     {
@@ -11,7 +11,7 @@ public sealed class PacketUpdateGlobalFlag : IContextlessPacket<PacketUpdateGlob
 
     public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write((ushort)Flags);
+        writer.Write((byte)Flags);
     }
 
     public static PacketUpdateGlobalFlag Deserialize(ref RefBinaryReader reader)

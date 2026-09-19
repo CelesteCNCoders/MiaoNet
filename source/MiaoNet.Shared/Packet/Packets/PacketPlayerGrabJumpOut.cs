@@ -11,11 +11,11 @@ public sealed class PacketPlayerGrabJumpOut : IContextlessPacket<PacketPlayerGra
 
     public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(PlayerID);
+        writer.Write7BitEncodedInt(PlayerID);
     }
 
     public static PacketPlayerGrabJumpOut Deserialize(ref RefBinaryReader reader)
     {
-        return new(reader.ReadInt32());
+        return new(reader.Read7BitEncodedInt());
     }
 }

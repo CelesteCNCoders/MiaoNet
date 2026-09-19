@@ -182,7 +182,7 @@ partial class MiaoNetContext
             Logger.Info(LT.MiaoNetConnection, $"Trying to connect to {ep}...");
             MiaoServerConnection? connection = null;
 
-            IAsyncEnumerator<IContextualPacket>? packetsAsyncEnumerator = null;
+            IAsyncEnumerator<EnvelopedPacket>? packetsAsyncEnumerator = null;
             using CancellationTokenSource sessionCts = CancellationTokenSource.CreateLinkedTokenSource(token);
             CancellationToken sessionToken = sessionCts.Token;
             try
@@ -233,7 +233,7 @@ partial class MiaoNetContext
                 packetsAsyncEnumerator = connection.ReceivePacketsLoopAsync(operation, sessionToken).GetAsyncEnumerator(sessionToken);
 
                 await packetsAsyncEnumerator.MoveNextAsync();
-                IContextualPacket? packetInitial = packetsAsyncEnumerator.Current;
+                IContextualPacket? packetInitial = packetsAsyncEnumerator.Current.Packet;
                 if (packetInitial is not PacketClientInitial clientInitial)
                 {
                     if (packetInitial is null)
@@ -332,7 +332,7 @@ partial class MiaoNetContext
                 token.ThrowIfCancellationRequested();
 
                 async Task DoReceivingAndProcessingAsync(
-                    IAsyncEnumerator<IContextualPacket> packets,
+                    IAsyncEnumerator<EnvelopedPacket> packets,
                     ConnectionOperation operation,
                     MiaoServerConnection connection,
                     CancellationToken token
@@ -348,10 +348,12 @@ partial class MiaoNetContext
 #endif
                     while (await packets.MoveNextAsync())
                     {
-                        var packet = packets.Current;
+                        var frame = packets.Current;
+                        var packet = frame.Packet;
+                        var envelope = frame.Envelope;
 
-                        if (!HandleDirectPacket(operation, connection, packet))
-                            receiveQueue.Enqueue((operation.Generation, packet));
+                        if (!HandleDirectPacket(operation, connection, envelope, packet))
+                            receiveQueue.Enqueue((operation.Generation, frame));
 #if PACKET_TRACING
                         string typeName = packet.GetType().ToString();
                         if (
@@ -365,6 +367,17 @@ partial class MiaoNetContext
                             var pColor = Console.ForegroundColor;
                             Console.ForegroundColor = ConsoleColor.Green;
                             Console.WriteLine($"== Type: {packet.GetType()} ==");
+                            IFormatProvider? ic = System.Globalization.CultureInfo.InvariantCulture;
+                            if (envelope.Flags != PacketEnvelopeFlags.None)
+                            {
+                                string sender = envelope.HasSender
+                                    ? envelope.SenderPlayerID.ToString(ic)
+                                    : "-";
+                                string request = envelope.HasRequestID
+                                    ? envelope.RequestID.ToString(ic)
+                                    : "-";
+                                Console.WriteLine($"envelope: sender={sender}, request={request}");
+                            }
                             Console.ForegroundColor = ConsoleColor.DarkGreen;
                             Console.WriteLine(System.Text.Json.JsonSerializer.Serialize((object)packet, options));
                             Console.ForegroundColor = pColor;

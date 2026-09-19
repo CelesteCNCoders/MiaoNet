@@ -13,7 +13,7 @@ public sealed class PacketPlayerGraphicsUpdate : IContextlessPacket<PacketPlayer
 
     public PacketPlayerGraphicsUpdate()
     {
-        
+
     }
 
     public static PacketPlayerGraphicsUpdate Deserialize(ref RefBinaryReader reader)

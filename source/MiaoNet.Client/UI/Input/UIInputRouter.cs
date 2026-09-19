@@ -105,23 +105,11 @@ public sealed class UIInputRouter
         }
 
         List<string>? problems = null;
-        HashSet<UIInputAction> claimed = [];
+        Dictionary<UIInputAction, UIInputConsumer> owners = [];
 
-        foreach (UIInputRule rule in Rules)
-        {
-            UIInputRegistrations? owner = OwnerOf(rule.Action);
-            if (owner is null)
-            {
-                (problems ??= []).Add($"{rule.Action} is routed, but nothing claimed it");
-                continue;
-            }
-
-            if (!claimed.Add(rule.Action))
-            {
-                (problems ??= []).Add($"{rule.Action} was claimed by more than one consumer");
-            }
-        }
-
+        // ownership is declared by the registration, so this is where "exactly one owner per action"
+        // is enforced: nothing else stops two consumers claiming the same action, one for the edge
+        // and one for the held level.
         foreach (UIInputRegistrations set in registrations.Values)
         {
             foreach (UIInputAction action in set.Owned)
@@ -129,7 +117,21 @@ public sealed class UIInputRouter
                 if (RuleFor(action) is null)
                 {
                     (problems ??= []).Add($"{set.Consumer} claimed {action}, which has no routing rule");
+                    continue;
                 }
+
+                if (!owners.TryAdd(action, set.Consumer))
+                {
+                    (problems ??= []).Add($"{action} is claimed by both {owners[action]} and {set.Consumer}");
+                }
+            }
+        }
+
+        foreach (UIInputRule rule in Rules)
+        {
+            if (!owners.ContainsKey(rule.Action))
+            {
+                (problems ??= []).Add($"{rule.Action} is routed, but nothing claimed it");
             }
         }
 

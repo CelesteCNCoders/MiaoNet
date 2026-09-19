@@ -1,10 +1,11 @@
-# MiaoNet 内部服务端 HTTP API
+# MiaoNet 服务端 HTTP 接口
 
-服务默认监听 `http://localhost:21474/`，可通过 `MiaoServer.HttpListenerPrefix` 修改。接口没有内置认证，只应暴露在受信网络或受保护的反向代理之后。未知路径返回 `404 Not Found`。
+服务端开放了额外的 `Http` 接口, 监听地址读取自配置 `MiaoServer:Http:ListenerPrefix`(默认 `http://localhost:21474/`). 没有任何认证, 建议仅暴露在受信任的网络或进行反向代理等. 未注册的端口会返回 `404 Not Found`. `Debug` 构建下返回的 `JSON` 将会缩进.  
+不过需要注意的, 就如项目一样, 这些接口也不稳定, 不保证任何形式的兼容性.
 
-## `GET /status`
+## `/status`
 
-返回在线人数、频道及各频道玩家：
+返回在线连接数以及各频道的情况, 不限制请求方法. 成功时返回 `200 OK` 以及这样的 JSON:
 
 ```json
 {
@@ -13,6 +14,7 @@
     {
       "ID": 0,
       "Name": "main",
+      "IsPrivate": false,
       "Players": [
         {
           "ID": 5,
@@ -25,31 +27,29 @@
 }
 ```
 
-成功返回 `200 OK` 和 JSON。
+`Location` 的内容不透明, 不建议尝试解析它.
 
-## `DELETE /player`
+## `/player`
 
-踢出单个连接或同一认证 ID 下的所有连接。
+暂时只接受 `DELETE`, 用于踢出玩家, 其它方法返回 `405 Method Not Allowed`. 查询参数:
 
-| 参数 | 必需 | 说明 |
-|---|---|---|
-| `reason` | 是 | 返回给客户端的踢出原因 |
-| `cid` | 与 `aid` 二选一 | 精确连接 ID |
-| `aid` | 与 `cid` 二选一 | 认证 ID，匹配其所有连接 |
+- `reason`: 必需, 会作为原因发送给客户端
+- `cid`: 连接 ID, 只踢出这一个连接
+- `aid`: 认证 ID(论坛账号 ID), 踢出该 ID 下的所有连接
 
-`cid` 优先于 `aid`。成功返回 `204 No Content`；缺少/错误参数返回 `400 Bad Request`；`cid` 不在线返回 `404 Not Found`；其他方法返回 `405 Method Not Allowed`。使用 `aid` 时即使没有匹配连接也返回 `204`。
+`cid` 与 `aid` 需要有其一, 参数异常时返回 `400 Bad Request`, 指定的 `cid` 不在线返回 `404 Not Found`, 其余情况返回 `204 No Content`.
 
-## `/announce?msg=...`
+## `/announce`
 
-广播服务端聊天消息。`msg` 不能为空或纯空白。handler 不限制 HTTP 方法；成功返回 `204 No Content`，无效消息返回 `400 Bad Request`。
+广播一条服务端聊天消息, 不限制请求方法. 查询参数 `msg` 为空或者纯空白返回 `400 Bad Request`, 否则返回 `204 No Content`.
 
 ## `/gc`
 
-强制执行压缩的 Full GC 并等待 finalizer。handler 不限制 HTTP 方法，成功返回 `204 No Content`。这是有明显运行时影响的管理操作。
+立即执行一次阻塞的压缩 Full GC 并等待 finalizer 结束, 不限制请求方法, 总是返回 `204 No Content`.
 
-## `GET /metrics`
+## `/metrics`
 
-返回在线人数、累计网络指标和 GC 数据：
+返回在线连接数, 累计的网络指标以及 GC 数据等, 不限制请求方法. 成功时返回 `200 OK` 以及如下 `JSON`:
 
 ```json
 {
@@ -68,5 +68,3 @@
   }
 }
 ```
-
-当前 handler 不限制 HTTP 方法；成功返回 `200 OK` 和 JSON。

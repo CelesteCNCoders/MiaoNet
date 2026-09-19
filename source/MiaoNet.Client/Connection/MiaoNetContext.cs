@@ -13,12 +13,12 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 {
     private int currentRequestID;
     // request id -> on response handler
-    private readonly ConcurrentDictionary<int, Action<PacketResponse>> pendingRequests;
+    private readonly ConcurrentDictionary<int, Action<IPacketResponse>> pendingRequests;
     //private int warningTimes;
 
     private readonly ConnectionLifecycleCoordinator connectionLifecycle;
     private ConnectionOperation? activeConnectionOperation;
-    private readonly ConcurrentQueue<(long Generation, IContextualPacket Packet)> receiveQueue;
+    private readonly ConcurrentQueue<(long Generation, EnvelopedPacket Packet)> receiveQueue;
     private readonly ConcurrentQueue<Action> mainThreadQueue;
 
     private const int FrameQueueBacklogThreshold = 6;
@@ -46,11 +46,8 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
     public int TargetPort { get; set; } = 21473;
 
-    /// <summary>
-    /// Whether some UI currently owns the keyboard. Derived from the input router's explicit focus
-    /// owner instead of being a flag callers set and clear; the old flag could be left set and
-    /// permanently block the chat from opening (docs/ui-input-spec.md §6).
-    /// </summary>
+    // whether some ui currently owns the keyboard. derived from the router's explicit focus owner
+    // rather than a flag callers set and clear, so it cannot be left set and block the chat.
     public bool HasComponentFocus => UIInput.HasFocus;
 
     /// <summary>The single arbitration point for UI input.</summary>
@@ -230,7 +227,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             {
                 while (receiveQueue.TryDequeue(out var received))
                 {
-                    if (received.Generation == generation.Value && received.Packet is PacketDisconnected dc)
+                    if (received.Generation == generation.Value && received.Packet.Packet is PacketDisconnected dc)
                         (terminalPackets ??= []).Add(dc);
                 }
             }),
@@ -255,7 +252,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             foreach (PacketDisconnected packet in terminalPackets)
             {
                 failures.AddRange(BestEffortCleanup.Run(
-                    [new("dispatch terminal disconnect packet", () => packetDispatcher.DispatchPacket(packet))],
+                    [new("dispatch terminal disconnect packet", () => packetDispatcher.DispatchPacket(default, packet))],
                     []));
             }
         }
@@ -285,7 +282,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             while (receiveQueue.TryDequeue(out var received))
             {
                 if (connectionLifecycle.IsCurrent(received.Generation))
-                    HandleQueuedPacket(received.Packet);
+                    HandleQueuedPacket(received.Packet.Envelope, received.Packet.Packet);
             }
 
             if (!HasConnection)
@@ -332,15 +329,14 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     }
 
     // warn: this is called on Connection Thread
-    private bool HandleDirectPacket(ConnectionOperation operation, MiaoServerConnection connection, IContextualPacket packet)
+    private bool HandleDirectPacket(ConnectionOperation operation, MiaoServerConnection connection, PacketEnvelope envelope, IContextualPacket packet)
     {
         if (!connectionLifecycle.IsCurrent(operation.Generation))
             return true;
 
-        if (packet is PacketPing ping)
+        if (packet is PacketPing)
         {
-            PacketPong pong = new() { RequestID = ping.RequestID };
-            connection.QueuePacket(pong);
+            connection.QueuePacket(PacketEnvelope.ReplyTo(envelope.RequestID), new PacketPong());
             return true;
         }
         else if (packet is PacketPlayerJoined joined)
@@ -423,22 +419,22 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         });
     }
 
-    private void HandleQueuedPacket(IContextualPacket packet)
+    private void HandleQueuedPacket(PacketEnvelope envelope, IContextualPacket packet)
     {
-        if (packet is PacketResponse response)
+        if (envelope.IsResponse)
         {
-            if (pendingRequests.TryRemove(response.RequestID, out var handler))
+            if (pendingRequests.TryRemove(envelope.RequestID, out var handler))
             {
-                handler(response);
+                handler((IPacketResponse)packet);
             }
             else
             {
-                Logger.Warn(LT.MiaoNet, $"Unknown response id: {response.RequestID}.");
+                Logger.Warn(LT.MiaoNet, $"Unknown response id: {envelope.RequestID}.");
             }
         }
         else
         {
-            bool handled = packetDispatcher.DispatchPacket(packet);
+            bool handled = packetDispatcher.DispatchPacket(envelope, packet);
             if (!handled)
                 Logger.Warn(LT.MiaoNet, $"Unhandled packet type: {packet.GetType()}.");
         }
@@ -484,37 +480,36 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
     }
 
     public void QueuePacket(IContextualPacket packet)
+        => QueuePacket(default, packet);
+
+    public void QueuePacket(PacketEnvelope envelope, IContextualPacket packet)
     {
         SafeGuard.Assert(HasConnection);
-        connection.QueuePacket(packet);
+        connection.QueuePacket(envelope, packet);
     }
 
-    public void Request<TResponse>(PacketRequest<TResponse> request, Action<TResponse> callback)
-        where TResponse : PacketResponse
+    public void Request<TResponse>(IPacketRequest<TResponse> request, Action<TResponse> callback)
+        where TResponse : IPacketResponse
         => Request(request, callback, CancellationToken.None);
 
     // TODO support cancelling request
     // or... do we actually need it?
     private void Request<TResponse>(
-        PacketRequest<TResponse> packet, Action<TResponse> onResponse,
+        IPacketRequest<TResponse> packet, Action<TResponse> onResponse,
         CancellationToken token
-    ) where TResponse : PacketResponse
+    ) where TResponse : IPacketResponse
     {
         _ = token;
-        int id;
-        packet.RequestID = id = Interlocked.Increment(ref currentRequestID);
+        int id = Interlocked.Increment(ref currentRequestID);
 
         bool success = pendingRequests.TryAdd(id, (res) => onResponse((TResponse)res));
         SafeGuard.Assert(success);
-        QueuePacket(packet);
+        QueuePacket(PacketEnvelope.FromRequest(id), packet);
     }
 
-    public void Response<TResponse>(PacketRequest<TResponse> request, TResponse response)
-        where TResponse : PacketResponse
-    {
-        response.RequestID = request.RequestID;
-        QueuePacket(response);
-    }
+    public void Response<TResponse>(PacketEnvelope requestEnvelope, TResponse response)
+        where TResponse : IPacketResponse
+        => QueuePacket(PacketEnvelope.ReplyTo(requestEnvelope.RequestID), response);
 
     [MemberNotNull(nameof(connection), nameof(ClientState), nameof(PlayerPresenceMessage))]
     private void EnsureState()

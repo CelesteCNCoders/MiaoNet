@@ -17,11 +17,11 @@ public sealed class PacketPlayerJoined : IContextlessPacket<PacketPlayerJoined>
 
     public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(ChannelID);
-        writer.Write(PlayerID);
+        writer.Write7BitEncodedInt(ChannelID);
+        writer.Write7BitEncodedInt(PlayerID);
         writer.Write(PlayerInfo);
     }
 
     public static PacketPlayerJoined Deserialize(ref RefBinaryReader reader)
-        => new(reader.ReadInt32(), reader.ReadInt32(), reader.Read<PlayerInfo>());
+        => new(reader.Read7BitEncodedInt(), reader.Read7BitEncodedInt(), reader.Read<PlayerInfo>());
 }

@@ -3,7 +3,7 @@ namespace MiaoNet.Shared;
 // A PlayerMovedInitialData paired with the owning player's ID, used in
 // multi-player snapshots (e.g. PacketPlayerLocationChangedResponse.Players).
 // Single-player notifications don't need it - they carry the ID on the packet
-// itself (PacketPlayerNotification.PlayerID) and use the bare payload.
+// envelope (PacketEnvelope.SenderPlayerID) and use the bare payload.
 public readonly struct PlayerMovedInitialDataWithID
     : IContextualRefBinarySerializable<PlayerMovedInitialDataWithID, PooledStringManager>
 {
@@ -19,10 +19,10 @@ public readonly struct PlayerMovedInitialDataWithID
 
     public void Serialize(ref RefBinaryWriter writer, PooledStringManager pooledStringManager)
     {
-        writer.Write(PlayerID);
+        writer.Write7BitEncodedInt(PlayerID);
         writer.Write(InitialData, pooledStringManager);
     }
 
     public static PlayerMovedInitialDataWithID Deserialize(ref RefBinaryReader reader, PooledStringManager pooledStringManager)
-        => new(reader.ReadInt32(), reader.Read<PlayerMovedInitialData, PooledStringManager>(pooledStringManager));
+        => new(reader.Read7BitEncodedInt(), reader.Read<PlayerMovedInitialData, PooledStringManager>(pooledStringManager));
 }

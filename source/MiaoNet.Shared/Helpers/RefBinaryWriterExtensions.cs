@@ -1,6 +1,6 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Diagnostics;
 
 namespace MiaoNet.Shared;
 

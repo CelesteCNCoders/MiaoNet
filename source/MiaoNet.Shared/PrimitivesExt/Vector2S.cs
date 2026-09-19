@@ -31,13 +31,13 @@ public struct Vector2S : IRefBinarySerializable<Vector2S>, IEquatable<Vector2S>
     public readonly bool Equals(Vector2S other)
         => X == other.X && Y == other.Y;
 
-    public readonly override bool Equals(object? obj) 
+    public readonly override bool Equals(object? obj)
         => obj is Vector2S vec && Equals(vec);
 
-    public static bool operator ==(Vector2S left, Vector2S right) 
+    public static bool operator ==(Vector2S left, Vector2S right)
         => left.Equals(right);
 
-    public static bool operator !=(Vector2S left, Vector2S right) 
+    public static bool operator !=(Vector2S left, Vector2S right)
         => !(left == right);
 
     public readonly override int GetHashCode()

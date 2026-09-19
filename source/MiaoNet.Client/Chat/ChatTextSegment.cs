@@ -7,7 +7,7 @@ public readonly struct ChatTextSegment
 {
     public ChatTextStyle Style { get; }
 
-    public Color Color { get;  }
+    public Color Color { get; }
 
     public string Text { get; }
 

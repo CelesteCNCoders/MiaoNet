@@ -194,7 +194,7 @@ public sealed partial class MainComponent : MiaoNetComponent
             var pf = level.Tracker.GetEntity<GroupPhotoPlatform>();
             if (MiaoNetModule.Settings.GroupPhotoMode)
             {
-                if (pf is null) 
+                if (pf is null)
                     level.Add(new GroupPhotoPlatform());
             }
             else

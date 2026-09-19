@@ -29,8 +29,8 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
 
         public void Serialize(ref RefBinaryWriter writer)
         {
-            writer.Write(ChannelID);
-            writer.Write(PlayerID);
+            writer.Write7BitEncodedInt(ChannelID);
+            writer.Write7BitEncodedInt(PlayerID);
             writer.Write(PlayerInfo);
             writer.Write(Location);
             writer.Write((ushort)GlobalFlags);
@@ -39,7 +39,7 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
         public static Player Deserialize(ref RefBinaryReader reader)
         {
             return new(
-                reader.ReadInt32(), reader.ReadInt32(),
+                reader.Read7BitEncodedInt(), reader.Read7BitEncodedInt(),
                 reader.Read<PlayerInfo>(), reader.Read<PlayerLocation>(),
                 (PlayerGlobalFlags)reader.ReadUInt16()
             );
@@ -60,12 +60,12 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
 
         public void Serialize(ref RefBinaryWriter writer)
         {
-            writer.Write(ID);
+            writer.Write7BitEncodedInt(ID);
             writer.Write(ChannelInfo);
         }
 
         public static Channel Deserialize(ref RefBinaryReader reader)
-            => new(reader.ReadInt32(), reader.Read<ChannelInfo>());
+            => new(reader.Read7BitEncodedInt(), reader.Read<ChannelInfo>());
     }
 
     public int ChannelID { get; }
@@ -75,7 +75,7 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
     public PlayerInfo SelfPlayerInfo { get; }
 
     public IReadOnlyCollection<Channel> Channels { get; }
-    
+
     public IReadOnlyCollection<Player> Players { get; }
 
     public PlayerPresenceMessage PlayerPresenceMessage { get; }
@@ -102,7 +102,7 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
 
     public static PacketClientInitial Deserialize(ref RefBinaryReader reader)
         => new PacketClientInitial(
-            reader.ReadInt32(), reader.ReadInt32(),
+            reader.Read7BitEncodedInt(), reader.Read7BitEncodedInt(),
             reader.Read<PlayerInfo>(),
             reader.ReadArray<Channel>(),
             reader.ReadArray<Player>(),
@@ -112,8 +112,8 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
 
     public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write(ChannelID);
-        writer.Write(PlayerID);
+        writer.Write7BitEncodedInt(ChannelID);
+        writer.Write7BitEncodedInt(PlayerID);
         writer.Write(SelfPlayerInfo);
         writer.Write(Channels);
         writer.Write(Players);

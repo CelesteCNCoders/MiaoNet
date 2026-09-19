@@ -12,7 +12,7 @@ public struct ChannelInfo : IRefBinarySerializable<ChannelInfo>
 
     // Color?
 
-    public ChannelInfo(string name) 
+    public ChannelInfo(string name)
         => Name = name;
 
     public readonly void Serialize(ref RefBinaryWriter writer)

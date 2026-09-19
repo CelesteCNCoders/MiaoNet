@@ -104,7 +104,7 @@ public sealed class EmoteComponent : MiaoNetComponent
     {
         if (IsLiveMode)
             return;
-        context.QueuePacket(new PacketSendEmote(emote));
+        context.QueuePacket(new PacketEmote(emote));
         AddGhostEmote(self, emote);
     }
 
@@ -112,7 +112,7 @@ public sealed class EmoteComponent : MiaoNetComponent
     {
         if (IsLiveMode)
             return;
-        context.QueuePacket(new PacketSendEmoteText(emoteText));
+        context.QueuePacket(new PacketEmoteText(emoteText));
         AddGhostEmote(self, emoteText);
     }
 

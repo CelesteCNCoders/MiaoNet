@@ -27,13 +27,18 @@ public sealed class Program
         {
             RefBinaryReader reader = new RefBinaryReader(span);
             ushort size = reader.ReadUInt16();
-            ushort type = reader.ReadUInt16();
+            byte type = reader.ReadByte();
+            byte flags = reader.ReadByte();
+            PacketEnvelope envelope = PacketEnvelope.ReadOptional(ref reader, (PacketEnvelopeFlags)flags);
             var readHandler = PacketRegistry.GetPacketReader(type);
             var packet = readHandler(ref reader, ctx);
             var text = JsonSerializer.Serialize<object>(packet, options);
             Console.WriteLine($"==={packet.GetType().FullName}===");
+            string sender = envelope.HasSender ? envelope.SenderPlayerID.ToString() : "-";
+            string request = envelope.HasRequestID ? envelope.RequestID.ToString() : "-";
+            Console.WriteLine($"envelope: sender={sender}, request={request}");
             Console.WriteLine(text);
-            span = span[(4 + size)..];
+            span = span[(Connection.PacketHeaderSize + size)..];
         }
     }
 

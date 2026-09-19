@@ -9,16 +9,19 @@ public static class PacketFraming
 
     public static void WritePacket(
         ByteArrayBufferWriter output,
+        PacketEnvelope envelope,
         IContextualPacket packet,
         IPacketSerializationContext context
     )
     {
-        ushort packetID = PacketRegistry.GetPacketID(packet);
+        byte packetID = PacketRegistry.GetPacketID(packet);
         int frameStart = output.WrittenCount;
 
         RefBinaryWriter writer = new(output);
         writer.Write((ushort)0);
         writer.Write(packetID);
+        writer.Write((byte)envelope.Flags);
+        envelope.WriteOptional(ref writer);
         packet.Serialize(ref writer, context);
         writer.Flush();
 
@@ -34,7 +37,6 @@ public static class PacketFraming
 
         Span<byte> frame = output.WrittenSpan[frameStart..];
         BinaryPrimitives.WriteUInt16LittleEndian(frame, (ushort)payloadSize);
-        BinaryPrimitives.WriteUInt16LittleEndian(frame[sizeof(ushort)..], packetID);
     }
 
     public static void WriteSizePrefixed<T>(ByteArrayBufferWriter output, T value)
@@ -55,7 +57,7 @@ public static class PacketFraming
         BinaryPrimitives.WriteUInt16LittleEndian(frame, (ushort)size);
     }
 
-    public static async ValueTask<IContextualPacket?> ReadPacketAsync(
+    public static async ValueTask<EnvelopedPacket?> ReadPacketAsync(
         Stream stream,
         IPacketSerializationContext context,
         CancellationToken cancellationToken
@@ -77,7 +79,7 @@ public static class PacketFraming
         }
     }
 
-    internal static async ValueTask<IContextualPacket?> ReadPacketAsync(
+    internal static async ValueTask<EnvelopedPacket?> ReadPacketAsync(
         Stream stream,
         Memory<byte> headerMemory,
         IPacketSerializationContext context,
@@ -102,7 +104,8 @@ public static class PacketFraming
         }
 
         ushort payloadSize = BinaryPrimitives.ReadUInt16LittleEndian(headerMemory.Span);
-        ushort packetID = BinaryPrimitives.ReadUInt16LittleEndian(headerMemory.Span[sizeof(ushort)..]);
+        byte packetID = headerMemory.Span[sizeof(ushort)];
+        byte flags = headerMemory.Span[sizeof(ushort) + sizeof(byte)];
 
         byte[] payloadBuffer = pool.Rent(payloadSize);
         try
@@ -123,8 +126,9 @@ public static class PacketFraming
             try
             {
                 RefBinaryReader reader = new(payloadMemory.Span);
+                PacketEnvelope envelope = PacketEnvelope.ReadOptional(ref reader, (PacketEnvelopeFlags)flags);
                 RefBinaryPacketReadHandler readHandler = PacketRegistry.GetPacketReader(packetID);
-                return readHandler(ref reader, context);
+                return new(envelope, readHandler(ref reader, context));
             }
             catch (Exception exception)
             {

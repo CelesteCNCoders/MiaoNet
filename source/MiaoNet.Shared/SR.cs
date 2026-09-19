@@ -2,7 +2,7 @@ namespace MiaoNet.Shared;
 
 internal static class SR
 {
-    public const string MissingPooledString 
+    public const string MissingPooledString
         = "A pooled string(id {0}) is missing but doesn't contain value.";
     public const string PooledStringValueNotMatch
         = "A pooled string is found locally(\"{0}\") but remote provided a different value(\"{1}\").";
@@ -18,6 +18,8 @@ internal static class SR
         = "The remote pooled string UTF-8 byte limit has been exceeded.";
     public const string TypeMustAtLeaseImplContextualPacket
         = "A packet type being registered must at lease implement IContextualPacket.";
+    public const string TooManyPacketsRegistered
+        = "At most 255 packets can be registered.";
     public const string TypeIsNotRegisteredAsAPacket
         = "Type \"{0}\" is not registered as a packet.";
     public const string PacketNotFoundByID
@@ -38,4 +40,8 @@ internal static class SR
         = "Object {0} read finished but left {1} bytes not read.";
     public const string DeltasLengthMismatch
         = "Length of deltas {0} mismatched length {1}.";
+    public const string EnvelopeHasNoSenderID
+        = "The packet envelope has no sender id, but the sender id was requested.";
+    public const string EnvelopeHasNoRequestID
+        = "The packet envelope has no request id, but the request id was requested.";
 }

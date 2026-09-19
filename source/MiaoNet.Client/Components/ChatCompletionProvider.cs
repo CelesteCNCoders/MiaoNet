@@ -7,7 +7,7 @@ namespace Celeste.Mod.MiaoNet;
 
 public sealed class ChatCompletionProvider : ICompletionProvider
 {
-    private const StringComparison sc = StringComparison.CurrentCultureIgnoreCase;
+    private const StringComparison sc = StringComparison.OrdinalIgnoreCase;
 
     private readonly MiaoNetContext context;
     private readonly CommandParser parser;
@@ -99,8 +99,6 @@ public sealed class ChatCompletionProvider : ICompletionProvider
         bool endsWithSpace = input.EndsWith(' ');
         CommandParser.ParseResult result = parser.Parse(input, out string commandName, out MiaoNetCommand? matchedCommand, out var segments);
 
-        // everest forced InvariantCulture, so the followings are actually equivalent to InvariantCultureIgnoreCase
-        // we'll keep using CurrentCultureIgnoreCase to keep semantics
         if (!endsWithSpace && segments is null or { Count: 0 })
             return GetCommandNameCompletions(parser, commandName);
 
