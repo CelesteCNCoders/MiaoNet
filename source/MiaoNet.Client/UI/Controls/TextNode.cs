@@ -59,7 +59,7 @@ public sealed class TextNode : UINode
         }
 
         TextStyle style = ResolveStyle();
-        UIColor color = style.Color ?? Style.Foreground ?? UIColor.White;
+        Color color = style.Color ?? Style.Foreground ?? Color.White;
         style = style with { Color = color * opacity };
 
         float x = style.HorizontalAnchor switch
@@ -75,7 +75,7 @@ public sealed class TextNode : UINode
             _ => Bounds.Bottom,
         };
 
-        renderer.Draw(canvas, text, new UIOffset(x, y), style);
+        renderer.Draw(canvas, text, new Vector2(x, y), style);
     }
 
     private TextStyle ResolveStyle() => textStyle with

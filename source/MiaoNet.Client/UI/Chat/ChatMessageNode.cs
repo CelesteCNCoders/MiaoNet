@@ -88,7 +88,7 @@ public sealed class ChatMessageNode : UINode
 
     protected override UISize OnMeasure(BoxConstraints constraints)
     {
-        TextStyle style = RunStyle(UIColor.White);
+        TextStyle style = RunStyle(Color.White);
         float width = TimeCellWidth;
 
         foreach (ChatTextRun run in row.Runs)
@@ -126,7 +126,7 @@ public sealed class ChatMessageNode : UINode
             renderer.Draw(
                 canvas,
                 time,
-                new UIOffset(x + ChatLayout.TimeTextPaddingX, baseline),
+                new Vector2(x + ChatLayout.TimeTextPaddingX, baseline),
                 RunStyle(MiaoNetUITheme.Chat.Time, textAlpha, VerticalAnchor.Bottom));
             x += TimeCellWidth;
         }
@@ -138,7 +138,7 @@ public sealed class ChatMessageNode : UINode
             {
                 Decorations = run.Decorations,
             };
-            renderer.Draw(canvas, run.Text, new UIOffset(x, baseline), style);
+            renderer.Draw(canvas, run.Text, new Vector2(x, baseline), style);
             x += renderer.Measure(run.Text, style).Width;
         }
 
@@ -150,7 +150,7 @@ public sealed class ChatMessageNode : UINode
 
     private float MessageBodyWidth()
     {
-        TextStyle style = RunStyle(UIColor.White);
+        TextStyle style = RunStyle(Color.White);
         float width = 0f;
         foreach (ChatTextRun run in row.Runs)
         {
@@ -178,7 +178,7 @@ public sealed class ChatMessageNode : UINode
     {
         // measure with the pop scale and max shake so the row always covers the counter.
         float scale = Scale * CounterScale();
-        float text = renderer.Measure(CounterText(), RunStyle(UIColor.White) with { Scale = scale }).Width;
+        float text = renderer.Measure(CounterText(), RunStyle(Color.White) with { Scale = scale }).Width;
         float gap = ChatLayout.CounterGap * Scale;
         return gap + text + CounterShake();
     }
@@ -191,19 +191,24 @@ public sealed class ChatMessageNode : UINode
         float gap = ChatLayout.CounterGap * Scale;
         float shake = CounterShake();
 
-        var offset = new UIOffset(0f, 0f);
+        var offset = new Vector2(0f, 0f);
         if (shake > 0f)
         {
-            offset = new UIOffset(
+            offset = new Vector2(
                 ((Random.Shared.NextSingle() * 2f) - 1f) * shake,
                 ((Random.Shared.NextSingle() * 2f) - 1f) * shake);
         }
 
-        UIColor color = UIColor.White;
+        Color color = Color.White;
         if (FancyCounter)
         {
+            // the rainbow is float rgb, so it needs the byte conversion now that colors are plain
+            // xna ones
             RgbColor rgb = FoldCounter.GetColor(row.RepeatCount, CounterAnimClock);
-            color = new UIColor(rgb.R, rgb.G, rgb.B, 1f);
+            color = new Color(
+                (byte)MathF.Round(rgb.R * 255f),
+                (byte)MathF.Round(rgb.G * 255f),
+                (byte)MathF.Round(rgb.B * 255f));
         }
 
         // centred on the row so the pop animation grows symmetrically.
@@ -211,7 +216,7 @@ public sealed class ChatMessageNode : UINode
         renderer.Draw(
             canvas,
             CounterText(),
-            new UIOffset(x + gap + offset.X, centerY + offset.Y),
+            new Vector2(x + gap + offset.X, centerY + offset.Y),
             new TextStyle
             {
                 Scale = scale,
@@ -223,7 +228,7 @@ public sealed class ChatMessageNode : UINode
     }
 
     private TextStyle RunStyle(
-        UIColor color,
+        Color color,
         float alpha = 1f,
         VerticalAnchor verticalAnchor = VerticalAnchor.Top)
         => new()

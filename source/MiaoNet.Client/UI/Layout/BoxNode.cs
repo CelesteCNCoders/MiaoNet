@@ -29,7 +29,7 @@ public class BoxNode : SingleChildNode
     {
         UIRect rect = Style.PixelSnap ? Bounds.Snap() : Bounds;
 
-        if (Style.Background is UIColor background)
+        if (Style.Background is Color background)
         {
             canvas.FillRect(rect, background * opacity);
         }
@@ -42,12 +42,12 @@ public class BoxNode : SingleChildNode
     protected virtual void PaintBorder(IUICanvas canvas, UIRect rect, float opacity)
     {
         float borderWidth = Style.BorderWidth ?? 0f;
-        if (borderWidth <= 0f || Style.BorderColor is not UIColor borderColor)
+        if (borderWidth <= 0f || Style.BorderColor is not Color borderColor)
         {
             return;
         }
 
-        UIColor color = borderColor * opacity;
+        Color color = borderColor * opacity;
         canvas.FillRect(new UIRect(rect.X, rect.Y, rect.Width, borderWidth), color);
         canvas.FillRect(new UIRect(rect.X, rect.Bottom - borderWidth, rect.Width, borderWidth), color);
         canvas.FillRect(new UIRect(rect.X, rect.Y, borderWidth, rect.Height), color);

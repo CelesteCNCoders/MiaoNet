@@ -1,5 +1,7 @@
 using MiaoNet.Server;
 using MiaoNet.Shared;
+using Color = MiaoNet.Shared.Color;
+using Vector2 = MiaoNet.Shared.Vector2;
 
 namespace MiaoNet.UnitTest;
 

@@ -3,6 +3,7 @@ using System.Buffers.Binary;
 using System.IO.Pipelines;
 using MiaoNet.Server;
 using MiaoNet.Shared;
+using Color = MiaoNet.Shared.Color;
 
 namespace MiaoNet.UnitTest;
 

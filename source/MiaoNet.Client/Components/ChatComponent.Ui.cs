@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using Celeste.Mod.MiaoNet.Chat;
 using Celeste.Mod.MiaoNet.UI.Chat;
 using Celeste.Mod.MiaoNet.UI.Geometry;
@@ -6,7 +6,7 @@ using Celeste.Mod.MiaoNet.UI.Styling;
 
 namespace Celeste.Mod.MiaoNet;
 
-// adapts the chat component into the XNA-free UI view model.
+// adapts the chat component into the UI view model.
 // lives next to the component so it can read the log model without widening accessibility.
 public sealed partial class ChatComponent
 {
@@ -62,7 +62,7 @@ public sealed partial class ChatComponent
         var runs = new List<ChatTextRun>(segments.Length);
         foreach (ChatTextSegment segment in segments)
         {
-            runs.Add(new ChatTextRun(segment.Text, ToUIColor(segment.Color), ToDecoration(segment.Style)));
+            runs.Add(new ChatTextRun(segment.Text, segment.Color, ToDecoration(segment.Style)));
         }
 
         return new ChatMessageRow
@@ -92,9 +92,6 @@ public sealed partial class ChatComponent
         }
         return decorations;
     }
-
-    private static UIColor ToUIColor(Color color)
-        => UIColor.FromBytes(color.R, color.G, color.B, color.A);
 
     private sealed class DisplaySource(List<ChatItem> items) : IChatMessageSource
     {

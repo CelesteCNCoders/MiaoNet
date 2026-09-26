@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Celeste.Mod.MiaoNet.Chat;
 using Celeste.Mod.MiaoNet.UI.Chat;
@@ -29,7 +29,7 @@ public sealed class ParameterSpecTests
         public UISize Measure(string text, TextStyle style)
             => new(text.Length * CharWidth * style.Scale, 12f * style.Scale);
 
-        public void Draw(IUICanvas canvas, string text, UIOffset position, TextStyle style)
+        public void Draw(IUICanvas canvas, string text, Vector2 position, TextStyle style)
         {
         }
 
@@ -44,8 +44,8 @@ public sealed class ParameterSpecTests
 
         public void Draw(
             IUICanvas canvas,
-            UIOffset position,
-            UIColor tint,
+            Vector2 position,
+            Color tint,
             float scale,
             HorizontalAnchor horizontalAnchor = HorizontalAnchor.Left,
             VerticalAnchor verticalAnchor = VerticalAnchor.Top)
@@ -57,15 +57,15 @@ public sealed class ParameterSpecTests
     {
         public List<UIRect> Fills { get; } = [];
 
-        public List<UIColor> FillColors { get; } = [];
+        public List<Color> FillColors { get; } = [];
 
-        public void FillRect(UIRect rect, UIColor color)
+        public void FillRect(UIRect rect, Color color)
         {
             Fills.Add(rect);
             FillColors.Add(color);
         }
 
-        public void DrawLine(UIOffset from, UIOffset to, UIColor color, float thickness)
+        public void DrawLine(Vector2 from, Vector2 to, Color color, float thickness)
         {
         }
 
@@ -92,34 +92,6 @@ public sealed class ParameterSpecTests
         Assert.AreEqual(overLimit, PlayerListLayout.Clip(overLimit, ClipType.None), "G8 None leaves it alone");
     }
 
-    [TestMethod]
-    public void UiColor_ScalingMultipliesAllFourChannelsLikeXna()
-    {
-        // XNA's Color * float scales RGB too: every dimmed or faded color scales all four channels,
-        // so getting it wrong leaves faded text full-bright.
-        UIColor half = UIColor.White * 0.5f;
-        AssertClose(0.5f, half.R, "scaled R");
-        AssertClose(0.5f, half.G, "scaled G");
-        AssertClose(0.5f, half.B, "scaled B");
-        AssertClose(0.5f, half.A, "scaled A");
-
-        // black is unaffected by the scale, so the background constants hold either way
-        Assert.AreEqual(UIColor.Black * 0.5f, new UIColor(0f, 0f, 0f, 0.5f), "black stays black");
-    }
-
-    [TestMethod]
-    public void Tab_IdleLabelIsDimmedInBrightnessAsWellAsAlpha()
-    {
-        // the idle label is Color.White * 0.5f, i.e. grey at half alpha
-        AssertClose(0.5f, MiaoNetUITheme.Tab.IdleText.R, "idle label R is dimmed");
-        AssertClose(0.5f, MiaoNetUITheme.Tab.IdleText.G, "idle label G is dimmed");
-        AssertClose(0.5f, MiaoNetUITheme.Tab.IdleText.B, "idle label B is dimmed");
-        AssertClose(0.5f, MiaoNetUITheme.Tab.IdleText.A, "idle label alpha");
-
-        AssertClose(1f, MiaoNetUITheme.Tab.ActiveText.R, "active label stays full brightness");
-        AssertClose(1f, MiaoNetUITheme.Tab.ActiveText.A, "active label stays opaque");
-    }
-
     // ---------------------------------------------------------------- palette
 
     [TestMethod]
@@ -127,37 +99,37 @@ public sealed class ParameterSpecTests
     {
         // the alpha values are the fraction multiplied in, e.g. 0x7f / 255 for the input box
         // background.
-        Assert.AreEqual(UIColor.Black, MiaoNetUITheme.Chat.Background, "COLOR.CHAT.BG");
-        Assert.AreEqual(UIColor.CornflowerBlue, MiaoNetUITheme.Chat.Time, "COLOR.CHAT.TIME");
-        Assert.AreEqual(UIColor.White, MiaoNetUITheme.Chat.DefaultText, "COLOR.CHAT.TEXT");
+        Assert.AreEqual(Color.Black, MiaoNetUITheme.Chat.Background, "COLOR.CHAT.BG");
+        Assert.AreEqual(Color.CornflowerBlue, MiaoNetUITheme.Chat.Time, "COLOR.CHAT.TIME");
+        Assert.AreEqual(Color.White, MiaoNetUITheme.Chat.DefaultText, "COLOR.CHAT.TEXT");
 
-        Assert.AreEqual(UIColor.Black * 0.5f, MiaoNetUITheme.Tab.ActiveBackground, "COLOR.TAB.BG active");
-        Assert.AreEqual(UIColor.Black * 0.15f, MiaoNetUITheme.Tab.IdleBackground, "COLOR.TAB.BG idle");
-        Assert.AreEqual(UIColor.White, MiaoNetUITheme.Tab.ActiveText, "COLOR.TAB.TEXT active");
-        Assert.AreEqual(UIColor.White * 0.5f, MiaoNetUITheme.Tab.IdleText, "COLOR.TAB.TEXT idle");
+        Assert.AreEqual(Color.Black * 0.5f, MiaoNetUITheme.Tab.ActiveBackground, "COLOR.TAB.BG active");
+        Assert.AreEqual(Color.Black * 0.15f, MiaoNetUITheme.Tab.IdleBackground, "COLOR.TAB.BG idle");
+        Assert.AreEqual(Color.White, MiaoNetUITheme.Tab.ActiveText, "COLOR.TAB.TEXT active");
+        Assert.AreEqual(Color.White * 0.5f, MiaoNetUITheme.Tab.IdleText, "COLOR.TAB.TEXT idle");
 
-        Assert.AreEqual(UIColor.Black * (0x7f / 255f), MiaoNetUITheme.Input.Background, "COLOR.INPUT.BG");
-        Assert.AreEqual(UIColor.White, MiaoNetUITheme.Input.Text, "COLOR.INPUT.TEXT");
-        Assert.AreEqual(UIColor.Gray, MiaoNetUITheme.Input.ImeText, "COLOR.INPUT.IME");
-        Assert.AreEqual(UIColor.White, MiaoNetUITheme.Input.Caret, "COLOR.INPUT.CARET");
+        Assert.AreEqual(Color.Black * (0x7f / 255f), MiaoNetUITheme.Input.Background, "COLOR.INPUT.BG");
+        Assert.AreEqual(Color.White, MiaoNetUITheme.Input.Text, "COLOR.INPUT.TEXT");
+        Assert.AreEqual(Color.Gray, MiaoNetUITheme.Input.ImeText, "COLOR.INPUT.IME");
+        Assert.AreEqual(Color.White, MiaoNetUITheme.Input.Caret, "COLOR.INPUT.CARET");
 
-        Assert.AreEqual(UIColor.Black * (0xaa / 255f), MiaoNetUITheme.Completion.Background, "COLOR.COMPL.BG");
-        Assert.AreEqual(UIColor.Cyan, MiaoNetUITheme.Completion.BorderTop, "COLOR.COMPL.BORDER_TOP");
-        Assert.AreEqual(UIColor.CornflowerBlue, MiaoNetUITheme.Completion.BorderLeft, "COLOR.COMPL.BORDER_LEFT");
-        Assert.AreEqual(UIColor.LightGray, MiaoNetUITheme.Completion.Text, "COLOR.COMPL.TEXT");
-        Assert.AreEqual(UIColor.White, MiaoNetUITheme.Completion.SelectedText, "COLOR.COMPL.TEXT selected");
-        Assert.AreEqual(UIColor.Wheat * (0x22 / 255f), MiaoNetUITheme.Completion.SelectedBackground, "COLOR.COMPL.SEL_BG");
-        Assert.AreEqual(UIColor.Wheat, MiaoNetUITheme.Completion.SelectedBar, "COLOR.COMPL.SEL_BAR");
+        Assert.AreEqual(Color.Black * (0xaa / 255f), MiaoNetUITheme.Completion.Background, "COLOR.COMPL.BG");
+        Assert.AreEqual(Color.Cyan, MiaoNetUITheme.Completion.BorderTop, "COLOR.COMPL.BORDER_TOP");
+        Assert.AreEqual(Color.CornflowerBlue, MiaoNetUITheme.Completion.BorderLeft, "COLOR.COMPL.BORDER_LEFT");
+        Assert.AreEqual(Color.LightGray, MiaoNetUITheme.Completion.Text, "COLOR.COMPL.TEXT");
+        Assert.AreEqual(Color.White, MiaoNetUITheme.Completion.SelectedText, "COLOR.COMPL.TEXT selected");
+        Assert.AreEqual(Color.Wheat * (0x22 / 255f), MiaoNetUITheme.Completion.SelectedBackground, "COLOR.COMPL.SEL_BG");
+        Assert.AreEqual(Color.Wheat, MiaoNetUITheme.Completion.SelectedBar, "COLOR.COMPL.SEL_BAR");
 
-        Assert.AreEqual(UIColor.Black * (0xcc / 255f), MiaoNetUITheme.PlayerList.Background, "COLOR.PL.BG");
-        Assert.AreEqual(UIColor.CornflowerBlue, MiaoNetUITheme.PlayerList.BorderTop, "COLOR.PL.BORDER_TOP");
-        Assert.AreEqual(UIColor.Cyan, MiaoNetUITheme.PlayerList.BorderLeft, "COLOR.PL.BORDER_LEFT");
-        Assert.AreEqual(UIColor.Yellow, MiaoNetUITheme.PlayerList.Header, "COLOR.PL.HEADER");
-        Assert.AreEqual(UIColor.FromBytes(0x00, 0x00, 0x00, 0x22), MiaoNetUITheme.PlayerList.StripeEven, "COLOR.PL.STRIPE_EVEN");
-        Assert.AreEqual(UIColor.FromBytes(0x22, 0x22, 0x22, 0x88), MiaoNetUITheme.PlayerList.StripeOdd, "COLOR.PL.STRIPE_ODD");
-        Assert.AreEqual(UIColor.LightGray, MiaoNetUITheme.PlayerList.Ping, "COLOR.PL.PING");
-        Assert.AreEqual(UIColor.LightGray, MiaoNetUITheme.PlayerList.Room, "COLOR.PL.ROOM");
-        Assert.AreEqual(UIColor.White, MiaoNetUITheme.PlayerList.Icon, "COLOR.PL.ICON");
+        Assert.AreEqual(Color.Black * (0xcc / 255f), MiaoNetUITheme.PlayerList.Background, "COLOR.PL.BG");
+        Assert.AreEqual(Color.CornflowerBlue, MiaoNetUITheme.PlayerList.BorderTop, "COLOR.PL.BORDER_TOP");
+        Assert.AreEqual(Color.Cyan, MiaoNetUITheme.PlayerList.BorderLeft, "COLOR.PL.BORDER_LEFT");
+        Assert.AreEqual(Color.Yellow, MiaoNetUITheme.PlayerList.Header, "COLOR.PL.HEADER");
+        Assert.AreEqual(new Color(0x00, 0x00, 0x00, 0x22), MiaoNetUITheme.PlayerList.StripeEven, "COLOR.PL.STRIPE_EVEN");
+        Assert.AreEqual(new Color(0x22, 0x22, 0x22, 0x88), MiaoNetUITheme.PlayerList.StripeOdd, "COLOR.PL.STRIPE_ODD");
+        Assert.AreEqual(Color.LightGray, MiaoNetUITheme.PlayerList.Ping, "COLOR.PL.PING");
+        Assert.AreEqual(Color.LightGray, MiaoNetUITheme.PlayerList.Room, "COLOR.PL.ROOM");
+        Assert.AreEqual(Color.White, MiaoNetUITheme.PlayerList.Icon, "COLOR.PL.ICON");
     }
 
     // ---------------------------------------------------------------- scissor mapping
@@ -165,9 +137,9 @@ public sealed class ParameterSpecTests
     [TestMethod]
     public void Scissor_IdentityTransformFloorsOriginAndCeilsExtent()
     {
-        UiPixelRect mapped = UIScissor.Map(
+        Rectangle mapped = UIScissor.Map(
             new UIRect(10.4f, 20.6f, 30f, 40f),
-            UiTransform2D.Identity,
+            Matrix.Identity,
             1920,
             1080);
 
@@ -181,9 +153,9 @@ public sealed class ParameterSpecTests
     public void Scissor_AppliesTheScreenMatrixScale()
     {
         // A 2x scale, as a windowed backbuffer would apply to logical coordinates.
-        var transform = new UiTransform2D(2f, 0f, 0f, 2f, 0f, 0f);
+        Matrix transform = Matrix.CreateScale(2f);
 
-        UiPixelRect mapped = UIScissor.Map(new UIRect(10f, 20f, 30f, 40f), transform, 1920, 1080);
+        Rectangle mapped = UIScissor.Map(new UIRect(10f, 20f, 30f, 40f), transform, 1920, 1080);
 
         Assert.AreEqual(20, mapped.X);
         Assert.AreEqual(40, mapped.Y);
@@ -194,9 +166,9 @@ public sealed class ParameterSpecTests
     [TestMethod]
     public void Scissor_AppliesTheScreenMatrixTranslation()
     {
-        var transform = new UiTransform2D(1f, 0f, 0f, 1f, 7f, 11f);
+        Matrix transform = Matrix.CreateTranslation(7f, 11f, 0f);
 
-        UiPixelRect mapped = UIScissor.Map(new UIRect(0f, 0f, 100f, 50f), transform, 1920, 1080);
+        Rectangle mapped = UIScissor.Map(new UIRect(0f, 0f, 100f, 50f), transform, 1920, 1080);
 
         Assert.AreEqual(7, mapped.X);
         Assert.AreEqual(11, mapped.Y);
@@ -207,9 +179,9 @@ public sealed class ParameterSpecTests
     [TestMethod]
     public void Scissor_ClampsToTheViewport()
     {
-        UiPixelRect mapped = UIScissor.Map(
+        Rectangle mapped = UIScissor.Map(
             new UIRect(-50f, -50f, 200f, 200f),
-            UiTransform2D.Identity,
+            Matrix.Identity,
             100,
             80);
 
@@ -218,9 +190,9 @@ public sealed class ParameterSpecTests
         Assert.AreEqual(100, mapped.Width, "clamped to the viewport width");
         Assert.AreEqual(80, mapped.Height);
 
-        UiPixelRect outside = UIScissor.Map(
+        Rectangle outside = UIScissor.Map(
             new UIRect(500f, 500f, 10f, 10f),
-            UiTransform2D.Identity,
+            Matrix.Identity,
             100,
             80);
         Assert.AreEqual(0, outside.Width, "fully outside yields an empty rect");
@@ -232,7 +204,7 @@ public sealed class ParameterSpecTests
     [TestMethod]
     public void ImeRect_MapsTheCompositionAnchorWithoutScaling()
     {
-        UiPixelRect mapped = UIImeRect.Map(
+        Rectangle mapped = UIImeRect.Map(
             anchorX: 106f,
             anchorY: 700f,
             width: 24f,
@@ -252,7 +224,7 @@ public sealed class ParameterSpecTests
     public void ImeRect_AppliesTheBackbufferScaleAndViewport()
     {
         // A windowed backbuffer: logical 1280x720 rendered 2x into a view offset inside the window.
-        UiPixelRect mapped = UIImeRect.Map(
+        Rectangle mapped = UIImeRect.Map(
             anchorX: 100f,
             anchorY: 200f,
             width: 30f,
@@ -273,7 +245,7 @@ public sealed class ParameterSpecTests
     {
         // With no composition in progress the old renderer still pushed a 1px rect; a zero-width
         // rect makes some backends fall back to the default candidate position.
-        UiPixelRect mapped = UIImeRect.Map(10f, 20f, 0f, 24f, 1f, 1f, 0, 0);
+        Rectangle mapped = UIImeRect.Map(10f, 20f, 0f, 24f, 1f, 1f, 0, 0);
 
         Assert.AreEqual(1, mapped.Width, "an empty composition still yields a 1px rect");
         Assert.AreEqual(24, mapped.Height);
@@ -282,7 +254,7 @@ public sealed class ParameterSpecTests
     [TestMethod]
     public void ImeRect_TruncatesTowardsZeroLikeTheRenderer()
     {
-        UiPixelRect mapped = UIImeRect.Map(10.9f, 20.9f, 30.9f, 40.9f, 1f, 1f, 0, 0);
+        Rectangle mapped = UIImeRect.Map(10.9f, 20.9f, 30.9f, 40.9f, 1f, 1f, 0, 0);
 
         Assert.AreEqual(10, mapped.X, "the renderer cast the float sum, it did not round");
         Assert.AreEqual(20, mapped.Y);

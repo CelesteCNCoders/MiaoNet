@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Celeste.Mod.MiaoNet.UI.Geometry;
 using Celeste.Mod.MiaoNet.UI.Rendering;
@@ -18,13 +18,13 @@ public enum PlayerStatus
     Watching = 1 << 5,
 }
 
-// XNA-free view model of one row. every string is already resolved by the application layer:
+// view model of one row. every string is already resolved by the application layer:
 // the adapter does live-mode masking, clipping and localization before building these.
 public sealed class PlayerRow
 {
     public required string DisplayName { get; init; }
 
-    public UIColor NameColor { get; init; } = UIColor.White;
+    public Color NameColor { get; init; } = Color.White;
 
     public PlayerStatus Status { get; init; }
 
@@ -41,11 +41,11 @@ public sealed class PlayerRow
 
     public string? MapName { get; init; }
 
-    public UIColor MapNameColor { get; init; } = UIColor.LightGray;
+    public Color MapNameColor { get; init; } = Color.LightGray;
 
     public string? AreaModeText { get; init; }
 
-    public UIColor MapSideColor { get; init; } = UIColor.LightGray;
+    public Color MapSideColor { get; init; } = Color.LightGray;
 
     public IUITexture? AreaIcon { get; init; }
 }

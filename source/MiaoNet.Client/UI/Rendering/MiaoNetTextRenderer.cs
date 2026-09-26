@@ -22,7 +22,7 @@ public sealed class MiaoNetTextRenderer : ITextRenderer
         return new UISize(size.X, size.Y);
     }
 
-    public void Draw(IUICanvas canvas, string text, UIOffset position, TextStyle style)
+    public void Draw(IUICanvas canvas, string text, Vector2 position, TextStyle style)
     {
         ArgumentNullException.ThrowIfNull(canvas);
 
@@ -31,18 +31,17 @@ public sealed class MiaoNetTextRenderer : ITextRenderer
             return;
         }
 
-        UIColor uiColor = style.Color ?? UIColor.White;
-        Color color = uiColor.ToXna();
-        Vector2 justify = style.HorizontalAnchor.ToJustify(style.VerticalAnchor);
+        Color uiColor = style.Color ?? Color.White;
+        Vector2 justify = new(style.HorizontalAnchor.HorizontalFactor(), style.VerticalAnchor.VerticalFactor());
         Vector2 vectorScale = new(style.Scale);
 
         if (style.Decorations.HasFlag(TextDecoration.Outline))
         {
-            MiaoNetFont.DrawOutline(text, position.ToVector2(), justify, vectorScale, color);
+            MiaoNetFont.DrawOutline(text, position, justify, vectorScale, uiColor);
         }
         else
         {
-            MiaoNetFont.Draw(text, position.ToVector2(), justify, vectorScale, color);
+            MiaoNetFont.Draw(text, position, justify, vectorScale, uiColor);
         }
 
         if ((style.Decorations & (TextDecoration.Underline | TextDecoration.Strikethrough)) == 0)
@@ -59,13 +58,13 @@ public sealed class MiaoNetTextRenderer : ITextRenderer
         if (style.Decorations.HasFlag(TextDecoration.Underline))
         {
             float y = position.Y + (textSize.Y * (1f - style.VerticalAnchor.VerticalFactor()));
-            canvas.DrawLine(new UIOffset(left, y), new UIOffset(right, y), uiColor, thickness);
+            canvas.DrawLine(new Vector2(left, y), new Vector2(right, y), uiColor, thickness);
         }
 
         if (style.Decorations.HasFlag(TextDecoration.Strikethrough))
         {
             float y = position.Y + (textSize.Y * (1f - style.VerticalAnchor.VerticalFactor())) - (textSize.Y / 2f);
-            canvas.DrawLine(new UIOffset(left, y), new UIOffset(right, y), uiColor, thickness);
+            canvas.DrawLine(new Vector2(left, y), new Vector2(right, y), uiColor, thickness);
         }
     }
 

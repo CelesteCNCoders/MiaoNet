@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Celeste.Mod.MiaoNet.UI.Geometry;
 using Celeste.Mod.MiaoNet.UI.PlayerList;
 using Celeste.Mod.MiaoNet.UI.Rendering;
@@ -6,7 +6,7 @@ using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
-// adapts the player list component into the XNA-free UI view model.
+// adapts the player list component into the UI view model.
 // lives next to the component so it can read the private channel list and icon textures
 // without widening their accessibility.
 public sealed partial class PlayerListComponent
@@ -111,22 +111,19 @@ public sealed partial class PlayerListComponent
         return new PlayerRow
         {
             DisplayName = entry.DisplayName,
-            NameColor = ToUIColor(player.Info.Color),
+            NameColor = player.Info.Color,
             Status = ToStatus(player.GlobalFlags),
             PingText = entry.PingText,
             HasLocation = hasLocation,
             RoomText = roomText,
             UsesDebugRoomIcon = usesDebugRoomIcon,
             MapName = mapName,
-            MapNameColor = ToUIColor(entry.MapNameColor),
+            MapNameColor = entry.MapNameColor,
             AreaModeText = entry.AreaModeText,
-            MapSideColor = ToUIColor(entry.MapSideColor),
+            MapSideColor = entry.MapSideColor,
             AreaIcon = entry.AreaIconTexture is { } icon ? new MiaoNetTexture(icon) : null,
         };
     }
-
-    private static UIColor ToUIColor(Color color)
-        => UIColor.FromBytes(color.R, color.G, color.B, color.A);
 
     private static PlayerStatus ToStatus(PlayerGlobalFlags flags)
     {

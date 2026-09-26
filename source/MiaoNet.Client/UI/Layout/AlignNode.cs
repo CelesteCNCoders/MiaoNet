@@ -24,7 +24,7 @@ public sealed class AlignNode : SingleChildNode
         }
 
         UISize size = Child.MeasuredSize;
-        UIOffset offset = Alignment.OffsetFor(bounds.Size, size);
+        Vector2 offset = Alignment.OffsetFor(bounds.Size, size);
         Child.Arrange(new UIRect(bounds.X + offset.X, bounds.Y + offset.Y, size.Width, size.Height));
     }
 }

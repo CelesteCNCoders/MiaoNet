@@ -1,10 +1,10 @@
-using Celeste.Mod.MiaoNet.UI.Geometry;
+﻿using Celeste.Mod.MiaoNet.UI.Geometry;
 using Celeste.Mod.MiaoNet.UI.Styling;
 
 namespace Celeste.Mod.MiaoNet.UI.Rendering;
 
-// drawable texture handle. abstracts the game's texture type so icon nodes stay free of XNA
-// and remain unit testable.
+// drawable texture handle. abstracts the game's texture type so icon nodes can be painted in
+// tests without the game.
 public interface IUITexture
 {
     float Width { get; }
@@ -15,8 +15,8 @@ public interface IUITexture
     // as ITextRenderer.
     void Draw(
         IUICanvas canvas,
-        UIOffset position,
-        UIColor tint,
+        Vector2 position,
+        Color tint,
         float scale,
         HorizontalAnchor horizontalAnchor = HorizontalAnchor.Left,
         VerticalAnchor verticalAnchor = VerticalAnchor.Top);

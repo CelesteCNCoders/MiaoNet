@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Celeste.Mod.MiaoNet.UI.Rendering;
 using Celeste.Mod.MiaoNet.UI.Styling;
@@ -7,7 +7,7 @@ namespace Celeste.Mod.MiaoNet.UI.PlayerList;
 
 // widths derived from the player list contents: the widest row sets a common panel width so
 // every channel lines up, and the widest ping sets a fixed right-hand column.
-// pure computation over the XNA-free view model and an ITextRenderer, so it can be unit tested
+// pure computation over the view model and an ITextRenderer, so it can be unit tested
 // with a fake renderer.
 public sealed record PlayerListMetrics(
     float RowWidth,

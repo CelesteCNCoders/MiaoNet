@@ -13,7 +13,7 @@ public sealed class RectNode : UINode
 
     protected override void PaintSelf(IUICanvas canvas, float opacity)
     {
-        if (Style.Background is not UIColor background)
+        if (Style.Background is not Color background)
         {
             return;
         }

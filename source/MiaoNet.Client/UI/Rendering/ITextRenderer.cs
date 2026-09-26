@@ -12,7 +12,7 @@ public interface ITextRenderer
 
     // draws text; position is interpreted through the style's anchors, reproducing the
     // original ui's justify vectors.
-    void Draw(IUICanvas canvas, string text, UIOffset position, TextStyle style);
+    void Draw(IUICanvas canvas, string text, Vector2 position, TextStyle style);
 
     bool CanRender(int character, TextStyle style);
 }

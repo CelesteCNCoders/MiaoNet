@@ -93,7 +93,7 @@ public sealed class CompletionPopupNode : UINode
             renderer.Draw(
                 canvas,
                 Items[i].Display,
-                new UIOffset(Bounds.X + Padding, baseline),
+                new Vector2(Bounds.X + Padding, baseline),
                 TextStyle() with
                 {
                     Color = (selected ? MiaoNetUITheme.Completion.SelectedText : MiaoNetUITheme.Completion.Text) * opacity,

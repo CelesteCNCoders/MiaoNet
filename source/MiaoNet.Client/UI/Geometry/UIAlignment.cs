@@ -34,7 +34,7 @@ public static class UiAlignmentExtensions
         _ => 1f,
     };
 
-    public static UIOffset OffsetFor(this UIAlignment alignment, UISize container, UISize child)
+    public static Vector2 OffsetFor(this UIAlignment alignment, UISize container, UISize child)
         => new(
             (container.Width - child.Width) * alignment.HorizontalFactor(),
             (container.Height - child.Height) * alignment.VerticalFactor());

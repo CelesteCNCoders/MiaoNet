@@ -69,24 +69,24 @@ public sealed class TextFieldNode : UINode
         float baseline = Bounds.Bottom;
         float x = Bounds.X;
 
-        renderer.Draw(canvas, Controller.TextBeforeCaret, new UIOffset(x, baseline), style);
+        renderer.Draw(canvas, Controller.TextBeforeCaret, new Vector2(x, baseline), style);
         x += TextBeforeCaretWidth;
 
         if (Controller.ImeText is { Length: > 0 } ime)
         {
             TextStyle imeStyle = style with { Color = MiaoNetUITheme.Input.ImeText * opacity };
-            renderer.Draw(canvas, ime, new UIOffset(x, baseline), imeStyle);
+            renderer.Draw(canvas, ime, new Vector2(x, baseline), imeStyle);
             x += renderer.Measure(ime, imeStyle).Width;
         }
 
-        renderer.Draw(canvas, Controller.TextAfterCaret, new UIOffset(x, baseline), style);
+        renderer.Draw(canvas, Controller.TextAfterCaret, new Vector2(x, baseline), style);
 
         if (Controller.ShowCaret)
         {
             float caretX = CaretX;
             canvas.DrawLine(
-                new UIOffset(caretX, Bounds.Bottom),
-                new UIOffset(caretX, Bounds.Bottom - LineHeight),
+                new Vector2(caretX, Bounds.Bottom),
+                new Vector2(caretX, Bounds.Bottom - LineHeight),
                 MiaoNetUITheme.Input.Caret * opacity,
                 CaretWidth);
         }

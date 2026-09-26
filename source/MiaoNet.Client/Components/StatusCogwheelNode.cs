@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Celeste.Mod.MiaoNet.UI.Geometry;
 using Celeste.Mod.MiaoNet.UI.Rendering;
 using Celeste.Mod.MiaoNet.UI.Scene;
@@ -7,7 +7,7 @@ using Microsoft.Xna.Framework.Graphics;
 namespace Celeste.Mod.MiaoNet;
 
 // the status cogwheel, a rotating sprite with a hand-drawn outline.
-// sits outside the XNA-free UI core on purpose: the outline uses Draw.SpriteBatch and Monocle's
+// sits outside the ui tree on purpose: the outline uses Draw.SpriteBatch and Monocle's
 // MTexture internals (ScaleFix, ClipRect, Center, DrawOffset) that the core doesn't expose, and
 // exposing them would leak Monocle into something meant to be testable without the game.
 internal sealed class StatusCogwheelNode : UINode

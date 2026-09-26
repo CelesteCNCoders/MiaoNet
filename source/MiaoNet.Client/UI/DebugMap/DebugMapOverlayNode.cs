@@ -8,7 +8,7 @@ using Celeste.Mod.MiaoNet.UI.Styling;
 namespace Celeste.Mod.MiaoNet.UI.DebugMap;
 
 // one player marker in the debug-map overlay, already in screen coordinates.
-public readonly record struct DebugMapMarker(string Name, UIOffset Position, UIColor HairColor);
+public readonly record struct DebugMapMarker(string Name, Vector2 Position, Color HairColor);
 
 // per-player markers drawn over the level editor's map: a small hair-coloured square with the
 // player's name outlined above it.
@@ -68,7 +68,7 @@ public sealed class DebugMapOverlayNode : UINode
             text?.Draw(
                 canvas,
                 marker.Name,
-                new UIOffset(marker.Position.X, marker.Position.Y - TextLift),
+                new Vector2(marker.Position.X, marker.Position.Y - TextLift),
                 textStyle);
 
             canvas.FillRect(

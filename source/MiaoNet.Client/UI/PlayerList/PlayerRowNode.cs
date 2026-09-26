@@ -15,7 +15,7 @@ namespace Celeste.Mod.MiaoNet.UI.PlayerList;
 // line up across rows. no hand-computed coordinates anywhere.
 public sealed class PlayerRowNode : BoxNode
 {
-    private readonly UIColor stripe;
+    private readonly Color stripe;
     private readonly PlayerListIcons icons;
     private IconNode? pausedIcon;
 
@@ -44,7 +44,7 @@ public sealed class PlayerRowNode : BoxNode
     {
         if (pausedIcon is not null)
         {
-            pausedIcon.PaintOffset = new UIOffset(offsetX, 0f);
+            pausedIcon.PaintOffset = new Vector2(offsetX, 0f);
         }
     }
 
@@ -188,7 +188,7 @@ public sealed class PlayerRowNode : BoxNode
 
     private static TextNode Text(
         string text,
-        UIColor color,
+        Color color,
         ITextRenderer renderer,
         PlayerListMetrics metrics,
         float scale,

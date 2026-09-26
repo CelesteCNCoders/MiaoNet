@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Celeste.Mod.MiaoNet.UI.Geometry;
 using Celeste.Mod.MiaoNet.UI.Scene;
 using Celeste.Mod.MiaoNet.UI.Status;

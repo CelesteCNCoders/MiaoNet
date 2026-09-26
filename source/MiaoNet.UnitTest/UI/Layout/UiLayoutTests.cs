@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Celeste.Mod.MiaoNet.UI.Geometry;
 using Celeste.Mod.MiaoNet.UI.Layout;
 using Celeste.Mod.MiaoNet.UI.Scene;
@@ -374,13 +374,13 @@ public sealed class UiLayoutTests
         ui.SetRoot(root);
         ui.Layout(100f, 100f);
 
-        Assert.AreSame(child, ui.HitTest(new UIOffset(50f, 50f)));
+        Assert.AreSame(child, ui.HitTest(new Vector2(50f, 50f)));
 
         // The padding ring belongs to the box itself, so it still hits the box.
-        Assert.AreSame(root, ui.HitTest(new UIOffset(5f, 5f)));
+        Assert.AreSame(root, ui.HitTest(new Vector2(5f, 5f)));
 
         // Outside the root rectangle nothing is hit.
-        Assert.IsNull(ui.HitTest(new UIOffset(150f, 150f)));
+        Assert.IsNull(ui.HitTest(new Vector2(150f, 150f)));
     }
 
     [TestMethod]

@@ -29,13 +29,32 @@ public enum VerticalAnchor
     Bottom,
 }
 
+public static class AnchorExtensions
+{
+    // 0 = left, 0.5 = center, 1 = right
+    public static float HorizontalFactor(this HorizontalAnchor anchor) => anchor switch
+    {
+        HorizontalAnchor.Left => 0f,
+        HorizontalAnchor.Center => 0.5f,
+        _ => 1f,
+    };
+
+    // 0 = top, 0.5 = middle, 1 = bottom
+    public static float VerticalFactor(this VerticalAnchor anchor) => anchor switch
+    {
+        VerticalAnchor.Top => 0f,
+        VerticalAnchor.Center => 0.5f,
+        _ => 1f,
+    };
+}
+
 // per-text drawing attributes; immutable so it can be shared and combined with `with`.
 // the actual text backend comes from UIStyle.TextRenderer.
 public sealed record TextStyle
 {
     public static readonly TextStyle Default = new();
 
-    public UIColor? Color { get; init; }
+    public Color? Color { get; init; }
 
     public float Scale { get; init; } = 1f;
 

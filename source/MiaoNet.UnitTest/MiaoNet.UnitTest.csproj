@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -29,8 +29,9 @@
     <Compile Include="..\MiaoNet.Shared\SafeGuard.cs" LinkBase="0-Shared/Command" />
 
     <!--
-      UI layout core. These sources must stay free of XNA / Celeste types, otherwise this
-      project (which does not reference Celeste) cannot compile them.
+      UI layout core. These sources are shared with the client, so they may use XNA value types
+      (Color / Vector2 / Matrix / Rectangle) and nothing else from the game; those four live in
+      XnaStubs/ because this project does not reference Celeste.
     -->
     <Compile Include="..\MiaoNet.Client\UI\Geometry\**\*.cs" LinkBase="0-Shared/UI/Geometry" />
     <Compile Include="..\MiaoNet.Client\UI\Layout\**\*.cs" LinkBase="0-Shared/UI/Layout" />
@@ -49,6 +50,8 @@
 
   <ItemGroup>
     <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+    <!-- matches the client's implicit using from CelesteMod.props -->
+    <Using Include="Microsoft.Xna.Framework" />
   </ItemGroup>
 
 </Project>

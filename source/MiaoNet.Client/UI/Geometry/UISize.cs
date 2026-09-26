@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 
 namespace Celeste.Mod.MiaoNet.UI.Geometry;
 
 // a width/height pair in logical screen units (Engine.Width / Engine.Height).
-// no XNA types here so the layout core can be unit tested without Celeste.
+// xna has no size type; Vector2 is a point, and calling it Width/Height everywhere reads better.
 public readonly record struct UISize(float Width, float Height)
 {
     public static readonly UISize Zero = new(0f, 0f);

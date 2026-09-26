@@ -15,11 +15,11 @@ public readonly record struct UIRect(float X, float Y, float Width, float Height
 
     public float Bottom => Y + Height;
 
-    public UIOffset Position => new(X, Y);
+    public Vector2 Position => new(X, Y);
 
     public UISize Size => new(Width, Height);
 
-    public bool Contains(UIOffset point)
+    public bool Contains(Vector2 point)
         => point.X >= X && point.X < X + Width
         && point.Y >= Y && point.Y < Y + Height;
 
@@ -28,7 +28,7 @@ public readonly record struct UIRect(float X, float Y, float Width, float Height
         => other.X < Right && X < other.Right
         && other.Y < Bottom && Y < other.Bottom;
 
-    public UIRect WithOffset(UIOffset offset)
+    public UIRect WithOffset(Vector2 offset)
         => new(X + offset.X, Y + offset.Y, Width, Height);
 
     // shrink by insets, never below a zero extent

@@ -27,7 +27,7 @@ public sealed class PlayerListUiTests
         public UISize Measure(string text, TextStyle style)
             => new(text.Length * CharWidth * style.Scale, 12f * style.Scale);
 
-        public void Draw(IUICanvas canvas, string text, UIOffset position, TextStyle style)
+        public void Draw(IUICanvas canvas, string text, Vector2 position, TextStyle style)
         {
         }
 
@@ -42,8 +42,8 @@ public sealed class PlayerListUiTests
 
         public void Draw(
             IUICanvas canvas,
-            UIOffset position,
-            UIColor tint,
+            Vector2 position,
+            Color tint,
             float scale,
             HorizontalAnchor horizontalAnchor = HorizontalAnchor.Left,
             VerticalAnchor verticalAnchor = VerticalAnchor.Top)
@@ -53,11 +53,11 @@ public sealed class PlayerListUiTests
 
     private sealed class RecordingCanvas : IUICanvas
     {
-        public List<UIColor> FillColors { get; } = [];
+        public List<Color> FillColors { get; } = [];
 
-        public void FillRect(UIRect rect, UIColor color) => FillColors.Add(color);
+        public void FillRect(UIRect rect, Color color) => FillColors.Add(color);
 
-        public void DrawLine(UIOffset from, UIOffset to, UIColor color, float thickness)
+        public void DrawLine(Vector2 from, Vector2 to, Color color, float thickness)
         {
         }
 
@@ -318,9 +318,9 @@ public sealed class PlayerListUiTests
 
     private static int CountChannelBackgrounds(RecordingCanvas canvas)
     {
-        UIColor background = MiaoNetUITheme.PlayerList.Background;
+        Color background = MiaoNetUITheme.PlayerList.Background;
         int count = 0;
-        foreach (UIColor color in canvas.FillColors)
+        foreach (Color color in canvas.FillColors)
         {
             if (color == background)
             {

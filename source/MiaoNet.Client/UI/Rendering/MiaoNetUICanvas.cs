@@ -38,11 +38,11 @@ public sealed class MiaoNetUICanvas : IUICanvas
         currentClip = null;
     }
 
-    public void FillRect(UIRect rect, UIColor color)
-        => Draw.Rect(rect.X, rect.Y, rect.Width, rect.Height, color.ToXna());
+    public void FillRect(UIRect rect, Color color)
+        => Draw.Rect(rect.X, rect.Y, rect.Width, rect.Height, color);
 
-    public void DrawLine(UIOffset from, UIOffset to, UIColor color, float thickness)
-        => Draw.Line(from.ToVector2(), to.ToVector2(), color.ToXna(), thickness);
+    public void DrawLine(Vector2 from, Vector2 to, Color color, float thickness)
+        => Draw.Line(from, to, color, thickness);
 
     public void PushClip(UIRect rect)
     {
@@ -66,18 +66,11 @@ public sealed class MiaoNetUICanvas : IUICanvas
     }
 
     // maps a logical rect to backbuffer scissor coords. the arithmetic lives in UIScissor so it
-    // can be unit tested without XNA.
+    // can be unit tested on its own.
     private static Rectangle ToScissor(UIRect rect)
     {
-        Matrix matrix = Engine.ScreenMatrix;
-        var transform = new UiTransform2D(
-            matrix.M11, matrix.M12,
-            matrix.M21, matrix.M22,
-            matrix.M41, matrix.M42);
-
         Viewport viewport = Engine.Graphics.GraphicsDevice.Viewport;
-        UiPixelRect mapped = UIScissor.Map(rect, transform, viewport.Width, viewport.Height);
-        return new Rectangle(mapped.X, mapped.Y, mapped.Width, mapped.Height);
+        return UIScissor.Map(rect, Engine.ScreenMatrix, viewport.Width, viewport.Height);
     }
 
     private void ApplyClip()

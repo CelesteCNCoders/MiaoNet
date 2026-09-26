@@ -42,7 +42,7 @@ public sealed class StackNode : MultiChildNode
             }
 
             UISize size = child.MeasuredSize;
-            UIOffset offset = Alignment.OffsetFor(bounds.Size, size);
+            Vector2 offset = Alignment.OffsetFor(bounds.Size, size);
             child.Arrange(new UIRect(bounds.X + offset.X, bounds.Y + offset.Y, size.Width, size.Height));
         }
     }

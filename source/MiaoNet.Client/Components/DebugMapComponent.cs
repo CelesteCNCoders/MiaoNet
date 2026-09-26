@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Celeste.Editor;
 using Celeste.Mod.MiaoNet.UI.DebugMap;
 using Celeste.Mod.MiaoNet.UI.Geometry;
@@ -56,8 +56,8 @@ public sealed class DebugMapComponent : MiaoNetComponent
             Color hair = gfx.GetHairInfo(player.State.Dashes).Color;
             markers.Add(new DebugMapMarker(
                 player.Info.Name,
-                new UIOffset(pos.X, pos.Y),
-                UIColor.FromBytes(hair.R, hair.G, hair.B, hair.A)));
+                new Vector2(pos.X, pos.Y),
+                hair));
         }
 
         overlay.Markers = markers;

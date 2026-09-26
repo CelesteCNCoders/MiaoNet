@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Celeste.Mod.MiaoNet.UI.Geometry;
 using Celeste.Mod.MiaoNet.UI.Scene;
 
@@ -11,7 +11,7 @@ namespace Celeste.Mod.MiaoNet.UI.Status;
 // message is bottom-aligned with it, MessageGap to the right.
 //
 // the children are injected instead of built here so the cogwheel can stay a client-side node: its
-// outlined rotation needs Monocle's MTexture internals, which the xna-free core won't expose.
+// outlined rotation needs Monocle's MTexture internals, which the node tree doesn't have.
 public sealed class StatusPanelNode : MultiChildNode
 {
     // distance of the cogwheel's outer edge from the screen's left and bottom edges.

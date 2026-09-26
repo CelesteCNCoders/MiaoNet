@@ -52,7 +52,7 @@ public sealed class UIRoot
         root?.PaintTree(canvas, 1f);
     }
 
-    public UINode? HitTest(UIOffset point) => root?.HitTest(point);
+    public UINode? HitTest(Vector2 point) => root?.HitTest(point);
 
     public void RequestFocus(UINode? node) => FocusedNode = node;
 

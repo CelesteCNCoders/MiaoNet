@@ -99,9 +99,9 @@ public sealed class StatusComponent : MiaoNetComponent
         {
             EnsureNodes();
 
-            UIColor color = UIColor.White * ease;
+            Color color = Color.White * ease;
             cog!.Rotation = rotation;
-            cog.Tint = color.ToXna();
+            cog.Tint = color;
             message!.Text = statusMessage;
             message.TextStyle = message.TextStyle with { Color = color };
 

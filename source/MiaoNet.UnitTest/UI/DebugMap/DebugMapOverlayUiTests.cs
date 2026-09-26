@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Celeste.Mod.MiaoNet.UI.DebugMap;
 using Celeste.Mod.MiaoNet.UI.Geometry;
@@ -20,11 +20,11 @@ public sealed class DebugMapOverlayUiTests
     {
         private readonly List<string> order = order;
 
-        public List<(string Text, UIOffset Position, TextStyle Style)> Draws { get; } = [];
+        public List<(string Text, Vector2 Position, TextStyle Style)> Draws { get; } = [];
 
         public UISize Measure(string text, TextStyle style) => new(text.Length * 10f, 12f);
 
-        public void Draw(IUICanvas canvas, string text, UIOffset position, TextStyle style)
+        public void Draw(IUICanvas canvas, string text, Vector2 position, TextStyle style)
         {
             order.Add($"text:{text}");
             Draws.Add((text, position, style));
@@ -37,15 +37,15 @@ public sealed class DebugMapOverlayUiTests
     {
         private readonly List<string> order = order;
 
-        public List<(UIRect Rect, UIColor Color)> Fills { get; } = [];
+        public List<(UIRect Rect, Color Color)> Fills { get; } = [];
 
-        public void FillRect(UIRect rect, UIColor color)
+        public void FillRect(UIRect rect, Color color)
         {
             order.Add("rect");
             Fills.Add((rect, color));
         }
 
-        public void DrawLine(UIOffset from, UIOffset to, UIColor color, float thickness)
+        public void DrawLine(Vector2 from, Vector2 to, Color color, float thickness)
         {
         }
 
@@ -67,7 +67,7 @@ public sealed class DebugMapOverlayUiTests
         var overlay = new DebugMapOverlayNode
         {
             Style = new UIStyle { TextRenderer = text },
-            Markers = [new DebugMapMarker("Alice", new UIOffset(100f, 50f), UIColor.FromBytes(1, 2, 3, 255))],
+            Markers = [new DebugMapMarker("Alice", new Vector2(100f, 50f), new Color(1, 2, 3, 255))],
         };
 
         overlay.PaintTree(canvas, 1f);
@@ -85,12 +85,12 @@ public sealed class DebugMapOverlayUiTests
         var overlay = new DebugMapOverlayNode
         {
             Style = new UIStyle { TextRenderer = text },
-            Markers = [new DebugMapMarker("Bob", new UIOffset(100f, 50f), UIColor.White)],
+            Markers = [new DebugMapMarker("Bob", new Vector2(100f, 50f), Color.White)],
         };
 
         overlay.PaintTree(canvas, 1f);
 
-        (string drawn, UIOffset position, TextStyle style) = text.Draws[0];
+        (string drawn, Vector2 position, TextStyle style) = text.Draws[0];
         Assert.AreEqual("Bob", drawn);
         AssertClose(0.5f, style.Scale, "half scale");
         Assert.AreEqual(HorizontalAnchor.Center, style.HorizontalAnchor, "centred horizontally");
@@ -106,16 +106,16 @@ public sealed class DebugMapOverlayUiTests
     public void Overlay_MarkerSquareIsEightPixelsCentredOnThePosition()
     {
         var canvas = new Canvas([]);
-        UIColor hair = UIColor.FromBytes(10, 20, 30, 255);
+        Color hair = new Color(10, 20, 30, 255);
         var overlay = new DebugMapOverlayNode
         {
             Style = new UIStyle { TextRenderer = new Recorder([]) },
-            Markers = [new DebugMapMarker("C", new UIOffset(100f, 50f), hair)],
+            Markers = [new DebugMapMarker("C", new Vector2(100f, 50f), hair)],
         };
 
         overlay.PaintTree(canvas, 1f);
 
-        (UIRect rect, UIColor color) = canvas.Fills[0];
+        (UIRect rect, Color color) = canvas.Fills[0];
         AssertClose(96f, rect.X, "rect X");
         AssertClose(46f, rect.Y, "rect Y");
         AssertClose(8f, rect.Width, "rect width");

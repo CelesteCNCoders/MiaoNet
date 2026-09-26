@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Celeste.Mod.MiaoNet.Chat;
 using Celeste.Mod.MiaoNet.UI.Chat;
@@ -28,7 +28,7 @@ public sealed class ChatUiTests
         public UISize Measure(string text, TextStyle style)
             => new(text.Length * CharWidth * style.Scale, 12f * style.Scale);
 
-        public void Draw(IUICanvas canvas, string text, UIOffset position, TextStyle style)
+        public void Draw(IUICanvas canvas, string text, Vector2 position, TextStyle style)
         {
         }
 
@@ -59,7 +59,7 @@ public sealed class ChatUiTests
         {
             StableKey = keys[index],
             TimeText = withTime ? "00:00:00" : null,
-            Runs = [new ChatTextRun("msg", UIColor.White, TextDecoration.None)],
+            Runs = [new ChatTextRun("msg", Color.White, TextDecoration.None)],
         };
     }
 
@@ -278,7 +278,7 @@ public sealed class ChatUiTests
     {
         StableKey = new object(),
         TimeText = time,
-        Runs = [new ChatTextRun(new string('m', characters), UIColor.White, TextDecoration.None)],
+        Runs = [new ChatTextRun(new string('m', characters), Color.White, TextDecoration.None)],
     };
 
     private static ChatMessageNode MeasureRow(ChatMessageRow row, float messagePadding, bool fancyCounter = true)
@@ -318,7 +318,7 @@ public sealed class ChatUiTests
         {
             StableKey = new object(),
             RepeatCount = 30,
-            Runs = [new ChatTextRun("m", UIColor.White, TextDecoration.None)],
+            Runs = [new ChatTextRun("m", Color.White, TextDecoration.None)],
         };
 
         ChatMessageNode fancy = MeasureRow(folded, 4f, fancyCounter: true);
@@ -337,7 +337,7 @@ public sealed class ChatUiTests
         {
             StableKey = new object(),
             RepeatCount = 30,
-            Runs = [new ChatTextRun("m", UIColor.White, TextDecoration.None)],
+            Runs = [new ChatTextRun("m", Color.White, TextDecoration.None)],
         };
 
         AssertClose(
@@ -386,7 +386,7 @@ public sealed class ChatUiTests
 
         public UISize Measure(string text, TextStyle style) => new(text.Length * CharWidth * style.Scale, 12f * style.Scale);
 
-        public void Draw(IUICanvas canvas, string text, UIOffset position, TextStyle style)
+        public void Draw(IUICanvas canvas, string text, Vector2 position, TextStyle style)
             => Draws.Add((text, style));
 
         public bool CanRender(int character, TextStyle style) => true;
@@ -422,15 +422,15 @@ public sealed class ChatUiTests
     {
         public List<UIRect> Fills { get; } = [];
 
-        public List<UIColor> FillColors { get; } = [];
+        public List<Color> FillColors { get; } = [];
 
-        public void FillRect(UIRect rect, UIColor color)
+        public void FillRect(UIRect rect, Color color)
         {
             Fills.Add(rect);
             FillColors.Add(color);
         }
 
-        public void DrawLine(UIOffset from, UIOffset to, UIColor color, float thickness)
+        public void DrawLine(Vector2 from, Vector2 to, Color color, float thickness)
         {
         }
 
@@ -481,9 +481,11 @@ public sealed class ChatUiTests
 
         Assert.IsFalse(screen.Tabs.IsVisible, "tab strip hidden while the chat is closed");
         Assert.IsFalse(screen.Input.IsVisible, "input box hidden while the chat is closed");
+        // the colour on its own can't tell: at byte precision the input background (0x7f) and the
+        // dimmed chat background are both (0, 0, 0, 0x7f). the input box's own rect can.
         Assert.DoesNotContain(
-            MiaoNetUITheme.Input.Background,
-            canvas.FillColors,
+            screen.Input.Bounds,
+            canvas.Fills,
             "the input box background is not painted while closed");
     }
 

@@ -127,7 +127,7 @@ public sealed class UIComponent : MiaoNetComponent
     }
 
     // point the platform's ime candidate window at the composition. the node hands over logical
-    // coordinates and everything xna-shaped stays here, so the ui core stays xna-free.
+    // coordinates, the platform call stays here.
     //
     // the rect is the whole input band, not the text line: that is what the platform was given
     // before, and it has to run after layout or it is a frame behind.
@@ -141,7 +141,7 @@ public sealed class UIComponent : MiaoNetComponent
         UIRect box = chatScreen.Input.Bounds;
         float xScale = Engine.ViewWidth / (float)Engine.Width;
         float yScale = Engine.ViewHeight / (float)Engine.Height;
-        UiPixelRect rect = UIImeRect.Map(
+        Rectangle rect = UIImeRect.Map(
             chatField.ImeAnchorX,
             box.Y,
             chatField.ImeTextWidth,
@@ -154,7 +154,7 @@ public sealed class UIComponent : MiaoNetComponent
         // Known issue: with only a few pinyin letters typed, the candidate window covers
         // the input row, and it only avoids it once more input arrives. A plain SDL2-only
         // project shows the same thing, so this is probably an SDL2-side issue.
-        TextInputEXT.SetInputRectangle(new Rectangle(rect.X, rect.Y, rect.Width, rect.Height));
+        TextInputEXT.SetInputRectangle(rect);
     }
 
     public override void Render()

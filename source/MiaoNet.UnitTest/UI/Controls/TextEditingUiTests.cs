@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Celeste.Mod.MiaoNet.Chat;
 using Celeste.Mod.MiaoNet.UI.Chat;
@@ -27,7 +27,7 @@ public sealed class TextEditingUiTests
         public UISize Measure(string text, TextStyle style)
             => new(text.Length * CharWidth * style.Scale, 12f * style.Scale);
 
-        public void Draw(IUICanvas canvas, string text, UIOffset position, TextStyle style)
+        public void Draw(IUICanvas canvas, string text, Vector2 position, TextStyle style)
         {
         }
 

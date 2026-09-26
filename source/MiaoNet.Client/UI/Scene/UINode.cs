@@ -142,7 +142,7 @@ public abstract class UINode
     }
 
     // deepest visible node containing the point, if any.
-    public virtual UINode? HitTest(UIOffset point)
+    public virtual UINode? HitTest(Vector2 point)
     {
         if (!IsVisible || !Bounds.Contains(point))
         {

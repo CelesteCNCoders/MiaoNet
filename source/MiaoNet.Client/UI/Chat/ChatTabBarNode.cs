@@ -65,10 +65,10 @@ public sealed class ChatTabBarNode : UINode
                 MathF.Floor(tabWidth),
                 LineHeight);
 
-            UIColor backgroundColor = isActive
+            Color backgroundColor = isActive
                 ? MiaoNetUITheme.Tab.ActiveBackground
                 : MiaoNetUITheme.Tab.IdleBackground;
-            UIColor textColor = isActive
+            Color textColor = isActive
                 ? MiaoNetUITheme.Tab.ActiveText
                 : MiaoNetUITheme.Tab.IdleText;
 
@@ -77,7 +77,7 @@ public sealed class ChatTabBarNode : UINode
             renderer.Draw(
                 canvas,
                 title,
-                new UIOffset(x + ChatLayout.Padding, Bounds.Bottom),
+                new Vector2(x + ChatLayout.Padding, Bounds.Bottom),
                 new TextStyle
                 {
                     Scale = Scale,

@@ -17,8 +17,8 @@ public sealed class MiaoNetTexture : IUITexture
 
     public void Draw(
         IUICanvas canvas,
-        UIOffset position,
-        UIColor tint,
+        Vector2 position,
+        Color tint,
         float scale,
         HorizontalAnchor horizontalAnchor = HorizontalAnchor.Left,
         VerticalAnchor verticalAnchor = VerticalAnchor.Top)
@@ -26,6 +26,6 @@ public sealed class MiaoNetTexture : IUITexture
         var origin = new Vector2(
             texture.Width * horizontalAnchor.HorizontalFactor(),
             texture.Height * verticalAnchor.VerticalFactor());
-        texture.Draw(position.ToVector2(), origin, tint.ToXna(), new Vector2(scale));
+        texture.Draw(position, origin, tint, new Vector2(scale));
     }
 }

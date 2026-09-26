@@ -43,10 +43,10 @@ public sealed class IconNode : UINode
         }
     }
 
-    public UIColor Tint { get; set; } = UIColor.White;
+    public Color Tint { get; set; } = Color.White;
 
     // extra paint-only offset, used by the floating paused icon animation
-    public UIOffset PaintOffset { get; set; }
+    public Vector2 PaintOffset { get; set; }
 
     private float Scale => texture is null || targetHeight <= 0f ? 1f : targetHeight / texture.Height;
 
@@ -70,7 +70,7 @@ public sealed class IconNode : UINode
 
         texture.Draw(
             canvas,
-            new UIOffset(Bounds.X + PaintOffset.X, Bounds.Y + PaintOffset.Y),
+            new Vector2(Bounds.X + PaintOffset.X, Bounds.Y + PaintOffset.Y),
             Tint * opacity,
             Scale);
     }

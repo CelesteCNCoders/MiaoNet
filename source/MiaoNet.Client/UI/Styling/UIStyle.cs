@@ -27,11 +27,11 @@ public sealed class UIStyle
 
     public EdgeInsets Padding { get; set; } = EdgeInsets.Zero;
 
-    public UIColor? Background { get; set; }
+    public Color? Background { get; set; }
 
-    public UIColor? Foreground { get; set; }
+    public Color? Foreground { get; set; }
 
-    public UIColor? BorderColor { get; set; }
+    public Color? BorderColor { get; set; }
 
     public float? BorderWidth { get; set; }
 

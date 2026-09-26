@@ -4,6 +4,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using MiaoNet.Shared;
+using Color = MiaoNet.Shared.Color;
 
 namespace MiaoNet.UnitTest;
 
@@ -374,7 +375,7 @@ public struct Point : IRefBinarySerializable<Point>
     }
 }
 
-public struct Rectangle : IRefBinarySerializable<Rectangle>
+public struct TestRectangle : IRefBinarySerializable<TestRectangle>
 {
     public Point TopLeft { get; set; }
     public Point BottomRight { get; set; }
@@ -385,9 +386,9 @@ public struct Rectangle : IRefBinarySerializable<Rectangle>
         writer.Write(BottomRight);
     }
 
-    public static Rectangle Deserialize(ref RefBinaryReader reader)
+    public static TestRectangle Deserialize(ref RefBinaryReader reader)
     {
-        return new Rectangle
+        return new TestRectangle
         {
             TopLeft = reader.Read<Point>(),
             BottomRight = reader.Read<Point>()
