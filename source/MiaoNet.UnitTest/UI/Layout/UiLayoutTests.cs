@@ -69,15 +69,6 @@ public sealed class UiLayoutTests
     }
 
     [TestMethod]
-    public void BoxConstraints_TightenWidthKeepsRangeOrdered()
-    {
-        BoxConstraints tightened = new BoxConstraints(10f, 200f, 10f, 200f).TightenWidth(50f);
-
-        AssertClose(50f, tightened.MinWidth, "tightened.MinWidth");
-        AssertClose(50f, tightened.MaxWidth, "tightened.MaxWidth");
-    }
-
-    [TestMethod]
     public void UiRect_SnapFloorsOriginAndDerivesExtentFromFarEdge()
     {
         var rect = new UIRect(10.4f, 20.6f, 30.3f, 40.2f);

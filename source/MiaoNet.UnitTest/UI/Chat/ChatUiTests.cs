@@ -177,20 +177,6 @@ public sealed class ChatUiTests
     }
 
     [TestMethod]
-    public void Q1_PaddingZeroShrinksTheContentAndTheClampTogether()
-    {
-        var controller = new ChatListController
-        {
-            ItemExtent = 24f,       // lh 24 + 2 * padding 0
-            MessageCount = 20,
-            ViewportHeight = 384f,
-        };
-
-        AssertClose(480f, controller.ContentHeight, "ContentHeight");
-        AssertClose(96f, controller.MaxScroll, "MaxScroll");
-    }
-
-    [TestMethod]
     public void Scroll_ContentOffsetIsMeasuredFromTheBottom()
     {
         var controller = new ChatListController

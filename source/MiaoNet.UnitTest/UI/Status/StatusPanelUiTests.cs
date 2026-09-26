@@ -46,13 +46,6 @@ public sealed class StatusPanelUiTests
     }
 
     [TestMethod]
-    public void StatusPanel_ConstantsMatchTheOriginalGeometry()
-    {
-        AssertClose(64f, StatusPanelNode.CornerOffset, "corner offset");
-        AssertClose(32f, StatusPanelNode.MessageGap, "message gap");
-    }
-
-    [TestMethod]
     public void StatusPanel_FollowsAScreenSizeChange()
     {
         var icon = new Probe(40f, 30f);

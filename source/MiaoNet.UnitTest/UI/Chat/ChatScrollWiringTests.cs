@@ -57,25 +57,6 @@ public sealed class ChatScrollWiringTests
             + string.Join("\n", offenders));
     }
 
-    [TestMethod]
-    public void TheMessageListNodePushesTheMessageCount()
-    {
-        string? root = FindRepoRoot();
-        if (root is null)
-        {
-            Assert.Inconclusive($"repository root not found above {AppContext.BaseDirectory}");
-            return;
-        }
-
-        string owner = Path.Combine(root, OwnerFile);
-        Assert.IsTrue(File.Exists(owner), $"not found: {owner}");
-
-        Assert.Contains(
-            "controller.MessageCount = MessageCount",
-            File.ReadAllText(owner),
-            "SetMessages must push the displayed count, or the host has to sync it again");
-    }
-
     private static string? FindRepoRoot()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);

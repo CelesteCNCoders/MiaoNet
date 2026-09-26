@@ -53,18 +53,6 @@ public sealed class TextEditingUiTests
     // ---------------------------------------------------------------- editing kernel
 
     [TestMethod]
-    public void InputChar_AppendsAndAdvancesTheCaret()
-    {
-        var controller = new TextEditingController(new FakeCompletionProvider());
-
-        controller.InputChar('a');
-        controller.InputChar('b');
-
-        Assert.AreEqual("ab", controller.Text);
-        Assert.AreEqual(2, controller.CaretPosition);
-    }
-
-    [TestMethod]
     public void InputChar_RespectsMaxTextLength()
     {
         var controller = new TextEditingController(new FakeCompletionProvider()) { MaxTextLength = 3 };

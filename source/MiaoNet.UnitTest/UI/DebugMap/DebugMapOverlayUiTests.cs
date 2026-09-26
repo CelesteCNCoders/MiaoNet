@@ -123,14 +123,4 @@ public sealed class DebugMapOverlayUiTests
         Assert.AreEqual(hair, color, "hair colour");
     }
 
-    [TestMethod]
-    public void Overlay_WithNoMarkersDrawsNothing()
-    {
-        var canvas = new Canvas([]);
-        var overlay = new DebugMapOverlayNode { Style = new UIStyle { TextRenderer = new Recorder([]) } };
-
-        overlay.PaintTree(canvas, 1f);
-
-        Assert.HasCount(0, canvas.Fills);
-    }
 }

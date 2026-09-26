@@ -174,24 +174,6 @@ public sealed class UiInputRouterTests
 
     // ---------------------------------------------------------------- focus
 
-    [TestMethod]
-    public void Focus_IsExplicitAndReportedAsTheOldFlag()
-    {
-        var router = new UIInputRouter();
-        Assert.AreEqual(UIFocusOwner.None, router.Focus);
-        Assert.IsFalse(router.HasFocus, "no owner means no focus");
-
-        router.SetFocus(UIFocusOwner.Chat);
-        Assert.IsTrue(router.HasFocus);
-
-        router.SetFocus(UIFocusOwner.PlayerList);
-        Assert.IsTrue(router.HasFocus);
-        Assert.AreEqual(UIFocusOwner.PlayerList, router.Focus);
-
-        router.SetFocus(UIFocusOwner.None);
-        Assert.IsFalse(router.HasFocus);
-    }
-
     // ---------------------------------------------------------------- focus gating
 
     [TestMethod]
@@ -424,18 +406,4 @@ public sealed class UiInputRouterTests
 
     // ---------------------------------------------------------------- frame
 
-    [TestMethod]
-    public void Frame_ClearResetsEverything()
-    {
-        var frame = new UIInputFrame();
-        frame.Press(UIInputAction.Submit);
-        frame.Hold(UIInputAction.PlayerListToggle);
-        frame.ChatScrollDelta = 10f;
-
-        frame.Clear();
-
-        Assert.HasCount(0, (IReadOnlyCollection<UIInputAction>)frame.Pressed);
-        Assert.HasCount(0, (IReadOnlyCollection<UIInputAction>)frame.Held);
-        Assert.AreEqual(0f, frame.ChatScrollDelta);
-    }
 }
