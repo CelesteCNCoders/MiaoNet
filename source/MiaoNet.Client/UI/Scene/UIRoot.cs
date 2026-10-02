@@ -43,7 +43,20 @@ public sealed class UIRoot
         }
 
         root.Measure(BoxConstraints.Tight(width, height));
-        root.Arrange(new UIRect(0f, 0f, width, height));
+        Arrange();
+    }
+
+    // re-arranges the tree without measuring it again. for the cases where a size is only known
+    // once the tree has been measured and something derived from it still has to reach the
+    // children in the same frame -- the player list scroll clamp is the one caller.
+    public void Arrange()
+    {
+        if (root is null)
+        {
+            return;
+        }
+
+        root.Arrange(new UIRect(0f, 0f, Size.Width, Size.Height));
     }
 
     public void Paint(IUICanvas canvas)

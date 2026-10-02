@@ -46,6 +46,14 @@
     <Compile Include="..\MiaoNet.Client\UI\Rendering\IUICanvas.cs" LinkBase="0-Shared/UI/Rendering" />
     <Compile Include="..\MiaoNet.Client\UI\Rendering\ITextRenderer.cs" LinkBase="0-Shared/UI/Rendering" />
     <Compile Include="..\MiaoNet.Client\UI\Rendering\IUITexture.cs" LinkBase="0-Shared/UI/Rendering" />
+
+    <!--
+      The panel hosts read MiaoNetModule settings, Engine sizes and the router, so they stay
+      client-only like the concrete renderers above. The decisions they drive live in the
+      controllers (PlayerListController.UpdateOpenState), which are compiled in and tested here.
+    -->
+    <Compile Remove="..\MiaoNet.Client\UI\Chat\ChatPanelHost.cs" />
+    <Compile Remove="..\MiaoNet.Client\UI\PlayerList\PlayerListPanelHost.cs" />
   </ItemGroup>
 
   <ItemGroup>

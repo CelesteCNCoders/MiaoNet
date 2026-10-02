@@ -72,10 +72,11 @@ public sealed class UiInputOwnershipTests
     private static bool IsOwner(string relativePath)
         => relativePath.EndsWith("UIInput/MiaoNetUIInputAdapter.cs", StringComparison.Ordinal);
 
-    // every action in the routing table is claimed by a component. UIInputRouter.Seal is the real
+    // every action in the routing table is claimed by some component. UIInputRouter.Seal is the real
     // check and it runs at startup; this mirrors it at build time because the failure — a routed
     // key nobody reacts to — is otherwise only found by pressing that key in game. it scans the
-    // component sources because the components can't be constructed without the game.
+    // client sources because the components can't be constructed without the game, and it scans all
+    // of them because a claim sits either in the component or in its panel host under ui/.
     [TestMethod]
     public void Components_ClaimEveryRoutedAction()
     {
@@ -86,11 +87,11 @@ public sealed class UiInputOwnershipTests
             return;
         }
 
-        string componentsDirectory = Path.Combine(root, "source", "MiaoNet.Client", "Components");
-        Assert.IsTrue(Directory.Exists(componentsDirectory), $"not found: {componentsDirectory}");
+        string clientDirectory = Path.Combine(root, "source", "MiaoNet.Client");
+        Assert.IsTrue(Directory.Exists(clientDirectory), $"not found: {clientDirectory}");
 
         var claimed = new HashSet<UIInputAction>();
-        foreach (string file in Directory.EnumerateFiles(componentsDirectory, "*.cs", SearchOption.AllDirectories))
+        foreach (string file in Directory.EnumerateFiles(clientDirectory, "*.cs", SearchOption.AllDirectories))
         {
             string text = File.ReadAllText(file);
             foreach (UIInputAction action in Enum.GetValues<UIInputAction>())

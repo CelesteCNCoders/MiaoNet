@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using Celeste.Mod.MiaoNet.UI.Controls;
 using Celeste.Mod.MiaoNet.UI.Geometry;
 using Celeste.Mod.MiaoNet.UI.Layout;
 using Celeste.Mod.MiaoNet.UI.Scene;
@@ -34,8 +35,13 @@ public sealed class UiLayoutTests
 
         public UIRect? LastBounds { get; private set; }
 
+        public int MeasureCount { get; private set; }
+
         protected override UISize OnMeasure(BoxConstraints constraints)
-            => constraints.Constrain(new UISize(Width, Height));
+        {
+            MeasureCount++;
+            return constraints.Constrain(new UISize(Width, Height));
+        }
 
         protected override void OnArrange(UIRect bounds) => LastBounds = bounds;
     }
@@ -344,6 +350,29 @@ public sealed class UiLayoutTests
         Assert.AreEqual(new UISize(320f, 180f), ui.Size);
         AssertRect(root.Bounds, 0f, 0f, 320f, 180f, "root");
         AssertRect(child.LastBounds!.Value, 0f, 0f, 320f, 50f, "child");
+    }
+
+    [TestMethod]
+    public void UiRoot_ArrangeAppliesANewOffsetToTheContent()
+    {
+        // the player list clamps its scroll after layout, because the content height only exists
+        // once the panel has been measured. re-arranging has to be enough to move the content.
+        var scroll = new ScrollNode { Style = new UIStyle { Width = 100f, Height = 100f } };
+        var content = new Probe(100f, 400f);
+        scroll.Child = content;
+
+        var ui = new UIRoot();
+        ui.SetRoot(scroll);
+        ui.Layout(100f, 100f);
+
+        AssertClose(0f, content.Bounds.Y, "content starts at the top");
+        int measured = content.MeasureCount;
+
+        scroll.Offset = 30f;
+        ui.Arrange();
+
+        AssertClose(-30f, content.Bounds.Y, "the new offset reaches the content");
+        Assert.AreEqual(measured, content.MeasureCount, "re-arranging doesn't measure");
     }
 
     [TestMethod]

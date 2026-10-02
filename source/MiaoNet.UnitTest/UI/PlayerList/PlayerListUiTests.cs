@@ -288,6 +288,54 @@ public sealed class PlayerListUiTests
     }
 
     [TestMethod]
+    public void Controller_PressModeTogglesOnTheEdgeOnly()
+    {
+        var controller = new PlayerListController();
+
+        // no intent recorded: press mode keeps whatever state it is in
+        Assert.IsFalse(controller.UpdateOpenState(pressMode: true, toggleRequested: false, heldToggle: true, sceneAllowsOpen: true));
+        Assert.IsFalse(controller.IsOpen, "a held key does not open the list in press mode");
+
+        Assert.IsTrue(controller.UpdateOpenState(pressMode: true, toggleRequested: true, heldToggle: false, sceneAllowsOpen: true));
+        Assert.IsTrue(controller.IsOpen);
+
+        // the intent is spent: the next frame without it leaves it open
+        Assert.IsFalse(controller.UpdateOpenState(pressMode: true, toggleRequested: false, heldToggle: false, sceneAllowsOpen: true));
+        Assert.IsTrue(controller.IsOpen);
+
+        Assert.IsTrue(controller.UpdateOpenState(pressMode: true, toggleRequested: true, heldToggle: false, sceneAllowsOpen: true));
+        Assert.IsFalse(controller.IsOpen, "the same edge closes it again");
+    }
+
+    [TestMethod]
+    public void Controller_HoldModeFollowsTheLevel()
+    {
+        var controller = new PlayerListController();
+
+        Assert.IsTrue(controller.UpdateOpenState(pressMode: false, toggleRequested: false, heldToggle: true, sceneAllowsOpen: true));
+        Assert.IsTrue(controller.IsOpen);
+
+        Assert.IsTrue(controller.UpdateOpenState(pressMode: false, toggleRequested: false, heldToggle: false, sceneAllowsOpen: true));
+        Assert.IsFalse(controller.IsOpen, "releasing the key closes it in hold mode");
+    }
+
+    [TestMethod]
+    public void Controller_SceneRefusesOpeningButNeverForcesClosing()
+    {
+        var controller = new PlayerListController();
+
+        Assert.IsFalse(controller.UpdateOpenState(pressMode: false, toggleRequested: false, heldToggle: true, sceneAllowsOpen: false));
+        Assert.IsFalse(controller.IsOpen, "an unsuitable scene refuses to open");
+
+        Assert.IsTrue(controller.UpdateOpenState(pressMode: false, toggleRequested: false, heldToggle: true, sceneAllowsOpen: true));
+        Assert.IsTrue(controller.IsOpen);
+
+        // the scene turning unsuitable must not kick the player out of an open list
+        Assert.IsFalse(controller.UpdateOpenState(pressMode: false, toggleRequested: false, heldToggle: true, sceneAllowsOpen: false));
+        Assert.IsTrue(controller.IsOpen, "an already open list stays open");
+    }
+
+    [TestMethod]
     public void Q3_ChannelsOutsideTheViewportAreNotPainted()
     {
         var channels = new List<PlayerListChannel>

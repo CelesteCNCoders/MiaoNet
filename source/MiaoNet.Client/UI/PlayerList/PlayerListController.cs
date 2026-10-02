@@ -57,6 +57,25 @@ public sealed class PlayerListController
         }
     }
 
+    // decides whether the list is open this frame, and reports an open/close edge.
+    // press mode is an edge (the router records the intent), hold mode is a level. an unsuitable
+    // scene refuses the opening edge but never forces an already open list shut.
+    public bool UpdateOpenState(bool pressMode, bool toggleRequested, bool heldToggle, bool sceneAllowsOpen)
+    {
+        bool wantsOpen = pressMode
+            ? (toggleRequested ? !IsOpen : IsOpen)
+            : heldToggle;
+
+        if (wantsOpen && !IsOpen && !sceneAllowsOpen)
+        {
+            wantsOpen = false;
+        }
+
+        bool wasOpen = IsOpen;
+        SetOpen(wantsOpen);
+        return IsOpen != wasOpen;
+    }
+
     // called on disconnect
     public void Reset()
     {
