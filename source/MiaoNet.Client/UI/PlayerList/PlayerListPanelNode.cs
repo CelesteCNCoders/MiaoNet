@@ -40,12 +40,12 @@ public sealed class PlayerListPanelNode : ScrollNode
             Axis = FlexAxis.Vertical,
             Spacing = PlayerListLayout.ChannelSpacing,
             CrossAxisAlignment = CrossAxisAlignment.Stretch,
-            Style = new UIStyle { Width = metrics.PanelWidth, TextRenderer = renderer },
+            Style = new UIStyle { Width = metrics.PanelWidth },
         };
 
         foreach (PlayerListChannel channel in channels)
         {
-            var channelNode = new PlayerListChannelNode(channel, renderer, metrics, icons, scale);
+            var channelNode = new PlayerListChannelNode(channel, metrics, icons);
             column.Add(channelNode);
             rowNodes.AddRange(channelNode.RowNodes);
         }
@@ -61,7 +61,6 @@ public sealed class PlayerListPanelNode : ScrollNode
                     PlayerListLayout.PanelMarginY,
                     0f,
                     PlayerListLayout.PanelMarginY),
-                TextRenderer = renderer,
             },
             Child = column,
         };

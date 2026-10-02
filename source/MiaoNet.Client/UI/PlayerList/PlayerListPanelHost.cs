@@ -22,9 +22,11 @@ public sealed class PlayerListPanelHost
     private readonly AlignNode host;
     private readonly UIInputHandle input;
 
-    private int builtVersion = -1;
-    private float builtScale = -1f;
-    private bool builtLiveMode;
+    // what the panel was last built from; null means "not built yet". one value instead of three
+    // fields, so there is no way to reset two of them and forget the third.
+    private readonly record struct BuiltContent(int Version, float Scale, bool LiveMode);
+
+    private BuiltContent? built;
 
     // set by the toggle reaction, consumed by Update
     private bool toggleRequested;
@@ -130,8 +132,7 @@ public sealed class PlayerListPanelHost
             context.UIInput.SetFocus(UIInputScope.Neutral);
         }
 
-        builtVersion = -1;
-        builtScale = -1f;
+        built = null;
     }
 
     // the reaction runs before Update so opening the list still happens in one place: it needs the
@@ -149,19 +150,17 @@ public sealed class PlayerListPanelHost
     private void RebuildIfNeeded(float scale, bool liveMode)
     {
         // live mode masks map and room names, so it changes the model too
-        if (builtVersion == data.UIVersion && builtScale == scale && builtLiveMode == liveMode)
+        var current = new BuiltContent(data.UIVersion, scale, liveMode);
+        if (built == current)
         {
             return;
         }
 
+        built = current;
         panel.Rebuild(
             data.BuildUIChannels(),
             data.UIIcons,
             scale,
             MiaoNetFont.ENZhsLineHeight * scale);
-
-        builtVersion = data.UIVersion;
-        builtScale = scale;
-        builtLiveMode = liveMode;
     }
 }

@@ -12,15 +12,9 @@ namespace Celeste.Mod.MiaoNet.UI.PlayerList;
 // a header line and the player rows.
 public sealed class PlayerListChannelNode : BoxNode
 {
-    public PlayerListChannelNode(
-        PlayerListChannel channel,
-        ITextRenderer renderer,
-        PlayerListMetrics metrics,
-        PlayerListIcons icons,
-        float scale)
+    public PlayerListChannelNode(PlayerListChannel channel, PlayerListMetrics metrics, PlayerListIcons icons)
     {
         ArgumentNullException.ThrowIfNull(channel);
-        ArgumentNullException.ThrowIfNull(renderer);
         ArgumentNullException.ThrowIfNull(metrics);
         ArgumentNullException.ThrowIfNull(icons);
 
@@ -29,7 +23,6 @@ public sealed class PlayerListChannelNode : BoxNode
             Width = metrics.PanelWidth,
             Padding = new EdgeInsets(PlayerListLayout.ChannelPaddingX, PlayerListLayout.ChannelPaddingY),
             Background = MiaoNetUITheme.PlayerList.Background,
-            TextRenderer = renderer,
         };
 
         var content = new FlexNode
@@ -37,22 +30,14 @@ public sealed class PlayerListChannelNode : BoxNode
             Axis = FlexAxis.Vertical,
             Spacing = 0f,
             CrossAxisAlignment = CrossAxisAlignment.Stretch,
-            Style = new UIStyle { TextRenderer = renderer },
         };
 
         content.Add(new TextNode
         {
             Text = channel.Header,
-            Style = new UIStyle
+            Style = new UIStyle { Height = metrics.HeaderHeight, TextRenderer = metrics.Renderer },
+            TextStyle = metrics.TextStyle with
             {
-                Height = metrics.HeaderHeight,
-                Foreground = MiaoNetUITheme.PlayerList.Header,
-                TextRenderer = renderer,
-            },
-            TextStyle = new TextStyle
-            {
-                Scale = scale,
-                LineHeight = metrics.LineHeight,
                 Color = MiaoNetUITheme.PlayerList.Header,
                 VerticalAnchor = VerticalAnchor.Top,
             },
@@ -61,7 +46,7 @@ public sealed class PlayerListChannelNode : BoxNode
         var rows = new List<PlayerRowNode>(channel.Rows.Count);
         for (int i = 0; i < channel.Rows.Count; i++)
         {
-            var row = new PlayerRowNode(channel.Rows[i], renderer, metrics, icons, scale, evenRow: i % 2 == 0);
+            var row = new PlayerRowNode(channel.Rows[i], metrics, icons, evenRow: i % 2 == 0);
             rows.Add(row);
             content.Add(row);
         }

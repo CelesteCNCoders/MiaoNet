@@ -8,24 +8,26 @@ using Celeste.Mod.MiaoNet.UI.Styling;
 
 namespace Celeste.Mod.MiaoNet.UI.PlayerList;
 
-// one player row: zebra stripe, name with status icons, then a right-aligned location group and
-// a fixed-width ping column.
-// positions come entirely from the flex layout: the name group sits at the start, a spacer
-// pushes the location group and ping to the end, and the ping column is a fixed width so pings
-// line up across rows. no hand-computed coordinates anywhere.
+// one player row: zebra stripe, name with status icons, then a right-aligned location group and a
+// fixed-width ping column.
+//
+// positions come entirely from the flex layout: the name group sits at the start, a spacer pushes
+// the location group and ping to the end, and the ping column is a fixed width so pings line up
+// across rows. no hand-computed coordinates anywhere.
 public sealed class PlayerRowNode : BoxNode
 {
-    private readonly Color stripe;
+    private readonly PlayerListMetrics metrics;
     private readonly PlayerListIcons icons;
+    private readonly Color stripe;
     private IconNode? pausedIcon;
 
-    public PlayerRowNode(PlayerRow row, ITextRenderer renderer, PlayerListMetrics metrics, PlayerListIcons icons, float scale, bool evenRow)
+    public PlayerRowNode(PlayerRow row, PlayerListMetrics metrics, PlayerListIcons icons, bool evenRow)
     {
         ArgumentNullException.ThrowIfNull(row);
-        ArgumentNullException.ThrowIfNull(renderer);
         ArgumentNullException.ThrowIfNull(metrics);
         ArgumentNullException.ThrowIfNull(icons);
 
+        this.metrics = metrics;
         this.icons = icons;
         stripe = evenRow ? MiaoNetUITheme.PlayerList.StripeEven : MiaoNetUITheme.PlayerList.StripeOdd;
 
@@ -33,10 +35,9 @@ public sealed class PlayerRowNode : BoxNode
         {
             Width = metrics.RowWidth,
             Padding = new EdgeInsets(PlayerListLayout.RowPaddingX, PlayerListLayout.RowPaddingY),
-            TextRenderer = renderer,
         };
 
-        Child = BuildContent(row, renderer, metrics, scale);
+        Child = BuildContent(row);
     }
 
     // apply the floating paused-icon animation
@@ -54,54 +55,45 @@ public sealed class PlayerRowNode : BoxNode
         base.PaintSelf(canvas, opacity);
     }
 
-    private FlexNode BuildContent(PlayerRow row, ITextRenderer renderer, PlayerListMetrics metrics, float scale)
-    {
-        var content = new FlexNode
+    // a horizontal flex; the content row also pins the height to the line height
+    private static FlexNode Row(float? height = null)
+        => new()
         {
             Axis = FlexAxis.Horizontal,
             Spacing = 0f,
             CrossAxisAlignment = CrossAxisAlignment.Start,
-            Style = new UIStyle { Height = metrics.LineHeight, TextRenderer = renderer },
+            Style = new UIStyle { Height = height },
         };
 
-        content.Add(BuildNameGroup(row, renderer, metrics, scale));
+    private FlexNode BuildContent(PlayerRow row)
+    {
+        FlexNode content = Row(metrics.LineHeight);
+        content.Add(BuildNameGroup(row));
         content.Add(new SpacerNode());
-        content.Add(BuildLocationGroup(row, renderer, metrics, scale));
-        content.Add(BuildPingColumn(row, renderer, metrics, scale));
+        content.Add(BuildLocationGroup(row));
+        content.Add(BuildPingColumn(row));
         return content;
     }
 
-    private FlexNode BuildNameGroup(PlayerRow row, ITextRenderer renderer, PlayerListMetrics metrics, float scale)
+    private FlexNode BuildNameGroup(PlayerRow row)
     {
-        var group = new FlexNode
-        {
-            Axis = FlexAxis.Horizontal,
-            Spacing = 0f,
-            CrossAxisAlignment = CrossAxisAlignment.Start,
-            Style = new UIStyle { TextRenderer = renderer },
-        };
-
-        group.Add(Text(row.DisplayName, row.NameColor, renderer, metrics, scale));
+        FlexNode group = Row();
+        group.Add(Text(row.DisplayName, row.NameColor));
 
         foreach (PlayerStatus status in PlayerListMetrics.StatusOrder)
         {
-            if (!row.Status.HasFlag(status))
+            if (!row.Status.HasFlag(status) || icons.For(status) is not { } texture)
             {
                 continue;
             }
 
-            IUITexture? texture = icons.For(status);
-            if (texture is null)
-            {
-                continue;
-            }
-
+            // the floating paused icon gets a gap on both sides, the others none
             if (status == PlayerStatus.Paused)
             {
                 group.Add(Gap(PlayerListLayout.PausedGap));
             }
 
-            var icon = new IconNode { Texture = texture, TargetHeight = metrics.LineHeight, Tint = MiaoNetUITheme.PlayerList.Icon };
+            IconNode icon = Icon(texture);
             group.Add(icon);
 
             if (status == PlayerStatus.Paused)
@@ -114,16 +106,9 @@ public sealed class PlayerRowNode : BoxNode
         return group;
     }
 
-    private FlexNode BuildLocationGroup(PlayerRow row, ITextRenderer renderer, PlayerListMetrics metrics, float scale)
+    private FlexNode BuildLocationGroup(PlayerRow row)
     {
-        var group = new FlexNode
-        {
-            Axis = FlexAxis.Horizontal,
-            Spacing = 0f,
-            CrossAxisAlignment = CrossAxisAlignment.Start,
-            Style = new UIStyle { TextRenderer = renderer },
-        };
-
+        FlexNode group = Row();
         if (!row.HasLocation)
         {
             return group;
@@ -131,80 +116,67 @@ public sealed class PlayerRowNode : BoxNode
 
         if (row.UsesDebugRoomIcon && icons.DebugMap is { } debugMap)
         {
-            group.Add(new IconNode
-            {
-                Texture = debugMap,
-                TargetHeight = metrics.LineHeight,
-                Tint = MiaoNetUITheme.PlayerList.Icon,
-            });
+            group.Add(Icon(debugMap));
         }
         else if (row.RoomText is { Length: > 0 } room)
         {
-            group.Add(Text(room, MiaoNetUITheme.PlayerList.Room, renderer, metrics, scale));
+            group.Add(Text(room, MiaoNetUITheme.PlayerList.Room));
         }
 
-        group.Add(Text(":", MiaoNetUITheme.PlayerList.Room, renderer, metrics, scale));
+        group.Add(Text(":", MiaoNetUITheme.PlayerList.Room));
         group.Add(Gap(metrics.SpaceWidth));
 
         if (row.MapName is { Length: > 0 } mapName)
         {
-            group.Add(Text(mapName, row.MapNameColor, renderer, metrics, scale));
+            group.Add(Text(mapName, row.MapNameColor));
         }
 
         if (row.AreaModeText is { Length: > 0 } areaMode)
         {
             group.Add(Gap(metrics.SpaceWidth));
-            group.Add(Text(areaMode, row.MapSideColor, renderer, metrics, scale));
+            group.Add(Text(areaMode, row.MapSideColor));
         }
 
         if (row.AreaIcon is { } areaIcon)
         {
             group.Add(Gap(metrics.SpaceWidth));
-            group.Add(new IconNode
-            {
-                Texture = areaIcon,
-                TargetHeight = metrics.LineHeight,
-                Tint = MiaoNetUITheme.PlayerList.Icon,
-            });
+            group.Add(Icon(areaIcon));
         }
 
         return group;
     }
 
-    private BoxNode BuildPingColumn(PlayerRow row, ITextRenderer renderer, PlayerListMetrics metrics, float scale)
+    private BoxNode BuildPingColumn(PlayerRow row)
     {
-        var column = new BoxNode
-        {
-            Style = new UIStyle { Width = metrics.PingColumnWidth, TextRenderer = renderer },
-        };
-
+        var column = new BoxNode { Style = new UIStyle { Width = metrics.PingColumnWidth } };
         if (row.PingText is { Length: > 0 } ping)
         {
-            column.Child = Text(ping, MiaoNetUITheme.PlayerList.Ping, renderer, metrics, scale, HorizontalAnchor.Right);
+            column.Child = Text(ping, MiaoNetUITheme.PlayerList.Ping, HorizontalAnchor.Right);
         }
 
         return column;
     }
 
-    private static TextNode Text(
-        string text,
-        Color color,
-        ITextRenderer renderer,
-        PlayerListMetrics metrics,
-        float scale,
-        HorizontalAnchor anchor = HorizontalAnchor.Left)
+    // the colour lives in the text style; the node style only supplies the renderer
+    private TextNode Text(string text, Color color, HorizontalAnchor anchor = HorizontalAnchor.Left)
         => new()
         {
             Text = text,
-            Style = new UIStyle { Foreground = color, TextRenderer = renderer },
-            TextStyle = new TextStyle
+            Style = new UIStyle { TextRenderer = metrics.Renderer },
+            TextStyle = metrics.TextStyle with
             {
-                Scale = scale,
-                LineHeight = metrics.LineHeight,
                 Color = color,
                 HorizontalAnchor = anchor,
                 VerticalAnchor = VerticalAnchor.Top,
             },
+        };
+
+    private IconNode Icon(IUITexture texture)
+        => new()
+        {
+            Texture = texture,
+            TargetHeight = metrics.LineHeight,
+            Tint = MiaoNetUITheme.PlayerList.Icon,
         };
 
     private static RectNode Gap(float width)
