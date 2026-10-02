@@ -1,4 +1,4 @@
-using Celeste.Mod.MiaoNet.UI.Controls;
+﻿using Celeste.Mod.MiaoNet.UI.Controls;
 using Celeste.Mod.MiaoNet.UI.Geometry;
 using Celeste.Mod.MiaoNet.UI.Input;
 using Celeste.Mod.MiaoNet.UI.Layout;
@@ -21,7 +21,7 @@ public sealed class PlayerListPanelHost
     private readonly PlayerListController controller = new();
     private readonly PlayerListPanelNode panel;
     private readonly AlignNode host;
-    private readonly UIInputRegistrations input;
+    private readonly UIInputHandle input;
 
     private int builtVersion = -1;
     private float builtScale = -1f;
@@ -47,11 +47,8 @@ public sealed class PlayerListPanelHost
 
         // press mode needs the edge, hold mode the level; either way the router only delivers the
         // action while the list is allowed to act on it.
-        input = context.UIInput.Register(UIInputConsumer.PlayerList);
+        input = context.UIInput.Handle(UIInputScope.PlayerList);
         input.On(UIInputAction.PlayerListToggle, RecordToggleRequest);
-        input.OwnHeld(UIInputAction.PlayerListToggle);
-        input.OwnHeld(UIInputAction.PlayerListScrollUp);
-        input.OwnHeld(UIInputAction.PlayerListScrollDown);
     }
 
     public UINode Root => host;
@@ -75,7 +72,7 @@ public sealed class PlayerListPanelHost
         if (openedOrClosed)
         {
             data.Active = controller.IsOpen;
-            context.UIInput.SetFocus(controller.IsOpen ? UIFocusOwner.PlayerList : UIFocusOwner.None);
+            context.UIInput.SetFocus(controller.IsOpen ? UIInputScope.PlayerList : UIInputScope.Neutral);
         }
 
         // the routing table already restricts these to player-list focus, i.e. while it's open
@@ -130,7 +127,7 @@ public sealed class PlayerListPanelHost
         if (wasOpen)
         {
             // release the keyboard explicitly, a stale owner would block opening the chat
-            context.UIInput.SetFocus(UIFocusOwner.None);
+            context.UIInput.SetFocus(UIInputScope.Neutral);
         }
 
         builtVersion = -1;

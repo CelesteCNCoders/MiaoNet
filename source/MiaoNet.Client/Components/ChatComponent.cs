@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Celeste.Mod.MiaoNet.Chat;
 using Celeste.Mod.MiaoNet.UI.Controls;
 using Celeste.Mod.MiaoNet.UI.Input;
@@ -54,7 +54,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     private int historyIndex;
 
     // our claims on arbitrated input, reactions get registered once in the ctor
-    private readonly UIInputRegistrations input;
+    private readonly UIInputHandle input;
 
     public bool Active => active;
 
@@ -71,7 +71,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         chatManager = new();
         ChatMessageBoxSetup();
 
-        input = context.UIInput.Register(UIInputConsumer.Chat);
+        input = context.UIInput.Handle(UIInputScope.Chat);
         RegisterInputReactions();
 
         context.ChatMessageReceived += Context_ChatMessageReceived;
@@ -387,7 +387,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
             level.Add(dummyOverlay);
             level.AllowHudHide = false;
         }
-        context.UIInput.SetFocus(UIFocusOwner.Chat);
+        context.UIInput.SetFocus(UIInputScope.Chat);
     }
 
     private void Deactivate()
@@ -405,7 +405,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
             level.CompletelyRemove(dummyOverlay);
             level.AllowHudHide = previousAllowHudHide;
         }
-        context.UIInput.SetFocus(UIFocusOwner.None);
+        context.UIInput.SetFocus(UIInputScope.Neutral);
     }
 
     // the editing kernel; UIComponent draws it

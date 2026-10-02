@@ -29,101 +29,101 @@ public sealed class UiInputRouterTests
 
     private static readonly UIInputAction[] AllActions = Enum.GetValues<UIInputAction>();
 
-    // a router with both consumers claiming everything, recording what actually fires
+    // a router with a handle for each panel, recording what actually fires
     private sealed class Harness
     {
         public readonly UIInputRouter Router = new();
-        public readonly UIInputFrame Frame = new();
         public readonly List<UIInputAction> ChatFired = [];
         public readonly List<UIInputAction> PlayerListFired = [];
-        public readonly UIInputRegistrations Chat;
-        public readonly UIInputRegistrations PlayerList;
+        public readonly UIInputHandle Chat;
+        public readonly UIInputHandle PlayerList;
 
-        private readonly HashSet<UIInputAction> chatHeld = [];
-        private readonly HashSet<UIInputAction> playerListHeld = [];
-
-        public Harness(UIFocusOwner focus)
+        public Harness(UIInputScope focus)
         {
             Router.SetFocus(focus);
-            Chat = Router.Register(UIInputConsumer.Chat);
-            PlayerList = Router.Register(UIInputConsumer.PlayerList);
+            Chat = Router.Handle(UIInputScope.Chat);
+            PlayerList = Router.Handle(UIInputScope.PlayerList);
 
-            foreach (UIInputRule rule in UIInputRouter.Rules)
+            // a reaction for every edge the table gives this panel, so delivery is observed the way a
+            // consumer observes it. held-only actions have no edge to watch.
+            foreach ((UIInputAction action, UIInputRoute route) in UIInputRouter.Routes)
             {
-                bool isChat = OwnedByChat(rule.Action);
-                UIInputRegistrations set = isChat ? Chat : PlayerList;
-                List<UIInputAction> log = isChat ? ChatFired : PlayerListFired;
+                if ((route.Phase & UIInputPhase.Press) == 0)
+                {
+                    continue;
+                }
 
-                set.On(rule.Action, () => log.Add(rule.Action));
-                set.OwnHeld(rule.Action);
-                (isChat ? chatHeld : playerListHeld).Add(rule.Action);
+                if (route.Owner == UIInputScope.Chat)
+                {
+                    Chat.On(action, () => ChatFired.Add(action));
+                }
+                else
+                {
+                    PlayerList.On(action, () => PlayerListFired.Add(action));
+                }
             }
         }
 
-        // routes one action and reports which consumer it reached
+        // routes one action and reports which panel it reached
         public (bool Chat, bool PlayerList) RouteOne(UIInputAction action, bool held = false)
         {
-            Frame.Clear();
             ChatFired.Clear();
             PlayerListFired.Clear();
 
+            Router.BeginFrame();
             if (held)
             {
-                Frame.Hold(action);
+                Router.Hold(action);
             }
             else
             {
-                Frame.Press(action);
+                Router.Press(action);
             }
 
-            Router.Route(Frame);
+            Router.Route();
 
-            // edges show up through the reaction; a held level has none to watch, and only the
-            // owning consumer can be asked about it.
             if (!held)
             {
                 return (ChatFired.Contains(action), PlayerListFired.Contains(action));
             }
 
-            return (chatHeld.Contains(action) && Chat.IsHeld(action),
-                    playerListHeld.Contains(action) && PlayerList.IsHeld(action));
+            // a held level has no reaction to watch: only its owner can be asked about it
+            UIInputScope owner = UIInputRouter.Routes[action].Owner;
+            return (owner == UIInputScope.Chat && Chat.IsHeld(action),
+                    owner == UIInputScope.PlayerList && PlayerList.IsHeld(action));
         }
     }
-
-    // ownership lives with the registration now, so the harness has to say who owns what. this
-    // mirrors what the real components claim; Seal is what checks the real one.
-    private static bool OwnedByChat(UIInputAction action) => action switch
-    {
-        UIInputAction.PlayerListToggle => false,
-        UIInputAction.PlayerListScrollUp => false,
-        UIInputAction.PlayerListScrollDown => false,
-        _ => true,
-    };
 
     // ---------------------------------------------------------------- the table itself
 
     [TestMethod]
-    public void Rules_CoverEveryActionExactlyOnce()
+    public void Routes_CoverEveryActionExactlyOnce()
     {
-        var duplicates = UIInputRouter.Rules
-            .GroupBy(rule => rule.Action)
-            .Where(group => group.Count() > 1)
-            .Select(group => group.Key)
-            .ToArray();
-        Assert.HasCount(0, duplicates, "an action routed twice would reach two consumers");
+        var missing = AllActions.Except(UIInputRouter.Routes.Keys).ToArray();
+        Assert.HasCount(0, missing, "every action needs a row, or it is silently dropped");
 
-        var missing = AllActions.Except(UIInputRouter.Rules.Select(rule => rule.Action)).ToArray();
-        Assert.HasCount(0, missing, "every action needs a rule, or it is silently dropped");
+        var unknown = UIInputRouter.Routes.Keys.Except(AllActions).ToArray();
+        Assert.HasCount(0, unknown, "a row for a non-existent action is dead weight");
 
-        var unknown = UIInputRouter.Rules.Select(rule => rule.Action).Except(AllActions).ToArray();
-        Assert.HasCount(0, unknown, "a rule for a non-existent action is dead weight");
+        // one row per action is what makes "one consumer per action" structural, so every row has to
+        // be complete on its own
+        foreach ((UIInputAction action, UIInputRoute route) in UIInputRouter.Routes)
+        {
+            Assert.AreNotEqual(UIInputScope.Neutral, route.Owner, $"{action} needs a real owner");
+            Assert.AreNotEqual(UIInputPhase.None, route.Phase, $"{action} must be consumed somehow");
+            Assert.IsGreaterThan(0, route.Lives.Length, $"{action} must be live in some focus");
+        }
     }
 
     [TestMethod]
-    public void Rules_RejectAnEmptyFocusList()
+    public void Routes_RejectAnImpossibleRow()
     {
         Assert.ThrowsExactly<ArgumentException>(
-            () => new UIInputRule(UIInputAction.Submit));
+            () => new UIInputRoute(UIInputScope.Chat, UIInputPhase.Press), "no live focus states");
+
+        Assert.ThrowsExactly<ArgumentException>(
+            () => new UIInputRoute(UIInputScope.Neutral, UIInputPhase.Press, UIInputScope.Neutral),
+            "nothing can be owned by the neutral scope");
     }
 
     // ---------------------------------------------------------------- one consumer only
@@ -131,15 +131,13 @@ public sealed class UiInputRouterTests
     [TestMethod]
     public void NoActionEverReachesTwoConsumers()
     {
-        foreach (UIFocusOwner focus in Enum.GetValues<UIFocusOwner>())
+        foreach (UIInputScope focus in Enum.GetValues<UIInputScope>())
         {
             var harness = new Harness(focus);
             foreach (UIInputAction action in AllActions)
             {
                 (bool chat, bool playerList) = harness.RouteOne(action);
-                Assert.IsFalse(
-                    chat && playerList,
-                    $"{action} reached both consumers with focus {focus}");
+                Assert.IsFalse(chat && playerList, $"{action} reached both panels with focus {focus}");
             }
         }
     }
@@ -149,7 +147,7 @@ public sealed class UiInputRouterTests
     [TestMethod]
     public void Tab_GoesToCompletionWhenTheChatOwnsFocus()
     {
-        var harness = new Harness(UIFocusOwner.Chat);
+        var harness = new Harness(UIInputScope.Chat);
         Assert.IsTrue(
             harness.RouteOne(UIInputAction.CompletionAccept).Chat,
             "the chat got the completion accept");
@@ -164,15 +162,13 @@ public sealed class UiInputRouterTests
     public void Tab_OpensTheListOnlyFromTheNeutralState()
     {
         Assert.IsTrue(
-            new Harness(UIFocusOwner.None).RouteOne(UIInputAction.PlayerListToggle).PlayerList,
+            new Harness(UIInputScope.Neutral).RouteOne(UIInputAction.PlayerListToggle).PlayerList,
             "neutral focus opens the list");
 
         Assert.IsTrue(
-            new Harness(UIFocusOwner.PlayerList).RouteOne(UIInputAction.PlayerListToggle).PlayerList,
+            new Harness(UIInputScope.PlayerList).RouteOne(UIInputAction.PlayerListToggle).PlayerList,
             "and it can be closed again from the list");
     }
-
-    // ---------------------------------------------------------------- focus
 
     // ---------------------------------------------------------------- focus gating
 
@@ -181,13 +177,13 @@ public sealed class UiInputRouterTests
     {
         foreach (UIInputAction action in (UIInputAction[])[UIInputAction.ChatToggle, UIInputAction.ChatCommandToggle])
         {
-            Assert.IsTrue(new Harness(UIFocusOwner.None).RouteOne(action).Chat, $"{action} from neutral");
+            Assert.IsTrue(new Harness(UIInputScope.Neutral).RouteOne(action).Chat, $"{action} from neutral");
 
             Assert.IsFalse(
-                new Harness(UIFocusOwner.Chat).RouteOne(action).Chat,
+                new Harness(UIInputScope.Chat).RouteOne(action).Chat,
                 $"{action} is inert while chatting");
             Assert.IsFalse(
-                new Harness(UIFocusOwner.PlayerList).RouteOne(action).Chat,
+                new Harness(UIInputScope.PlayerList).RouteOne(action).Chat,
                 $"{action} is inert while the list is open");
         }
     }
@@ -198,15 +194,15 @@ public sealed class UiInputRouterTests
         foreach (UIInputAction action in ChatEditingActions)
         {
             Assert.IsTrue(
-                new Harness(UIFocusOwner.Chat).RouteOne(action).Chat,
+                new Harness(UIInputScope.Chat).RouteOne(action).Chat,
                 $"{action} reaches the chat when it owns focus");
 
             Assert.IsFalse(
-                new Harness(UIFocusOwner.None).RouteOne(action).Chat,
+                new Harness(UIInputScope.Neutral).RouteOne(action).Chat,
                 $"{action} is inert with no focus");
 
             Assert.IsFalse(
-                new Harness(UIFocusOwner.PlayerList).RouteOne(action).Chat,
+                new Harness(UIInputScope.PlayerList).RouteOne(action).Chat,
                 $"{action} is inert while the list is open");
         }
     }
@@ -217,11 +213,11 @@ public sealed class UiInputRouterTests
         foreach (UIInputAction action in (UIInputAction[])[UIInputAction.PlayerListScrollUp, UIInputAction.PlayerListScrollDown])
         {
             Assert.IsTrue(
-                new Harness(UIFocusOwner.PlayerList).RouteOne(action, held: true).PlayerList,
+                new Harness(UIInputScope.PlayerList).RouteOne(action, held: true).PlayerList,
                 $"{action} reaches the list when it owns focus");
 
             Assert.IsFalse(
-                new Harness(UIFocusOwner.None).RouteOne(action, held: true).PlayerList,
+                new Harness(UIInputScope.Neutral).RouteOne(action, held: true).PlayerList,
                 $"{action} is inert with no focus");
         }
     }
@@ -230,11 +226,11 @@ public sealed class UiInputRouterTests
     public void HeldPlayerListToggle_IsNotDeliveredWhileTheChatOwnsFocus()
     {
         Assert.IsTrue(
-            new Harness(UIFocusOwner.None).RouteOne(UIInputAction.PlayerListToggle, held: true).PlayerList,
+            new Harness(UIInputScope.Neutral).RouteOne(UIInputAction.PlayerListToggle, held: true).PlayerList,
             "hold mode works from the neutral state");
 
         Assert.IsFalse(
-            new Harness(UIFocusOwner.Chat).RouteOne(UIInputAction.PlayerListToggle, held: true).PlayerList,
+            new Harness(UIInputScope.Chat).RouteOne(UIInputAction.PlayerListToggle, held: true).PlayerList,
             "and never while the chat owns the keyboard");
     }
 
@@ -243,38 +239,43 @@ public sealed class UiInputRouterTests
     [TestMethod]
     public void ChatScroll_IsOwnedByTheChatListEverywhereExceptThePlayerList()
     {
-        static float Route(UIFocusOwner focus)
+        static float Route(UIInputScope focus)
         {
             var router = new UIInputRouter();
             router.SetFocus(focus);
-            router.Route(new UIInputFrame { ChatScrollDelta = 120f });
+            router.BeginFrame();
+            router.SetChatScrollDelta(120f);
+            router.Route();
             return router.ChatScrollDelta;
         }
 
-        Assert.AreEqual(120f, Route(UIFocusOwner.None), "scrolling works while walking");
-        Assert.AreEqual(120f, Route(UIFocusOwner.Chat), "and while chatting");
-        Assert.AreEqual(0f, Route(UIFocusOwner.PlayerList), "but not while the list owns the keyboard");
+        Assert.AreEqual(120f, Route(UIInputScope.Neutral), "scrolling works while walking");
+        Assert.AreEqual(120f, Route(UIInputScope.Chat), "and while chatting");
+        Assert.AreEqual(0f, Route(UIInputScope.PlayerList), "but not while the list owns the keyboard");
     }
 
     [TestMethod]
     public void ChatScrollDelta_DoesNotLeakBetweenFrames()
     {
         var router = new UIInputRouter();
-        router.Route(new UIInputFrame { ChatScrollDelta = 50f });
+        router.BeginFrame();
+        router.SetChatScrollDelta(50f);
+        router.Route();
         Assert.AreEqual(50f, router.ChatScrollDelta);
 
-        router.Route(new UIInputFrame());
+        router.BeginFrame();
+        router.Route();
         Assert.AreEqual(0f, router.ChatScrollDelta, "the previous wheel delta is gone");
     }
 
     [TestMethod]
     public void ChatListPaging_IsDeliveredAsAHeldLevel()
     {
-        var open = new Harness(UIFocusOwner.None);
+        var open = new Harness(UIInputScope.Neutral);
         open.RouteOne(UIInputAction.ChatListScrollUp, held: true);
         Assert.IsTrue(open.Chat.IsHeld(UIInputAction.ChatListScrollUp), "PageUp is a held key");
 
-        var blocked = new Harness(UIFocusOwner.PlayerList);
+        var blocked = new Harness(UIInputScope.PlayerList);
         blocked.RouteOne(UIInputAction.ChatListScrollUp, held: true);
         Assert.IsFalse(blocked.Chat.IsHeld(UIInputAction.ChatListScrollUp), "but not while the list is open");
     }
@@ -285,18 +286,19 @@ public sealed class UiInputRouterTests
     public void Routing_IsAFunctionOfFrameAndFocusOnly()
     {
         // routing the same frame twice with the same focus has to give the same answer, regardless
-        // of the caller: delivery depends only on the frame and the focus owner.
-        var harness = new Harness(UIFocusOwner.None);
-        harness.Frame.Press(UIInputAction.CompletionAccept);
-        harness.Frame.Press(UIInputAction.PlayerListToggle);
-        harness.Frame.Press(UIInputAction.ChatToggle);
+        // of the caller: delivery depends only on the frame and the focus.
+        var harness = new Harness(UIInputScope.Neutral);
+        harness.Router.BeginFrame();
+        harness.Router.Press(UIInputAction.CompletionAccept);
+        harness.Router.Press(UIInputAction.PlayerListToggle);
+        harness.Router.Press(UIInputAction.ChatToggle);
 
-        harness.Router.Route(harness.Frame);
+        harness.Router.Route();
         var first = (harness.ChatFired.ToArray(), harness.PlayerListFired.ToArray());
 
         harness.ChatFired.Clear();
         harness.PlayerListFired.Clear();
-        harness.Router.Route(harness.Frame);
+        harness.Router.Route();
 
         CollectionAssert.AreEqual(first.Item1, harness.ChatFired.ToArray(), "chat delivery is stable");
         CollectionAssert.AreEqual(first.Item2, harness.PlayerListFired.ToArray(), "list delivery is stable");
@@ -309,21 +311,21 @@ public sealed class UiInputRouterTests
     {
         // a reaction that drops focus has to stop the rest of the frame acting on a closed panel.
         var router = new UIInputRouter();
-        router.SetFocus(UIFocusOwner.Chat);
+        router.SetFocus(UIInputScope.Chat);
 
-        UIInputRegistrations chat = router.Register(UIInputConsumer.Chat);
+        UIInputHandle chat = router.Handle(UIInputScope.Chat);
         var fired = new List<UIInputAction>();
         chat.On(UIInputAction.Cancel, () =>
         {
             fired.Add(UIInputAction.Cancel);
-            router.SetFocus(UIFocusOwner.None);
+            router.SetFocus(UIInputScope.Neutral);
         });
         chat.On(UIInputAction.Paste, () => fired.Add(UIInputAction.Paste));
 
-        var frame = new UIInputFrame();
-        frame.Press(UIInputAction.Cancel);
-        frame.Press(UIInputAction.Paste);
-        router.Route(frame);
+        router.BeginFrame();
+        router.Press(UIInputAction.Cancel);
+        router.Press(UIInputAction.Paste);
+        router.Route();
 
         CollectionAssert.AreEqual(
             new[] { UIInputAction.Cancel },
@@ -331,79 +333,55 @@ public sealed class UiInputRouterTests
             "Cancel closed the box, so Paste must not have run");
     }
 
-    // ---------------------------------------------------------------- registration contract
+    // ---------------------------------------------------------------- handle contract
 
     [TestMethod]
-    public void Register_IsIdempotentPerConsumer()
+    public void Handle_IsIdempotentPerScope()
     {
         var router = new UIInputRouter();
-        Assert.AreSame(router.Register(UIInputConsumer.Chat), router.Register(UIInputConsumer.Chat));
-        Assert.AreNotSame(router.Register(UIInputConsumer.Chat), router.Register(UIInputConsumer.PlayerList));
+        Assert.AreSame(router.Handle(UIInputScope.Chat), router.Handle(UIInputScope.Chat));
+        Assert.AreNotSame(router.Handle(UIInputScope.Chat), router.Handle(UIInputScope.PlayerList));
+        Assert.ThrowsExactly<ArgumentException>(
+            () => router.Handle(UIInputScope.Neutral),
+            "the neutral scope has nothing to handle input");
     }
 
     [TestMethod]
     public void On_RejectsASecondReactionToTheSameAction()
     {
         var router = new UIInputRouter();
-        UIInputRegistrations chat = router.Register(UIInputConsumer.Chat);
+        UIInputHandle chat = router.Handle(UIInputScope.Chat);
         chat.On(UIInputAction.Submit, () => { });
 
         InvalidOperationException error = Assert.ThrowsExactly<InvalidOperationException>(
             () => chat.On(UIInputAction.Submit, () => { }));
-        Assert.Contains("already claimed", error.Message);
+        Assert.Contains("already has a reaction", error.Message);
     }
 
     [TestMethod]
-    public void Seal_RejectsTwoConsumersClaimingTheSameAction()
-    {
-        // ownership comes from the registration, so nothing stops the second claim on the spot; the
-        // table is what has to notice, because one action may only ever have one owner.
-        var router = new UIInputRouter();
-        router.Register(UIInputConsumer.Chat).On(UIInputAction.PlayerListToggle, () => { });
-        router.Register(UIInputConsumer.PlayerList).OwnHeld(UIInputAction.PlayerListToggle);
-
-        InvalidOperationException error = Assert.ThrowsExactly<InvalidOperationException>(router.Seal);
-        Assert.Contains("claimed by both", error.Message);
-    }
-
-    [TestMethod]
-    public void IsHeld_RejectsAPollWithoutAClaim()
+    public void On_RejectsAnActionAnotherScopeOwns()
     {
         var router = new UIInputRouter();
-        UIInputRegistrations chat = router.Register(UIInputConsumer.Chat);
+        UIInputHandle chat = router.Handle(UIInputScope.Chat);
 
         InvalidOperationException error = Assert.ThrowsExactly<InvalidOperationException>(
-            () => chat.IsHeld(UIInputAction.ChatListScrollUp));
-        Assert.Contains("OwnHeld", error.Message);
+            () => chat.On(UIInputAction.PlayerListToggle, () => { }));
+        Assert.Contains("PlayerList owns", error.Message);
     }
 
     [TestMethod]
-    public void Seal_AcceptsARouterWhereEverythingIsClaimed()
+    public void IsHeld_RejectsAnActionThatIsNotAHeldLevel()
     {
-        new Harness(UIFocusOwner.None).Router.Seal();
-    }
-
-    [TestMethod]
-    public void Seal_RejectsAnActionNobodyClaimed()
-    {
-        // The bug this guards against: a rule the router happily routes but no component reads.
         var router = new UIInputRouter();
-        router.Register(UIInputConsumer.Chat).On(UIInputAction.Submit, () => { });
+        UIInputHandle chat = router.Handle(UIInputScope.Chat);
 
-        InvalidOperationException error = Assert.ThrowsExactly<InvalidOperationException>(router.Seal);
-        Assert.Contains("nothing claimed it", error.Message);
-        Assert.Contains(nameof(UIInputAction.Paste), error.Message, "the unclaimed action is named");
+        InvalidOperationException error = Assert.ThrowsExactly<InvalidOperationException>(
+            () => chat.IsHeld(UIInputAction.Submit));
+        Assert.Contains("not routed as", error.Message);
+
+        Assert.ThrowsExactly<InvalidOperationException>(
+            () => chat.IsHeld(UIInputAction.PlayerListScrollUp),
+            "and one this scope doesn't own");
     }
-
-    [TestMethod]
-    public void Seal_RejectsRegistrationAfterItHasRun()
-    {
-        UIInputRouter router = new Harness(UIFocusOwner.None).Router;
-        router.Seal();
-
-        Assert.ThrowsExactly<InvalidOperationException>(() => router.Register(UIInputConsumer.Chat));
-    }
-
-    // ---------------------------------------------------------------- frame
 
 }

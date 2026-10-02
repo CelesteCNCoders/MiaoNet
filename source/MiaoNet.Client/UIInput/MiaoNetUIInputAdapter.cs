@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Celeste.Mod.MiaoNet.UI.Input;
 using Microsoft.Xna.Framework.Input;
 
@@ -30,8 +30,6 @@ public sealed class MiaoNetUIInputAdapter : IDisposable
     private const float RepeatInterval = 0.05f;
 
     private readonly UIInputRouter router;
-    private readonly UIInputFrame frame = new();
-
     private readonly VirtualButton caretLeft;
     private readonly VirtualButton caretRight;
     private readonly VirtualButton completionUp;
@@ -54,7 +52,7 @@ public sealed class MiaoNetUIInputAdapter : IDisposable
     // reads this frame's input and arbitrates it. call once per frame, before components update.
     public void Poll()
     {
-        frame.Clear();
+        router.BeginFrame();
         MiaoNetModuleSettings settings = MiaoNetModule.Settings;
         bool shift = ShiftHeld();
 
@@ -91,9 +89,9 @@ public sealed class MiaoNetUIInputAdapter : IDisposable
         Hold(Keys.PageUp, UIInputAction.ChatListScrollUp);
         Hold(Keys.PageDown, UIInputAction.ChatListScrollDown);
 
-        frame.ChatScrollDelta = WheelDelta();
+        router.SetChatScrollDelta(WheelDelta());
 
-        router.Route(frame);
+        router.Route();
     }
 
     public void Dispose()
@@ -119,7 +117,7 @@ public sealed class MiaoNetUIInputAdapter : IDisposable
         }
 
         binding.ConsumePress();
-        frame.Press(action);
+        router.Press(action);
     }
 
     // a settings key held down.
@@ -127,7 +125,7 @@ public sealed class MiaoNetUIInputAdapter : IDisposable
     {
         if (binding is not null && binding.Check)
         {
-            frame.Hold(action);
+            router.Hold(action);
         }
     }
 
@@ -135,7 +133,7 @@ public sealed class MiaoNetUIInputAdapter : IDisposable
     {
         if (when && MInput.Keyboard.Pressed(key))
         {
-            frame.Press(action);
+            router.Press(action);
         }
     }
 
@@ -143,7 +141,7 @@ public sealed class MiaoNetUIInputAdapter : IDisposable
     {
         if (MInput.Keyboard.Check(key))
         {
-            frame.Hold(action);
+            router.Hold(action);
         }
     }
 
@@ -156,7 +154,7 @@ public sealed class MiaoNetUIInputAdapter : IDisposable
         }
 
         button.ConsumePress();
-        frame.Press(action);
+        router.Press(action);
     }
 
     // reads the wheel directly instead of MInput, which doesn't refresh the value in time.

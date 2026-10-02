@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Celeste.Mod.MiaoNet.UIInput;
@@ -127,7 +127,6 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
 
         // Every consumer has now claimed its actions; refuse to run if the routing table and those
         // claims disagree, rather than letting a key silently do nothing.
-        UIInput.Seal();
 
         // The player list and the chat message list render through UIComponent now.
         // UIComponent paints before the chat component so the legacy input box stays on top,
@@ -216,7 +215,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         connection = null;
         clientState = null;
         PlayerPresenceMessage = null;
-        UIInput.SetFocus(UIFocusOwner.None);
+        UIInput.SetFocus(UIInputScope.Neutral);
         PooledStringManager = null;
 
         List<PacketDisconnected>? terminalPackets = null;

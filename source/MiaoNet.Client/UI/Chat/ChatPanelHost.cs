@@ -1,4 +1,4 @@
-using Celeste.Mod.MiaoNet.Chat;
+﻿using Celeste.Mod.MiaoNet.Chat;
 using Celeste.Mod.MiaoNet.UI.Controls;
 using Celeste.Mod.MiaoNet.UI.Geometry;
 using Celeste.Mod.MiaoNet.UI.Input;
@@ -26,7 +26,7 @@ public sealed class ChatPanelHost
     private readonly ChatScreenNode screen;
     private readonly TextFieldNode field;
     private readonly CompletionPopupNode popup;
-    private readonly UIInputRegistrations input;
+    private readonly UIInputHandle input;
 
     private int builtVersion = -1;
     private ChatUISnapshot? snapshot;
@@ -54,9 +54,7 @@ public sealed class ChatPanelHost
         // ChatComponent already holds this consumer for its editing reactions; we claim the same
         // handle for the list's scroll actions, because the router arbitrates per consumer and not
         // per class.
-        input = context.UIInput.Register(UIInputConsumer.Chat);
-        input.OwnHeld(UIInputAction.ChatListScrollUp);
-        input.OwnHeld(UIInputAction.ChatListScrollDown);
+        input = context.UIInput.Handle(UIInputScope.Chat);
     }
 
     public UINode Root => screen;

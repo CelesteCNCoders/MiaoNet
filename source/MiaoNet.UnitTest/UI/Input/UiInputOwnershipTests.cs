@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -64,7 +64,7 @@ public sealed class UiInputOwnershipTests
         Assert.HasCount(
             0,
             offenders,
-            "components must read MiaoNetContext.UIInput through their UIInputRegistrations "
+            "components must read MiaoNetContext.UIInput through their UIInputHandle "
             + "handle instead of the binding; the adapter has already consumed it:\n" + string.Join("\n", offenders));
     }
 
@@ -97,15 +97,14 @@ public sealed class UiInputOwnershipTests
             foreach (UIInputAction action in Enum.GetValues<UIInputAction>())
             {
                 if (text.Contains($".On(UIInputAction.{action},", StringComparison.Ordinal)
-                    || text.Contains($".OwnHeld(UIInputAction.{action})", StringComparison.Ordinal))
+                    || text.Contains($".IsHeld(UIInputAction.{action})", StringComparison.Ordinal))
                 {
                     claimed.Add(action);
                 }
             }
         }
 
-        UIInputAction[] unclaimed = [.. UIInputRouter.Rules
-            .Select(rule => rule.Action)
+        UIInputAction[] unclaimed = [.. UIInputRouter.Routes.Keys
             .Where(action => !claimed.Contains(action))
             .Distinct()];
 
