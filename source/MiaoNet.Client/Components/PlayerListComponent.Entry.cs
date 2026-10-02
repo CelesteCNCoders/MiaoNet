@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Celeste.Mod.MiaoNet.UI.PlayerList;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
@@ -54,7 +55,7 @@ public sealed partial class PlayerListComponent
                 {
                     IsLocallyKnownMap = true;
                     MapName = Dialog.Get(areaData.Name);
-                    MapRoom = Clip(loc.Room, clipType);
+                    MapRoom = PlayerListLayout.Clip(loc.Room, clipType);
 
                     string iconPath = areaData.Icon;
                     string? lobbySid;
@@ -76,8 +77,8 @@ public sealed partial class PlayerListComponent
                 else
                 {
                     IsLocallyKnownMap = false;
-                    MapName = Clip(loc.Map.Sid, clipType);
-                    MapRoom = Clip(loc.Room, clipType);
+                    MapName = PlayerListLayout.Clip(loc.Map.Sid, clipType);
+                    MapRoom = PlayerListLayout.Clip(loc.Room, clipType);
                     AreaIconTexture = null;
                     MapNameColor = MapSideColor = DefaultColor;
                 }
@@ -87,23 +88,5 @@ public sealed partial class PlayerListComponent
 
         public void UpdatePing()
             => PingText = Player.LastPing == -1 ? null : $"{Player.LastPing}ms";
-
-        private static string Clip(string str, ClipType clipType)
-        {
-            const int ClipLength = 24;
-            if (str.Length > ClipLength)
-            {
-                return clipType switch
-                {
-                    ClipType.None => str,
-                    ClipType.KeepPrefix => $"{str[..ClipLength]}...",
-                    ClipType.KeepSuffix => $"...{str.Substring(str.Length - ClipLength)}",
-                };
-            }
-            else
-            {
-                return str;
-            }
-        }
     }
 }

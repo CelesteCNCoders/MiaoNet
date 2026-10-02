@@ -2,7 +2,7 @@ using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
-using Celeste.Mod.ChatInputBox;
+using Celeste.Mod.MiaoNet.Chat;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;

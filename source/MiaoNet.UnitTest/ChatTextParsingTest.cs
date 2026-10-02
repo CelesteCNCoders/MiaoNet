@@ -1,7 +1,7 @@
 ﻿using System.Collections.Immutable;
-using Celeste.Mod.ChatInputBox;
+using Celeste.Mod.MiaoNet.Chat;
 
-namespace ChatInputBox.UnitTest;
+namespace MiaoNet.UnitTest;
 
 // don't read these to study something, these were written by ai
 
@@ -93,7 +93,7 @@ public sealed class ChatTextParsingTest
     {
         var result = ChatText.Parse(@"\#FF00AAHello", DefaultColor);
         Assert.HasCount(1, result);
-        var expectedColor = Color.FromArgb(0xFF, 0x00, 0xAA);
+        var expectedColor = new Color(0xFF, 0x00, 0xAA);
         Assert.AreEqual(expectedColor, result[0].Color);
         Assert.AreEqual("Hello", result[0].Text);
     }
@@ -178,7 +178,7 @@ public sealed class ChatTextParsingTest
     [TestMethod]
     public void Parse_DefaultColorIsUsedWhenNoStyleSet()
     {
-        var customDefault = Color.FromArgb(100, 100, 100);
+        var customDefault = new Color(100, 100, 100);
         var result = ChatText.Parse("Hello", customDefault);
         Assert.AreEqual(customDefault, result[0].Color);
     }
@@ -193,10 +193,10 @@ public sealed class ChatTextParsingTest
         AssertSegment(result[0], ChatTextStyle.None, DefaultColor, "Start");
         AssertSegment(result[1], ChatTextStyle.None, TestCommonColors[1], "Red");
         AssertSegment(result[2], ChatTextStyle.Underscore, TestCommonColors[1], "UL");
-        AssertSegment(result[3], ChatTextStyle.Underscore, Color.FromArgb(0, 255, 0), "Green");
+        AssertSegment(result[3], ChatTextStyle.Underscore, new Color(0, 255, 0), "Green");
         AssertSegment(result[4],
             ChatTextStyle.Underscore | ChatTextStyle.Strikethrough,
-            Color.FromArgb(0, 255, 0), "Strike");
+            new Color(0, 255, 0), "Strike");
         AssertSegment(result[5], ChatTextStyle.None, DefaultColor, "Reset");
         AssertSegment(result[6], ChatTextStyle.None, TestCommonColors[2], "Final");
     }

@@ -1,4 +1,5 @@
 using MiaoNet.Shared;
+using Color = MiaoNet.Shared.Color;
 using PairPlayerPing = (int playerID, int ping);
 
 namespace MiaoNet.UnitTest;

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using Celeste.Mod.UI;
+using Celeste.Mod.MiaoNet.UI.PlayerList;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Input;
 

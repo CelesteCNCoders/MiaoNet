@@ -1,6 +1,7 @@
 #pragma warning disable CA1861
 
 using MiaoNet.Shared;
+using Color = MiaoNet.Shared.Color;
 
 namespace MiaoNet.UnitTest;
 

@@ -1,5 +1,6 @@
 using MiaoNet.Server;
 using MiaoNet.Shared;
+using Color = MiaoNet.Shared.Color;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MiaoNet.UnitTest;
