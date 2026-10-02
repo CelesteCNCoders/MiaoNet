@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Celeste.Mod.MiaoNet.UI.Controls;
 using Celeste.Mod.MiaoNet.UI.Geometry;
 using Celeste.Mod.MiaoNet.UI.Layout;
@@ -308,6 +308,56 @@ public sealed class UiLayoutTests
         align.Arrange(new UIRect(0f, 0f, 100f, 100f));
 
         AssertRect(child.LastBounds!.Value, 80f, 90f, 20f, 10f, "child");
+    }
+
+    [TestMethod]
+    public void AlignNode_FillsTheBoxItIsOffered()
+    {
+        // flutter's RenderPositionedBox default: an axis fills unless a factor or an unbounded box
+        // says otherwise. this is what keeps a screen-anchored host in step with the window without
+        // anyone pushing the size into it.
+        var align = new AlignNode { Alignment = UIAlignment.TopLeft };
+        var child = new Probe(30f, 20f);
+        align.Child = child;
+
+        Assert.AreEqual(new UISize(200f, 100f), align.Measure(BoxConstraints.Loose(200f, 100f)));
+
+        align.Arrange(new UIRect(0f, 0f, 200f, 100f));
+        AssertRect(child.LastBounds!.Value, 0f, 0f, 30f, 20f, "the child is placed by the alignment");
+
+        align.Alignment = UIAlignment.Center;
+        align.Arrange(new UIRect(0f, 0f, 200f, 100f));
+        AssertRect(child.LastBounds!.Value, 85f, 40f, 30f, 20f, "centred in the filled box");
+    }
+
+    [TestMethod]
+    public void AlignNode_FactorPinsAnAxisToTheChild()
+    {
+        var pinned = new AlignNode { WidthFactor = 1f, HeightFactor = 1f };
+        pinned.Child = new Probe(30f, 20f);
+        Assert.AreEqual(
+            new UISize(30f, 20f),
+            pinned.Measure(BoxConstraints.Loose(200f, 100f)),
+            "factors make the node as big as what it aligns");
+
+        var doubled = new AlignNode { WidthFactor = 2f, HeightFactor = 1f };
+        doubled.Child = new Probe(30f, 20f);
+        Assert.AreEqual(
+            new UISize(60f, 20f),
+            doubled.Measure(BoxConstraints.Loose(200f, 100f)),
+            "and scale that axis");
+    }
+
+    [TestMethod]
+    public void AlignNode_ShrinkWrapsAnUnboundedAxis()
+    {
+        var align = new AlignNode();
+        align.Child = new Probe(30f, 20f);
+
+        Assert.AreEqual(
+            new UISize(30f, 20f),
+            align.Measure(BoxConstraints.Unbounded),
+            "an infinite box must not leak into the layout");
     }
 
     [TestMethod]

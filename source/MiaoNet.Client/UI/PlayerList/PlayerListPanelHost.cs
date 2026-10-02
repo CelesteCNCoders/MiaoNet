@@ -1,10 +1,9 @@
-﻿using Celeste.Mod.MiaoNet.UI.Controls;
+using Celeste.Mod.MiaoNet.UI.Controls;
 using Celeste.Mod.MiaoNet.UI.Geometry;
 using Celeste.Mod.MiaoNet.UI.Input;
 using Celeste.Mod.MiaoNet.UI.Layout;
 using Celeste.Mod.MiaoNet.UI.Rendering;
 using Celeste.Mod.MiaoNet.UI.Scene;
-using Celeste.Mod.MiaoNet.UI.Styling;
 
 namespace Celeste.Mod.MiaoNet.UI.PlayerList;
 
@@ -41,6 +40,8 @@ public sealed class PlayerListPanelHost
         panel = new PlayerListPanelNode(renderer);
         host = new AlignNode
         {
+            // an align node fills the box the layout offers -- the screen here -- so the panel can
+            // anchor to the screen corner without anyone telling the host how big the screen is
             Alignment = UIAlignment.TopLeft,
             Child = panel,
         };
@@ -54,9 +55,6 @@ public sealed class PlayerListPanelHost
     public UINode Root => host;
 
     public PlayerListController Controller => controller;
-
-    public void SetHostSize(float width, float height)
-        => host.Style = new UIStyle { Width = width, Height = height };
 
     public void Update()
     {
@@ -78,7 +76,6 @@ public sealed class PlayerListPanelHost
         // the routing table already restricts these to player-list focus, i.e. while it's open
         controller.ScrollUpHeld = input.IsHeld(UIInputAction.PlayerListScrollUp);
         controller.ScrollDownHeld = input.IsHeld(UIInputAction.PlayerListScrollDown);
-        controller.ViewportHeight = Engine.Height;
         controller.Update(Engine.RawDeltaTime);
 
         host.IsVisible = controller.IsOpen;
@@ -104,8 +101,11 @@ public sealed class PlayerListPanelHost
             return;
         }
 
-        float before = controller.Scroll;
+        // both come out of the layout pass that just ran, so the screen size never has to be pushed
+        // in from outside
+        controller.ViewportHeight = panel.Bounds.Height;
         controller.ContentHeight = panel.ContentSize.Height;
+        float before = controller.Scroll;
         controller.ClampToContent();
         if (controller.Scroll == before)
         {

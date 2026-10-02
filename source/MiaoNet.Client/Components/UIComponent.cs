@@ -4,7 +4,6 @@ using Celeste.Mod.MiaoNet.UI.Layout;
 using Celeste.Mod.MiaoNet.UI.PlayerList;
 using Celeste.Mod.MiaoNet.UI.Rendering;
 using Celeste.Mod.MiaoNet.UI.Scene;
-using Celeste.Mod.MiaoNet.UI.Styling;
 
 namespace Celeste.Mod.MiaoNet;
 
@@ -13,7 +12,7 @@ namespace Celeste.Mod.MiaoNet;
 //
 // everything panel-specific lives next to its panel under ui/: ChatPanelHost and
 // PlayerListPanelHost read their own settings and input. what's left here is what both panels need
-// -- the shared tree, the frame order and the host size.
+// -- the shared tree, the frame order and the screen-sized root constraint.
 public sealed class UIComponent : MiaoNetComponent
 {
     private readonly UIRoot ui = new();
@@ -23,9 +22,6 @@ public sealed class UIComponent : MiaoNetComponent
     private readonly ChatPanelHost chat;
     private readonly PlayerListPanelHost playerList;
     private readonly StackNode root;
-
-    private float hostWidth = -1f;
-    private float hostHeight = -1f;
 
     public UIComponent(MiaoNetContext context)
         : base(context)
@@ -44,8 +40,10 @@ public sealed class UIComponent : MiaoNetComponent
     {
         chat.Update();
         playerList.Update();
-        EnsureHostSize();
-        ui.Layout(hostWidth, hostHeight);
+
+        // the screen size enters the tree here and nowhere else: the root is measured under a tight
+        // constraint, and a node that wants the whole box takes it from the constraints it is given.
+        ui.Layout(Engine.Width, Engine.Height);
 
         // after layout: both of these need the rects the layout pass just produced
         playerList.AfterLayout(ui);
@@ -69,18 +67,5 @@ public sealed class UIComponent : MiaoNetComponent
     {
         playerList.Reset();
         chat.Reset();
-    }
-
-    private void EnsureHostSize()
-    {
-        if (hostWidth == Engine.Width && hostHeight == Engine.Height)
-        {
-            return;
-        }
-
-        hostWidth = Engine.Width;
-        hostHeight = Engine.Height;
-        playerList.SetHostSize(hostWidth, hostHeight);
-        root.Style = new UIStyle { Width = hostWidth, Height = hostHeight };
     }
 }
