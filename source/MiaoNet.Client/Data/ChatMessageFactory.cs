@@ -14,8 +14,6 @@ public sealed class ChatMessageFactory
     private static readonly Color ColorPrivateChatReceived = Color.DarkGray;
     private static readonly Color ColorMention = Color.Gold;
 
-    private const StringComparison MentionComparison = StringComparison.OrdinalIgnoreCase;
-
     private readonly MiaoNetContext context;
 
     public ChatMessageFactory(MiaoNetContext context)
@@ -180,14 +178,16 @@ public sealed class ChatMessageFactory
             if (text[i] != '@' || (i != 0 && !char.IsWhiteSpace(text[i - 1])))
                 continue;
 
-            string? matchedName = MatchName(text, i + 1, names);
-            if (matchedName is null)
+            int mentionEnd = i + 1;
+            while (mentionEnd < text.Length && !char.IsWhiteSpace(text[mentionEnd]))
+                mentionEnd++;
+
+            string name = text[(i + 1)..mentionEnd];
+            if (!names.Contains(name))
                 continue;
 
-            if (string.Equals(matchedName, selfName, MentionComparison))
+            if (string.Equals(name, selfName, StringComparison.OrdinalIgnoreCase))
                 mentionsSelf = true;
-
-            int mentionEnd = i + 1 + matchedName.Length;
             if (i > start)
                 builder.Add(new ChatTextSegment(segment.Style, segment.Color, text[start..i]));
             builder.Add(new ChatTextSegment(segment.Style, ColorMention, text[i..mentionEnd]));
@@ -199,29 +199,6 @@ public sealed class ChatMessageFactory
             builder.Add(new ChatTextSegment(segment.Style, segment.Color, text[start..]));
 
         return mentionsSelf;
-    }
-
-    private static string? MatchName(string text, int index, IEnumerable<string> names)
-    {
-        string? best = null;
-        foreach (string name in names)
-        {
-            // find the longest
-            if (best is not null && name.Length <= best.Length)
-                continue;
-
-            if (index + name.Length > text.Length)
-                continue;
-
-            if (!text.AsSpan().Slice(index, name.Length).Equals(name.AsSpan(), MentionComparison))
-                continue;
-
-            int end = index + name.Length;
-            if (end < text.Length && char.IsLetterOrDigit(text[end]))
-                continue;
-            best = name;
-        }
-        return best;
     }
 }
 
