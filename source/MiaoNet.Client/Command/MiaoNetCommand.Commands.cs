@@ -641,6 +641,9 @@ partial class MiaoNetCommand
     private static string? Channel(Context context)
     {
         string channelName = context.Segments[0];
+        // client side validation
+        if (!NameValidator.IsValid(channelName))
+            return PFormat.Format(Dialog.Get("miaonet_commands_channel_invalid_name"), channelName);
         // the name is resolved server-side
         context.QueuePacket(new PacketPlayerChannelMove(channelName));
         return null;

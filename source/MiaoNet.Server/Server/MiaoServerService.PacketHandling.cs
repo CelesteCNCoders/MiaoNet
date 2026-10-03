@@ -198,6 +198,16 @@ public sealed partial class MiaoServerService
     {
         var player = connection.Player;
 
+        if (!NameValidator.IsValid(packet.TargetChannelName))
+        {
+            logger.LogWarning(AppEvents.Channel, "{player} sent an invalid channel name: {name}.", player.Info, packet.TargetChannelName);
+            await connection.QueuePacketAsync(new PacketPlayerChannelMoveFailed(
+                PacketPlayerChannelMoveFailed.FailedReason.InvalidName,
+                packet.TargetChannelName
+            ));
+            return;
+        }
+
         logger.LogInformation(
             AppEvents.Channel,
             "{player} is moving from channel \"{from}\" to \"{to}\".",

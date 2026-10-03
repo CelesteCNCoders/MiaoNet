@@ -68,6 +68,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         context.ChatMessageReceived += Context_ChatMessageReceived;
         context.PlayerJoined += Context_PlayerJoined;
         context.PlayerLeft += Context_PlayerLeft;
+        context.SelfChannelMoveFailed += Context_SelfChannelMoveFailed;
 
         var settings = MiaoNetModule.Settings;
         MiaoNetModule.Settings.SettingsChanged += Settings_SettingsChanged;
@@ -112,6 +113,17 @@ public sealed partial class ChatComponent : MiaoNetComponent
             return;
         string text = PFormat.Format(context.PlayerPresenceMessage.PlayerLeft, player.GetDisplayName(false, context.ShowAvatar));
         AddLocalChat(MiaoNetChatText.CreateAnnouncement(text));
+    }
+
+    private void Context_SelfChannelMoveFailed(PacketPlayerChannelMoveFailed packet)
+    {
+        string message = packet.Reason switch
+        {
+            PacketPlayerChannelMoveFailed.FailedReason.InvalidName =>
+                PFormat.Format(Dialog.Get("miaonet_commands_channel_invalid_name"), packet.TargetChannelName),
+            _ => ConnectionStatus.InternalServerError,
+        };
+        AddLocalChat(MiaoNetChatText.CreateCommandError(message));
     }
 
     private void Context_ChatMessageReceived(OnlinePlayer? player, PacketChatMessage packet)
