@@ -1,5 +1,3 @@
-using System.Buffers;
-using System.Text;
 using Celeste.Mod.ChatInputBox;
 using MiaoNet.Shared;
 
@@ -117,15 +115,12 @@ public sealed class ChatCompletionProvider : ICompletionProvider
                 switch (segType)
                 {
                 case CommandSegmentType.Player:
-                    return GetPlayerNameCompletions(state.Players.Select(p => p.Value), part);
                 case CommandSegmentType.PlayerSameChannel:
-                    return GetPlayerNameCompletions(state.SelfChannel.Players, part);
                 case CommandSegmentType.PlayerSameMap:
-                    return GetPlayerNameCompletions(state.SelfChannel.Players.Where(p => p.ShouldSyncFrom(state.Self)), part);
+                    return GetPlayerNameCompletions(CommandSegmentResolver.ResolvePlayers(state, segType), part);
                 case CommandSegmentType.Channel:
-                    return from pair in state.Channels
-                           let c = pair.Value
-                           where c.ID != ChannelInfo.PrivateChannelVirtualID && !c.IsPrivate
+                case CommandSegmentType.ChannelOrNew:
+                    return from c in CommandSegmentResolver.ResolveChannels(state)
                            let name = c.Info.Name
                            where name.Contains(part, sc)
                            select new Completion(name, name, remove);

@@ -28,6 +28,23 @@
     <Compile Include="..\MiaoNet.ClientShared\BestEffortCleanup.cs" LinkBase="0-Shared" />
     <Compile Include="..\MiaoNet.Shared\SafeGuard.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\ChatInputBox\ChatInputBox\ChatText*.cs" LinkBase="0-Shared/ChatInputBox" />
+    <Compile Include="..\ChatInputBox\ChatInputBox\ChatInputHighlighting.cs"
+      LinkBase="0-Shared/ChatInputBox" />
+    <Compile Include="..\MiaoNet.Client\ChatInput\ChatInputToken.cs" LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\ChatInput\ChatInputTokenizer.cs"
+      LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\ChatInput\ChatInputValidity.cs"
+      LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\ChatInput\IChatInputValidityContext.cs"
+      LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\ChatInput\IChatInputState.cs" LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\Components\MiaoNetChatInputValidityContext.cs"
+      LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\ChatInput\ChatInputHighlighter.cs"
+      LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\ChatInput\ChatInputHighlightColors.cs"
+      LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\Data\ChatMentionParser.cs" LinkBase="0-Shared/ChatInput" />
   </ItemGroup>
 
   <ItemGroup>

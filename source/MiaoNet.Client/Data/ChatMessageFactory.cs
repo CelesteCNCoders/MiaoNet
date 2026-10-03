@@ -153,52 +153,8 @@ public sealed class ChatMessageFactory
         bool mentionsSelf = false;
         var builder = ImmutableArray.CreateBuilder<ChatTextSegment>();
         foreach (ChatTextSegment segment in ChatText.Parse(text, defaultColor))
-            mentionsSelf |= SplitMentionSegments(builder, segment, names, selfName);
+            mentionsSelf |= ChatMentionParser.SplitMentionSegments(builder, segment, names, selfName, ColorMention);
         return (builder.DrainToImmutable(), mentionsSelf);
-    }
-
-    private static bool SplitMentionSegments(
-        ImmutableArray<ChatTextSegment>.Builder builder,
-        ChatTextSegment segment,
-        IEnumerable<string> names,
-        string? selfName
-    )
-    {
-        bool mentionsSelf = false;
-        string text = segment.Text;
-        if (text.IndexOf('@', StringComparison.Ordinal) < 0)
-        {
-            builder.Add(segment);
-            return false;
-        }
-
-        int start = 0;
-        for (int i = 0; i < text.Length; i++)
-        {
-            if (text[i] != '@' || (i != 0 && !char.IsWhiteSpace(text[i - 1])))
-                continue;
-
-            int mentionEnd = i + 1;
-            while (mentionEnd < text.Length && !char.IsWhiteSpace(text[mentionEnd]))
-                mentionEnd++;
-
-            string name = text[(i + 1)..mentionEnd];
-            if (!names.Contains(name))
-                continue;
-
-            if (string.Equals(name, selfName, StringComparison.OrdinalIgnoreCase))
-                mentionsSelf = true;
-            if (i > start)
-                builder.Add(new ChatTextSegment(segment.Style, segment.Color, text[start..i]));
-            builder.Add(new ChatTextSegment(segment.Style, ColorMention, text[i..mentionEnd]));
-            i = mentionEnd - 1;
-            start = mentionEnd;
-        }
-
-        if (start < text.Length)
-            builder.Add(new ChatTextSegment(segment.Style, segment.Color, text[start..]));
-
-        return mentionsSelf;
     }
 }
 
