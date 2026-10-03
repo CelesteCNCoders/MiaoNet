@@ -33,7 +33,7 @@ public class ChatInputHighlighterTest
         public ChatInputValidity CheckMention(string name)
             => MentionNames is null
                 ? ChatInputValidity.Neutral
-                : (MentionNames.Any(n => n.Equals(name, StringComparison.OrdinalIgnoreCase)) ? ChatInputValidity.Valid : ChatInputValidity.Invalid);
+                : (MentionNames.Contains(name) ? ChatInputValidity.Valid : ChatInputValidity.Invalid);
         public ChatInputValidity CheckChannel(string name) => Channel;
         public ChatInputValidity CheckChannelType(string name) => ChannelType;
         public ChatInputValidity CheckEmoji(string name)
@@ -152,10 +152,11 @@ public class ChatInputHighlighterTest
     }
 
     [TestMethod]
-    public void Mention_Resolved_CaseInsensitive()
+    public void Mention_Resolved_CaseSensitive()
     {
         var validity = new FakeValidity { MentionNames = new HashSet<string> { "bob" } };
-        Assert.AreEqual(ChatInputHighlightColors.Player, ColorAt(Highlight(validity, "@Bob ", 5), 1));
+        Assert.AreEqual(ChatInputHighlightColors.Player, ColorAt(Highlight(validity, "@bob ", 5), 1));
+        Assert.AreEqual(ChatInputHighlightColors.Invalid, ColorAt(Highlight(validity, "@Bob ", 5), 1));
     }
 
     [TestMethod]

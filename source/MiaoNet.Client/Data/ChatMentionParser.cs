@@ -35,7 +35,7 @@ public static class ChatMentionParser
             if (!names.Contains(name))
                 continue;
 
-            if (string.Equals(name, selfName, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(name, selfName, StringComparison.Ordinal))
                 mentionsSelf = true;
             if (i > start)
                 builder.Add(new ChatTextSegment(segment.Style, segment.Color, text[start..i]));

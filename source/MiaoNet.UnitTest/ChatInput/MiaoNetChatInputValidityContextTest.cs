@@ -96,12 +96,13 @@ public class MiaoNetChatInputValidityContextTest
     }
 
     [TestMethod]
-    public void MentionMatch_UsesRosterCaseInsensitively()
+    public void MentionMatch_UsesRosterCaseSensitively()
     {
         var state = new FakeState { AllPlayerNames = ["Alice", "Bobby"] };
         var ctx = Create(state);
 
-        Assert.AreEqual(ChatInputValidity.Valid, ctx.CheckMention("bobby"));
+        Assert.AreEqual(ChatInputValidity.Valid, ctx.CheckMention("Bobby"));
+        Assert.AreEqual(ChatInputValidity.Invalid, ctx.CheckMention("bobby"));
         Assert.AreEqual(ChatInputValidity.Invalid, ctx.CheckMention("nobody"));
     }
 }

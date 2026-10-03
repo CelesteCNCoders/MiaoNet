@@ -42,7 +42,7 @@ public sealed class MiaoNetChatInputValidityContext : IChatInputValidityContext
         if (!state.IsConnected)
             return ChatInputValidity.Neutral;
 
-        return state.AllPlayerNames.Any(n => n.Equals(name, StringComparison.OrdinalIgnoreCase))
+        return state.AllPlayerNames.Contains(name)
             ? ChatInputValidity.Valid
             : ChatInputValidity.Invalid;
     }

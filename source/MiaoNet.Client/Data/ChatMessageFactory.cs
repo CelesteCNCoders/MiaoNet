@@ -141,7 +141,7 @@ public sealed class ChatMessageFactory
         if (string.IsNullOrEmpty(text) || players is null)
             return (ChatText.Parse(text, defaultColor), false);
 
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (OnlinePlayer p in players)
         {
             if (!string.IsNullOrEmpty(p.Info.Name))
