@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.InteropServices;
 using Microsoft.Xna.Framework.Input;
 
 namespace Celeste.Mod.ChatInputBox;
@@ -8,8 +7,9 @@ public sealed class InputBox
 {
     public const float CaretBlinkInterval = 0.5f;
 
-    private readonly IScalelessTextRenderer textRenderer;
+    private readonly ILiteralTextRenderer textRenderer;
     private readonly ICompletionProvider completionProvider;
+    private readonly IChatInputHighlighter? highlighter;
 
     private readonly TextBuffer buffer;
     private List<Completion>? completions;
@@ -52,10 +52,11 @@ public sealed class InputBox
         downButton.SetRepeat(0.4f, 0.05f);
     }
 
-    public InputBox(IScalelessTextRenderer textRenderer, ICompletionProvider completionProvider)
+    public InputBox(ILiteralTextRenderer textRenderer, ICompletionProvider completionProvider, IChatInputHighlighter? highlighter = null)
     {
         this.textRenderer = textRenderer;
         this.completionProvider = completionProvider;
+        this.highlighter = highlighter;
 
         buffer = new();
         buffer.TextOrCaretChanged += OnTextOrCaretChanged;
@@ -247,28 +248,38 @@ public sealed class InputBox
             color: Color.Black * (0x7f / 255f)
         );
 
-        Vector2 pos = textBaseLoc;
-        Vector2 sizeBeforeCaret = textRenderer.Measure(buffer.TextBeforeCaret);
-        Vector2 sizeAfterCaret = textRenderer.Measure(buffer.TextAfterCaret);
-        textRenderer.Draw(buffer.TextBeforeCaret, pos, justify: new Vector2(0f, 1f), color: Color.White);
-        pos.X += sizeBeforeCaret.X;
+        Vector2 sizeBeforeCaret = textRenderer.MeasureLiteral(buffer.TextBeforeCaret);
+        IReadOnlyList<ChatInputHighlightSpan> spans = highlighter?.Highlight(buffer.Text, buffer.CaretPosition)
+            ?? [new ChatInputHighlightSpan(0, buffer.Text.Length, Color.White)];
+
+        float literalY = textBaseLoc.Y - textRenderer.LineHeight;
+        textRenderer.DrawLiteral(buffer.Text, 0, buffer.CaretPosition, spans, new Vector2(textBaseLoc.X, literalY));
 
         Vector2 sizeImeEditing = Vector2.Zero;
         if (imeEditingText is not null)
         {
-            sizeImeEditing = textRenderer.Measure(imeEditingText);
-            textRenderer.Draw(imeEditingText, pos, justify: new Vector2(0f, 1f), color: Color.Gray);
-            pos.X += sizeImeEditing.X;
+            sizeImeEditing = textRenderer.MeasureLiteral(imeEditingText);
+            Vector2 imePos = new Vector2(textBaseLoc.X + sizeBeforeCaret.X, literalY);
+            textRenderer.DrawLiteral(imeEditingText, imePos, justify: Vector2.Zero, color: Color.Gray);
+            textRenderer.DrawLiteral(
+                buffer.Text, buffer.CaretPosition, buffer.Text.Length, spans,
+                imePos + new Vector2(sizeImeEditing.X, 0f)
+            );
         }
-        textRenderer.Draw(buffer.TextAfterCaret, pos, justify: new Vector2(0f, 1f), color: Color.White);
-        pos.X += sizeAfterCaret.X;
+        else
+        {
+            textRenderer.DrawLiteral(
+                buffer.Text, buffer.CaretPosition, buffer.Text.Length, spans,
+                new Vector2(textBaseLoc.X + sizeBeforeCaret.X, literalY)
+            );
+        }
 
         if (showCaret)
         {
             float width = sizeBeforeCaret.X;
             if (imeEditingText is not null)
             {
-                Vector2 sizeBeforeImeStart = textRenderer.Measure(imeEditingText.Substring(0, Math.Min(imeEditingStart, imeEditingText.Length)));
+                Vector2 sizeBeforeImeStart = textRenderer.MeasureLiteral(imeEditingText.Substring(0, Math.Min(imeEditingStart, imeEditingText.Length)));
                 width += sizeBeforeImeStart.X;
             }
 

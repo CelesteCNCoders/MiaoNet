@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Celeste.Mod.ChatInputBox;
 
@@ -111,6 +110,97 @@ public static class MiaoNetFont
     [MethodImpl(MioAI)]
     public static bool CanRender(int character)
         => ENZhsFontSize.Characters.ContainsKey(character);
+
+    public static Vector2 MeasureLiteral(string text)
+    {
+        float width = 0f;
+        foreach (var (character, x, _) in LayOut(text, 0, text.Length))
+            width = Math.Max(width, x + character.XAdvance);
+
+        return new Vector2(width, ENZhsFontSize.LineHeight);
+    }
+
+    public static void DrawLiteral(string text, Vector2 position, Vector2 justify, Vector2 scale, Color color)
+    {
+        Vector2 size = MeasureLiteral(text);
+        Vector2 position2 = position - new Vector2(size.X * justify.X, size.Y * justify.Y) * scale;
+
+        foreach (var (character, x, _) in LayOut(text, 0, text.Length))
+        {
+            Vector2 pos = position2 + new Vector2(x + character.XOffset, character.YOffset) * scale;
+            character.Texture.Draw(pos, Vector2.Zero, color, scale);
+        }
+    }
+
+    public static void DrawLiteral(
+        string text, int start, int end,
+        IReadOnlyList<ChatInputHighlightSpan> runs, Vector2 position, Vector2 scale
+    )
+    {
+        int runIndex = 0;
+        foreach (var (character, x, index) in LayOut(text, start, end))
+        {
+            // runs are sorted and cover the text in order, so advance at most once per glyph
+            while (runIndex < runs.Count && index >= runs[runIndex].End)
+                runIndex++;
+            Color color = runIndex < runs.Count && index >= runs[runIndex].Start
+                ? runs[runIndex].Color
+                : Color.White;
+
+            Vector2 pos = position + new Vector2(x + character.XOffset, character.YOffset) * scale;
+            character.Texture.Draw(pos, Vector2.Zero, color, scale);
+        }
+    }
+
+    // Lays out a raw string like PixelFontSize (glyph lookup, kerning, surrogate pairs),
+    // re-implemented to handle baseline and kerning differences when highlighting.
+    // Keep the two in sync if the engine's layout changes.
+    private static IEnumerable<(PixelFontCharacter Character, float X, int Index)> LayOut(
+        string text, int start, int end
+    )
+    {
+        PixelFontSize font = ENZhsFontSize;
+        float x = 0f;
+        for (int i = start; i < end;)
+        {
+            int codePoint = ReadCodePoint(text, i, out int length);
+
+            if (font.Characters.TryGetValue(codePoint, out var character))
+            {
+                int nextCodePoint = PeekCodePoint(text, i + length);
+                int kerning = nextCodePoint != -1 && character.Kerning.TryGetValue(nextCodePoint, out int value)
+                    ? value
+                    : 0;
+                yield return (character, x, i);
+                x += character.XAdvance + kerning;
+            }
+
+            i += length;
+        }
+    }
+
+    private static int ReadCodePoint(string text, int i, out int length)
+    {
+        char c = text[i];
+        if (char.IsHighSurrogate(c) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]))
+        {
+            length = 2;
+            return char.ConvertToUtf32(c, text[i + 1]);
+        }
+        length = 1;
+        return c;
+    }
+
+    private static int PeekCodePoint(string text, int i)
+    {
+        if (i >= text.Length)
+            return -1;
+
+        char c = text[i];
+        if (char.IsHighSurrogate(c) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]))
+            return char.ConvertToUtf32(c, text[i + 1]);
+        return c;
+    }
 
     public static void Draw(ChatText text, Vector2 position, float yJustify, Vector2 scale, float alpha)
     {
