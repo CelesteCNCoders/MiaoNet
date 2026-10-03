@@ -61,7 +61,20 @@ public sealed partial class ChatComponent : MiaoNetComponent
         dummyOverlay = new();
         cmdParser = new(MiaoNetCommand.Commands);
         chatMessageFactory = new(context);
-        inputBox = new InputBox(textRenderer, new ChatCompletionProvider(context, cmdParser));
+        var state = new MiaoNetChatInputState(context);
+        var validity = new MiaoNetChatInputValidityContext(
+            state,
+            cmdParser,
+            isChannelType: name => ChatChannelMatcher.Match(name) != (ChatChannel)(-1),
+            isEmoji: name => Emoji.TryGet(name, out _)
+        );
+
+        ChatInputHighlighter highlighter = new(cmdParser, validity, state);
+        inputBox = new InputBox(
+            textRenderer,
+            new ChatCompletionProvider(context, cmdParser),
+            highlighter
+        );
         chatMessageBox = new(textRenderer);
         ChatMessageBoxSetup();
 

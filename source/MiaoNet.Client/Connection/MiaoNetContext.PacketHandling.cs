@@ -25,6 +25,7 @@ partial class MiaoNetContext
     public event Action<OnlinePlayer>? PlayerGrabJumpOut;
     public event Action<PacketPlayerChannelMovedResponse>? SelfChannelMoved;
     public event PlayerNotificationHandler<PacketPlayerChannelMovedNotification>? PlayerChannelMoved;
+    public event Action<PacketChannelCreated>? ChannelCreated;
     public event Action<PacketPlayerChannelMoveFailed>? SelfChannelMoveFailed;
 
     private void RegisterPacketHandlers(PacketHandlerRegister r)
@@ -309,6 +310,7 @@ partial class MiaoNetContext
     {
         EnsureState();
         ClientState.OnNewChannelCreated(packet.ChannelID, packet.ChannelInfo);
+        ChannelCreated?.Invoke(packet);
     }
 
     private void HandlePacket(PacketEnvelope envelope, PacketPlayerChannelMoveFailed packet)
