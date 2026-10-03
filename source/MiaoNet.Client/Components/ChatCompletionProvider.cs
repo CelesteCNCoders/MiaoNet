@@ -96,7 +96,7 @@ public sealed class ChatCompletionProvider : ICompletionProvider
             return null;
 
         // this impl is ugly but it just works
-        bool endsWithSpace = input.EndsWith(' ');
+        bool endsWithSpace = input.Length > 0 && char.IsWhiteSpace(input[^1]);
         CommandParser.ParseResult result = parser.Parse(input, out string commandName, out MiaoNetCommand? matchedCommand, out var segments);
 
         if (!endsWithSpace && segments is null or { Count: 0 })

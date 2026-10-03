@@ -18,6 +18,8 @@
 
   <ItemGroup>
     <Compile Include="..\MiaoNet.Client\Command\CommandParser.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\MiaoNet.Client\Command\CommandArgumentSplitter.cs"
+      LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Command\CommandSegmentType.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Command\MiaoNetCommand.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Misc\SR.cs" LinkBase="0-Shared/Command" />

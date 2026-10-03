@@ -308,7 +308,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
         if (result != CommandParser.ParseResult.Success)
         {
-            TipCommandError(result, cmdName, cmd, args is null ? -1 : args.Count);
+            TipCommandError(result, cmdName, cmd, args);
             return;
         }
 
@@ -316,8 +316,9 @@ public sealed partial class ChatComponent : MiaoNetComponent
         if (error is not null)
             AddLocalChat(MiaoNetChatText.CreateCommandError(error));
 
-        void TipCommandError(CommandParser.ParseResult result, string cmdName, MiaoNetCommand? cmd, int argc)
+        void TipCommandError(CommandParser.ParseResult result, string cmdName, MiaoNetCommand? cmd, IReadOnlyList<string>? args)
         {
+            int argc = args is null ? -1 : args.Count;
             string msg = result switch
             {
                 CommandParser.ParseResult.NoSuchCommand =>
