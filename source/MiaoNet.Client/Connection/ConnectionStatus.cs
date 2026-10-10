@@ -31,6 +31,8 @@ public static class ConnectionStatus
 
     public static string InternalServerError => Dialog.Get($"{Base}internal_server_error");
 
+    public static string InvalidName => Dialog.Get($"{Base}invalid_name");
+
     public static string ConnectFailedWithReason(string reason)
         => PFormat.Format(Dialog.Get($"{Base}connect_failed_with_reason"), reason);
 

@@ -61,13 +61,27 @@ public sealed partial class ChatComponent : MiaoNetComponent
         dummyOverlay = new();
         cmdParser = new(MiaoNetCommand.Commands);
         chatMessageFactory = new(context);
-        inputBox = new InputBox(textRenderer, new ChatCompletionProvider(context, cmdParser));
+        var state = new MiaoNetChatInputState(context);
+        var validity = new MiaoNetChatInputValidityContext(
+            state,
+            cmdParser,
+            isChannelType: name => ChatChannelMatcher.Match(name) != (ChatChannel)(-1),
+            isEmoji: name => Emoji.TryGet(name, out _)
+        );
+
+        ChatInputHighlighter highlighter = new(cmdParser, validity, state);
+        inputBox = new InputBox(
+            textRenderer,
+            new ChatCompletionProvider(context, cmdParser),
+            highlighter
+        );
         chatMessageBox = new(textRenderer);
         ChatMessageBoxSetup();
 
         context.ChatMessageReceived += Context_ChatMessageReceived;
         context.PlayerJoined += Context_PlayerJoined;
         context.PlayerLeft += Context_PlayerLeft;
+        context.SelfChannelMoveFailed += Context_SelfChannelMoveFailed;
 
         var settings = MiaoNetModule.Settings;
         MiaoNetModule.Settings.SettingsChanged += Settings_SettingsChanged;
@@ -112,6 +126,17 @@ public sealed partial class ChatComponent : MiaoNetComponent
             return;
         string text = PFormat.Format(context.PlayerPresenceMessage.PlayerLeft, player.GetDisplayName(false, context.ShowAvatar));
         AddLocalChat(MiaoNetChatText.CreateAnnouncement(text));
+    }
+
+    private void Context_SelfChannelMoveFailed(PacketPlayerChannelMoveFailed packet)
+    {
+        string message = packet.Reason switch
+        {
+            PacketPlayerChannelMoveFailed.FailedReason.InvalidName =>
+                PFormat.Format(Dialog.Get("miaonet_commands_channel_invalid_name"), packet.TargetChannelName),
+            _ => ConnectionStatus.InternalServerError,
+        };
+        AddLocalChat(MiaoNetChatText.CreateCommandError(message));
     }
 
     private void Context_ChatMessageReceived(OnlinePlayer? player, PacketChatMessage packet)
@@ -296,7 +321,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
         if (result != CommandParser.ParseResult.Success)
         {
-            TipCommandError(result, cmdName, cmd, args is null ? -1 : args.Count);
+            TipCommandError(result, cmdName, cmd, args);
             return;
         }
 
@@ -304,8 +329,9 @@ public sealed partial class ChatComponent : MiaoNetComponent
         if (error is not null)
             AddLocalChat(MiaoNetChatText.CreateCommandError(error));
 
-        void TipCommandError(CommandParser.ParseResult result, string cmdName, MiaoNetCommand? cmd, int argc)
+        void TipCommandError(CommandParser.ParseResult result, string cmdName, MiaoNetCommand? cmd, IReadOnlyList<string>? args)
         {
+            int argc = args is null ? -1 : args.Count;
             string msg = result switch
             {
                 CommandParser.ParseResult.NoSuchCommand =>
