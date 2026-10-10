@@ -1,6 +1,6 @@
 namespace Celeste.Mod.MiaoNet;
 
-public sealed class MiaoNetChatInputValidityContext : IChatInputValidityContext
+internal sealed class MiaoNetChatInputValidityContext : IChatInputValidityContext
 {
     private readonly IChatInputState state;
     private readonly CommandParser parser;
