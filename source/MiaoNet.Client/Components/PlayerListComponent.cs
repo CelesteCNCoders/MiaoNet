@@ -42,22 +42,30 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     // self is not in any channel's player set, so its entry is kept here instead of in the reuse map
     private PlayerListEntry? selfEntry;
 
+    // what the network events recorded since the last frame. they only set these; ApplyListChanges()
+    // applies them at one point of the frame, so a burst of joins costs one sync instead of one each.
+    private bool listChanged;
+    private bool rebuildEntries;
+    private bool pingsChanged;
+    private readonly HashSet<OnlinePlayer> movedPlayers = [];
+
     public PlayerListComponent(MiaoNetContext context)
         : base(context)
     {
         pComparer = new();
         channelPlayerList = new();
         context.ClientInitialized += Context_ClientInitialized;
-        // channel created/removed events are removed, we may reintroduce those if needed, so the
-        // channel list is still walked as a whole. the entries are not rebuilt any more: building one
-        // does AreaData, Dialog and GFX lookups, and none of that changes because someone else joined,
-        // left or moved.
-        context.PlayerJoined += _ => SyncPlayerList();
-        context.PlayerLeft += _ => SyncPlayerList();
-        context.PlayerLocationChanged += (p, _) => UpdatePlayer(p);
-        context.PingDataReceived += Context_PingDataReceived;
-        context.SelfChannelMoved += _ => SyncPlayerList();
-        context.PlayerChannelMoved += (_, _) => SyncPlayerList();
+        // the events below only record what happened; the list is brought up to date lazily, when it is
+        // drawn. channel created/removed events are removed and we may reintroduce those if needed, so
+        // the channel list is still walked as a whole. the entries are not rebuilt any more: building
+        // one does AreaData, Dialog and GFX lookups, and none of that changes because someone else
+        // joined, left or moved.
+        context.PlayerJoined += _ => listChanged = true;
+        context.PlayerLeft += _ => listChanged = true;
+        context.PlayerLocationChanged += (p, _) => movedPlayers.Add(p);
+        context.PingDataReceived += () => pingsChanged = true;
+        context.SelfChannelMoved += _ => listChanged = true;
+        context.PlayerChannelMoved += (_, _) => listChanged = true;
 
         texPlayerDebugMap = GFX.Gui["miaonet/debug_map"];
         texPlayerPaused = GFX.Gui["miaonet/paused"];
@@ -73,8 +81,12 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     {
         if (category is not SettingsCategory.PlayerList)
             return;
-        if (HasState)
-            SyncPlayerList(reuseEntries: false);
+        if (!HasState)
+            return;
+
+        // the map and room strings are clipped when an entry is built, so the entries are rebuilt
+        listChanged = true;
+        rebuildEntries = true;
     }
 
     // rebuilds the channel sections from the client state. the walk stays because there are no channel
@@ -215,33 +227,61 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         RefreshMeasurements();
     }
 
-    private void Context_PingDataReceived()
+    // applies whatever the packets and the settings recorded since the last frame: rebuild the list,
+    // refresh the ping texts, re-read the rows whose player moved. called from the top of Render.
+    private void ApplyListChanges()
     {
-        foreach (var channel in channelPlayerList)
-            foreach (var item in channel.Players)
-                item.UpdatePing();
+        if (listChanged)
+        {
+            listChanged = false;
+            bool reuseEntries = !rebuildEntries;
+            rebuildEntries = false;
+            SyncPlayerList(reuseEntries);
+        }
+
+        if (pingsChanged)
+        {
+            pingsChanged = false;
+            foreach (var channel in channelPlayerList)
+                foreach (var item in channel.Players)
+                    item.UpdatePing();
+        }
+
+        if (movedPlayers.Count == 0)
+            return;
+
+        // a channel move can land in the same frame as a location change, so this runs after the sync
+        // above: by then every entry sits in the channel it belongs to
+        foreach (var player in movedPlayers)
+            RefreshEntry(player);
+
+        movedPlayers.Clear();
+        SortPlayerList();
     }
 
-    private void UpdatePlayer(OnlinePlayer player)
+    // re-reads one player's row from the state; the caller sorts once it is done with the batch. a
+    // player who left while the change was queued has no row left, and needs none.
+    private void RefreshEntry(OnlinePlayer player)
     {
 #if MOCK_DATA
         return;
 #endif
         var channel = channelPlayerList.Find(c => c.Channel == player.Channel);
-        var item = channel!.Players.Find(i => i.Player == player);
-        item!.Update(ClipType);
-        SortPlayerList();
+        var item = channel?.Players.Find(i => i.Player == player);
+        if (item is null)
+            return;
+
+        item.Update(ClipType);
         MeasureEntry(item);
-        return;
     }
 
     private void Context_ClientInitialized(ClientState state)
     {
-        SyncPlayerList();
+        listChanged = true;
         state.SelfLocationChanged += new(State_SelfLocationChanged);
 
         void State_SelfLocationChanged()
-            => UpdatePlayer(ClientState.Self);
+            => movedPlayers.Add(ClientState.Self);
     }
 
     private void SortPlayerList()
@@ -256,6 +296,10 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         scroll = 0f;
         channelPlayerList.Clear();
         selfEntry = null;
+        listChanged = false;
+        rebuildEntries = false;
+        pingsChanged = false;
+        movedPlayers.Clear();
     }
 
     public override void Update()
@@ -349,6 +393,10 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     {
         if (!Active)
             return;
+
+        // the data half of the frame lives here rather than in Update: this is the only reader, and a
+        // closed list then costs nothing at all -- the events only recorded what changed
+        ApplyListChanges();
 
         /*
          * 
