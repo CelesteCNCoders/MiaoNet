@@ -29,8 +29,9 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     private float scroll;
     private float scrollTarget;
 
-    // text measurements the rows share, refreshed by RefreshMeasurements() when the list, the ui scale
-    // or live mode changes. Render used to measure every string of every row on every frame.
+    // text measurements the rows share, refreshed by RefreshSharedMeasurements() after every sync and by
+    // the check at the top of Render when the ui scale or live mode moves. Render used to measure every
+    // string of every row on every frame.
     private float measuredScale = float.NaN;
     private bool measuredLiveMode;
     private float spaceWidth;
@@ -176,7 +177,9 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             if (reuseEntries && existing.Remove(player, out PlayerListEntry? entry))
                 return entry;
 
-            return new PlayerListEntry(player, context.ShowAvatar, ClipType);
+            var created = new PlayerListEntry(player, context.ShowAvatar, ClipType);
+            MeasureEntry(created);
+            return created;
         }
 
         channelPlayerList.Clear();
@@ -187,7 +190,9 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             if (reuseEntries && selfEntry is not null)
                 return selfEntry;
 
-            return selfEntry = new PlayerListEntry(state.Self, context.ShowAvatar, ClipType);
+            selfEntry = new PlayerListEntry(state.Self, context.ShowAvatar, ClipType);
+            MeasureEntry(selfEntry);
+            return selfEntry;
         }
 
         foreach (var (_, channel) in state.Channels)
@@ -224,7 +229,14 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         }
 #endif
 
-        RefreshMeasurements();
+        // a row is measured when it is built, so a join, a leave or a channel move only has to redo the
+        // headers; the rows are re-measured when the scale or live mode moved under them
+        bool remeasureRows = measuredScale != MiaoNetModule.Settings.PlayerListUIScaleValue
+            || measuredLiveMode != MiaoNetModule.Settings.LiveMode;
+
+        RefreshSharedMeasurements();
+        if (remeasureRows)
+            MeasureAllEntries();
     }
 
     // applies whatever the packets and the settings recorded since the last frame: rebuild the list,
@@ -358,35 +370,75 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         }
     }
 
-    // measures one row after its strings changed. used by the paths that only touch a single player,
-    // so they don't have to redo the whole list.
+    // measures one row: the text through the entry, the icons here because the textures live on the
+    // component. everything a row is made of is measured in this one place, and the layout loop calls it
+    // again when the flags moved under the row.
     private void MeasureEntry(PlayerListEntry item)
     {
         var settings = MiaoNetModule.Settings;
-        item.Measure(settings.PlayerListUIScaleValue, settings.LiveMode);
+        float scale = settings.PlayerListUIScaleValue;
+        float lineHeight = MiaoNetFont.ENZhsLineHeight * scale;
+
+        item.Measure(scale, settings.LiveMode);
+
+        PlayerGlobalFlags flags = item.Player.GlobalFlags;
+
+        float icons = 0f;
+        if (flags.HasFlag(PlayerGlobalFlags.Paused))
+        {
+            float texScale = lineHeight / texPlayerPaused.Height;
+            icons += texScale * texPlayerPaused.Width + 2 * PausedTexOffsetRange;
+        }
+
+        if (flags.HasFlag(PlayerGlobalFlags.Interactions))
+            icons += (lineHeight / texPlayerInteractions.Height) * texPlayerInteractions.Width;
+
+        if (flags.HasFlag(PlayerGlobalFlags.LiveMode))
+            icons += (lineHeight / texLiveMode.Height) * texLiveMode.Width;
+
+        if (flags.HasFlag(PlayerGlobalFlags.TakingGolden))
+            icons += (lineHeight / texTakingGolden.Height) * texTakingGolden.Width;
+
+        if (flags.HasFlag(PlayerGlobalFlags.GroupPhotoMode))
+            icons += (lineHeight / texGroupPhotoMode.Height) * texGroupPhotoMode.Width;
+
+        if (flags.HasFlag(PlayerGlobalFlags.Watching))
+            icons += (lineHeight / texPlayerDebugMap.Height) * texPlayerDebugMap.Width;
+
+        item.IconsWidth = icons;
+        item.MeasuredFlags = flags;
+        item.DebugMapWidth = (lineHeight / texPlayerDebugMap.Height) * texPlayerDebugMap.Width;
+        item.AreaIconWidth = item.AreaIconTexture is null
+            ? 0f
+            : (lineHeight / item.AreaIconTexture.Height) * item.AreaIconTexture.Width;
     }
 
-    // measures every row and every channel header. needed when the shape of the list changed, and when
-    // the ui scale or live mode did; the per-row paths use MeasureEntry instead.
-    private void RefreshMeasurements()
+    // the widths that don't belong to a single row: the shared separators, the fixed ping column and
+    // the channel headers. cheap, so it runs after every sync, because the headers carry the counts.
+    private void RefreshSharedMeasurements()
     {
         var settings = MiaoNetModule.Settings;
         float scale = settings.PlayerListUIScaleValue;
-        bool liveMode = settings.LiveMode;
 
         measuredScale = scale;
-        measuredLiveMode = liveMode;
+        measuredLiveMode = settings.LiveMode;
 
         spaceWidth = MiaoNetFont.Measure(" ").X * scale;
         colonWidth = MiaoNetFont.Measure(":").X * scale;
         pingColumnWidth = MiaoNetFont.Measure($"{PlayerListEntry.MaxDisplayedPing}ms").X * scale + spaceWidth;
 
         foreach (var channel in channelPlayerList)
-        {
             channel.Measure(scale);
+    }
+
+    // measures every row. only needed when the scale or live mode moved under entries that are already
+    // measured; a row built by a sync is measured there, and one whose strings or flags changed by
+    // MeasureEntry.
+    private void MeasureAllEntries()
+    {
+        foreach (var channel in channelPlayerList)
             foreach (var item in channel.Players)
-                item.Measure(scale, liveMode);
-        }
+                MeasureEntry(item);
     }
 
     public override void Render()
@@ -425,7 +477,11 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
         float scale = MiaoNetModule.Settings.PlayerListUIScaleValue;
         if (measuredScale != scale || measuredLiveMode != MiaoNetModule.Settings.LiveMode)
-            RefreshMeasurements();
+        {
+            // the scale or live mode moved under entries that are already measured
+            RefreshSharedMeasurements();
+            MeasureAllEntries();
+        }
 
         const float RectXMargin = 16f;
         const float RectYMargin = 16f;
@@ -462,73 +518,24 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 {
                     var player = item.Player;
 
-                    float itemWidth = 0f;
+                    // the status icons are part of the row width and only the flags move them
+                    if (item.MeasuredFlags != player.GlobalFlags)
+                        MeasureEntry(item);
 
-                    itemWidth += item.NameWidth;
-                    itemWidth += MiddlePadding;
-
-                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Paused))
-                    {
-                        float texScale = lineHeight / texPlayerPaused.Height;
-                        itemWidth += texScale * texPlayerPaused.Width + 2 * PausedTexOffsetRange;
-                    }
-
-                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Interactions))
-                    {
-                        float texScale = lineHeight / texPlayerInteractions.Height;
-                        itemWidth += texScale * texPlayerInteractions.Width;
-                    }
-
-                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.LiveMode))
-                    {
-                        float texScale = lineHeight / texLiveMode.Height;
-                        itemWidth += texScale * texLiveMode.Width;
-                    }
-
-                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.TakingGolden))
-                    {
-                        float texScale = lineHeight / texTakingGolden.Height;
-                        itemWidth += texScale * texTakingGolden.Width;
-                    }
-
-                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.GroupPhotoMode))
-                    {
-                        float texScale = lineHeight / texGroupPhotoMode.Height;
-                        itemWidth += texScale * texGroupPhotoMode.Width;
-                    }
-
-                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching))
-                    {
-                        float texScale = lineHeight / texPlayerDebugMap.Height;
-                        itemWidth += texScale * texPlayerDebugMap.Width;
-                    }
+                    float itemWidth = item.NameWidth + MiddlePadding + item.IconsWidth;
 
                     if (!player.Location.IsEmpty)
                     {
                         itemWidth += colonWidth;
-                        if (!player.Location.IsInDebugMap)
-                        {
-                            itemWidth += item.RoomWidth;
-                        }
-                        else
-                        {
-                            float texScale = lineHeight / texPlayerDebugMap.Height;
-                            itemWidth += texScale * texPlayerDebugMap.Width;
-                        }
+                        itemWidth += player.Location.IsInDebugMap ? item.DebugMapWidth : item.RoomWidth;
 
                         if (item.AreaIconTexture is not null)
-                        {
-                            itemWidth += spaceWidth;
-                            float texScale = lineHeight / item.AreaIconTexture.Height;
-                            itemWidth += texScale * item.AreaIconTexture.Width;
-                        }
+                            itemWidth += spaceWidth + item.AreaIconWidth;
 
                         itemWidth += spaceWidth + item.MapNameWidth;
 
                         if (item.AreaModeText is not null)
-                        {
                             itemWidth += spaceWidth + item.AreaModeWidth;
-                        }
                     }
 
                     if (item.PingText is not null)

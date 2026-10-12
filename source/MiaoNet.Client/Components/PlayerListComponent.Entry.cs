@@ -26,6 +26,15 @@ public sealed partial class PlayerListComponent
         public float RoomWidth;
         public float AreaModeWidth;
 
+        // the widths that aren't text: the status icons from the flags, and the two icons a location can
+        // add. measured with the text by the owner, which owns the textures.
+        public float IconsWidth;
+        public float DebugMapWidth;
+        public float AreaIconWidth;
+
+        // the flags IconsWidth was measured for; the layout re-measures the row when they move
+        public PlayerGlobalFlags MeasuredFlags;
+
         PlayerLocation IPlayerListEntry.Location => Player.Location;
 
         bool IPlayerListEntry.IsLocallyKnownMap => IsLocallyKnownMap;
