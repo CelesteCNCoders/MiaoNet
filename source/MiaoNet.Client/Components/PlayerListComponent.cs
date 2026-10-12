@@ -38,21 +38,25 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
     private static ClipType ClipType => MiaoNetModule.Settings.PlayerListMapNameClipType;
 
+    // self is not in any channel's player set, so its entry is kept here instead of in the reuse map
+    private PlayerListEntry? selfEntry;
+
     public PlayerListComponent(MiaoNetContext context)
         : base(context)
     {
         pComparer = new();
         channelPlayerList = new();
         context.ClientInitialized += Context_ClientInitialized;
-        // TODO surely full-rebuild is not necessary
-        // channel created/removed events are removed
-        // we may reintroduce those if needed
-        context.PlayerJoined += _ => BuildPlayerList();
-        context.PlayerLeft += _ => BuildPlayerList();
+        // channel created/removed events are removed, we may reintroduce those if needed, so the
+        // channel list is still walked as a whole. the entries are not rebuilt any more: building one
+        // does AreaData, Dialog and GFX lookups, and none of that changes because someone else joined,
+        // left or moved.
+        context.PlayerJoined += _ => SyncPlayerList();
+        context.PlayerLeft += _ => SyncPlayerList();
         context.PlayerLocationChanged += (p, _) => UpdatePlayer(p);
         context.PingDataReceived += Context_PingDataReceived;
-        context.SelfChannelMoved += _ => BuildPlayerList();
-        context.PlayerChannelMoved += (_, _) => BuildPlayerList();
+        context.SelfChannelMoved += _ => SyncPlayerList();
+        context.PlayerChannelMoved += (_, _) => SyncPlayerList();
 
         texPlayerDebugMap = GFX.Gui["miaonet/debug_map"];
         texPlayerPaused = GFX.Gui["miaonet/paused"];
@@ -69,10 +73,14 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         if (category is not SettingsCategory.PlayerList)
             return;
         if (HasState)
-            BuildPlayerList();
+            SyncPlayerList(reuseEntries: false);
     }
 
-    private void BuildPlayerList()
+    // rebuilds the channel sections from the client state. the walk stays because there are no channel
+    // created/removed events; the entry construction, which is the expensive part, only happens for
+    // players we haven't seen before -- except on a settings change, where every entry is rebuilt
+    // because the room and map strings are clipped when one is built.
+    private void SyncPlayerList(bool reuseEntries = true)
     {
 #if MOCK_DATA
         int id = 0;
@@ -144,8 +152,30 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             }, false, ClipType);
         }
 #else
+        // what we already have, by player; the keys left over at the end are the players that left
+        var existing = new Dictionary<OnlinePlayer, PlayerListEntry>();
+        foreach (var channel in channelPlayerList)
+            foreach (var item in channel.Players)
+                existing.Add(item.Player, item);
+
+        PlayerListEntry Take(OnlinePlayer player)
+        {
+            if (reuseEntries && existing.Remove(player, out PlayerListEntry? entry))
+                return entry;
+
+            return new PlayerListEntry(player, context.ShowAvatar, ClipType);
+        }
+
         channelPlayerList.Clear();
         var state = ClientState;
+
+        PlayerListEntry TakeSelf()
+        {
+            if (reuseEntries && selfEntry is not null)
+                return selfEntry;
+
+            return selfEntry = new PlayerListEntry(state.Self, context.ShowAvatar, ClipType);
+        }
 
         foreach (var (_, channel) in state.Channels)
         {
@@ -157,11 +187,11 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
             // add self
             if (channel == state.SelfChannel)
-                playerListEntries.Add(new PlayerListEntry(state.Self, context.ShowAvatar, ClipType));
+                playerListEntries.Add(TakeSelf());
 
             // add other players
             foreach (var player in channel.Players)
-                playerListEntries.Add(new PlayerListEntry(player, context.ShowAvatar, ClipType));
+                playerListEntries.Add(Take(player));
 
             channelPlayerList.Add(new PlayerListChannelEntry(channel, playerListEntries));
         }
@@ -208,7 +238,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
     private void Context_ClientInitialized(ClientState state)
     {
-        BuildPlayerList();
+        SyncPlayerList();
         state.SelfLocationChanged += new(State_SelfLocationChanged);
 
         void State_SelfLocationChanged()
@@ -226,6 +256,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         Active = false;
         scroll = 0f;
         channelPlayerList.Clear();
+        selfEntry = null;
     }
 
     public override void Update()
