@@ -92,8 +92,16 @@ public sealed partial class PlayerListComponent
             UpdatePing();
         }
 
-        public void UpdatePing()
-            => PingText = Player.LastPing == -1 ? null : $"{Player.LastPing}ms";
+        // returns whether the text changed, so the owner only re-measures the ping column when it did
+        public bool UpdatePing()
+        {
+            string? ping = Player.LastPing == -1 ? null : $"{Player.LastPing}ms";
+            if (ping == PingText)
+                return false;
+
+            PingText = ping;
+            return true;
+        }
 
         // caches the widths of every string this row draws. Called when the strings, the ui scale or
         // live mode changed.

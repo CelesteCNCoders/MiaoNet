@@ -218,9 +218,10 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     {
         foreach (var channel in channelPlayerList)
             foreach (var item in channel.Players)
-                item.UpdatePing();
-
-        RefreshMeasurements();
+            {
+                if (item.UpdatePing())
+                    MeasureEntry(item);
+            }
     }
 
     private void UpdatePlayer(OnlinePlayer player)
@@ -232,7 +233,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         var item = channel!.Players.Find(i => i.Player == player);
         item!.Update(ClipType);
         SortPlayerList();
-        RefreshMeasurements();
+        MeasureEntry(item);
         return;
     }
 
@@ -315,8 +316,16 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         }
     }
 
-    // measures the strings of every row once, so Render doesn't have to. the widths live on the
-    // entries; Render only adds them up.
+    // measures one row after its strings changed. used by the paths that only touch a single player,
+    // so they don't have to redo the whole list.
+    private void MeasureEntry(PlayerListEntry item)
+    {
+        var settings = MiaoNetModule.Settings;
+        item.Measure(settings.PlayerListUIScaleValue, settings.LiveMode);
+    }
+
+    // measures every row and every channel header. needed when the shape of the list changed, and when
+    // the ui scale or live mode did; the per-row paths use MeasureEntry instead.
     private void RefreshMeasurements()
     {
         var settings = MiaoNetModule.Settings;
