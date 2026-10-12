@@ -29,9 +29,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     private float scroll;
     private float scrollTarget;
 
-    // text measurements the rows share, refreshed by RefreshSharedMeasurements() after every sync and by
-    // the check at the top of Render when the ui scale or live mode moves. Render used to measure every
-    // string of every row on every frame.
+    // the widths the rows share, refreshed when the scale or live mode moves
     private float measuredScale = float.NaN;
     private bool measuredLiveMode;
     private float spaceWidth;
@@ -40,11 +38,10 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
     private static ClipType ClipType => MiaoNetModule.Settings.PlayerListMapNameClipType;
 
-    // self is not in any channel's player set, so its entry is kept here instead of in the reuse map
+    // self is not part of any channel's player set, so its entry is kept here
     private PlayerListEntry? selfEntry;
 
-    // what the network events recorded since the last frame. they only set these; ApplyListChanges()
-    // applies them at one point of the frame, so a burst of joins costs one sync instead of one each.
+    // recorded by the network events, applied together by ApplyListChanges()
     private bool listChanged;
     private bool rebuildEntries;
     private bool pingsChanged;
@@ -56,11 +53,9 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         pComparer = new();
         channelPlayerList = new();
         context.ClientInitialized += Context_ClientInitialized;
-        // the events below only record what happened; the list is brought up to date lazily, when it is
-        // drawn. channel created/removed events are removed and we may reintroduce those if needed, so
-        // the channel list is still walked as a whole. the entries are not rebuilt any more: building
-        // one does AreaData, Dialog and GFX lookups, and none of that changes because someone else
-        // joined, left or moved.
+        // the events only record; the list is rebuilt lazily, when it is drawn. there are no channel
+        // created/removed events for now, so the channel list is walked as a whole, but the entries
+        // themselves are reused: building one does AreaData, Dialog and GFX lookups.
         context.PlayerJoined += _ => listChanged = true;
         context.PlayerLeft += _ => listChanged = true;
         context.PlayerLocationChanged += (p, _) => movedPlayers.Add(p);
@@ -85,15 +80,13 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         if (!HasState)
             return;
 
-        // the map and room strings are clipped when an entry is built, so the entries are rebuilt
+        // the map and room strings are clipped when an entry is built
         listChanged = true;
         rebuildEntries = true;
     }
 
     // rebuilds the channel sections from the client state. the walk stays because there are no channel
-    // created/removed events; the entry construction, which is the expensive part, only happens for
-    // players we haven't seen before -- except on a settings change, where every entry is rebuilt
-    // because the room and map strings are clipped when one is built.
+    // created/removed events; entries are reused except on a settings change, which rebuilds them.
     private void SyncPlayerList(bool reuseEntries = true)
     {
 #if MOCK_DATA
@@ -166,7 +159,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             }, false, ClipType);
         }
 #else
-        // what we already have, by player; the keys left over at the end are the players that left
+        // the entries we have, by player; leftover keys are players that left
         var existing = new Dictionary<OnlinePlayer, PlayerListEntry>();
         foreach (var channel in channelPlayerList)
             foreach (var item in channel.Players)
@@ -229,8 +222,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         }
 #endif
 
-        // a row is measured when it is built, so a join, a leave or a channel move only has to redo the
-        // headers; the rows are re-measured when the scale or live mode moved under them
+        // a row is measured when it is built; only a scale or live mode change redoes all of them
         bool remeasureRows = measuredScale != MiaoNetModule.Settings.PlayerListUIScaleValue
             || measuredLiveMode != MiaoNetModule.Settings.LiveMode;
 
@@ -239,8 +231,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             MeasureAllEntries();
     }
 
-    // applies whatever the packets and the settings recorded since the last frame: rebuild the list,
-    // refresh the ping texts, re-read the rows whose player moved. called from the top of Render.
+    // applies what the packets and the settings recorded since the last frame. called from Render.
     private void ApplyListChanges()
     {
         if (listChanged)
@@ -262,8 +253,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         if (movedPlayers.Count == 0)
             return;
 
-        // a channel move can land in the same frame as a location change, so this runs after the sync
-        // above: by then every entry sits in the channel it belongs to
+        // after the sync: a channel move and a location change can land in the same frame
         foreach (var player in movedPlayers)
             RefreshEntry(player);
 
@@ -271,8 +261,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         SortPlayerList();
     }
 
-    // re-reads one player's row from the state; the caller sorts once it is done with the batch. a
-    // player who left while the change was queued has no row left, and needs none.
+    // re-reads one row from the state; the caller sorts. a player that left has no row left.
     private void RefreshEntry(OnlinePlayer player)
     {
 #if MOCK_DATA
@@ -370,9 +359,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         }
     }
 
-    // measures one row: the text through the entry, the icons here because the textures live on the
-    // component. everything a row is made of is measured in this one place, and the layout loop calls it
-    // again when the flags moved under the row.
+    // measures one row: the text through the entry, the icons here because the textures are here
     private void MeasureEntry(PlayerListEntry item)
     {
         var settings = MiaoNetModule.Settings;
@@ -413,8 +400,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             : (lineHeight / item.AreaIconTexture.Height) * item.AreaIconTexture.Width;
     }
 
-    // the widths that don't belong to a single row: the shared separators, the fixed ping column and
-    // the channel headers. cheap, so it runs after every sync, because the headers carry the counts.
+    // the widths that aren't a single row's: the separators, the ping column and the headers
     private void RefreshSharedMeasurements()
     {
         var settings = MiaoNetModule.Settings;
@@ -431,9 +417,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             channel.Measure(scale);
     }
 
-    // measures every row. only needed when the scale or live mode moved under entries that are already
-    // measured; a row built by a sync is measured there, and one whose strings or flags changed by
-    // MeasureEntry.
+    // every row, for when the scale or live mode moved under them
     private void MeasureAllEntries()
     {
         foreach (var channel in channelPlayerList)
@@ -446,8 +430,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         if (!Active)
             return;
 
-        // the data half of the frame lives here rather than in Update: this is the only reader, and a
-        // closed list then costs nothing at all -- the events only recorded what changed
+        // the only reader of the model, and a closed list never gets here
         ApplyListChanges();
 
         /*
@@ -478,7 +461,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         float scale = MiaoNetModule.Settings.PlayerListUIScaleValue;
         if (measuredScale != scale || measuredLiveMode != MiaoNetModule.Settings.LiveMode)
         {
-            // the scale or live mode moved under entries that are already measured
+            // the scale or live mode moved under the rows
             RefreshSharedMeasurements();
             MeasureAllEntries();
         }
@@ -518,7 +501,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 {
                     var player = item.Player;
 
-                    // the status icons are part of the row width and only the flags move them
+                    // the icons are part of the row width and only the flags move them
                     if (item.MeasuredFlags != player.GlobalFlags)
                         MeasureEntry(item);
 
@@ -552,7 +535,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             }
         }
 
-        // the ping column is reserved as a whole, at its widest, when anything has a ping
+        // the ping column is reserved at its widest when anything has a ping
         float maxPingWidth = hasPing ? pingColumnWidth : 0f;
         float totalMaxLineWidth = maxLineWidth + maxPingWidth + 2 * PlayerEntryXPadding;
 

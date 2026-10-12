@@ -20,19 +20,18 @@ public sealed partial class PlayerListComponent
         public string? AreaModeText;
         public string? PingText;
 
-        // Cached Mesurements
+        // cached widths, filled in by Measure()
         public float NameWidth;
         public float MapNameWidth;
         public float RoomWidth;
         public float AreaModeWidth;
 
-        // the widths that aren't text: the status icons from the flags, and the two icons a location can
-        // add. measured with the text by the owner, which owns the textures.
+        // icon widths, measured together with the text
         public float IconsWidth;
         public float DebugMapWidth;
         public float AreaIconWidth;
 
-        // the flags IconsWidth was measured for; the layout re-measures the row when they move
+        // the flags IconsWidth was measured for
         public PlayerGlobalFlags MeasuredFlags;
 
         PlayerLocation IPlayerListEntry.Location => Player.Location;
@@ -100,15 +99,13 @@ public sealed partial class PlayerListComponent
             UpdatePing();
         }
 
-        // the ping column is five digits wide, so anything longer is shown as five digits. that keeps
-        // the column a constant width instead of one the whole list has to re-measure on every update.
+        // five digits max, so the ping column has a fixed width
         public const int MaxDisplayedPing = 99999;
 
         public void UpdatePing()
             => PingText = Player.LastPing == -1 ? null : $"{Math.Clamp(Player.LastPing, 0, MaxDisplayedPing)}ms";
 
-        // caches the widths of every string this row draws. Called when the strings, the ui scale or
-        // live mode changed.
+        // caches the widths of every string this row draws
         public void Measure(float scale, bool liveMode)
         {
             NameWidth = MiaoNetFont.Measure(DisplayName).X * scale;
