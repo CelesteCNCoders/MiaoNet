@@ -29,6 +29,13 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     private float scroll;
     private float scrollTarget;
 
+    // text measurements the rows share, refreshed by RefreshMeasurements() when the list, the ui scale
+    // or live mode changes. Render used to measure every string of every row on every frame.
+    private float measuredScale = float.NaN;
+    private bool measuredLiveMode;
+    private float spaceWidth;
+    private float colonWidth;
+
     private static ClipType ClipType => MiaoNetModule.Settings.PlayerListMapNameClipType;
 
     public PlayerListComponent(MiaoNetContext context)
@@ -121,6 +128,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             new(pv, pvChannelPlayerList)
         ]);
         SortPlayerList();
+        RefreshMeasurements();
         return;
 
         PlayerListEntry CreateTestPlayer(OnlineChannel channel, string name, string sid, string room)
@@ -172,6 +180,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             channelPlayerList.Add(privateChannelEntry);
         }
 #endif
+
+        RefreshMeasurements();
     }
 
     private void Context_PingDataReceived()
@@ -179,6 +189,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         foreach (var channel in channelPlayerList)
             foreach (var item in channel.Players)
                 item.UpdatePing();
+
+        RefreshMeasurements();
     }
 
     private void UpdatePlayer(OnlinePlayer player)
@@ -190,6 +202,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         var item = channel!.Players.Find(i => i.Player == player);
         item!.Update(ClipType);
         SortPlayerList();
+        RefreshMeasurements();
         return;
     }
 
@@ -271,7 +284,28 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         }
     }
 
-    // TODO this can still be optimized
+    // measures the strings of every row once, so Render doesn't have to. the widths live on the
+    // entries; Render only adds them up.
+    private void RefreshMeasurements()
+    {
+        var settings = MiaoNetModule.Settings;
+        float scale = settings.PlayerListUIScaleValue;
+        bool liveMode = settings.LiveMode;
+
+        measuredScale = scale;
+        measuredLiveMode = liveMode;
+
+        spaceWidth = MiaoNetFont.Measure(" ").X * scale;
+        colonWidth = MiaoNetFont.Measure(":").X * scale;
+
+        foreach (var channel in channelPlayerList)
+        {
+            channel.Measure(scale);
+            foreach (var item in channel.Players)
+                item.Measure(scale, liveMode);
+        }
+    }
+
     public override void Render()
     {
         if (!Active)
@@ -303,6 +337,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
          */
 
         float scale = MiaoNetModule.Settings.PlayerListUIScaleValue;
+        if (measuredScale != scale || measuredLiveMode != MiaoNetModule.Settings.LiveMode)
+            RefreshMeasurements();
 
         const float RectXMargin = 16f;
         const float RectYMargin = 16f;
@@ -318,9 +354,6 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         float maxPingWidth = 0f;
         float maxLineWidth = 0f;
 
-        float spaceWidth = MiaoNetFont.Measure(" ").X * scale;
-        float colonWidth = MiaoNetFont.Measure(":").X * scale;
-
         Span<float> channelYOffsets = stackalloc float[channelPlayerList.Count];
         Span<float> channelHeights = stackalloc float[channelPlayerList.Count];
 
@@ -330,7 +363,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             for (int i = 0; i < channelPlayerList.Count; i++)
             {
                 var channel = channelPlayerList[i];
-                float headerWidth = MiaoNetFont.Measure(channel.Header).X * scale;
+                float headerWidth = channel.HeaderWidth;
                 maxLineWidth = Math.Max(maxLineWidth, headerWidth);
 
                 curY += RectYMargin;
@@ -344,7 +377,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
                     float itemWidth = 0f;
 
-                    itemWidth += MiaoNetFont.Measure(item.DisplayName).X * scale;
+                    itemWidth += item.NameWidth;
                     itemWidth += MiddlePadding;
 
                     if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Paused))
@@ -385,12 +418,10 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
                     if (!player.Location.IsEmpty)
                     {
-                        bool liveMode = MiaoNetModule.Settings.LiveMode;
-
                         itemWidth += colonWidth;
                         if (!player.Location.IsInDebugMap)
                         {
-                            itemWidth += MiaoNetFont.Measure(liveMode ? "*" : item.MapRoom!).X * scale;
+                            itemWidth += item.RoomWidth;
                         }
                         else
                         {
@@ -405,20 +436,17 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                             itemWidth += texScale * item.AreaIconTexture.Width;
                         }
 
-                        itemWidth += spaceWidth;
-                        string mapName = item.IsLocallyKnownMap ? item.MapName! : liveMode ? "*" : item.MapName!;
-                        itemWidth += MiaoNetFont.Measure(mapName).X * scale;
+                        itemWidth += spaceWidth + item.MapNameWidth;
 
                         if (item.AreaModeText is not null)
                         {
-                            itemWidth += spaceWidth;
-                            itemWidth += MiaoNetFont.Measure(item.AreaModeText).X * scale;
+                            itemWidth += spaceWidth + item.AreaModeWidth;
                         }
                     }
 
                     if (item.PingText is not null)
                     {
-                        float pingWidth = MiaoNetFont.Measure(item.PingText).X * scale + spaceWidth;
+                        float pingWidth = item.PingWidth + spaceWidth;
                         maxPingWidth = Math.Max(maxPingWidth, pingWidth);
                     }
 
@@ -492,7 +520,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     scale: Vector2.One * scale,
                     player.Info.Color
                 );
-                x += MiaoNetFont.Measure(playerName).X * scale;
+                x += item.NameWidth;
 
                 if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Paused))
                 {
@@ -590,7 +618,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                             scale: Vector2.One * scale,
                             item.MapSideColor
                         );
-                        x -= MiaoNetFont.Measure(item.AreaModeText).X * scale;
+                        x -= item.AreaModeWidth;
                         x -= spaceWidth;
                     }
 
@@ -605,7 +633,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                         scale: Vector2.One * scale,
                         item.MapNameColor
                     );
-                    x -= MiaoNetFont.Measure(mapName).X * scale;
+                    x -= item.MapNameWidth;
                     x -= spaceWidth;
 
                     // draw a colon
@@ -628,7 +656,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                             scale: Vector2.One * scale,
                             Color.LightGray
                         );
-                        x -= MiaoNetFont.Measure(item.MapRoom!).X * scale;
+                        x -= item.RoomWidth;
                     }
                     else
                     {

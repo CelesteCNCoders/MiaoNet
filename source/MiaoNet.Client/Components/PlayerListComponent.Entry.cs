@@ -20,6 +20,13 @@ public sealed partial class PlayerListComponent
         public string? AreaModeText;
         public string? PingText;
 
+        // Cached Mesurements
+        public float NameWidth;
+        public float MapNameWidth;
+        public float RoomWidth;
+        public float AreaModeWidth;
+        public float PingWidth;
+
         PlayerLocation IPlayerListEntry.Location => Player.Location;
 
         bool IPlayerListEntry.IsLocallyKnownMap => IsLocallyKnownMap;
@@ -87,6 +94,25 @@ public sealed partial class PlayerListComponent
 
         public void UpdatePing()
             => PingText = Player.LastPing == -1 ? null : $"{Player.LastPing}ms";
+
+        // caches the widths of every string this row draws. Called when the strings, the ui scale or
+        // live mode changed.
+        public void Measure(float scale, bool liveMode)
+        {
+            NameWidth = MiaoNetFont.Measure(DisplayName).X * scale;
+            AreaModeWidth = AreaModeText is null ? 0f : MiaoNetFont.Measure(AreaModeText).X * scale;
+            PingWidth = PingText is null ? 0f : MiaoNetFont.Measure(PingText).X * scale;
+
+            if (Player.Location.IsEmpty)
+            {
+                MapNameWidth = 0f;
+                RoomWidth = 0f;
+                return;
+            }
+
+            MapNameWidth = MiaoNetFont.Measure(IsLocallyKnownMap ? MapName! : liveMode ? "*" : MapName!).X * scale;
+            RoomWidth = MiaoNetFont.Measure(liveMode ? "*" : MapRoom!).X * scale;
+        }
 
         private static string Clip(string str, ClipType clipType)
         {
