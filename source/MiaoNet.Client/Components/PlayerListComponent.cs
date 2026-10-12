@@ -35,6 +35,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     private bool measuredLiveMode;
     private float spaceWidth;
     private float colonWidth;
+    private float pingColumnWidth;
 
     private static ClipType ClipType => MiaoNetModule.Settings.PlayerListMapNameClipType;
 
@@ -218,10 +219,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     {
         foreach (var channel in channelPlayerList)
             foreach (var item in channel.Players)
-            {
-                if (item.UpdatePing())
-                    MeasureEntry(item);
-            }
+                item.UpdatePing();
     }
 
     private void UpdatePlayer(OnlinePlayer player)
@@ -337,6 +335,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
         spaceWidth = MiaoNetFont.Measure(" ").X * scale;
         colonWidth = MiaoNetFont.Measure(":").X * scale;
+        pingColumnWidth = MiaoNetFont.Measure($"{PlayerListEntry.MaxDisplayedPing}ms").X * scale + spaceWidth;
 
         foreach (var channel in channelPlayerList)
         {
@@ -391,8 +390,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         float lineHeight = MiaoNetFont.ENZhsLineHeight * scale;
         float playerEntryHeight = lineHeight + 2 * PlayerEntryYPadding;
 
-        float maxPingWidth = 0f;
         float maxLineWidth = 0f;
+        bool hasPing = false;
 
         Span<float> channelYOffsets = stackalloc float[channelPlayerList.Count];
         Span<float> channelHeights = stackalloc float[channelPlayerList.Count];
@@ -485,10 +484,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     }
 
                     if (item.PingText is not null)
-                    {
-                        float pingWidth = item.PingWidth + spaceWidth;
-                        maxPingWidth = Math.Max(maxPingWidth, pingWidth);
-                    }
+                        hasPing = true;
 
                     maxLineWidth = Math.Max(maxLineWidth, itemWidth);
 
@@ -501,6 +497,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             }
         }
 
+        // the ping column is reserved as a whole, at its widest, when anything has a ping
+        float maxPingWidth = hasPing ? pingColumnWidth : 0f;
         float totalMaxLineWidth = maxLineWidth + maxPingWidth + 2 * PlayerEntryXPadding;
 
         // draw background

@@ -25,7 +25,6 @@ public sealed partial class PlayerListComponent
         public float MapNameWidth;
         public float RoomWidth;
         public float AreaModeWidth;
-        public float PingWidth;
 
         PlayerLocation IPlayerListEntry.Location => Player.Location;
 
@@ -92,16 +91,12 @@ public sealed partial class PlayerListComponent
             UpdatePing();
         }
 
-        // returns whether the text changed, so the owner only re-measures the ping column when it did
-        public bool UpdatePing()
-        {
-            string? ping = Player.LastPing == -1 ? null : $"{Player.LastPing}ms";
-            if (ping == PingText)
-                return false;
+        // the ping column is five digits wide, so anything longer is shown as five digits. that keeps
+        // the column a constant width instead of one the whole list has to re-measure on every update.
+        public const int MaxDisplayedPing = 99999;
 
-            PingText = ping;
-            return true;
-        }
+        public void UpdatePing()
+            => PingText = Player.LastPing == -1 ? null : $"{Math.Clamp(Player.LastPing, 0, MaxDisplayedPing)}ms";
 
         // caches the widths of every string this row draws. Called when the strings, the ui scale or
         // live mode changed.
@@ -109,7 +104,6 @@ public sealed partial class PlayerListComponent
         {
             NameWidth = MiaoNetFont.Measure(DisplayName).X * scale;
             AreaModeWidth = AreaModeText is null ? 0f : MiaoNetFont.Measure(AreaModeText).X * scale;
-            PingWidth = PingText is null ? 0f : MiaoNetFont.Measure(PingText).X * scale;
 
             if (Player.Location.IsEmpty)
             {
