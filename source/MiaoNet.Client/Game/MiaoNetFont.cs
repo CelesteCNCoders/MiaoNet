@@ -111,78 +111,180 @@ public static class MiaoNetFont
     public static bool CanRender(int character)
         => ENZhsFontSize.Characters.ContainsKey(character);
 
-    public static Vector2 MeasureLiteral(string text)
+    // The caller lays the text out once per frame and reuses the result for measuring and drawing.
+    internal static ILiteralTextLayout CreateLiteralLayout(string text, Vector2 scale)
+        => new LiteralLayout(text, scale);
+
+    private sealed class LiteralLayout : ILiteralTextLayout
     {
-        float width = 0f;
-        foreach (var (character, x, _) in LayOut(text, 0, text.Length))
-            width = Math.Max(width, x + character.XAdvance);
+        private readonly string text;
+        private readonly List<GlyphLayout> glyphs;
+        private readonly List<float> lineWidths;
+        private readonly Vector2 scale;
+        private readonly float lineHeight;
 
-        return new Vector2(width, ENZhsFontSize.LineHeight);
-    }
-
-    public static void DrawLiteral(string text, Vector2 position, Vector2 justify, Vector2 scale, Color color)
-    {
-        Vector2 size = MeasureLiteral(text);
-        Vector2 position2 = position - new Vector2(size.X * justify.X, size.Y * justify.Y) * scale;
-
-        foreach (var (character, x, _) in LayOut(text, 0, text.Length))
+        public LiteralLayout(string text, Vector2 scale)
         {
-            Vector2 pos = position2 + new Vector2(x + character.XOffset, character.YOffset) * scale;
-            character.Texture.Draw(pos, Vector2.Zero, color, scale);
+            this.text = text;
+            this.scale = scale;
+            lineHeight = ENZhsFontSize.LineHeight;
+
+            List<GlyphLayout> layoutGlyphs;
+            List<float> layoutLineWidths;
+            (layoutGlyphs, layoutLineWidths) = LayoutText(text, 0, text.Length);
+            glyphs = layoutGlyphs;
+            lineWidths = layoutLineWidths;
+        }
+
+        public Vector2 Size
+        {
+            get
+            {
+                float width = 0f;
+                foreach (float lineWidth in lineWidths)
+                    width = Math.Max(width, lineWidth);
+                return new Vector2(width, lineWidths.Count * lineHeight) * scale;
+            }
+        }
+
+        public int LineCount => lineWidths.Count;
+
+        public float MeasurePrefix(int start, int end)
+        {
+            int line = LineIndexOf(start);
+            float width = 0f;
+            foreach (GlyphLayout glyph in glyphs)
+            {
+                if (glyph.LineIndex != line || glyph.Index < start || glyph.Index >= end)
+                    continue;
+                width = Math.Max(width, glyph.X + glyph.Character.XAdvance);
+            }
+            return width * scale.X;
+        }
+
+        public void Draw(
+            Vector2 position, int start, int end, float xOffset,
+            IReadOnlyList<ColoredTextRange> runs
+        )
+        {
+            // The renderer contract does not require runs to be sorted.
+            runs = EnsureSortedRuns(runs);
+            int startLine = LineIndexOf(start);
+            int runIndex = 0;
+            foreach (GlyphLayout glyph in glyphs)
+            {
+                if (glyph.Index < start || glyph.Index >= end)
+                    continue;
+
+                while (runIndex < runs.Count && glyph.Index >= runs[runIndex].End)
+                    runIndex++;
+                Color color = runIndex < runs.Count && glyph.Index >= runs[runIndex].Start
+                    ? runs[runIndex].Color
+                    : Color.White;
+                DrawGlyph(glyph, position, startLine, xOffset, color);
+            }
+        }
+
+        public void Draw(Vector2 position, int start, int end, float xOffset, Color color)
+        {
+            int startLine = LineIndexOf(start);
+            foreach (GlyphLayout glyph in glyphs)
+            {
+                if (glyph.Index < start || glyph.Index >= end)
+                    continue;
+                DrawGlyph(glyph, position, startLine, xOffset, color);
+            }
+        }
+
+        private void DrawGlyph(
+            GlyphLayout glyph, Vector2 position, int startLine, float xOffset, Color color
+        )
+        {
+            Vector2 offset = new Vector2(
+                glyph.X + glyph.Character.XOffset,
+                (glyph.LineIndex - startLine) * lineHeight + glyph.Character.YOffset
+            ) * scale;
+            // xOffset is already in renderer space.
+            offset.X += xOffset;
+            glyph.Character.Texture.Draw(position + offset, Vector2.Zero, color, scale);
+        }
+
+        private int LineIndexOf(int index)
+        {
+            int line = 0;
+            for (int i = 0; i < index && i < text.Length; i++)
+                if (text[i] == '\n')
+                    line++;
+            return line;
         }
     }
 
-    public static void DrawLiteral(
-        string text, int start, int end,
-        IReadOnlyList<ColoredTextRange> runs, Vector2 position, Vector2 scale
+    private static IReadOnlyList<ColoredTextRange> EnsureSortedRuns(
+        IReadOnlyList<ColoredTextRange> runs
     )
     {
-        int runIndex = 0;
-        foreach (var (character, x, index) in LayOut(text, start, end))
+        for (int i = 1; i < runs.Count; i++)
         {
-            // runs are sorted and cover the text in order, so advance at most once per glyph
-            while (runIndex < runs.Count && index >= runs[runIndex].End)
-                runIndex++;
-            Color color = runIndex < runs.Count && index >= runs[runIndex].Start
-                ? runs[runIndex].Color
-                : Color.White;
-
-            Vector2 pos = position + new Vector2(x + character.XOffset, character.YOffset) * scale;
-            character.Texture.Draw(pos, Vector2.Zero, color, scale);
+            if (runs[i].Start < runs[i - 1].Start)
+            {
+                ColoredTextRange[] sorted = new ColoredTextRange[runs.Count];
+                for (int j = 0; j < runs.Count; j++)
+                    sorted[j] = runs[j];
+                Array.Sort(sorted, static (a, b) => a.Start.CompareTo(b.Start));
+                return sorted;
+            }
         }
+        return runs;
     }
 
-    // Lays out a raw string like PixelFontSize (glyph lookup, kerning, surrogate pairs),
-    // re-implemented to handle baseline and kerning differences when highlighting.
-    // Keep the two in sync if the engine's layout changes.
-    private static IEnumerable<(PixelFontCharacter Character, float X, int Index)> LayOut(
+    private readonly record struct GlyphLayout(PixelFontCharacter Character, float X, int LineIndex, int Index);
+
+    // Lays out a raw string like PixelFontSize (glyph lookup, kerning, line breaks), but without
+    // expanding ":emoji:" through Emoji.Apply, so the literal APIs stay self-consistent.
+    private static (List<GlyphLayout> Glyphs, List<float> LineWidths) LayoutText(
         string text, int start, int end
     )
     {
         PixelFontSize font = ENZhsFontSize;
+        List<GlyphLayout> glyphs = [];
+        List<float> lineWidths = [0f];
         float x = 0f;
+
         for (int i = start; i < end;)
         {
-            int codePoint = ReadCodePoint(text, i, out int length);
+            int codePoint = ReadCodePoint(text, i, end, out int length);
+
+            // Only LF breaks a line, matching PixelFontSize.
+            if (codePoint == '\n')
+            {
+                x = 0f;
+                lineWidths.Add(0f);
+                i += length;
+                continue;
+            }
 
             if (font.Characters.TryGetValue(codePoint, out var character))
             {
-                int nextCodePoint = PeekCodePoint(text, i + length);
+                int nextCodePoint = PeekCodePoint(text, i + length, end);
                 int kerning = nextCodePoint != -1 && character.Kerning.TryGetValue(nextCodePoint, out int value)
                     ? value
                     : 0;
-                yield return (character, x, i);
+                glyphs.Add(new GlyphLayout(character, x, lineWidths.Count - 1, i));
                 x += character.XAdvance + kerning;
+                lineWidths[^1] = Math.Max(lineWidths[^1], x);
             }
 
             i += length;
         }
+
+        return (glyphs, lineWidths);
     }
 
-    private static int ReadCodePoint(string text, int i, out int length)
+    // end bounds the slice, so a surrogate pair split across the boundary is not read past it.
+    private static int ReadCodePoint(string text, int i, int end, out int length)
     {
         char c = text[i];
-        if (char.IsHighSurrogate(c) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]))
+        if (char.IsHighSurrogate(c) && i + 1 < end && char.IsLowSurrogate(text[i + 1]))
         {
             length = 2;
             return char.ConvertToUtf32(c, text[i + 1]);
@@ -191,13 +293,13 @@ public static class MiaoNetFont
         return c;
     }
 
-    private static int PeekCodePoint(string text, int i)
+    private static int PeekCodePoint(string text, int i, int end)
     {
-        if (i >= text.Length)
+        if (i >= end)
             return -1;
 
         char c = text[i];
-        if (char.IsHighSurrogate(c) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1]))
+        if (char.IsHighSurrogate(c) && i + 1 < end && char.IsLowSurrogate(text[i + 1]))
             return char.ConvertToUtf32(c, text[i + 1]);
         return c;
     }
