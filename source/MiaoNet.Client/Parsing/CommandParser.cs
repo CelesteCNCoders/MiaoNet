@@ -1,12 +1,9 @@
-using System.Diagnostics.CodeAnalysis;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
 public sealed class CommandParser
 {
-    public const string CommandPrefix = "/";
-
     public enum ParseResult
     {
         Success,
@@ -35,44 +32,25 @@ public sealed class CommandParser
         out IReadOnlyList<string>? segments
     )
     {
-        SafeGuard.Assert(commandText.StartsWith(CommandPrefix, StringComparison.Ordinal));
-        matchedCommand = null;
+        SafeGuard.Assert(commandText.StartsWith(CommandStructureResolver.CommandPrefix, StringComparison.Ordinal));
+
+        matchedCommand = CommandStructureResolver.Resolve(
+            commandText, commandsToMatch, out int nameEnd, out IReadOnlyList<CommandArgumentInfo> parsedArgs);
+        commandName = commandText[CommandStructureResolver.CommandPrefix.Length..nameEnd];
         segments = null;
 
-        int firstSpaceIndex = commandText.IndexOf(' ', StringComparison.Ordinal);
-        if (firstSpaceIndex == -1) firstSpaceIndex = commandText.Length;
-
-        string parsedCmdName = commandText[CommandPrefix.Length..firstSpaceIndex];
-        commandName = parsedCmdName;
-
-        var nameMatchedCmd = commandsToMatch.FirstOrDefault(
-            c => c.Name.Equals(parsedCmdName, StringComparison.OrdinalIgnoreCase) ||
-                (c.Aliases is not null && c.Aliases.Any(a => a.Equals(parsedCmdName, StringComparison.OrdinalIgnoreCase)))
-        );
-
-        if (nameMatchedCmd is null)
+        if (matchedCommand is null)
             return ParseResult.NoSuchCommand;
-        matchedCommand = nameMatchedCmd;
 
-        StringSplitOptions sso = StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries;
-        if (nameMatchedCmd.CaptureRestSegments)
-        {
-            string[] splitedArgs = commandText[firstSpaceIndex..]
-                .Split(' ', nameMatchedCmd.Segments.Count, sso);
-            segments = splitedArgs;
-            if (splitedArgs.Length < nameMatchedCmd.Segments.Count)
-                return ParseResult.MissingArguments;
-            return ParseResult.Success;
-        }
-        else
-        {
-            string[] splitedArgs = commandText[firstSpaceIndex..].Split(' ', sso);
-            segments = splitedArgs;
-            if (splitedArgs.Length < nameMatchedCmd.Segments.Count)
-                return ParseResult.MissingArguments;
-            if (splitedArgs.Length > nameMatchedCmd.Segments.Count)
-                return ParseResult.TooManyArguments;
-            return ParseResult.Success;
-        }
+        string[] splitedArgs = new string[parsedArgs.Count];
+        for (int i = 0; i < parsedArgs.Count; i++)
+            splitedArgs[i] = commandText[parsedArgs[i].Start..parsedArgs[i].End];
+        segments = splitedArgs;
+
+        if (splitedArgs.Length < matchedCommand.Segments.Count)
+            return ParseResult.MissingArguments;
+        if (!matchedCommand.CaptureRestSegments && splitedArgs.Length > matchedCommand.Segments.Count)
+            return ParseResult.TooManyArguments;
+        return ParseResult.Success;
     }
 }
