@@ -12,18 +12,22 @@ public sealed class LexedChatInput
 
     public MiaoNetCommand? Command { get; }
 
+    public int NameEnd { get; }
+
     public IReadOnlyList<CommandArgumentInfo> Arguments { get; }
 
     public LexedChatInput(
         string text,
         IReadOnlyList<ChatInputToken> tokens,
         MiaoNetCommand? command,
+        int nameEnd,
         IReadOnlyList<CommandArgumentInfo> arguments
     )
     {
         Text = text;
         Tokens = tokens;
         Command = command;
+        NameEnd = nameEnd;
         Arguments = arguments;
     }
 }
