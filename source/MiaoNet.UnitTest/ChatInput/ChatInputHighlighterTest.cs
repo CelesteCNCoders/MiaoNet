@@ -426,4 +426,21 @@ public class ChatInputHighlighterTest
         state.Version++;
         Assert.AreEqual(ChatInputHighlightColors.Player, ColorAt(highlighter.Highlight("/w Alice ", 9), 4));
     }
+
+    [TestMethod]
+    public void MentionRosterChange_WithSameInput_IsReevaluated()
+    {
+        // Mimics the real adapter: the name set is derived from a snapshot keyed by Version,
+        // so a roster change shows up only after the version is bumped.
+        var validity = new FakeValidity { MentionNames = new HashSet<string>() };
+        var state = new FakeState();
+        var highlighter = new ChatInputHighlighter(new CommandParser(Commands), validity, state);
+
+        Assert.AreEqual(ChatInputHighlightColors.Invalid, ColorAt(highlighter.Highlight("@bob ", 5), 1));
+
+        validity.MentionNames = new HashSet<string> { "bob" };
+        state.Version++;
+
+        Assert.AreEqual(ChatInputHighlightColors.Player, ColorAt(highlighter.Highlight("@bob ", 5), 1));
+    }
 }
