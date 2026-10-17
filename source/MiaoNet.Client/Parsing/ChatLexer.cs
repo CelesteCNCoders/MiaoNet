@@ -79,14 +79,29 @@ public static class ChatLexer
     )
     {
         List<(int Start, int Length)> emojiSpans = FindEmojiSpans(text, from, to, isEmoji);
+        List<(int Start, int End)> mentionSpans = [.. MentionBoundary.Enumerate(text, from, to)];
 
         int textStart = from;
         int i = from;
         int emojiIndex = 0;
+        int mentionIndex = 0;
         while (i < to)
         {
             while (emojiIndex < emojiSpans.Count && emojiSpans[emojiIndex].Start < i)
                 emojiIndex++;
+            while (mentionIndex < mentionSpans.Count && mentionSpans[mentionIndex].Start < i)
+                mentionIndex++;
+
+            if (mentionIndex < mentionSpans.Count && mentionSpans[mentionIndex].Start == i)
+            {
+                (int start, int end) = mentionSpans[mentionIndex];
+                FlushText(tokens, text, textStart, start);
+                tokens.Add(new ChatInputToken(ChatInputTokenType.Mention, start, end - start));
+                i = end;
+                textStart = i;
+                mentionIndex++;
+                continue;
+            }
 
             if (emojiIndex < emojiSpans.Count && emojiSpans[emojiIndex].Start == i)
             {
@@ -96,22 +111,6 @@ public static class ChatLexer
                 textStart = i;
                 emojiIndex++;
                 continue;
-            }
-
-            if (text[i] == '@' && (i == from || char.IsWhiteSpace(text[i - 1])))
-            {
-                int j = i + 1;
-                while (j < to && !char.IsWhiteSpace(text[j]))
-                    j++;
-
-                if (j > i + 1)
-                {
-                    FlushText(tokens, text, textStart, i);
-                    tokens.Add(new ChatInputToken(ChatInputTokenType.Mention, i, j - i));
-                    i = j;
-                    textStart = i;
-                    continue;
-                }
             }
 
             i++;
