@@ -214,6 +214,7 @@ miaonet_commands_unwatch_description= 停止观看玩家。
 miaonet_commands_channel_description= 加入或创建一个频道。
 miaonet_commands_channel_s0_name= 频道名称
 miaonet_commands_channel_s0_description= 要加入或创建的频道名称。
+miaonet_commands_channel_invalid_channel_name= 无效的频道名称 "(0)"：频道名称不能包含空白字符或控制字符
 miaonet_commands_chat_description= 设置默认聊天频道类型。
 miaonet_commands_chat_s0_name= 类型
 miaonet_commands_chat_s0_description= 聊天频道类型（全局：global/g，频道：channel/c，地图: map/m）。

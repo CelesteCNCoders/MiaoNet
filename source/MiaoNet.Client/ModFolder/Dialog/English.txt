@@ -219,6 +219,7 @@ miaonet_commands_unwatch_description= Stop watching a player.
 miaonet_commands_channel_description= Join or create a channel.
 miaonet_commands_channel_s0_name= Name
 miaonet_commands_channel_s0_description= The name of channel to join or create.
+miaonet_commands_channel_invalid_channel_name= Invalid channel name "(0)": channel names cannot contain whitespace or control characters
 miaonet_commands_chat_description= Set default chat channel type.
 miaonet_commands_chat_s0_name= Type
 miaonet_commands_chat_s0_description= Chat channel type (global/g channel/c map/m).
