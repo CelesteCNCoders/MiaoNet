@@ -159,11 +159,15 @@ public sealed class InputBox
                 string content = separatorExists ? selected.Content : selected.Content + selected.Separator;
                 if (Text.Length - selected.Remove + content.Length > MaxTextLength)
                     content = content[..(MaxTextLength - Text.Length + selected.Remove)];
-                SetSuppressCompletions();
+                bool keepMenuClosed = selected.CloseMenu || !buffer.TextAfterCaret.All(char.IsWhiteSpace);
+                if (keepMenuClosed)
+                    SetSuppressCompletions();
                 buffer.DoCompletion(selected.Remove, content);
                 if (separatorExists)
                 {
-                    SetSuppressCompletions();
+                    // buffer.DoCompletion consumes suppression, so we suppress once more
+                    if (keepMenuClosed)
+                        SetSuppressCompletions();
                     buffer.MoveCaretForward();
                 }
             }

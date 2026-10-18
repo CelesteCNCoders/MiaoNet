@@ -8,13 +8,16 @@ public readonly struct Completion
 
     public char Separator { get; }
 
+    public bool CloseMenu { get; }
+
     public int Remove { get; }
 
-    public Completion(string content, string display, int remove, char separator = ' ')
+    public Completion(string content, string display, int remove, char separator = ' ', bool closeMenu = false)
     {
         Content = content;
         Display = display;
         Separator = separator;
+        CloseMenu = closeMenu;
         Remove = remove;
     }
 }
