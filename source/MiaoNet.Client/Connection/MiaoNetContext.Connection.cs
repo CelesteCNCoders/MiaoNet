@@ -145,6 +145,11 @@ partial class MiaoNetContext
                 QueueDisconnectStatus(Dialog.Get("miaonet_connection_status_no_name"));
                 return;
             }
+            if (!NameValidator.IsValid(MiaoNetModule.Settings.Name))
+            {
+                QueueDisconnectStatus(ConnectionStatus.InvalidPlayerName);
+                return;
+            }
 #endif
 
             string host = operation.TargetServer;
@@ -218,6 +223,7 @@ partial class MiaoNetContext
                     {
                         AuthenticationResultType.InvalidTokenData => ConnectionStatus.InvalidTokenData,
                         AuthenticationResultType.InternalServerError => ConnectionStatus.InternalServerError,
+                        AuthenticationResultType.InvalidPlayerName => ConnectionStatus.InvalidPlayerName,
                         AuthenticationResultType.Suspended when reason is null => ConnectionStatus.Suspended,
                         _ => reason ?? ConnectionStatus.DisconnectedExceptionally,
                     };
