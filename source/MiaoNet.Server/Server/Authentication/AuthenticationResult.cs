@@ -8,7 +8,7 @@ public readonly struct AuthenticationResult
 {
     public AuthenticationResultType Type { get; }
 
-    public string? SuspendMessage { get; }
+    public string? DeniedReason { get; }
 
     public PlayerInfo? PlayerInfo { get; }
 
@@ -23,11 +23,11 @@ public readonly struct AuthenticationResult
         Type = type;
     }
 
-    public AuthenticationResult(AuthenticationResultType type, string? suspendMessage)
+    public AuthenticationResult(AuthenticationResultType type, string? deniedReason)
     {
-        Debug.Assert(type == AuthenticationResultType.Suspended);
+        Debug.Assert(type != AuthenticationResultType.Success);
         Type = type;
-        SuspendMessage = suspendMessage;
+        DeniedReason = deniedReason;
     }
 
     public AuthenticationResult(AuthenticationResultType type, PlayerInfo? playerInfo, byte[]? tokenData)
