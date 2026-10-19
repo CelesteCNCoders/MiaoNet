@@ -2,7 +2,7 @@ using Celeste.Mod.ChatInputBox;
 
 namespace Celeste.Mod.MiaoNet;
 
-internal sealed class ScalelessChatTextRenderer : IScalelessTextRenderer
+internal sealed class ScalelessChatTextRenderer : ILiteralTextRenderer
 {
     public float Scale { get; set; }
 
@@ -20,8 +20,20 @@ internal sealed class ScalelessChatTextRenderer : IScalelessTextRenderer
     public Vector2 Measure(string text)
         => MiaoNetFont.Measure(text) * Scale;
 
+    public Vector2 MeasureLiteral(string text)
+        => MiaoNetFont.MeasureLiteral(text) * Scale;
+
     public void Draw(string text, Vector2 position, Vector2 justify, Color color)
         => MiaoNetFont.Draw(text, position, justify, Vector2.One * Scale, color);
+
+    public void DrawLiteral(string text, Vector2 position, Vector2 justify, Color color)
+        => MiaoNetFont.DrawLiteral(text, position, justify, Vector2.One * Scale, color);
+
+    public void DrawLiteral(
+        string text, int start, int end,
+        IReadOnlyList<ChatInputHighlightSpan> runs, Vector2 position
+    )
+        => MiaoNetFont.DrawLiteral(text, start, end, runs, position, Vector2.One * Scale);
 
     public void Draw(string text, Vector2 position, Vector2 justify, Vector2 scale, Color color)
         => MiaoNetFont.Draw(text, position, justify, Vector2.One * Scale * scale, color);

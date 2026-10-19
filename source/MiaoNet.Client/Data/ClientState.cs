@@ -1,14 +1,24 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Threading;
 using MiaoNet.Shared;
 
 namespace Celeste.Mod.MiaoNet;
 
 public sealed class ClientState
 {
+    // Shared across instances, so a reconnect (a new ClientState) also yields a new version.
+    private static int versionSeed;
+
     private readonly Dictionary<int, OnlinePlayer> players;
     private readonly Dictionary<int, OnlineChannel> channels;
+
+    // Bumped on every change that can affect chat-input highlighting
+    // (roster, channels and player locations).
+    public int Version { get; private set; }
+
+    private void Touch() => Version = Interlocked.Increment(ref versionSeed);
 
     public IReadOnlyDictionary<int, OnlinePlayer> Players => players;
 
@@ -51,10 +61,16 @@ public sealed class ClientState
             p.Location = player.Location;
         }
         Self = new(channels[clientInitial.ChannelID], clientInitial.PlayerID, clientInitial.SelfPlayerInfo, PlayerGlobalFlags.None);
+
+        Touch();
     }
 
     public OnlinePlayer OnNewPlayerJoined(int channelID, int playerID, PlayerInfo playerInfo, PlayerGlobalFlags globalFlags)
-        => AddNewPlayer(channelID, playerID, playerInfo, globalFlags);
+    {
+        OnlinePlayer player = AddNewPlayer(channelID, playerID, playerInfo, globalFlags);
+        Touch();
+        return player;
+    }
 
     private OnlinePlayer AddNewPlayer(int channelID, int playerID, PlayerInfo playerInfo, PlayerGlobalFlags globalFlags)
     {
@@ -69,6 +85,7 @@ public sealed class ClientState
     {
         var channel = new OnlineChannel(channelID, channelInfo);
         channels.TryAdd(channelID, channel);
+        Touch();
         return channel;
     }
 
@@ -79,6 +96,7 @@ public sealed class ClientState
         channel.Players.Remove(player);
         players.Remove(playerID);
         RemoveChannelIfNeeded(channel);
+        Touch();
     }
 
     private void RemoveChannel(int channelID)
@@ -140,6 +158,8 @@ public sealed class ClientState
             foreach (var info in channelPlayers)
                 MovePlayerToChannel(GetPlayer(info.PlayerID), target);
         }
+
+        Touch();
     }
 
     public void OnPlayerChannelMove(int playerID, int channelID, PlayerPresenceData? presence, out OnlinePlayer player)
@@ -158,6 +178,8 @@ public sealed class ClientState
 
         if (presence is not null)
             ApplyPlayerPresenceData(player, presence.Value);
+
+        Touch();
     }
 
     private void MovePlayerToChannel(OnlinePlayer player, OnlineChannel channel)
@@ -184,6 +206,9 @@ public sealed class ClientState
     public void ApplyPlayerPresenceData(OnlinePlayer player, PlayerPresenceData info)
     {
         SafeGuard.Assert(players.ContainsValue(player));
+
+        if (!player.Location.Equals(info.Location))
+            Touch();
 
         player.Location = info.Location;
         player.GlobalFlags = info.GlobalFlags;
@@ -246,8 +271,11 @@ public sealed class ClientState
 
     public PlayerLocation.ChangeResult OnPlayerLocationChanged(PlayerLocation location)
     {
-        PlayerLocation.ChangeResult result = Self.Location.GetChangeResult(location);
+        PlayerLocation previous = Self.Location;
+        PlayerLocation.ChangeResult result = previous.GetChangeResult(location);
         Self.Location = location;
+        if (!location.Equals(previous))
+            Touch();
         if (result != PlayerLocation.ChangeResult.None)
             SelfLocationChanged?.Invoke();
         return result;

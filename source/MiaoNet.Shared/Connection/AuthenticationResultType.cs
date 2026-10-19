@@ -6,5 +6,6 @@ public enum AuthenticationResultType
     Suspended,
     LoginExpired,
     InvalidTokenData,
-    InternalServerError
+    InternalServerError,
+    InvalidName
 }

@@ -6,7 +6,7 @@ public class ChatTabListView
     private readonly ChatMessageManager chatMessageManager;
     private readonly IScalelessTextRenderer textRenderer;
 
-    public string InitialTabTitle { get; set; }
+    public string InitialTabTitle { get; set; } = string.Empty;
 
     private int activeTabIndex => chatMessageManager.ActiveTabIndex;
 

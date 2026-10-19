@@ -230,4 +230,14 @@ public class CommandParsingTest
         Assert.AreSame(cmdSay, cmd);
         CollectionAssert.AreEqual(new string[] { "hello" }, (ICollection?)args);
     }
+
+    [TestMethod]
+    public void Parse_NonBreakingSpaceAfterCommandName_SeparatesArguments()
+    {
+        var result = parser.Parse("/w\u00A0Alice hi", out var name, out var cmd, out var args);
+        Assert.AreEqual(CommandParser.ParseResult.Success, result);
+        Assert.AreEqual("w", name);
+        Assert.AreSame(cmdWhisper, cmd);
+        CollectionAssert.AreEqual(new string[] { "Alice", "hi" }, (ICollection?)args);
+    }
 }

@@ -175,6 +175,17 @@ partial class MiaoServerService
                 );
             }
 
+            if (!authResult.IsFailed && !NameValidator.IsValid(authResult.PlayerInfo.Name))
+            {
+                logger.LogWarning(
+                    AppEvents.Auth,
+                    "{addr} provided an invalid player name: {name}.",
+                    networkConnection.RemoteAddress,
+                    authResult.PlayerInfo.Name
+                );
+                authResult = new AuthenticationResult(AuthenticationResultType.InvalidName, "Player name cannot contain whitespace or control characters.");
+            }
+
             if (authResult.IsFailed)
             {
                 logger.LogInformation(
@@ -185,8 +196,8 @@ partial class MiaoServerService
                 );
             }
 
-            string? failedReason = authResult.IsFailed ? authResult.SuspendMessage : null;
-            HandshakeAckData ack = new(authResult.Type, authResult.TokenData, failedReason);
+            string? deniedReason = authResult.IsFailed ? authResult.DeniedReason : null;
+            HandshakeAckData ack = new(authResult.Type, authResult.TokenData, deniedReason);
 
             ByteArrayBufferWriter frame = new(32);
             PacketFraming.WriteSizePrefixed(frame, ack);
