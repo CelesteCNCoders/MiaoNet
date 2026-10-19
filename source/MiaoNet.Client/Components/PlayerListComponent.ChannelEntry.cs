@@ -28,5 +28,10 @@ public sealed partial class PlayerListComponent
                 Players.Count
             );
         }
+        
+        public float HeaderWidth;
+
+        public void Measure(float scale)
+            => HeaderWidth = MiaoNetFont.Measure(Header).X * scale;
     }
 }

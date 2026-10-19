@@ -20,6 +20,20 @@ public sealed partial class PlayerListComponent
         public string? AreaModeText;
         public string? PingText;
 
+        // cached widths, filled in by Measure()
+        public float NameWidth;
+        public float MapNameWidth;
+        public float RoomWidth;
+        public float AreaModeWidth;
+
+        // icon widths, measured together with the text
+        public float IconsWidth;
+        public float DebugMapWidth;
+        public float AreaIconWidth;
+
+        // the flags IconsWidth was measured for
+        public PlayerGlobalFlags MeasuredFlags;
+
         PlayerLocation IPlayerListEntry.Location => Player.Location;
 
         bool IPlayerListEntry.IsLocallyKnownMap => IsLocallyKnownMap;
@@ -85,8 +99,28 @@ public sealed partial class PlayerListComponent
             UpdatePing();
         }
 
+        // five digits max, so the ping column has a fixed width
+        public const int MaxDisplayedPing = 99999;
+
         public void UpdatePing()
-            => PingText = Player.LastPing == -1 ? null : $"{Player.LastPing}ms";
+            => PingText = Player.LastPing == -1 ? null : $"{Math.Clamp(Player.LastPing, 0, MaxDisplayedPing)}ms";
+
+        // caches the widths of every string this row draws
+        public void Measure(float scale, bool liveMode)
+        {
+            NameWidth = MiaoNetFont.Measure(DisplayName).X * scale;
+            AreaModeWidth = AreaModeText is null ? 0f : MiaoNetFont.Measure(AreaModeText).X * scale;
+
+            if (Player.Location.IsEmpty)
+            {
+                MapNameWidth = 0f;
+                RoomWidth = 0f;
+                return;
+            }
+
+            MapNameWidth = MiaoNetFont.Measure(IsLocallyKnownMap ? MapName! : liveMode ? "*" : MapName!).X * scale;
+            RoomWidth = MiaoNetFont.Measure(liveMode ? "*" : MapRoom!).X * scale;
+        }
 
         private static string Clip(string str, ClipType clipType)
         {

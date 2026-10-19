@@ -29,7 +29,23 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     private float scroll;
     private float scrollTarget;
 
+    // the widths the rows share, refreshed when the scale or live mode moves
+    private float measuredScale = float.NaN;
+    private bool measuredLiveMode;
+    private float spaceWidth;
+    private float colonWidth;
+    private float pingColumnWidth;
+
     private static ClipType ClipType => MiaoNetModule.Settings.PlayerListMapNameClipType;
+
+    // self is not part of any channel's player set, so its entry is kept here
+    private PlayerListEntry? selfEntry;
+
+    // recorded by the network events, applied together by ApplyListChanges()
+    private bool listChanged;
+    private bool rebuildEntries;
+    private bool pingsChanged;
+    private readonly HashSet<OnlinePlayer> movedPlayers = [];
 
     public PlayerListComponent(MiaoNetContext context)
         : base(context)
@@ -37,15 +53,15 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         pComparer = new();
         channelPlayerList = new();
         context.ClientInitialized += Context_ClientInitialized;
-        // TODO surely full-rebuild is not necessary
-        // channel created/removed events are removed
-        // we may reintroduce those if needed
-        context.PlayerJoined += _ => BuildPlayerList();
-        context.PlayerLeft += _ => BuildPlayerList();
-        context.PlayerLocationChanged += (p, _) => UpdatePlayer(p);
-        context.PingDataReceived += Context_PingDataReceived;
-        context.SelfChannelMoved += _ => BuildPlayerList();
-        context.PlayerChannelMoved += (_, _) => BuildPlayerList();
+        // the events only record; the list is rebuilt lazily, when it is drawn. there are no channel
+        // created/removed events for now, so the channel list is walked as a whole, but the entries
+        // themselves are reused: building one does AreaData, Dialog and GFX lookups.
+        context.PlayerJoined += _ => listChanged = true;
+        context.PlayerLeft += _ => listChanged = true;
+        context.PlayerLocationChanged += (p, _) => movedPlayers.Add(p);
+        context.PingDataReceived += () => pingsChanged = true;
+        context.SelfChannelMoved += _ => listChanged = true;
+        context.PlayerChannelMoved += (_, _) => listChanged = true;
 
         texPlayerDebugMap = GFX.Gui["miaonet/debug_map"];
         texPlayerPaused = GFX.Gui["miaonet/paused"];
@@ -61,11 +77,17 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
     {
         if (category is not SettingsCategory.PlayerList)
             return;
-        if (HasState)
-            BuildPlayerList();
+        if (!HasState)
+            return;
+
+        // the map and room strings are clipped when an entry is built
+        listChanged = true;
+        rebuildEntries = true;
     }
 
-    private void BuildPlayerList()
+    // rebuilds the channel sections from the client state. the walk stays because there are no channel
+    // created/removed events; entries are reused except on a settings change, which rebuilds them.
+    private void SyncPlayerList(bool reuseEntries = true)
     {
 #if MOCK_DATA
         int id = 0;
@@ -121,6 +143,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             new(pv, pvChannelPlayerList)
         ]);
         SortPlayerList();
+        RefreshMeasurements();
         return;
 
         PlayerListEntry CreateTestPlayer(OnlineChannel channel, string name, string sid, string room)
@@ -136,8 +159,34 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             }, false, ClipType);
         }
 #else
+        // the entries we have, by player; leftover keys are players that left
+        var existing = new Dictionary<OnlinePlayer, PlayerListEntry>();
+        foreach (var channel in channelPlayerList)
+            foreach (var item in channel.Players)
+                existing.Add(item.Player, item);
+
+        PlayerListEntry Take(OnlinePlayer player)
+        {
+            if (reuseEntries && existing.Remove(player, out PlayerListEntry? entry))
+                return entry;
+
+            var created = new PlayerListEntry(player, context.ShowAvatar, ClipType);
+            MeasureEntry(created);
+            return created;
+        }
+
         channelPlayerList.Clear();
         var state = ClientState;
+
+        PlayerListEntry TakeSelf()
+        {
+            if (reuseEntries && selfEntry is not null)
+                return selfEntry;
+
+            selfEntry = new PlayerListEntry(state.Self, context.ShowAvatar, ClipType);
+            MeasureEntry(selfEntry);
+            return selfEntry;
+        }
 
         foreach (var (_, channel) in state.Channels)
         {
@@ -149,11 +198,11 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
 
             // add self
             if (channel == state.SelfChannel)
-                playerListEntries.Add(new PlayerListEntry(state.Self, context.ShowAvatar, ClipType));
+                playerListEntries.Add(TakeSelf());
 
             // add other players
             foreach (var player in channel.Players)
-                playerListEntries.Add(new PlayerListEntry(player, context.ShowAvatar, ClipType));
+                playerListEntries.Add(Take(player));
 
             channelPlayerList.Add(new PlayerListChannelEntry(channel, playerListEntries));
         }
@@ -172,34 +221,68 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             channelPlayerList.Add(privateChannelEntry);
         }
 #endif
+
+        // a row is measured when it is built; only a scale or live mode change redoes all of them
+        bool remeasureRows = measuredScale != MiaoNetModule.Settings.PlayerListUIScaleValue
+            || measuredLiveMode != MiaoNetModule.Settings.LiveMode;
+
+        RefreshSharedMeasurements();
+        if (remeasureRows)
+            MeasureAllEntries();
     }
 
-    private void Context_PingDataReceived()
+    // applies what the packets and the settings recorded since the last frame. called from Render.
+    private void ApplyListChanges()
     {
-        foreach (var channel in channelPlayerList)
-            foreach (var item in channel.Players)
-                item.UpdatePing();
+        if (listChanged)
+        {
+            listChanged = false;
+            bool reuseEntries = !rebuildEntries;
+            rebuildEntries = false;
+            SyncPlayerList(reuseEntries);
+        }
+
+        if (pingsChanged)
+        {
+            pingsChanged = false;
+            foreach (var channel in channelPlayerList)
+                foreach (var item in channel.Players)
+                    item.UpdatePing();
+        }
+
+        if (movedPlayers.Count == 0)
+            return;
+
+        // after the sync: a channel move and a location change can land in the same frame
+        foreach (var player in movedPlayers)
+            RefreshEntry(player);
+
+        movedPlayers.Clear();
+        SortPlayerList();
     }
 
-    private void UpdatePlayer(OnlinePlayer player)
+    // re-reads one row from the state; the caller sorts. a player that left has no row left.
+    private void RefreshEntry(OnlinePlayer player)
     {
 #if MOCK_DATA
         return;
 #endif
         var channel = channelPlayerList.Find(c => c.Channel == player.Channel);
-        var item = channel!.Players.Find(i => i.Player == player);
-        item!.Update(ClipType);
-        SortPlayerList();
-        return;
+        var item = channel?.Players.Find(i => i.Player == player);
+        if (item is null)
+            return;
+
+        item.Update(ClipType);
+        MeasureEntry(item);
     }
 
     private void Context_ClientInitialized(ClientState state)
     {
-        BuildPlayerList();
+        listChanged = true;
         state.SelfLocationChanged += new(State_SelfLocationChanged);
 
         void State_SelfLocationChanged()
-            => UpdatePlayer(ClientState.Self);
+            => movedPlayers.Add(ClientState.Self);
     }
 
     private void SortPlayerList()
@@ -213,6 +296,11 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         Active = false;
         scroll = 0f;
         channelPlayerList.Clear();
+        selfEntry = null;
+        listChanged = false;
+        rebuildEntries = false;
+        pingsChanged = false;
+        movedPlayers.Clear();
     }
 
     public override void Update()
@@ -271,11 +359,79 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         }
     }
 
-    // TODO this can still be optimized
+    // measures one row: the text through the entry, the icons here because the textures are here
+    private void MeasureEntry(PlayerListEntry item)
+    {
+        var settings = MiaoNetModule.Settings;
+        float scale = settings.PlayerListUIScaleValue;
+        float lineHeight = MiaoNetFont.ENZhsLineHeight * scale;
+
+        item.Measure(scale, settings.LiveMode);
+
+        PlayerGlobalFlags flags = item.Player.GlobalFlags;
+
+        float icons = 0f;
+        if (flags.HasFlag(PlayerGlobalFlags.Paused))
+        {
+            float texScale = lineHeight / texPlayerPaused.Height;
+            icons += texScale * texPlayerPaused.Width + 2 * PausedTexOffsetRange;
+        }
+
+        if (flags.HasFlag(PlayerGlobalFlags.Interactions))
+            icons += (lineHeight / texPlayerInteractions.Height) * texPlayerInteractions.Width;
+
+        if (flags.HasFlag(PlayerGlobalFlags.LiveMode))
+            icons += (lineHeight / texLiveMode.Height) * texLiveMode.Width;
+
+        if (flags.HasFlag(PlayerGlobalFlags.TakingGolden))
+            icons += (lineHeight / texTakingGolden.Height) * texTakingGolden.Width;
+
+        if (flags.HasFlag(PlayerGlobalFlags.GroupPhotoMode))
+            icons += (lineHeight / texGroupPhotoMode.Height) * texGroupPhotoMode.Width;
+
+        if (flags.HasFlag(PlayerGlobalFlags.Watching))
+            icons += (lineHeight / texPlayerDebugMap.Height) * texPlayerDebugMap.Width;
+
+        item.IconsWidth = icons;
+        item.MeasuredFlags = flags;
+        item.DebugMapWidth = (lineHeight / texPlayerDebugMap.Height) * texPlayerDebugMap.Width;
+        item.AreaIconWidth = item.AreaIconTexture is null
+            ? 0f
+            : (lineHeight / item.AreaIconTexture.Height) * item.AreaIconTexture.Width;
+    }
+
+    // the widths that aren't a single row's: the separators, the ping column and the headers
+    private void RefreshSharedMeasurements()
+    {
+        var settings = MiaoNetModule.Settings;
+        float scale = settings.PlayerListUIScaleValue;
+
+        measuredScale = scale;
+        measuredLiveMode = settings.LiveMode;
+
+        spaceWidth = MiaoNetFont.Measure(" ").X * scale;
+        colonWidth = MiaoNetFont.Measure(":").X * scale;
+        pingColumnWidth = MiaoNetFont.Measure($"{PlayerListEntry.MaxDisplayedPing}ms").X * scale + spaceWidth;
+
+        foreach (var channel in channelPlayerList)
+            channel.Measure(scale);
+    }
+
+    // every row, for when the scale or live mode moved under them
+    private void MeasureAllEntries()
+    {
+        foreach (var channel in channelPlayerList)
+            foreach (var item in channel.Players)
+                MeasureEntry(item);
+    }
+
     public override void Render()
     {
         if (!Active)
             return;
+
+        // the only reader of the model, and a closed list never gets here
+        ApplyListChanges();
 
         /*
          * 
@@ -303,6 +459,12 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
          */
 
         float scale = MiaoNetModule.Settings.PlayerListUIScaleValue;
+        if (measuredScale != scale || measuredLiveMode != MiaoNetModule.Settings.LiveMode)
+        {
+            // the scale or live mode moved under the rows
+            RefreshSharedMeasurements();
+            MeasureAllEntries();
+        }
 
         const float RectXMargin = 16f;
         const float RectYMargin = 16f;
@@ -315,11 +477,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
         float lineHeight = MiaoNetFont.ENZhsLineHeight * scale;
         float playerEntryHeight = lineHeight + 2 * PlayerEntryYPadding;
 
-        float maxPingWidth = 0f;
         float maxLineWidth = 0f;
-
-        float spaceWidth = MiaoNetFont.Measure(" ").X * scale;
-        float colonWidth = MiaoNetFont.Measure(":").X * scale;
+        bool hasPing = false;
 
         Span<float> channelYOffsets = stackalloc float[channelPlayerList.Count];
         Span<float> channelHeights = stackalloc float[channelPlayerList.Count];
@@ -330,7 +489,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             for (int i = 0; i < channelPlayerList.Count; i++)
             {
                 var channel = channelPlayerList[i];
-                float headerWidth = MiaoNetFont.Measure(channel.Header).X * scale;
+                float headerWidth = channel.HeaderWidth;
                 maxLineWidth = Math.Max(maxLineWidth, headerWidth);
 
                 curY += RectYMargin;
@@ -342,85 +501,28 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                 {
                     var player = item.Player;
 
-                    float itemWidth = 0f;
+                    // the icons are part of the row width and only the flags move them
+                    if (item.MeasuredFlags != player.GlobalFlags)
+                        MeasureEntry(item);
 
-                    itemWidth += MiaoNetFont.Measure(item.DisplayName).X * scale;
-                    itemWidth += MiddlePadding;
-
-                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Paused))
-                    {
-                        float texScale = lineHeight / texPlayerPaused.Height;
-                        itemWidth += texScale * texPlayerPaused.Width + 2 * PausedTexOffsetRange;
-                    }
-
-                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Interactions))
-                    {
-                        float texScale = lineHeight / texPlayerInteractions.Height;
-                        itemWidth += texScale * texPlayerInteractions.Width;
-                    }
-
-                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.LiveMode))
-                    {
-                        float texScale = lineHeight / texLiveMode.Height;
-                        itemWidth += texScale * texLiveMode.Width;
-                    }
-
-                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.TakingGolden))
-                    {
-                        float texScale = lineHeight / texTakingGolden.Height;
-                        itemWidth += texScale * texTakingGolden.Width;
-                    }
-
-                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.GroupPhotoMode))
-                    {
-                        float texScale = lineHeight / texGroupPhotoMode.Height;
-                        itemWidth += texScale * texGroupPhotoMode.Width;
-                    }
-
-                    if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Watching))
-                    {
-                        float texScale = lineHeight / texPlayerDebugMap.Height;
-                        itemWidth += texScale * texPlayerDebugMap.Width;
-                    }
+                    float itemWidth = item.NameWidth + MiddlePadding + item.IconsWidth;
 
                     if (!player.Location.IsEmpty)
                     {
-                        bool liveMode = MiaoNetModule.Settings.LiveMode;
-
                         itemWidth += colonWidth;
-                        if (!player.Location.IsInDebugMap)
-                        {
-                            itemWidth += MiaoNetFont.Measure(liveMode ? "*" : item.MapRoom!).X * scale;
-                        }
-                        else
-                        {
-                            float texScale = lineHeight / texPlayerDebugMap.Height;
-                            itemWidth += texScale * texPlayerDebugMap.Width;
-                        }
+                        itemWidth += player.Location.IsInDebugMap ? item.DebugMapWidth : item.RoomWidth;
 
                         if (item.AreaIconTexture is not null)
-                        {
-                            itemWidth += spaceWidth;
-                            float texScale = lineHeight / item.AreaIconTexture.Height;
-                            itemWidth += texScale * item.AreaIconTexture.Width;
-                        }
+                            itemWidth += spaceWidth + item.AreaIconWidth;
 
-                        itemWidth += spaceWidth;
-                        string mapName = item.IsLocallyKnownMap ? item.MapName! : liveMode ? "*" : item.MapName!;
-                        itemWidth += MiaoNetFont.Measure(mapName).X * scale;
+                        itemWidth += spaceWidth + item.MapNameWidth;
 
                         if (item.AreaModeText is not null)
-                        {
-                            itemWidth += spaceWidth;
-                            itemWidth += MiaoNetFont.Measure(item.AreaModeText).X * scale;
-                        }
+                            itemWidth += spaceWidth + item.AreaModeWidth;
                     }
 
                     if (item.PingText is not null)
-                    {
-                        float pingWidth = MiaoNetFont.Measure(item.PingText).X * scale + spaceWidth;
-                        maxPingWidth = Math.Max(maxPingWidth, pingWidth);
-                    }
+                        hasPing = true;
 
                     maxLineWidth = Math.Max(maxLineWidth, itemWidth);
 
@@ -433,6 +535,8 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
             }
         }
 
+        // the ping column is reserved at its widest when anything has a ping
+        float maxPingWidth = hasPing ? pingColumnWidth : 0f;
         float totalMaxLineWidth = maxLineWidth + maxPingWidth + 2 * PlayerEntryXPadding;
 
         // draw background
@@ -492,7 +596,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                     scale: Vector2.One * scale,
                     player.Info.Color
                 );
-                x += MiaoNetFont.Measure(playerName).X * scale;
+                x += item.NameWidth;
 
                 if (player.GlobalFlags.HasFlag(PlayerGlobalFlags.Paused))
                 {
@@ -590,7 +694,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                             scale: Vector2.One * scale,
                             item.MapSideColor
                         );
-                        x -= MiaoNetFont.Measure(item.AreaModeText).X * scale;
+                        x -= item.AreaModeWidth;
                         x -= spaceWidth;
                     }
 
@@ -605,7 +709,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                         scale: Vector2.One * scale,
                         item.MapNameColor
                     );
-                    x -= MiaoNetFont.Measure(mapName).X * scale;
+                    x -= item.MapNameWidth;
                     x -= spaceWidth;
 
                     // draw a colon
@@ -628,7 +732,7 @@ public sealed partial class PlayerListComponent : MiaoNetComponent
                             scale: Vector2.One * scale,
                             Color.LightGray
                         );
-                        x -= MiaoNetFont.Measure(item.MapRoom!).X * scale;
+                        x -= item.RoomWidth;
                     }
                     else
                     {
