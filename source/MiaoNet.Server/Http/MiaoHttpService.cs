@@ -17,6 +17,7 @@ public sealed partial class MiaoHttpService : BackgroundService
     private readonly ILogger<MiaoHttpService> logger;
     private readonly MiaoServerService miaoServerService;
     private readonly MiaoMetricsService miaoMetricsService;
+    private readonly MinecraftBridgeService minecraftBridgeService;
     private readonly AdminLogBuffer adminLogBuffer;
     private readonly AdminChatBuffer adminChatBuffer;
     private readonly AdminMetricsSampler adminMetricsSampler;
@@ -28,6 +29,7 @@ public sealed partial class MiaoHttpService : BackgroundService
     private readonly AdminPanelOptions adminOptions;
     private readonly AdminSessionStore? adminSessionStore;
     private readonly HttpClient? adminHttpClient;
+    private readonly CancellationTokenSource serviceStopping = new();
 
     private readonly JsonSerializerOptions jsonSerializerOptions;
 
@@ -36,6 +38,7 @@ public sealed partial class MiaoHttpService : BackgroundService
         IOptions<HttpOptions> options,
         MiaoServerService miaoServerService,
         MiaoMetricsService miaoMetricsService,
+        MinecraftBridgeService minecraftBridgeService,
         AdminLogBuffer adminLogBuffer,
         AdminChatBuffer adminChatBuffer,
         AdminMetricsSampler adminMetricsSampler,
@@ -45,6 +48,7 @@ public sealed partial class MiaoHttpService : BackgroundService
         this.logger = logger;
         this.miaoServerService = miaoServerService;
         this.miaoMetricsService = miaoMetricsService;
+        this.minecraftBridgeService = minecraftBridgeService;
         this.adminLogBuffer = adminLogBuffer;
         this.adminChatBuffer = adminChatBuffer;
         this.adminMetricsSampler = adminMetricsSampler;
@@ -183,6 +187,10 @@ public sealed partial class MiaoHttpService : BackgroundService
             {
                 await HandleAdminRequestAsync(path, query, context);
             }
+            else if (path == "/ws/minecraft")
+            {
+                await HandleMinecraftBridgeRequestAsync(query, context);
+            }
             else if (requestHandlers.TryGetValue(path, out var handler))
             {
                 if (!CheckApiToken(path, context))
@@ -236,6 +244,7 @@ public sealed partial class MiaoHttpService : BackgroundService
 
     public override Task StopAsync(CancellationToken cancellationToken)
     {
+        serviceStopping.Cancel();
         httpListener.Stop();
 
         return base.StopAsync(cancellationToken);

@@ -193,13 +193,14 @@ public sealed partial class MiaoServerService
     {
         var player = connection.Player;
 
-        ValueTask responseTask;
-        Task sameMapTask;
-        Task sameChannelTask;
-        Task crossChannelTask;
+        ValueTask responseTask = default;
+        Task sameMapTask = Task.CompletedTask;
+        Task sameChannelTask = Task.CompletedTask;
+        Task crossChannelTask = Task.CompletedTask;
         Task createdBroadcastTask = Task.CompletedTask;
         ValueTask createdTask = default;
         bool notifyChannelCreated = false;
+        bool joinDenied = false;
 
         using (stateLock.AcquireWriteLock())
         {
@@ -223,6 +224,16 @@ public sealed partial class MiaoServerService
                     );
                 }
             }
+            else if (!targetChannel.AllowClientJoin)
+            {
+                // virtual-players-only channel (the Minecraft bridge channel):
+                // politely refuse and leave the player where they are
+                joinDenied = true;
+                responseTask = connection.QueuePacketAsync(new PacketChatMessage(
+                    DateTime.UtcNow, ChatMessageType.Server, null,
+                    "该频道为 Minecraft 桥接频道，仅用于同步 Minecraft 玩家，无法加入。"
+                ));
+            }
             else if (targetChannel.IsPrivate && !targetChannel.Players.Contains(connection))
             {
                 // channel is private, and the player is not in it
@@ -230,70 +241,73 @@ public sealed partial class MiaoServerService
                 notifyChannelCreated = true;
             }
 
-            targetChannel.Maps.TryGetValue(player.Location.Map, out ServerMap? mapTo);
-            mapTo?.StateLock.EnterWriteLock();
-            try
+            if (!joinDenied)
             {
-                var channelPlayers = new List<PlayerPresenceDataWithID>(targetChannel.Players.Count);
-                foreach (var c in targetChannel.Players)
+                targetChannel.Maps.TryGetValue(player.Location.Map, out ServerMap? mapTo);
+                mapTo?.StateLock.EnterWriteLock();
+                try
                 {
-                    if (c.ID == connection.ID)
-                        continue;
-                    channelPlayers.Add(new PlayerPresenceDataWithID(
-                        c.ID, new PlayerPresenceData(c.Player.Location, c.Player.GlobalFlags)
-                    ));
+                    var channelPlayers = new List<PlayerPresenceDataWithID>(targetChannel.Players.Count);
+                    foreach (var c in targetChannel.Players)
+                    {
+                        if (c.ID == connection.ID)
+                            continue;
+                        channelPlayers.Add(new PlayerPresenceDataWithID(
+                            c.ID, new PlayerPresenceData(c.Player.Location, c.Player.GlobalFlags)
+                        ));
+                    }
+                    var mapPlayers = mapTo?.GetPlayerMovedInitialDatas(connection);
+    
+                    if (notifyChannelCreated)
+                        createdTask = connection.QueuePacketAsync(new PacketChannelCreated(targetChannel.ID, targetChannel.Info));
+    
+                    var responsePacket = new PacketPlayerChannelMovedResponse(targetChannel.ID, mapPlayers, channelPlayers);
+                    responseTask = connection.QueuePacketAsync(responsePacket);
+    
+                    // same-map players in the target channel get state + presence
+                    var sameMapNotification = new PacketPlayerChannelMovedNotification(
+                        connection.ID,
+                        targetChannel.ID,
+                        player.State is null ? null : new PlayerMovedInitialData(player.State),
+                        new PlayerPresenceData(player.Location, player.GlobalFlags)
+                    );
+                    sameMapTask = mapTo is not null
+                        ? BroadcastToScopeExceptAsync(sameMapNotification, mapTo, connection.ID)
+                        : Task.CompletedTask;
+    
+                    var sameChannelNotification = new PacketPlayerChannelMovedNotification(
+                        connection.ID,
+                        targetChannel.ID,
+                        null,
+                        new PlayerPresenceData(player.Location, player.GlobalFlags)
+                    );
+                    sameChannelTask = BroadcastToScopeExceptAsync(
+                        sameChannelNotification,
+                        targetChannel,
+                        connection.ID,
+                        c => mapTo is null || !mapTo.Players.Contains(c)
+                    );
+    
+                    // players in other channels get only a "moved" notification
+                    // and for private channels, the virtual id is used instead of the real channel id
+                    var crossChannelNotification = new PacketPlayerChannelMovedNotification(
+                        connection.ID,
+                        targetChannel.IsPrivate ? ChannelInfo.PrivateChannelVirtualID : targetChannel.ID
+                    );
+                    crossChannelTask = BroadcastToScopeExceptAsync(
+                        crossChannelNotification,
+                        serverState,
+                        connection.ID,
+                        c => c.Player.Channel != targetChannel
+                    );
                 }
-                var mapPlayers = mapTo?.GetPlayerMovedInitialDatas(connection);
+                finally
+                {
+                    mapTo?.StateLock.ExitWriteLock();
+                }
 
-                if (notifyChannelCreated)
-                    createdTask = connection.QueuePacketAsync(new PacketChannelCreated(targetChannel.ID, targetChannel.Info));
-
-                var responsePacket = new PacketPlayerChannelMovedResponse(targetChannel.ID, mapPlayers, channelPlayers);
-                responseTask = connection.QueuePacketAsync(responsePacket);
-
-                // same-map players in the target channel get state + presence
-                var sameMapNotification = new PacketPlayerChannelMovedNotification(
-                    connection.ID,
-                    targetChannel.ID,
-                    player.State is null ? null : new PlayerMovedInitialData(player.State),
-                    new PlayerPresenceData(player.Location, player.GlobalFlags)
-                );
-                sameMapTask = mapTo is not null
-                    ? BroadcastToScopeExceptAsync(sameMapNotification, mapTo, connection.ID)
-                    : Task.CompletedTask;
-
-                var sameChannelNotification = new PacketPlayerChannelMovedNotification(
-                    connection.ID,
-                    targetChannel.ID,
-                    null,
-                    new PlayerPresenceData(player.Location, player.GlobalFlags)
-                );
-                sameChannelTask = BroadcastToScopeExceptAsync(
-                    sameChannelNotification,
-                    targetChannel,
-                    connection.ID,
-                    c => mapTo is null || !mapTo.Players.Contains(c)
-                );
-
-                // players in other channels get only a "moved" notification
-                // and for private channels, the virtual id is used instead of the real channel id
-                var crossChannelNotification = new PacketPlayerChannelMovedNotification(
-                    connection.ID,
-                    targetChannel.IsPrivate ? ChannelInfo.PrivateChannelVirtualID : targetChannel.ID
-                );
-                crossChannelTask = BroadcastToScopeExceptAsync(
-                    crossChannelNotification,
-                    serverState,
-                    connection.ID,
-                    c => c.Player.Channel != targetChannel
-                );
+                serverState.PlayerChannelMove(connection, player.Channel, targetChannel);
             }
-            finally
-            {
-                mapTo?.StateLock.ExitWriteLock();
-            }
-
-            serverState.PlayerChannelMove(connection, player.Channel, targetChannel);
         }
 
         if (notifyChannelCreated)
@@ -333,6 +347,7 @@ public sealed partial class MiaoServerService
             type == ChatMessageType.Chat ? null : connection.Player.Channel.Info.Name,
             connection.Player.Info.Name, connection.Player.Info.AuthID, packet.Content
         );
+        ChatMessageEmitted?.Invoke(connection.Player, type, packet.Content);
         var toSend = new PacketChatMessage(DateTime.UtcNow, type, connection.Player.ID, packet.Content);
         switch (type)
         {

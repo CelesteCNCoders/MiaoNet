@@ -36,6 +36,7 @@ public partial class MiaoHttpService
     private Task BroadcastAnnouncementAsync(string message)
     {
         adminChatBuffer.Record("server", null, "服务器", 0, message);
+        miaoServerService.RaiseChatMessageEmitted(null, ChatMessageType.Server, message);
         return miaoServerService.BroadcastAsync(new PacketChatMessage(DateTime.UtcNow, ChatMessageType.Server, null, message));
     }
 
@@ -91,22 +92,31 @@ public partial class MiaoHttpService
     {
         context.Response.ContentType = MediaTypeNames.Application.Json;
 
+        var virtualPlayers = miaoServerService.ServerState.VirtualPlayers;
+
+        // one shared shape for real and virtual (Minecraft bridge) players;
+        // virtual players have no ping and carry their dimension in Location
+        static object PlayerJson(int id, PlayerInfo info, PlayerLocation location, int? ping)
+            => new { ID = id, Name = info.Name, Prefix = info.Prefix, Location = location.ToString(), Ping = ping };
+
 #pragma warning disable IDE0037
         var response = new
         {
             PlayersCount = miaoServerService.Players.Count,
-            Channels = miaoServerService.Channels.Select(static c => new
+            VirtualPlayersCount = virtualPlayers.Count,
+            Channels = miaoServerService.Channels.Select(c => new
             {
                 ID = c.Key,
                 Name = c.Value.Info.Name,
                 IsPrivate = c.Value.IsPrivate,
-                Players = c.Value.Players.Select(static c => new
-                {
-                    ID = c.ID,
-                    Name = c.Player.Info.Name,
-                    Location = c.Player.Location.ToString(),
-                    Ping = c.Player.LastPing
-                })
+                Players = c.Value.Players
+                    .Select(p => PlayerJson(p.ID, p.Player.Info, p.Player.Location, p.Player.LastPing))
+                    .Concat(
+                        virtualPlayers.Values
+                            .Where(p => p.Channel.ID == c.Key)
+                            .Select(p => PlayerJson(p.ID, p.Info, p.Location, null))
+                    )
+                    .ToList()
             })
         };
 #pragma warning restore IDE0037

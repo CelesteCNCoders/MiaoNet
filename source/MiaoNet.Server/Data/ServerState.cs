@@ -11,11 +11,17 @@ public sealed class ServerState : IPlayerScope
 {
     private int nextPlayerID;
     private int nextChannelID;
+    // virtual players (e.g. Minecraft bridge players) get negative IDs,
+    // so they never collide with real connection IDs
+    private int nextVirtualPlayerID;
 
     private ImmutableDictionary<int, MiaoClientConnection> players;
+    private ImmutableDictionary<int, ServerPlayer> virtualPlayers;
     private ImmutableDictionary<int, ServerChannel> channels;
 
     public ImmutableDictionary<int, MiaoClientConnection> Players => players;
+
+    public ImmutableDictionary<int, ServerPlayer> VirtualPlayers => virtualPlayers;
 
     IEnumerable<MiaoClientConnection> IPlayerScope.Players => players.Values;
 
@@ -26,6 +32,7 @@ public sealed class ServerState : IPlayerScope
         nextPlayerID = nextChannelID = 0;
 
         players = ImmutableDictionary<int, MiaoClientConnection>.Empty;
+        virtualPlayers = ImmutableDictionary<int, ServerPlayer>.Empty;
         channels = ImmutableDictionary<int, ServerChannel>.Empty
             .Add(
                 ChannelInfo.MainChannelID,
@@ -46,6 +53,29 @@ public sealed class ServerState : IPlayerScope
         int id = Interlocked.Increment(ref nextChannelID);
         ServerChannel channel = new(id, channelInfo);
         return channel;
+    }
+
+    public ServerPlayer CreateNewVirtualPlayer(PlayerInfo playerInfo, ServerChannel channel)
+    {
+        int id = Interlocked.Decrement(ref nextVirtualPlayerID);
+        ServerPlayer player = new(channel, id, playerInfo);
+        return player;
+    }
+
+    public void AddVirtualPlayer(ServerPlayer player)
+    {
+        Debug.Assert(player.ID < 0);
+        bool result = ImmutableInterlocked.Update(ref virtualPlayers, (d, p) => d.Add(p.ID, p), player);
+        Debug.Assert(result);
+    }
+
+    public bool RemoveVirtualPlayer(int id, [NotNullWhen(true)] out ServerPlayer? player)
+    {
+        if (!virtualPlayers.TryGetValue(id, out player))
+            return false;
+        bool result = ImmutableInterlocked.Update(ref virtualPlayers, (d, p) => d.Remove(p.ID), player);
+        Debug.Assert(result);
+        return true;
     }
 
     public bool TryGetChannelByName(string name, [NotNullWhen(true)] out ServerChannel? channel)
@@ -95,12 +125,13 @@ public sealed class ServerState : IPlayerScope
     }
 
     /// <summary>
-    /// Removes the channel if it is empty and not the always-retained main channel.
+    /// Removes the channel if it is empty and not an always-retained channel
+    /// (main channel, or channels marked persistent like the Minecraft bridge channel).
     /// Does nothing otherwise.
     /// </summary>
     private void TryRemoveEmptyChannel(ServerChannel channel)
     {
-        if (channel.Players.Count == 0 && channel.ID != ChannelInfo.MainChannelID)
+        if (channel.Players.Count == 0 && channel.ID != ChannelInfo.MainChannelID && !channel.IsPersistent)
         {
             bool result = ImmutableInterlocked.Update(ref channels, (d, c) => d.Remove(c.ID), channel);
             Debug.Assert(result);

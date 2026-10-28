@@ -58,6 +58,21 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
     public void SetSendBatchingEnabled(bool enabled) => sendBatchingEnabled = enabled;
 
+    /// <summary>
+    /// Fired for every accepted public chat message and server announcement.
+    /// Source is null for server announcements. Private messages are never fired.
+    /// </summary>
+    public event Action<ServerPlayer?, ChatMessageType, string>? ChatMessageEmitted;
+
+    /// <summary>Fired after a real client fully joined (visible in the player list).</summary>
+    public event Action<ServerPlayer>? PlayerJoinedOnline;
+
+    /// <summary>Fired after a real client left.</summary>
+    public event Action<ServerPlayer>? PlayerLeftOnline;
+
+    internal void RaiseChatMessageEmitted(ServerPlayer? source, ChatMessageType type, string content)
+        => ChatMessageEmitted?.Invoke(source, type, content);
+
     public TimeSpan RequestTimeout => TimeSpan.FromMilliseconds(options.RequestTimeout);
 
     public MiaoServerService(
@@ -181,6 +196,13 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                         sameChannel ? p.Location : PlayerLocation.Empty,
                         sameChannel ? p.GlobalFlags : PlayerGlobalFlags.None
                     );
+                // virtual players (Minecraft bridge) are bots in public channels:
+                // always listed with their real location so their dimension is visible
+                playerInfos = playerInfos.Concat(
+                    serverState.VirtualPlayers.Values.Select(p => new PacketClientInitial.Player(
+                        p.Channel.ID, p.ID, p.Info, p.Location, PlayerGlobalFlags.None
+                    ))
+                );
 
                 var strings = announcementsMonitor.CurrentValue[handshakeResult.HandshakeData.LanguageCode];
                 PacketClientInitial packetClientInitial = new PacketClientInitial(
@@ -230,6 +252,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
             await sendStateTask;
             await tellOthersOneJoinedTask;
+            PlayerJoinedOnline?.Invoke(newPlayer);
 
             // exchange data with this player
             await newConnection.HandleClientConnectAsync();
@@ -242,6 +265,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
             // then, tell other clients this player left
             logger.LogInformation(AppEvents.Connection, "Client id {id} handle finished.", newPlayer.ID);
             await BroadcastAsync(new PacketPlayerLeft(newPlayer.ID));
+            PlayerLeftOnline?.Invoke(newPlayer);
         }
         catch (Exception e)
         {
@@ -369,7 +393,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         return Task.CompletedTask;
     }
 
-    private static Task BroadcastToScopeAsync(IContextualPacket packet, IPlayerScope scope)
+    internal static Task BroadcastToScopeAsync(IContextualPacket packet, IPlayerScope scope)
         => BroadcastContextuallyToAsync(packet, scope.Players, _ => true);
 
     private static Task BroadcastToScopeAsync(
@@ -388,7 +412,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         Predicate<MiaoClientConnection> predicate
     ) => BroadcastContextuallyToAsync(packet, scope.Players, c => c.ID != excludedPlayerId && predicate(c));
 
-    private static Task BroadcastToScopeAsync(IContextlessPacket packet, IPlayerScope scope)
+    internal static Task BroadcastToScopeAsync(IContextlessPacket packet, IPlayerScope scope)
         => BroadcastContextuallyToAsync(packet, scope.Players, _ => true);
 
     private static Task BroadcastToScopeAsync(

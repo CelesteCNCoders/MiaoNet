@@ -15,6 +15,18 @@ public sealed class ServerChannel : IPlayerScope
 
     public bool IsPrivate => Info.IsPrivate;
 
+    /// <summary>
+    /// Persistent channels (e.g. the Minecraft bridge channel) are never
+    /// auto-removed when empty.
+    /// </summary>
+    public bool IsPersistent { get; set; }
+
+    /// <summary>
+    /// Whether real clients can join this channel via PacketPlayerChannelMove.
+    /// False for the Minecraft bridge channel, which is virtual-players-only.
+    /// </summary>
+    public bool AllowClientJoin { get; set; } = true;
+
     public ImmutableHashSet<MiaoClientConnection> Players => players;
 
     IEnumerable<MiaoClientConnection> IPlayerScope.Players => players;

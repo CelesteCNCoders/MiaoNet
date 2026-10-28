@@ -88,6 +88,8 @@ public static partial class Program
 #endif
         builder.Services.Configure<MiaoServerOptions>(builder.Configuration.GetRequiredSection("MiaoServer:Network"));
         builder.Services.Configure<HttpOptions>(builder.Configuration.GetRequiredSection("MiaoServer:Http"));
+        builder.Services.Configure<MinecraftBridgeOptions>(builder.Configuration.GetSection("MiaoServer:MinecraftBridge"));
+        builder.Services.AddSingleton<MinecraftBridgeService>();
 
 #if !USE_LOCALHOST_PFX
         builder.Services
