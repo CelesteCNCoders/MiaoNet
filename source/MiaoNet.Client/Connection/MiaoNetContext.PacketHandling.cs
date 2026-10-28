@@ -14,6 +14,7 @@ partial class MiaoNetContext
     public event PlayerNotificationHandler<PacketPlayerLocationChangedNotification>? PlayerLocationChanged;
     public event Action<PacketPlayerLocationChangedResponse>? PlayerLocationChangeResponded;
     public event Action<OnlinePlayer?, PacketChatMessage>? ChatMessageReceived;
+    public event Action<OnlinePlayer, PacketLevelClear>? LevelClearReceived;
     public event Action<OnlinePlayer, EmoteData>? EmoteReceived;
     public event Action<OnlinePlayer, string>? EmoteTextReceived;
     public event Action<OnlinePlayer, LiveStateType, Vector2>? PlayerLiveStateNotification;
@@ -34,6 +35,7 @@ partial class MiaoNetContext
         r.Register<PacketPlayerLocationChangedNotification>(HandlePacket);
         r.Register<PacketPlayerLocationChangedResponse>(HandlePacket);
         r.Register<PacketChatMessage>(HandlePacket);
+        r.Register<PacketLevelClear>(HandlePacket);
         r.Register<PacketEmote>(HandlePacket);
         r.Register<PacketEmoteText>(HandlePacket);
         r.Register<PacketPlayerLiveState>(HandlePacket);
@@ -174,7 +176,20 @@ partial class MiaoNetContext
         ChatMessageReceived?.Invoke(player, packet);
     }
 
+<<<<<<< Updated upstream
     private void HandlePacket(PacketEnvelope envelope, PacketEmote packet)
+=======
+    private void HandlePacket(PacketLevelClear packet)
+    {
+        EnsureState();
+        if (packet.Record.IsValid() && packet.PlayerID == ClientState.Self.ID)
+            MiaoNetModule.Instance.ConfirmClearShared(packet.Record.ClearID);
+        if (packet.Record.IsValid() && ClientState.TryGetPlayerOrSelf(packet.PlayerID, out var player))
+            LevelClearReceived?.Invoke(player, packet);
+    }
+
+    private void HandlePacket(PacketEmote packet)
+>>>>>>> Stashed changes
     {
         EnsureState();
         var player = ClientState.GetPlayer(envelope.SenderPlayerID);

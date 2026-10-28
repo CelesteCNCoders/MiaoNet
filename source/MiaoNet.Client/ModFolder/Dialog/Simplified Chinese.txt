@@ -281,3 +281,20 @@ miaonet_oui_conflict_continue_description= 警告：这可能发生非预期的�
 
 miaonet_interactions_off_on_collecting_golden= 玩家交互已因捡起金草莓而关闭。
 miaonet_group_photo_mode_off_on_map_change= 合影模式已因位置变化而关闭。
+
+miaonet_commands_shareclear_description= 将最近一次通关以卡片分享到全局频道。
+miaonet_clear_not_connected= 请先连接 MiaoNet 再分享通关记录。
+miaonet_clear_no_record= 暂无通关记录，请先完成一次关卡。
+miaonet_clear_cooldown= 通关分享间隔为 10 秒，请稍后再试。
+miaonet_clear_title= 通关记录
+miaonet_clear_golden_stamp= 金草莓
+miaonet_options_clear_card_view= 通关分享显示
+miaonet_options_clear_card_view_Standard= 标准卡片
+miaonet_options_clear_card_view_Compact= 紧凑卡片
+miaonet_options_clear_card_view_Hidden= 屏蔽
+miaonet_clear_already_shared= 这次通关已分享，完成下一次通关后可以再次分享。
+miaonet_clear_deaths= 死亡 (0) 次
+miaonet_clear_full_yes= 全收集 (0)/(1)
+miaonet_clear_full_no= 未全收集 (0)/(1)
+miaonet_clear_golden_yes= 金草莓：已获得
+miaonet_clear_golden_no= 金草莓：未获得

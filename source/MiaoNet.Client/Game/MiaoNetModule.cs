@@ -10,7 +10,7 @@ using MonoMod.Utils;
 
 namespace Celeste.Mod.MiaoNet;
 
-public sealed class MiaoNetModule : EverestModule
+public sealed partial class MiaoNetModule : EverestModule
 {
     private MiaoNetContext? miaoNetContext;
 
@@ -19,12 +19,15 @@ public sealed class MiaoNetModule : EverestModule
     public static MiaoNetModule Instance { get; private set; } = null!;
 
     public override Type SettingsType => typeof(MiaoNetModuleSettings);
+    public override Type SaveDataType => typeof(MiaoNetModuleSaveData);
     public static MiaoNetModuleSettings Settings => (MiaoNetModuleSettings)Instance._Settings;
 
     private static readonly DetourConfig RootConfig = new("MiaoNet");
     private static readonly DetourConfig RootBeforeAllConfig = new("MiaoNet.BeforeAll", before: ["*"]);
 
     public MiaoNetContext MiaoNetContext => miaoNetContext ??= new();
+
+    internal bool IsWatching => miaoNetContext?.MainComponent.Watching == true;
 
     // TODO this is ugly
     public static Vector2? NextPlayerSpawnPosition { get; set; }
@@ -67,6 +70,7 @@ public sealed class MiaoNetModule : EverestModule
             IL.Monocle.Engine.Update += Engine_Update;
             IL.Monocle.Engine.RenderCore += Engine_RenderCore;
             Everest.Events.Level.OnExit += Level_OnExit;
+            Everest.Events.Level.OnComplete += LevelClearTracking.OnComplete;
             Everest.Events.Level.OnLoadLevel += Level_OnLoadLevel;
             IL.Celeste.Level.Update += Level_Update;
             SpriteIDTracker.Load();
@@ -106,6 +110,7 @@ public sealed class MiaoNetModule : EverestModule
         IL.Monocle.Engine.Update -= Engine_Update;
         IL.Monocle.Engine.RenderCore -= Engine_RenderCore;
         Everest.Events.Level.OnExit -= Level_OnExit;
+        Everest.Events.Level.OnComplete -= LevelClearTracking.OnComplete;
         Everest.Events.Level.OnLoadLevel -= Level_OnLoadLevel;
         IL.Celeste.Level.Update -= Level_Update;
         SpriteIDTracker.Unload();

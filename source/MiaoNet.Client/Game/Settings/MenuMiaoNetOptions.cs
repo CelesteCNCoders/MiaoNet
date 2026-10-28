@@ -230,6 +230,13 @@ public static class MenuMiaoNetOptions
         uiSubMenu.Add(foldWindow);
         uiSubMenu.Add(foldCounter);
 
+        item = new EnumSlider<ClearCardView>(
+            Dialog.Get("miaonet_options_clear_card_view"),
+            value => Dialog.Get($"miaonet_options_clear_card_view_{value}"),
+            settings.ClearCardView
+        ).Change(v => settings.ClearCardView = v);
+        uiSubMenu.Add(item);
+
         menu.Add(uiSubMenu);
 
         #endregion

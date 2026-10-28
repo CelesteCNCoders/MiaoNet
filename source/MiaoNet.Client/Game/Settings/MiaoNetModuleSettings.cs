@@ -100,6 +100,16 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
         set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
     } = 8;
 
+    public ClearCardView ClearCardView
+    {
+        get;
+        set
+        {
+            field = Enum.IsDefined(value) ? value : ClearCardView.Standard;
+            NotifySettingsChanged(SettingsCategory.VisualsUI);
+        }
+    } = ClearCardView.Standard;
+
     public int IdleChatHeight
     {
         get;

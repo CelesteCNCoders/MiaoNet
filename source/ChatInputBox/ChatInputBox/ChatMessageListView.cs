@@ -47,6 +47,9 @@ public sealed class ChatMessageListView
 
     public string? ActiveTabName => chatMessageManager.ActiveTabName;
 
+    // 由宿主提供裁剪作用域，避免组件假设 SpriteBatch 的渲染状态。
+    public Action<Rectangle, Action>? RenderClipped { get; set; }
+
     private ChatMessageViewState getOrInitViewState(ChatItem key)
     {
         if (!viewStates.TryGetValue(key, out var viewState))
@@ -71,15 +74,11 @@ public sealed class ChatMessageListView
         // can we avoid recalculating these?
         const float Margin = 16f;
         const float Padding = 8f;
-        const float MessageYPadding = 8f;
-
-        float messageLineHeight = (textRenderer.LineHeight + 2 * MessageYPadding);
-        float totalMessagesHeight = chatLog.Count * messageLineHeight;
+        float totalMessagesHeight = chatLog.Sum(item => item.MeasureHeight(textRenderer, MessageYPadding));
 
         float lineHeight = textRenderer.LineHeight;
-        float baseY = Engine.Height - Margin - lineHeight * 1.5f - Padding;
+        float baseY = Engine.Height - Margin - (active ? 2 : 1) * (lineHeight + Padding * 2);
         float maxHeightV = (active ? ActiveHeight : IdleHeight) * baseY;
-        maxHeightV = (int)(maxHeightV / messageLineHeight) * messageLineHeight;
 
         return Math.Clamp(value, 0f, Math.Max(totalMessagesHeight - maxHeightV, 0f));
     }
@@ -156,19 +155,16 @@ public sealed class ChatMessageListView
 
     public void Render()
     {
-        // if (showingChatLog.Count == 0)
-        //     return;
-
         const float Margin = 16f;
         const float Padding = 8f;
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
         float inputBoxTopY = Engine.Height - Margin - textRenderer.LineHeight - Padding * 2f;
         float tabViewTopY = inputBoxTopY - textRenderer.LineHeight - Padding * 2f;
-
-        float lineHeight = textRenderer.LineHeight;
-        float messageLineHeight = lineHeight + 2 * MessageYPadding;
-
         float baseY = active ? tabViewTopY : inputBoxTopY;
+<<<<<<< Updated upstream
         Vector2 baseLoc = new Vector2(Margin, baseY);
 
         float curY = baseLoc.Y;
@@ -197,26 +193,36 @@ public sealed class ChatMessageListView
             DrawSingleMessage(chatLog[firstVisibleMessageIndex + 1], baseLoc.X, pCurY, alpha);
         }
 
+=======
+>>>>>>> Stashed changes
         float maxHeightV = (active ? ActiveHeight : IdleHeight) * baseY;
-        maxHeightV = (int)(maxHeightV / messageLineHeight) * messageLineHeight;
-        int nextInvisibleMessageIndex = -1;
-        for (int i = firstVisibleMessageIndex; i >= 0; i--)
+        float top = Math.Max(0, baseY - maxHeightV);
+        scroll = ClampScrollValue(scroll);
+
+        if (RenderClipped is not null)
+            RenderClipped(new Rectangle(0, (int)top, Engine.Width, Math.Max(0, (int)(baseY - top))), DrawMessages);
+        else
+            DrawMessages();
+
+        void DrawMessages()
         {
-            if (curY < baseLoc.Y - maxHeightV)
+            float bottom = baseY + (active ? scroll : 0);
+            for (int i = chatLog.Count - 1; i >= 0 && bottom > top; i--)
             {
-                nextInvisibleMessageIndex = i;
-                break;
+                var item = chatLog[i];
+                float height = item.MeasureHeight(textRenderer, MessageYPadding);
+                if (height <= 0)
+                    continue;
+                float itemTop = bottom - height;
+                if (itemTop < baseY)
+                {
+                    float visible = Math.Min(bottom, baseY) - Math.Max(itemTop, top);
+                    float alpha = RenderClipped is null ? Math.Clamp(visible / height, 0, 1) : 1;
+                    if (!DrawSingleMessage(item, Margin, bottom, alpha))
+                        break;
+                }
+                bottom = itemTop;
             }
-
-            if (!DrawSingleMessage(chatLog[i], baseLoc.X, curY, 1f))
-                break;
-
-            curY -= messageLineHeight;
-        }
-        if (nextInvisibleMessageIndex > 0)
-        {
-            float alpha = 1f - (baseLoc.Y - maxHeightV - curY) / messageLineHeight;
-            DrawSingleMessage(chatLog[nextInvisibleMessageIndex], baseLoc.X, curY, alpha);
         }
     }
 

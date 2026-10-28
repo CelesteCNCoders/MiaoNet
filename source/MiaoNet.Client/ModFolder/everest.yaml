@@ -1,5 +1,9 @@
 - Name: MiaoNet
+<<<<<<< Updated upstream
   Version: 0.5.0-dev
+=======
+  Version: 0.7.1-alpha
+>>>>>>> Stashed changes
   DLL: Code/MiaoNet.dll
   Dependencies:
     - Name: EverestCore

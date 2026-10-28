@@ -29,7 +29,10 @@ public class ChatItem
     {
         this.messageText = messageText;
     }
-    public void render(
+    public virtual float MeasureHeight(IScalelessTextRenderer textRenderer, float messageYPadding)
+        => textRenderer.LineHeight + 2 * messageYPadding;
+
+    public virtual void render(
         float x, float y, float fade, float backgroundOpacity, float textOpacity,
         float messageYPadding,
         IScalelessTextRenderer textRenderer,

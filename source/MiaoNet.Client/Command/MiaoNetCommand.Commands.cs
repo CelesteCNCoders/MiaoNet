@@ -15,6 +15,13 @@ partial class MiaoNetCommand
     {
         Commands = [
             new MiaoNetCommand(
+                name: "shareclear",
+                aliases: [ "sc" ],
+                segments: [],
+                captureRestSegments: false,
+                onExecute: ShareClear
+            ),
+            new MiaoNetCommand(
                 name: "help",
                 aliases: [ "?", "？", "h" ],
                 segments: [],

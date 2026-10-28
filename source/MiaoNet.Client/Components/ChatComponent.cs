@@ -66,6 +66,8 @@ public sealed partial class ChatComponent : MiaoNetComponent
         ChatMessageBoxSetup();
 
         context.ChatMessageReceived += Context_ChatMessageReceived;
+        context.LevelClearReceived += Context_LevelClearReceived;
+        chatMessageBox.ChatMessageListView.RenderClipped = RenderChatClipped;
         context.PlayerJoined += Context_PlayerJoined;
         context.PlayerLeft += Context_PlayerLeft;
 
@@ -322,6 +324,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     // TODO TODO TODO we need a clean up method
     public override void OnDisconnected()
     {
+        receivedClears.Clear();
         if (active)
             Deactivate();
         ChatMessageBoxSetup();

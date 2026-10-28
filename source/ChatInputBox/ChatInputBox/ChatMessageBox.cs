@@ -25,6 +25,9 @@ public class ChatMessageBox
     public void AddChatMessage(ChatText message, string? tabName = null)
         => chatMessageManager.AddChatMessage(new(message), default, tabName);
 
+    public void AddChatItem(ChatItem item, DateTime dateTime, string? tabName = null)
+        => chatMessageManager.AddChatMessage(item, dateTime, tabName);
+
     // foldedText is the line to show once folded, without the counter itself
     public void AddChatMessage(DateTime dateTime, ChatText message, string? tabName = null,
         string? foldKey = null, ChatText? foldedText = null)

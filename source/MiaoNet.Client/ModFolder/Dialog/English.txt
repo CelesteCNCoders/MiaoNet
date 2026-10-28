@@ -286,3 +286,20 @@ miaonet_oui_conflict_continue_description= Warning: This may cause unexpected be
 
 miaonet_interactions_off_on_collecting_golden= Player interactions disabled due to picking up a golden berry.
 miaonet_group_photo_mode_off_on_map_change= Group photo mode disabled due to location changing.
+
+miaonet_commands_shareclear_description= Share your latest clear to Global as a card.
+miaonet_clear_not_connected= Connect to MiaoNet before sharing a clear.
+miaonet_clear_no_record= No clear recorded yet. Complete a map first.
+miaonet_clear_cooldown= Please wait 10 seconds between clear shares.
+miaonet_clear_title= CLEAR
+miaonet_clear_golden_stamp= Golden
+miaonet_options_clear_card_view= Clear share display
+miaonet_options_clear_card_view_Standard= Standard card
+miaonet_options_clear_card_view_Compact= Compact card
+miaonet_options_clear_card_view_Hidden= Hide cards
+miaonet_clear_already_shared= This clear has already been shared. Complete another run to share again.
+miaonet_clear_deaths= (0) deaths
+miaonet_clear_full_yes= Full clear (0)/(1)
+miaonet_clear_full_no= Not full (0)/(1)
+miaonet_clear_golden_yes= Golden: Yes
+miaonet_clear_golden_no= Golden: No
