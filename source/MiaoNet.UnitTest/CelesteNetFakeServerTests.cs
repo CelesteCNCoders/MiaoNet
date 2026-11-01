@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using MiaoNet.CelesteNetBridge.Protocol;
 using MiaoNet.CelesteNetBridge.Server;
 
@@ -46,6 +48,23 @@ public class CelesteNetFakeServerTests {
 
         byte[] keepAlive = await client.ReceiveAsync(TimeSpan.FromSeconds(2));
         Assert.AreEqual("keepAlive", CelesteNetTypeReader.TryReadTypeId(keepAlive));
+    }
+
+    [TestMethod]
+    public void FallsBackToAFreePortWhenThePreferredOneIsBusy() {
+        using TcpListener occupied = new(IPAddress.Loopback, 0);
+        occupied.ExclusiveAddressUse = true;
+        occupied.Start();
+        int busy = ((IPEndPoint)occupied.LocalEndpoint).Port;
+
+        using CelesteNetFakeServer server = new(new CelesteNetFakeServerOptions {
+            Port = busy,
+            KeepAliveInterval = TimeSpan.FromMilliseconds(100),
+        });
+        server.Start();
+
+        Assert.IsTrue(server.UsedFallbackPort, "a busy port must fall back instead of failing");
+        Assert.AreNotEqual(busy, server.Port);
     }
 
     [TestMethod]

@@ -10,18 +10,25 @@ namespace MiaoNet.CelesteNetBridge.Server;
 /// </summary>
 public sealed class CelesteNetFakeServer : IDisposable {
     private readonly CelesteNetFakeServerOptions options;
-    private readonly TcpListener listener;
     private readonly CancellationTokenSource cts = new();
+    private TcpListener? listener;
     private Task? acceptTask;
     private int disposed;
 
     public CelesteNetFakeServer(CelesteNetFakeServerOptions? options = null) {
         this.options = options ?? new CelesteNetFakeServerOptions();
-        listener = new TcpListener(IPAddress.Parse(this.options.Host), this.options.Port);
     }
 
-    /// <summary>The port actually bound (useful when <see cref="CelesteNetFakeServerOptions.Port"/> was 0).</summary>
-    public int Port => ((IPEndPoint)listener.LocalEndpoint).Port;
+    /// <summary>The port actually bound. Only valid after <see cref="Start"/>.</summary>
+    public int Port => listener is { } bound
+        ? ((IPEndPoint)bound.LocalEndpoint).Port
+        : throw new InvalidOperationException("the fake server is not listening yet");
+
+    /// <summary>
+    /// True when <see cref="CelesteNetFakeServerOptions.Port"/> was taken and the OS assigned another
+    /// one instead. The caller must tell the client which port it actually got.
+    /// </summary>
+    public bool UsedFallbackPort { get; private set; }
 
     public bool IsRunning => acceptTask is { IsCompleted: false };
 
@@ -35,17 +42,40 @@ public sealed class CelesteNetFakeServer : IDisposable {
     public void Start() {
         Priming.ThrowIfDisposed(disposed, this);
 
-        listener.Start();
-        Log($"listening on {options.Host}:{Port}");
+        listener = Bind(options.Host, options.Port);
+        Log(UsedFallbackPort
+            ? $"listening on {options.Host}:{Port} (port {options.Port} was busy)"
+            : $"listening on {options.Host}:{Port}");
 
-        acceptTask = Task.Run(() => AcceptLoopAsync(cts.Token));
+        TcpListener active = listener;
+        acceptTask = Task.Run(() => AcceptLoopAsync(active, cts.Token));
     }
 
-    private async Task AcceptLoopAsync(CancellationToken token) {
+    /// <summary>
+    /// Binds the preferred port, and asks the OS for any free port when it is taken. A busy port is
+    /// not an error: the client is pointed at whatever we got, so only a broken loopback can stop us.
+    /// </summary>
+    private TcpListener Bind(string host, int preferred) {
+        IPAddress address = IPAddress.Parse(host);
+        try {
+            TcpListener bound = new(address, preferred);
+            bound.Start();
+            return bound;
+        } catch (SocketException e) when (preferred != 0) {
+            Log($"port {preferred} unavailable ({e.SocketErrorCode}); asking the OS for a free port");
+            UsedFallbackPort = true;
+
+            TcpListener bound = new(address, 0);
+            bound.Start();
+            return bound;
+        }
+    }
+
+    private async Task AcceptLoopAsync(TcpListener bound, CancellationToken token) {
         while (!token.IsCancellationRequested) {
             TcpClient client;
             try {
-                client = await listener.AcceptTcpClientAsync(token).ConfigureAwait(false);
+                client = await bound.AcceptTcpClientAsync(token).ConfigureAwait(false);
             } catch (OperationCanceledException) {
                 return;
             } catch (Exception e) {
@@ -75,7 +105,7 @@ public sealed class CelesteNetFakeServer : IDisposable {
 
         cts.Cancel();
         try {
-            listener.Stop();
+            listener?.Stop();
         } catch (Exception) {
         }
 
