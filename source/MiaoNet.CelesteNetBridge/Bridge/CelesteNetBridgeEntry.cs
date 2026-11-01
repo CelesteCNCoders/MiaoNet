@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Celeste.Mod.CelesteNet.Client;
 using Celeste.Mod.MiaoNet;
 using MiaoNet.CelesteNetBridge.Protocol;
 using MiaoNet.CelesteNetBridge.Server;
@@ -55,8 +56,19 @@ public static class CelesteNetBridgeEntry {
 
     public static bool Initialized { get; private set; }
 
+    /// <summary>The port the local server listens on, or 0 when it is not running.</summary>
+    public static int LocalPort => server?.Port ?? 0;
+
+    /// <summary>Turns the bridge on or off at runtime, the way the settings menu does.</summary>
+    public static void SetEnabled(bool enabled) {
+        if (enabled)
+            Initialize();
+        else
+            Shutdown();
+    }
+
     /// <summary>Starts the bridge: declares the NetMod, suppresses the CelesteNet UI, opens the port.</summary>
-    public static void Initialize(int port) {
+    public static void Initialize() {
         if (Initialized)
             return;
 
@@ -73,7 +85,6 @@ public static class CelesteNetBridgeEntry {
         }
 
         server = new(new CelesteNetFakeServerOptions {
-            Port = port,
             Logger = message => Logger.Log(LogLevel.Verbose, "cnet-bridge", message),
             IdentityProvider = LocalIdentity,
         });
@@ -99,7 +110,7 @@ public static class CelesteNetBridgeEntry {
         Initialized = true;
         Logger.Log(LogLevel.Info, "cnet-bridge",
             $"relaying CelesteNet through 127.0.0.1:{server.Port}"
-            + (server.UsedFallbackPort ? $" (port {port} was busy)" : "")
+            + (server.UsedFallbackPort ? " (the default port 17230 was busy)" : "")
         );
     }
 
@@ -139,6 +150,7 @@ public static class CelesteNetBridgeEntry {
             return;
 
         Initialized = false;
+        Quiesce();
         if (server != null) {
             server.SessionStarted -= OnSessionStarted;
             server.Dispose();
@@ -153,6 +165,30 @@ public static class CelesteNetBridgeEntry {
 
         netMod?.Dispose();
         netMod = null;
+    }
+
+    /// <summary>
+    /// Stops the real client's connection, in whatever state it is: while the bridge runs it owns
+    /// CelesteNet, and two live clients at once freeze the game.
+    /// </summary>
+    public static void Quiesce() {
+        CelesteNetClientModule? module = CelesteNetClientModule.Instance;
+        if (module is null)
+            return;
+
+        CelesteNetClientSettings settings = CelesteNetClientModule.Settings;
+        if (settings.Connected) {
+            settings.Connected = false;
+            Logger.Log(LogLevel.Info, "cnet-bridge", "disconnected CelesteNet because the bridge owns the connection");
+            return;
+        }
+
+        // Connected stays false while the client is still connecting, so stop it by hand.
+        if (settings.WantsToBeConnected) {
+            settings.WantsToBeConnected = false;
+            module.Stop();
+            Logger.Log(LogLevel.Info, "cnet-bridge", "stopped a pending CelesteNet connection");
+        }
     }
 
     private static void OnSessionStarted(CelesteNetFakeSession session) {

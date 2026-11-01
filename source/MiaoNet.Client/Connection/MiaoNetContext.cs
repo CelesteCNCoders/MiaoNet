@@ -138,6 +138,10 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         if (activeConnectionOperation is not null)
             return;
 
+        // Whichever client the player connects last wins: stop CelesteNet before we dial out.
+        if (!MiaoNetModule.IsCelesteNetBridgeActive)
+            CelesteNetCompat.Quiesce();
+
         // TODO hmmm tbh this is ugly, we'd better get a more elegant way to do this
         ShowAvatar = MiaoNetModule.Settings.ShowAvatar;
         long generation = connectionLifecycle.Begin();

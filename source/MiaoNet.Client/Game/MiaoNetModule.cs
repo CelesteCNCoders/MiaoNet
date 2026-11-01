@@ -28,7 +28,17 @@ public sealed class MiaoNetModule : EverestModule
     /// for players who do not have CelesteNet installed.
     /// </summary>
     private static bool celesNetBridgeActive;
-    private static MethodInfo? celesNetBridgeShutdown;
+    private static bool celesNetBridgeResolved;
+    private static MethodInfo? celesNetBridgeSetEnabled;
+    private static PropertyInfo? celesNetBridgeInitialized;
+    private static PropertyInfo? celesNetBridgeLocalPort;
+
+    /// <summary>Port the bridge's loopback server listens on, or 0 when it is not running.</summary>
+    internal static int CelesteNetBridgePort
+        => celesNetBridgeLocalPort?.GetValue(null) is int port ? port : 0;
+
+    /// <summary>Whether the bridge is running, so CelesteNet talks to us instead of to a server.</summary>
+    internal static bool IsCelesteNetBridgeActive => celesNetBridgeActive;
 
     private static readonly DetourConfig RootConfig = new("MiaoNet");
     private static readonly DetourConfig RootBeforeAllConfig = new("MiaoNet.BeforeAll", before: ["*"]);
@@ -142,23 +152,29 @@ public sealed class MiaoNetModule : EverestModule
 
     private static void TryInitializeCelesteNetBridge()
     {
-        if (!Settings.CelesteNetBridgeEnabled)
+        if (!CelesteNetCompat.IsInstalled)
         {
-            Logger.Info(LT.MiaoNet, "CelesteNet bridge disabled by settings");
+            Logger.Info(LT.MiaoNet, "CelesteNet is not installed, compatibility layer inactive");
             return;
         }
 
-        EverestModuleMetadata dependency = new()
-        {
-            Name = "CelesteNet.Client",
-            Version = new Version(2, 0, 0)
-        };
-        if (!Everest.Loader.DependencyLoaded(dependency))
-        {
-            Logger.Info(LT.MiaoNet, "CelesteNet not installed, bridge inactive");
+        if (!EnsureCelesteNetBridgeResolved())
             return;
-        }
 
+        if (Settings.CelesteNetBridgeEnabled)
+            StartCelesteNetBridge();
+    }
+
+    /// <summary>
+    /// Resolves the bridge entry point. The bridge is a second assembly inside this mod, so every call
+    /// into it goes through reflection.
+    /// </summary>
+    private static bool EnsureCelesteNetBridgeResolved()
+    {
+        if (celesNetBridgeResolved)
+            return celesNetBridgeSetEnabled is not null;
+
+        celesNetBridgeResolved = true;
         try
         {
             Assembly? bridge = AppDomain.CurrentDomain.GetAssemblies()
@@ -166,43 +182,90 @@ public sealed class MiaoNetModule : EverestModule
             bridge ??= Assembly.Load("MiaoNetCelesteNetBridge");
 
             Type? entry = bridge.GetType("MiaoNet.CelesteNetBridge.CelesteNetBridgeEntry");
-            MethodInfo? initialize = entry?.GetMethod(
-                "Initialize", BindingFlags.Public | BindingFlags.Static
+            celesNetBridgeSetEnabled = entry?.GetMethod(
+                "SetEnabled", BindingFlags.Public | BindingFlags.Static
             );
-            if (initialize is null)
+            celesNetBridgeInitialized = entry?.GetProperty(
+                "Initialized", BindingFlags.Public | BindingFlags.Static
+            );
+            celesNetBridgeLocalPort = entry?.GetProperty(
+                "LocalPort", BindingFlags.Public | BindingFlags.Static
+            );
+            if (celesNetBridgeSetEnabled is null || celesNetBridgeInitialized is null || celesNetBridgeLocalPort is null)
             {
                 Logger.Warn(LT.MiaoNet, "CelesteNet bridge assembly has no entry point");
-                return;
+                return false;
             }
 
-            initialize.Invoke(null, [Settings.CelesteNetBridgePort]);
-            celesNetBridgeShutdown = entry!.GetMethod(
-                "Shutdown", BindingFlags.Public | BindingFlags.Static
-            );
-            celesNetBridgeActive = true;
+            return true;
         }
         catch (Exception e)
         {
-            Logger.Warn(LT.MiaoNet, "Failed to start the CelesteNet bridge: " + e);
+            Logger.Warn(LT.MiaoNet, "Failed to load the CelesteNet bridge: " + e.Message);
+            return false;
         }
     }
 
-    private static void ShutdownCelesteNetBridge()
+    /// <summary>
+    /// Switches the bridge while the game runs. Its NetMod is part of the MiaoNet handshake, so
+    /// registering or unregistering it drops the current connection; the connection is restored here.
+    /// </summary>
+    internal static void ApplyCelesteNetBridgeSetting(bool enabled)
+    {
+        if (!CelesteNetCompat.IsInstalled || !EnsureCelesteNetBridgeResolved())
+            return;
+
+        // Reading the optional context keeps the switch from building a context of its own.
+        MiaoNetContext? context = Instance.MiaoNetContextOptional;
+        bool wasConnected = context?.HasConnection ?? false;
+
+        if (enabled)
+            StartCelesteNetBridge();
+        else
+            StopCelesteNetBridge();
+
+        if (wasConnected && context is not null && !context.HasConnection)
+            context.QueueConnect();
+    }
+
+    private static void StartCelesteNetBridge()
+    {
+        if (celesNetBridgeActive)
+            return;
+
+        try
+        {
+            celesNetBridgeSetEnabled!.Invoke(null, [true]);
+            // The bridge reports for itself: opening the port or installing the hooks can fail.
+            celesNetBridgeActive = (bool)celesNetBridgeInitialized!.GetValue(null)!;
+        }
+        catch (Exception e)
+        {
+            Logger.Warn(LT.MiaoNet, "Failed to start the CelesteNet bridge: " + e.Message);
+        }
+    }
+
+    private static void StopCelesteNetBridge()
     {
         if (!celesNetBridgeActive)
             return;
 
-        celesNetBridgeActive = false;
         try
         {
-            celesNetBridgeShutdown?.Invoke(null, null);
+            celesNetBridgeSetEnabled!.Invoke(null, [false]);
         }
         catch (Exception e)
         {
-            Logger.Warn(LT.MiaoNet, "Failed to stop the CelesteNet bridge: " + e);
+            Logger.Warn(LT.MiaoNet, "Failed to stop the CelesteNet bridge: " + e.Message);
         }
-        celesNetBridgeShutdown = null;
+        finally
+        {
+            celesNetBridgeActive = false;
+        }
     }
+
+    private static void ShutdownCelesteNetBridge()
+        => StopCelesteNetBridge();
 
     public override void LoadContent(bool firstLoad)
     {
@@ -380,7 +443,11 @@ public sealed class MiaoNetModule : EverestModule
 
         // update components
         cur.GotoNext(MoveType.After, ins => ins.MatchCall("Monocle.MInput", "Update"));
-        cur.EmitDelegate(static () => Instance.miaoNetContext?.Update());
+        cur.EmitDelegate(static () =>
+        {
+            Instance.miaoNetContext?.Update();
+            CelesteNetCompat.OnFrame();
+        });
 
         // update entities even in freeze frames
         cur.GotoNext(MoveType.After, ins => ins.MatchStsfld<Engine>("FreezeTimer"));
@@ -457,13 +524,14 @@ public sealed class MiaoNetModule : EverestModule
         if (!seenOverworld)
         {
             seenOverworld = true;
-            EverestModule? cnet = FindConflictingModule("CelesteNet.Client");
+            // With the built-in bridge, MiaoNet and CelesteNet coexist; without it they take turns
+            // instead of asking the player to pick one (see CelesteNetCompat).
             EverestModule? mnet = FindConflictingModule("Miao.CelesteNet.Client");
-            if (cnet is not null || mnet is not null)
+            if (mnet is not null)
             {
                 var u = self.GetUI<OuiConflict>();
                 u.VersionMiaoNet = Instance.Metadata.VersionString;
-                u.VersionCelesteNet = (mnet ?? cnet)!.Metadata.VersionString;
+                u.VersionCelesteNet = mnet.Metadata.VersionString;
                 self.Goto<OuiConflict>();
                 return;
             }
@@ -476,12 +544,8 @@ public sealed class MiaoNetModule : EverestModule
         }
 
         static EverestModule? FindConflictingModule(string name) {
-            // A compatibility provider (the bridge) redirects the other client to us, so the two
-            // never talk to different servers; in that case the other module is not a conflict.
-            // The built-in bridge ships inside this mod, so it has no module of its own to detect.
-            if (celesNetBridgeActive && name == "CelesteNet.Client")
-                return null;
-
+            // A compatibility provider stands in for the other mod, so the two never talk to
+            // different servers and are not a conflict.
             if (Everest.Modules.Any(module => IsFor(module, name)))
                 return null;
 
