@@ -22,6 +22,14 @@ public sealed class MiaoNetModule : EverestModule
     public override Type SettingsType => typeof(MiaoNetModuleSettings);
     public static MiaoNetModuleSettings Settings => (MiaoNetModuleSettings)Instance._Settings;
 
+    /// <summary>
+    /// Set while the built-in CelesteNet bridge is running. The bridge is a second assembly inside
+    /// this mod: MiaoNet.dll must never reference CelesteNet types directly, or it would stop loading
+    /// for players who do not have CelesteNet installed.
+    /// </summary>
+    private static bool celesNetBridgeActive;
+    private static MethodInfo? celesNetBridgeShutdown;
+
     private static readonly DetourConfig RootConfig = new("MiaoNet");
     private static readonly DetourConfig RootBeforeAllConfig = new("MiaoNet.BeforeAll", before: ["*"]);
 
@@ -94,6 +102,8 @@ public sealed class MiaoNetModule : EverestModule
         typeof(CollabUtils2Interop).ModInterop();
         typeof(ExtendedVariantInterop).ModInterop();
 
+        TryInitializeCelesteNetBridge();
+
 #if DEBUG
         Engine.Instance.IsMouseVisible = true;
         if (GFX.Loaded && Engine.Scene is Level or AssetReloadHelper)
@@ -103,6 +113,7 @@ public sealed class MiaoNetModule : EverestModule
 
     public override void Unload()
     {
+        ShutdownCelesteNetBridge();
         miaoNetContext?.Disconnect();
         ClientRC.Stop();
         Everest.Events.Level.OnCreatePauseMenuButtons -= Level_OnCreatePauseMenuButtons;
@@ -127,6 +138,70 @@ public sealed class MiaoNetModule : EverestModule
 
         SpeedrunToolCompat.Unload();
         BitsboltsCompat.Unload();
+    }
+
+    private static void TryInitializeCelesteNetBridge()
+    {
+        if (!Settings.CelesteNetBridgeEnabled)
+        {
+            Logger.Info(LT.MiaoNet, "CelesteNet bridge disabled by settings");
+            return;
+        }
+
+        EverestModuleMetadata dependency = new()
+        {
+            Name = "CelesteNet.Client",
+            Version = new Version(2, 0, 0)
+        };
+        if (!Everest.Loader.DependencyLoaded(dependency))
+        {
+            Logger.Info(LT.MiaoNet, "CelesteNet not installed, bridge inactive");
+            return;
+        }
+
+        try
+        {
+            Assembly? bridge = AppDomain.CurrentDomain.GetAssemblies()
+                .FirstOrDefault(assembly => assembly.GetName().Name == "MiaoNetCelesteNetBridge");
+            bridge ??= Assembly.Load("MiaoNetCelesteNetBridge");
+
+            Type? entry = bridge.GetType("MiaoNet.CelesteNetBridge.CelesteNetBridgeEntry");
+            MethodInfo? initialize = entry?.GetMethod(
+                "Initialize", BindingFlags.Public | BindingFlags.Static
+            );
+            if (initialize is null)
+            {
+                Logger.Warn(LT.MiaoNet, "CelesteNet bridge assembly has no entry point");
+                return;
+            }
+
+            initialize.Invoke(null, [Settings.CelesteNetBridgePort]);
+            celesNetBridgeShutdown = entry!.GetMethod(
+                "Shutdown", BindingFlags.Public | BindingFlags.Static
+            );
+            celesNetBridgeActive = true;
+        }
+        catch (Exception e)
+        {
+            Logger.Warn(LT.MiaoNet, "Failed to start the CelesteNet bridge: " + e);
+        }
+    }
+
+    private static void ShutdownCelesteNetBridge()
+    {
+        if (!celesNetBridgeActive)
+            return;
+
+        celesNetBridgeActive = false;
+        try
+        {
+            celesNetBridgeShutdown?.Invoke(null, null);
+        }
+        catch (Exception e)
+        {
+            Logger.Warn(LT.MiaoNet, "Failed to stop the CelesteNet bridge: " + e);
+        }
+        celesNetBridgeShutdown = null;
     }
 
     public override void LoadContent(bool firstLoad)
@@ -400,8 +475,18 @@ public sealed class MiaoNetModule : EverestModule
             }
         }
 
-        static EverestModule? FindConflictingModule(string name)
-           => Everest.Modules.FirstOrDefault(module => module.Metadata.Name == name && !IsFor(module, name));
+        static EverestModule? FindConflictingModule(string name) {
+            // A compatibility provider (the bridge) redirects the other client to us, so the two
+            // never talk to different servers; in that case the other module is not a conflict.
+            // The built-in bridge ships inside this mod, so it has no module of its own to detect.
+            if (celesNetBridgeActive && name == "CelesteNet.Client")
+                return null;
+
+            if (Everest.Modules.Any(module => IsFor(module, name)))
+                return null;
+
+            return Everest.Modules.FirstOrDefault(module => module.Metadata.Name == name && !IsFor(module, name));
+        }
 
         static bool IsFor(EverestModule module, string name)
            => module.GetType().Assembly

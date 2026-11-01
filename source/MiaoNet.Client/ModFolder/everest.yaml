@@ -7,6 +7,9 @@
     - Name: ChineseFontPack
       Version: 1.4.2
   OptionalDependencies:
+    # The built-in bridge only starts when this is installed; MiaoNet works without it.
+    - Name: CelesteNet.Client
+      Version: 2.0.0
     - Name: SpeedrunTool
       Version: 3.27.15
     - Name: CelesteEmojis

@@ -364,6 +364,20 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     }
 
 
+    #region CelesteNet Bridge
+
+    /// <summary>
+    /// Runs the built-in CelesteNet compatibility layer: the real CelesteNet client is kept, but it is
+    /// pointed at a loopback server run by MiaoNet, and its frames travel over MiaoNet's NetMod pipe.
+    /// Only has an effect when the CelesteNet.Client mod is installed.
+    /// </summary>
+    public bool CelesteNetBridgeEnabled { get; set; } = true;
+
+    /// <summary>Loopback port the real CelesteNet client connects to.</summary>
+    public int CelesteNetBridgePort { get; set; } = 17230;
+
+    #endregion
+
     private void NotifySettingsChanged(SettingsCategory category)
         => SettingsChanged?.Invoke(this, category);
 }
