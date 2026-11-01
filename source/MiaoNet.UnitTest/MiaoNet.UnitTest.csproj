@@ -30,6 +30,8 @@
     <Compile Include="..\ChatInputBox\ChatInputBox\ChatText*.cs" LinkBase="0-Shared/ChatInputBox" />
     <Compile Include="..\MiaoNet.CelesteNetBridge\Protocol\*.cs" LinkBase="0-Shared/CelesteNetBridge/Protocol" />
     <Compile Include="..\MiaoNet.CelesteNetBridge\Server\*.cs" LinkBase="0-Shared/CelesteNetBridge/Server" />
+    <!-- Only the packet: the rest of Bridge/ needs Celeste, this file does not. -->
+    <Compile Include="..\MiaoNet.CelesteNetBridge\Bridge\PacketBridgeFrame.cs" LinkBase="0-Shared/CelesteNetBridge/Bridge" />
   </ItemGroup>
 
   <ItemGroup>
