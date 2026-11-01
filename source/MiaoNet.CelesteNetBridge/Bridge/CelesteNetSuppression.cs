@@ -30,7 +30,14 @@ internal sealed class CelesteNetSuppression {
 
     private readonly List<Hook> hooks = [];
 
+    /// <summary>Number of detours the last <see cref="Install"/> call managed to install.</summary>
+    public int InstalledCount { get; private set; }
+
+    /// <summary>Number of detours the bridge expects to install.</summary>
+    public const int ExpectedCount = 6;
+
     public void Install() {
+        InstalledCount = 0;
         Add("CelesteNetGameComponent.Init", typeof(CelesteNetGameComponent).GetMethod("Init")!, new Action<
             Action<CelesteNetGameComponent>, CelesteNetGameComponent>(OnComponentInit));
 
@@ -61,11 +68,13 @@ internal sealed class CelesteNetSuppression {
         foreach (Hook hook in hooks)
             hook.Dispose();
         hooks.Clear();
+        InstalledCount = 0;
     }
 
     private void Add(string name, System.Reflection.MethodInfo from, Delegate to) {
         try {
             hooks.Add(new Hook(from, to));
+            InstalledCount++;
         } catch (Exception e) {
             Logger.Log(LogLevel.Warn, "cnet-bridge", "hook failed: " + name + " -> " + e.GetType().Name + ": " + e.Message);
         }

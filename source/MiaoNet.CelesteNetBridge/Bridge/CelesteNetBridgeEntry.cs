@@ -46,6 +46,9 @@ public static class CelesteNetBridgeEntry {
     /// <summary>Remote players already announced to each session.</summary>
     private static readonly Dictionary<CelesteNetFakeSession, HashSet<uint>> introducedPlayers = [];
 
+    /// <summary>The newest CelesteNet release this bridge was verified against.</summary>
+    private static readonly Version TestedCelesteNetVersion = new(2, 4, 2);
+
     private static NetMod? netMod;
     private static CelesteNetFakeServer? server;
     private static CelesteNetSuppression? suppress;
@@ -57,8 +60,34 @@ public static class CelesteNetBridgeEntry {
         if (Initialized)
             return;
 
+        WarnAboutUntestedVersion();
+
         suppress = new();
         suppress.Install();
+        if (suppress.InstalledCount < CelesteNetSuppression.ExpectedCount) {
+            // CelesteNet's interface leaking back on screen is the one failure players cannot miss.
+            ReportFailure(
+                $"only {suppress.InstalledCount}/{CelesteNetSuppression.ExpectedCount} CelesteNet UI hooks installed; " +
+                "CelesteNet's own interface may show up"
+            );
+        }
+
+        server = new(new CelesteNetFakeServerOptions {
+            Port = port,
+            Logger = message => Logger.Log(LogLevel.Verbose, "cnet-bridge", message),
+            IdentityProvider = LocalIdentity,
+        });
+        server.SessionStarted += OnSessionStarted;
+
+        try {
+            server.Start();
+        } catch (Exception e) {
+            server = null;
+            suppress.Uninstall();
+            suppress = null;
+            ReportFailure("could not start the local CelesteNet server: " + e.Message);
+            return;
+        }
 
         // The declaration has to exist before the MiaoNet handshake goes out.
         netMod = MiaoNetNetMods.Register(new NetMod(
@@ -67,16 +96,42 @@ public static class CelesteNetBridgeEntry {
             NetModPacketEntry.Create<PacketBridgeFrame>(PacketScope.Map, OnRemoteFrame)
         ));
 
-        server = new(new CelesteNetFakeServerOptions {
-            Port = port,
-            Logger = message => Logger.Log(LogLevel.Verbose, "cnet-bridge", message),
-            IdentityProvider = LocalIdentity,
-        });
-        server.SessionStarted += OnSessionStarted;
-        server.Start();
-
         Initialized = true;
-        Logger.Log(LogLevel.Info, "cnet-bridge", $"listening on 127.0.0.1:{port}");
+        Logger.Log(LogLevel.Info, "cnet-bridge",
+            $"relaying CelesteNet through 127.0.0.1:{server.Port}"
+            + (server.UsedFallbackPort ? $" (port {port} was busy)" : "")
+        );
+    }
+
+    /// <summary>
+    /// The suppression detours are the only part of the bridge bound to CelesteNet's internals, so a
+    /// newer client is worth a warning even when everything installs today.
+    /// </summary>
+    private static void WarnAboutUntestedVersion() {
+        Version? installed = Everest.Modules
+            .FirstOrDefault(module => module.Metadata.Name == "CelesteNet.Client")?.Metadata.Version;
+        if (installed is null || installed <= TestedCelesteNetVersion)
+            return;
+
+        Logger.Log(
+            LogLevel.Warn, "cnet-bridge",
+            $"CelesteNet {installed} is newer than the tested {TestedCelesteNetVersion}; " +
+            "the UI suppression detours may need an update"
+        );
+    }
+
+    /// <summary>
+    /// A failure the player has to know about: the bridge not working is invisible otherwise, because
+    /// its own log lines are verbose. The status message only shows up once MiaoNet has a context.
+    /// </summary>
+    private static void ReportFailure(string message) {
+        Logger.Log(LogLevel.Error, "cnet-bridge", message);
+
+        try {
+            MiaoNetModule.Instance?.MiaoNetContextOptional?.StatusComponent.ShowStatusMessage(message);
+        } catch (Exception e) {
+            Logger.Log(LogLevel.Warn, "cnet-bridge", "could not show the failure on screen: " + e.Message);
+        }
     }
 
     public static void Shutdown() {
