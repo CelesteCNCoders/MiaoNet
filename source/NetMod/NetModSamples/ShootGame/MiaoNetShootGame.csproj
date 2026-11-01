@@ -18,7 +18,7 @@
       Private=false 是为了别把 MiaoNet.dll 复制进本 mod 的 ModFolder/Code —— 运行时它由 everest.yaml
       里的依赖从 MiaoNet 自己的目录加载。
     -->
-    <ProjectReference Include="..\..\MiaoNet\source\MiaoNet.Client\MiaoNet.Client.csproj">
+    <ProjectReference Include="..\..\..\MiaoNet.Client\MiaoNet.Client.csproj">
       <Private>false</Private>
     </ProjectReference>
 

@@ -34,7 +34,7 @@
   <ItemGroup>
     <ProjectReference Include="CelesteNet.Client\CelesteNet.Client.csproj" />
     <ProjectReference Include="CelesteNet.Shared\CelesteNet.Shared.csproj" />
-    <ProjectReference Include="..\MiaoNet\source\MiaoNet.Client\MiaoNet.Client.csproj">
+    <ProjectReference Include="..\..\MiaoNet.Client\MiaoNet.Client.csproj">
       <Private>false</Private>
     </ProjectReference>
   </ItemGroup>
