@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="CelesteMod.props" />
+
+  <PropertyGroup>
+    <CelesteRootPath>C:\Program Files (x86)\Steam\steamapps\common\Celeste</CelesteRootPath>
+    <AssemblyName>MiaoNetCelesteNetBridge</AssemblyName>
+    <RootNamespace>MiaoNet.CelesteNetBridge</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Not a standalone mod: do not copy a Mods/<name>_copy folder into the game. The built
+         assembly is placed into MiaoNet's ModFolder by the target below. -->
+    <ModAssetsCopyType>none</ModAssetsCopyType>
+    <UseCelesteAnalyzer>false</UseCelesteAnalyzer>
+    <UseCelestePublicizer>true</UseCelestePublicizer>
+    <!-- The protocol layer under Protocol/ deliberately has no Celeste/Everest dependency: the unit
+         test project links those files directly, so it can assert on real bytes without a game. -->
+    <DefineConstants>$(DefineConstants);MIAO_BRIDGE</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The bridge is a NetMod consumer: it registers a NetMod and ships CelesteNet frames through
+         the pipeline. MiaoNet.dll is provided at runtime by the MiaoNet mod itself. -->
+    <ProjectReference Include="..\MiaoNet.Client\MiaoNet.Client.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+
+    <!-- Suppression hooks detour the real CelesteNet client (installed as a normal mod). -->
+    <CelesteModReference Include="CelesteNet.Client" />
+
+    <None Include="CelesteMod*" Visible="false" />
+  </ItemGroup>
+
+  <!-- The bridge is not a mod of its own: it lives inside the MiaoNet container as Code/MiaoNetCelesteNetBridge.dll
+       and is loaded by MiaoNetModule through reflection. -->
+  <Target Name="CopyBridgeIntoMiaoNetMod" AfterTargets="Build">
+    <ItemGroup>
+      <_BridgeOutput Include="$(TargetDir)$(TargetFileName)" />
+      <_BridgeOutput Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(_BridgeOutput)"
+      DestinationFolder="$(MSBuildThisFileDirectory)..\MiaoNet.Client\ModFolder\Code\"
+      SkipUnchangedFiles="true" />
+  </Target>
+
+  <Import Project="CelesteMod.targets" />
+</Project>

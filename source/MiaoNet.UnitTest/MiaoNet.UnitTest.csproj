@@ -28,6 +28,8 @@
     <Compile Include="..\MiaoNet.ClientShared\NetMod\*.cs" LinkBase="0-Shared/NetMod" />
     <Compile Include="..\MiaoNet.Shared\SafeGuard.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\ChatInputBox\ChatInputBox\ChatText*.cs" LinkBase="0-Shared/ChatInputBox" />
+    <Compile Include="..\MiaoNet.CelesteNetBridge\Protocol\*.cs" LinkBase="0-Shared/CelesteNetBridge/Protocol" />
+    <Compile Include="..\MiaoNet.CelesteNetBridge\Server\*.cs" LinkBase="0-Shared/CelesteNetBridge/Server" />
   </ItemGroup>
 
   <ItemGroup>
