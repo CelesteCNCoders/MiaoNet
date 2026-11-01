@@ -23,6 +23,16 @@ miaonet_options_ignore_cert_revocation_status_tip=
 	Warning: This will make your connection insecure.
 	This option will not be saved.
 
+miaonet_options_cnet_bridge_header= CelesteNet
+miaonet_options_cnet_bridge= Take Over CelesteNet's Connection
+miaonet_options_cnet_bridge_tip=
+	Lets mods that need CelesteNet (like CoopHelper) work while you play on MiaoNet.
+	CelesteNet's own UI is hidden, and its connection is redirected to MiaoNet's compatibility layer.
+	When off, CelesteNet is left completely untouched.
+	Either way, MiaoNet and CelesteNet cannot both be connected at once:
+	connecting one disconnects the other.
+miaonet_cnet_took_over_message= CelesteNet connected; MiaoNet disconnected to avoid conflicts.
+
 miaonet_options_visuals= Visuals
 miaonet_options_show_avatar= Show Avatar
 miaonet_options_show_avatar_tip=

@@ -370,11 +370,12 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     /// Runs the built-in CelesteNet compatibility layer: the real CelesteNet client is kept, but it is
     /// pointed at a loopback server run by MiaoNet, and its frames travel over MiaoNet's NetMod pipe.
     /// Only has an effect when the CelesteNet.Client mod is installed.
+    /// <para>
+    /// Off by default: taking over another mod's connection without asking is not something a player
+    /// should have to notice and undo.
+    /// </para>
     /// </summary>
-    public bool CelesteNetBridgeEnabled { get; set; } = true;
-
-    /// <summary>Loopback port the real CelesteNet client connects to.</summary>
-    public int CelesteNetBridgePort { get; set; } = 17230;
+    public bool CelesteNetBridgeEnabled { get; set; }
 
     #endregion
 
