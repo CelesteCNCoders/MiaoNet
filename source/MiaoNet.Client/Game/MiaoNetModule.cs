@@ -31,11 +31,14 @@ public sealed class MiaoNetModule : EverestModule
     private static bool celesNetBridgeResolved;
     private static MethodInfo? celesNetBridgeSetEnabled;
     private static PropertyInfo? celesNetBridgeInitialized;
-    private static PropertyInfo? celesNetBridgeLocalPort;
+    private static PropertyInfo? celesNetBridgeTargetsBridge;
 
-    /// <summary>Port the bridge's loopback server listens on, or 0 when it is not running.</summary>
-    internal static int CelesteNetBridgePort
-        => celesNetBridgeLocalPort?.GetValue(null) is int port ? port : 0;
+    /// <summary>
+    /// Whether CelesteNet, if it connected right now, would land on the bridge's own loopback server.
+    /// The parsing lives in the bridge assembly: only that side references CelesteNet.
+    /// </summary>
+    internal static bool IsCelesteNetPointedAtBridge
+        => celesNetBridgeTargetsBridge?.GetValue(null) is true;
 
     /// <summary>Whether the bridge is running, so CelesteNet talks to us instead of to a server.</summary>
     internal static bool IsCelesteNetBridgeActive => celesNetBridgeActive;
@@ -188,10 +191,10 @@ public sealed class MiaoNetModule : EverestModule
             celesNetBridgeInitialized = entry?.GetProperty(
                 "Initialized", BindingFlags.Public | BindingFlags.Static
             );
-            celesNetBridgeLocalPort = entry?.GetProperty(
-                "LocalPort", BindingFlags.Public | BindingFlags.Static
+            celesNetBridgeTargetsBridge = entry?.GetProperty(
+                "IsCelesteNetPointedAtTheBridge", BindingFlags.Public | BindingFlags.Static
             );
-            if (celesNetBridgeSetEnabled is null || celesNetBridgeInitialized is null || celesNetBridgeLocalPort is null)
+            if (celesNetBridgeSetEnabled is null || celesNetBridgeInitialized is null || celesNetBridgeTargetsBridge is null)
             {
                 Logger.Warn(LT.MiaoNet, "CelesteNet bridge assembly has no entry point");
                 return false;

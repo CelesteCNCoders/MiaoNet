@@ -32,6 +32,14 @@ internal static class CelesteNetCompat {
         => Resolve() && TryGetSetting(connectedProperty, out bool connected) && connected;
 
     /// <summary>
+    /// Whether CelesteNet has been asked to connect but has not got a client object yet. Its settings
+    /// toggle starts dialing inside the same call that sets this flag, so a frame-time check that only
+    /// looks at <see cref="IsConnected"/> arrives after the socket is already open.
+    /// </summary>
+    private static bool IsPending
+        => Resolve() && TryGetSetting(wantsToBeConnectedProperty, out bool wants) && wants;
+
+    /// <summary>
     /// Stops CelesteNet whether it is connected or still connecting. Called right before MiaoNet
     /// connects, so the connection the player just asked for is the one that survives.
     /// </summary>
@@ -68,7 +76,7 @@ internal static class CelesteNetCompat {
             return;
 
         if (MiaoNetModule.IsCelesteNetBridgeActive) {
-            if (IsConnected && !IsOnOurBridge())
+            if (!MiaoNetModule.IsCelesteNetPointedAtBridge && (IsConnected || IsPending))
                 Quiesce();
             return;
         }
@@ -86,33 +94,6 @@ internal static class CelesteNetCompat {
         Logger.Info(LT.MiaoNet, "CelesteNet connected while MiaoNet was connected, disconnecting MiaoNet");
         context.Disconnect();
         context.StatusComponent.ShowStatusMessage(Dialog.Get("miaonet_cnet_took_over_message"));
-    }
-
-    /// <summary>
-    /// With the bridge on, CelesteNet should only ever connect to the loopback server the bridge runs.
-    /// An override pointing anywhere else means the player used CelesteNet's own menu.
-    /// </summary>
-    private static bool IsOnOurBridge() {
-        int bridgePort = MiaoNetModule.CelesteNetBridgePort;
-        if (bridgePort == 0)
-            return false;
-
-        if (serverOverrideProperty?.GetValue(Settings) is not string target || target.Length == 0)
-            return false;
-
-        // CelesteNet's own "connect locally" button writes just "localhost" (port defaults to
-        // 17230); auto connect writes "127.0.0.1:<port>".
-        target = target.Trim().ToLowerInvariant();
-        int separator = target.LastIndexOf(':');
-        string host = separator > 0 ? target[..separator] : target;
-        int port = 17230;
-        if (separator > 0 && int.TryParse(target[(separator + 1)..], out int parsed))
-            port = parsed;
-
-        if (host is not ("localhost" or "127.0.0.1"))
-            return false;
-
-        return port == bridgePort;
     }
 
     private static EverestModule? FindModule()
