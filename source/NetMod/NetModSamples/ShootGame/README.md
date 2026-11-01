@@ -50,4 +50,4 @@ dotnet build          # 输出到 ModFolder/Code/ 并复制到 <Celeste>/Mods/Mi
 | `Packets.cs` | `PacketShoot` / `PacketKill` |
 | `Bullet.cs` | 子弹实体: 各自模拟, 撞墙消失, 只对本地玩家做命中判定 |
 
-机制本身的说明见 [`docs/netmod.md`](../../../docs/netmod.md)。
+机制本身的说明见 [`source/NetMod/netmod.md`](../../netmod.md)。
