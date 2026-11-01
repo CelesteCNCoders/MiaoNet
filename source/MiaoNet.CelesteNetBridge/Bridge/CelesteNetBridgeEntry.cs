@@ -47,6 +47,15 @@ public static class CelesteNetBridgeEntry {
     /// <summary>Remote players already announced to each session.</summary>
     private static readonly Dictionary<CelesteNetFakeSession, HashSet<uint>> introducedPlayers = [];
 
+    /// <summary>Names of the announced remote players, so a tombstone can carry the real one.</summary>
+    private static readonly Dictionary<uint, string> announcedNames = [];
+
+    /// <summary>The MiaoNet context whose player-leave event is being watched, if any.</summary>
+    private static MiaoNetContext? watchedContext;
+
+    /// <summary>Whether MiaoNet had a connection at the previous heartbeat.</summary>
+    private static bool miaoNetWasConnected;
+
     /// <summary>The newest CelesteNet release this bridge was verified against.</summary>
     private static readonly Version TestedCelesteNetVersion = new(2, 4, 2);
 
@@ -206,6 +215,12 @@ public static class CelesteNetBridgeEntry {
             return;
 
         Initialized = false;
+
+        if (watchedContext is not null) {
+            watchedContext.PlayerLeft -= OnPlayerLeft;
+            watchedContext = null;
+        }
+
         ResetRedirect();
         Quiesce();
         if (server != null) {
@@ -268,15 +283,107 @@ public static class CelesteNetBridgeEntry {
         }
 
         session.FrameReceived += OnLocalFrame;
+        session.Heartbeat += OnSessionHeartbeat;
         session.Closed += OnSessionClosed;
+
+        WatchPlayerLeaves();
     }
 
     private static void OnSessionClosed(CelesteNetFakeSession session) {
+        session.FrameReceived -= OnLocalFrame;
+        session.Heartbeat -= OnSessionHeartbeat;
+        session.Closed -= OnSessionClosed;
+
         lock (sessions) {
             sessions.Remove(session);
             relayedTypes.Remove(session);
             introducedPlayers.Remove(session);
         }
+    }
+
+    /// <summary>
+    /// The bridge has no update loop of its own, and the keepAlive the fake server already sends every
+    /// 250 ms is the only periodic callback it gets. Two things need one: attaching to MiaoNet's player
+    /// list (the context may appear after the first CelesteNet connection) and noticing that MiaoNet
+    /// itself went away.
+    /// </summary>
+    private static void OnSessionHeartbeat(CelesteNetFakeSession session) {
+        WatchPlayerLeaves();
+
+        bool connected = MiaoNetNetMods.IsConnected;
+        if (miaoNetWasConnected && !connected)
+            AnnounceEveryoneLeft(session);
+
+        miaoNetWasConnected = connected;
+    }
+
+    /// <summary>
+    /// Subscribes to MiaoNet's leave event. Idempotent, because the context is created lazily the first
+    /// time the player uses MiaoNet, which can be later than the first CelesteNet connection.
+    /// </summary>
+    private static void WatchPlayerLeaves() {
+        if (watchedContext is not null)
+            return;
+
+        MiaoNetContext? context = MiaoNetModule.Instance?.MiaoNetContextOptional;
+        if (context is null)
+            return;
+
+        context.PlayerLeft += OnPlayerLeft;
+        watchedContext = context;
+    }
+
+    /// <summary>
+    /// A player leaving MiaoNet has to leave CelesteNet as well: the client only drops a player when it
+    /// receives a dead <c>playerInfo</c>, and every mod that keys data by player id (CoopHelper, the
+    /// appearance mods) would otherwise keep a player that is never coming back.
+    /// </summary>
+    private static void OnPlayerLeft(OnlinePlayer player) {
+        uint id = (uint)player.ID;
+
+        CelesteNetFakeSession[] targets;
+        lock (sessions)
+            targets = [.. sessions];
+
+        foreach (CelesteNetFakeSession session in targets) {
+            if (!ForgetIntroduced(session, id))
+                continue;
+
+            _ = SendSafeAsync(session, CelesteNetDataTypes.PlayerInfo(id, PlayerNameOf(id), alive: false));
+            Logger.Log(LogLevel.Verbose, "cnet-bridge", $"announced that #{id} left CelesteNet");
+        }
+    }
+
+    /// <summary>
+    /// Without a MiaoNet connection this side cannot hear from anybody any more, so every player the
+    /// local client knows about is gone as far as it is concerned.
+    /// </summary>
+    private static void AnnounceEveryoneLeft(CelesteNetFakeSession session) {
+        uint[] ids;
+        lock (sessions) {
+            if (!introducedPlayers.TryGetValue(session, out HashSet<uint>? introduced))
+                return;
+
+            ids = [.. introduced];
+            introduced.Clear();
+        }
+
+        foreach (uint id in ids) {
+            _ = SendSafeAsync(session, CelesteNetDataTypes.PlayerInfo(id, PlayerNameOf(id), alive: false));
+        }
+
+        if (ids.Length > 0)
+            Logger.Log(LogLevel.Info, "cnet-bridge", $"MiaoNet went away, announced {ids.Length} players as left");
+    }
+
+    private static bool ForgetIntroduced(CelesteNetFakeSession session, uint id) {
+        lock (sessions)
+            return introducedPlayers.TryGetValue(session, out HashSet<uint>? introduced) && introduced.Remove(id);
+    }
+
+    private static string PlayerNameOf(uint id) {
+        lock (announcedNames)
+            return announcedNames.TryGetValue(id, out string? name) ? name : "";
     }
 
     /// <summary>The local real client sent something: hand third-party payloads to MiaoNet.</summary>
@@ -323,7 +430,11 @@ public static class CelesteNetBridgeEntry {
 
             if (first) {
                 // The real client can only resolve refs to a player it has seen a DataPlayerInfo for.
-                _ = SendSafeAsync(session, CelesteNetDataTypes.PlayerInfo(sender, RemoteName(sender)));
+                string name = RemoteName(sender);
+                lock (announcedNames)
+                    announcedNames[sender] = name;
+
+                _ = SendSafeAsync(session, CelesteNetDataTypes.PlayerInfo(sender, name));
             }
 
             _ = SendSafeAsync(session, CelesteNetFrameRewriter.RewriteSource(packet.Payload, sender));

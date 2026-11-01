@@ -129,7 +129,11 @@ public static class CelesteNetDataTypes
     /// <summary>
     /// DataPlayerInfo: the player ID lives in a <c>MetaRef</c>, the payload is three netstrings.
     /// </summary>
-    public static byte[] PlayerInfo(uint id, string name)
+    /// <param name="alive">
+    /// False sends a tombstone. The client then frees the reference instead of storing it
+    /// (<c>DataContext.SetRef</c>), which is how a player is removed from the world.
+    /// </param>
+    public static byte[] PlayerInfo(uint id, string name, bool alive = true)
     {
         ArgumentNullException.ThrowIfNull(name);
 
@@ -138,7 +142,7 @@ public static class CelesteNetDataTypes
         WriteNetString(data, name);
         WriteNetString(data, name);
 
-        IReadOnlyList<(string MetaId, byte[] Body)> metas = new[] { ("ref", EncodeRefMeta(id)) };
+        IReadOnlyList<(string MetaId, byte[] Body)> metas = new[] { ("ref", EncodeRefMeta(id, alive)) };
         return Encode(0x0000, "playerInfo", data.WrittenSpan, metas);
     }
 
@@ -170,12 +174,12 @@ public static class CelesteNetDataTypes
         return Encode(FlagSmall, "ready", default);
     }
 
-    private static byte[] EncodeRefMeta(uint id)
+    private static byte[] EncodeRefMeta(uint id, bool alive)
     {
         // MetaRef: 7-bit encoded player ID followed by the IsAlive flag.
         byte[] body = new byte[6];
         int length = Write7BitEncodedInt(body, id);
-        body[length++] = 1;
+        body[length++] = alive ? (byte)1 : (byte)0;
         return body[..length];
     }
 

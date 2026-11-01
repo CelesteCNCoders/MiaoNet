@@ -18,6 +18,11 @@ public sealed class CelesteNetProtocolTests
         "00 00 70 6c 61 79 65 72 49 6e 66 6f 00 43 65 6c 65 73 74 65 4e 65 74 2e 53 68 61 72 65 64 00 1d 00 "
         + "01 72 65 66 00 02 01 01 50 6c 61 79 65 72 00 50 6c 61 79 65 72 00 50 6c 61 79 65 72 00";
 
+    /// <summary>The same frame as <see cref="PlayerInfoHex"/> with MetaRef.IsAlive cleared.</summary>
+    private const string PlayerInfoTombstoneHex =
+        "00 00 70 6c 61 79 65 72 49 6e 66 6f 00 43 65 6c 65 73 74 65 4e 65 74 2e 53 68 61 72 65 64 00 1d 00 "
+        + "01 72 65 66 00 02 01 00 50 6c 61 79 65 72 00 50 6c 61 79 65 72 00 50 6c 61 79 65 72 00";
+
     private const string KeepAliveHex =
         "10 20 6b 65 65 70 41 6c 69 76 65 00 43 65 6c 65 73 74 65 4e 65 74 2e 53 68 61 72 65 64 00 01 00";
 
@@ -73,6 +78,26 @@ public sealed class CelesteNetProtocolTests
 
         Assert.HasCount(62, payload);
         Assert.AreEqual(PlayerInfoHex, ToHex(payload));
+    }
+
+    [TestMethod]
+    public void PlayerInfoTombstoneOnlyClearsTheAliveFlag()
+    {
+        byte[] alive = CelesteNetDataTypes.PlayerInfo(1, "Player");
+        byte[] dead = CelesteNetDataTypes.PlayerInfo(1, "Player", alive: false);
+
+        Assert.HasCount(alive.Length, dead, "A tombstone has exactly the same layout as a live playerInfo.");
+        Assert.AreEqual(PlayerInfoHex, ToHex(alive));
+        Assert.AreEqual(PlayerInfoTombstoneHex, ToHex(dead));
+
+        int differingBytes = 0;
+        for (int i = 0; i < alive.Length; i++)
+        {
+            if (alive[i] != dead[i])
+                differingBytes++;
+        }
+
+        Assert.AreEqual(1, differingBytes, "Only the MetaRef.IsAlive flag may change.");
     }
 
     [TestMethod]
