@@ -6,13 +6,6 @@ namespace MiaoNet.Shared;
 
 public static class RefBinaryWriterExtensions
 {
-    public static void Write(this ref RefBinaryWriter writer, Version version)
-    {
-        writer.Write((ushort)version.Major);
-        writer.Write((ushort)version.Minor);
-        writer.Write((ushort)version.Build);
-    }
-
     public static void Write(this ref RefBinaryWriter writer, string value, Encoding encoding)
     {
         int length = encoding.GetByteCount(value);

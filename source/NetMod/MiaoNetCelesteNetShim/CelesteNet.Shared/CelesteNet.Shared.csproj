@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\CelesteMod.props" />
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <CelesteRootPath>C:/Program Files (x86)/Steam/steamapps/common/Celeste</CelesteRootPath>
+    <!-- The assembly identity must match the original CelesteNet assembly, because mods are
+         compiled against it and Everest resolves referenced assemblies by literal file name. -->
+    <AssemblyName>CelesteNet.Shared</AssemblyName>
+    <RootNamespace>Celeste.Mod.CelesteNet</RootNamespace>
+    <!-- The original assembly reports 2.0.0.0; keep the exact identity so pre-compiled mods bind to it. -->
+    <Version>2.0.0.0</Version>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- The mod assets of this project are packed by the MiaoNetCelesteNetShim mod itself. -->
+    <ModAssetsFolderName>ModFolder</ModAssetsFolderName>
+  </PropertyGroup>
+</Project>

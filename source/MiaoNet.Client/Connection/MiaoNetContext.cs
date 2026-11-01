@@ -116,9 +116,18 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         renderableComponents = [dm, chat, pl];
 
         StatusComponent = new(this);
-        PacketHandlerRegister r = new();
-        RegisterPacketHandlers(r);
-        packetDispatcher = new(r);
+
+        PacketHandlerRegister register = new();
+        RegisterPacketHandlers(register);
+        packetDispatcher = new(register, this);
+
+        MiaoNetNetMods.Changed += OnNetModsChanged;
+
+        void OnNetModsChanged()
+        {
+            if (activeConnectionOperation is not null)
+                DisconnectByException(new NetModsChangedException());
+        }
     }
 
     public void QueueConnect()
@@ -132,6 +141,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         // TODO hmmm tbh this is ugly, we'd better get a more elegant way to do this
         ShowAvatar = MiaoNetModule.Settings.ShowAvatar;
         long generation = connectionLifecycle.Begin();
+        NetModInfo[] netMods = MiaoNetNetMods.BuildHandshakeNetMods();
 #if USE_CELEMIAO_AUTH
         string? authenticationCode = ClientRC.AuthenticationCode;
         ConnectionOperation operation = new(
@@ -140,10 +150,11 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             TargetServer,
             TargetPort,
             authenticationCode,
-            MiaoNetModule.Settings.TokenData
+            MiaoNetModule.Settings.TokenData,
+            netMods
         );
 #else
-        ConnectionOperation operation = new(generation, ShowAvatar, TargetServer, TargetPort);
+        ConnectionOperation operation = new(generation, ShowAvatar, TargetServer, TargetPort, netMods);
 #endif
         activeConnectionOperation = operation;
 
@@ -196,6 +207,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         activeConnectionOperation = null;
         connection = null;
         clientState = null;
+        MiaoNetNetMods.SetTransport(null);
         PlayerPresenceMessage = null;
         hasComponentFocus = false;
         PooledStringManager = null;
@@ -233,7 +245,9 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             foreach (PacketDisconnected packet in terminalPackets)
             {
                 failures.AddRange(BestEffortCleanup.Run(
-                    [new("dispatch terminal disconnect packet", () => packetDispatcher.DispatchPacket(default, packet))],
+                    [new("dispatch terminal disconnect packet", () => packetDispatcher.DispatchPacket(
+                        default, packet
+                    ))],
                     []));
             }
         }
@@ -263,7 +277,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
             while (receiveQueue.TryDequeue(out var received))
             {
                 if (connectionLifecycle.IsCurrent(received.Generation))
-                    HandleQueuedPacket(received.Packet.Envelope, received.Packet.Packet);
+                    HandleQueuedPacket(received.Packet);
             }
 
             if (!HasConnection)
@@ -299,6 +313,7 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         PlayerPresenceMessage = packetClientInitial.PlayerPresenceMessage;
         PooledStringManager = operation.PooledStringManager;
         this.connection = connection;
+        MiaoNetNetMods.SetTransport(connection);
         ClientInitialized?.Invoke(clientState);
         StatusComponent.ShowStatusMessage(ConnectionStatus.Connected);
         foreach (var line in packetClientInitial.JoinMessage.EnumerateLines())
@@ -397,24 +412,45 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         });
     }
 
-    private void HandleQueuedPacket(PacketEnvelope envelope, IContextualPacket packet)
+    private void HandleQueuedPacket(EnvelopedPacket received)
     {
-        if (envelope.IsResponse)
+        if (received.Envelope.IsResponse)
         {
-            if (pendingRequests.TryRemove(envelope.RequestID, out var handler))
+            if (pendingRequests.TryRemove(received.Envelope.RequestID, out var handler))
             {
-                handler((IPacketResponse)packet);
+                handler((IPacketResponse)received.Packet);
             }
             else
             {
-                Logger.Warn(LT.MiaoNet, $"Unknown response id: {envelope.RequestID}.");
+                Logger.Warn(LT.MiaoNet, $"Unknown response id: {received.Envelope.RequestID}.");
             }
+
+            return;
         }
-        else
+
+        if (received.Packet is PacketNetModDelivery delivery)
         {
-            bool handled = packetDispatcher.DispatchPacket(envelope, packet);
-            if (!handled)
-                Logger.Warn(LT.MiaoNet, $"Unhandled packet type: {packet.GetType()}.");
+            DispatchNetModPacket(received.Envelope, delivery);
+            return;
+        }
+
+        if (!packetDispatcher.DispatchPacket(received.Envelope, received.Packet))
+            Logger.Warn(LT.MiaoNet, $"Unhandled packet: {received.Packet.GetType().Name}.");
+    }
+
+    private void DispatchNetModPacket(PacketEnvelope envelope, PacketNetModDelivery delivery)
+    {
+        try
+        {
+            packetDispatcher.DispatchPacket(envelope, delivery);
+        }
+        catch (Exception e)
+        {
+            Logger.Warn(
+                LT.MiaoNet,
+                $"Dropped net-mod packet (mod index {delivery.NetModID}, packet id {delivery.LocalID}) received from {envelope.SenderPlayerID}."
+            );
+            Logger.LogDetailed(e, LT.MiaoNet);
         }
     }
 

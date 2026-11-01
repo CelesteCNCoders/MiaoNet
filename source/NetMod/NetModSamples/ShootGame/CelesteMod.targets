@@ -1,0 +1,81 @@
+<Project>
+
+  <Target Name="PostModBuild" AfterTargets="AfterBuild">
+    <Error Condition="'$(ModAssetsFolderName)' == ''" Text="ModAssetsFolderName is not set." Code="SMT04"/>
+
+    <!--copy compile output files-->
+    <ItemGroup>
+      <_CompileOutput Include="$(OutputPath)/**"/>
+    </ItemGroup>
+    <Copy SourceFiles="@(_CompileOutput)" DestinationFolder="$(ModAssetsFolderName)/Code/%(RecursiveDir)" SkipUnchangedFiles="true"/>
+
+    <CallTarget Condition="$(ModAssetsCopyType) == 'link'" Targets="CheckAndCreateSymbolicLink"/>
+    <CallTarget Condition="$(ModAssetsCopyType) == 'copy'" Targets="CopyModFolder"/>
+  </Target>
+
+  <Target Name="CheckAndCreateSymbolicLink">
+    <RemoveDir Directories="$(CelesteRootPath)/Mods/$(AssemblyName)_copy" Condition="Exists('$(CelesteRootPath)/Mods/$(AssemblyName)_copy')"/>
+    <PropertyGroup Condition="!Exists('$(CelesteRootPath)/Mods/$(AssemblyName)_link')">
+      <_ModLinkNotExists>true</_ModLinkNotExists>
+    </PropertyGroup>
+    <Message Condition="'$(_ModLinkNotExists)' == 'true'" Text="Symbolic link not created, creating..."/>
+    <!--create symbolic link on windows-->
+    <Exec Condition="'$(_ModLinkNotExists)' == 'true' And '$(OS)' == 'Windows_NT'"
+        Command="mklink /d &quot;$(CelesteRootPath)/Mods/$(AssemblyName)_link&quot; &quot;$(MSBuildProjectDirectory)/$(ModAssetsFolderName)&quot;"/>
+    <!--create symbolic link on unix-->
+    <Exec Condition="'$(_ModLinkNotExists)' == 'true' And '$(OS)' == 'Unix'"
+        Command="ln -s &quot;$(MSBuildProjectDirectory)/$(ModAssetsFolderName)&quot; &quot;$(CelesteRootPath)/Mods/$(AssemblyName)_link&quot;"/>
+  </Target>
+
+  <Target Name="CopyModFolder">
+    <ItemGroup>
+      <_ModAssetsFolderContents Include="$(ModAssetsFolderName)/**"/>
+    </ItemGroup>
+    <RemoveDir Directories="$(CelesteRootPath)/Mods/$(AssemblyName)_link" Condition="Exists('$(CelesteRootPath)/Mods/$(AssemblyName)_link')"/>
+    <MakeDir Condition="!Exists('$(CelesteRootPath)/Mods/$(AssemblyName)_copy')" Directories="$(CelesteRootPath)/Mods/$(AssemblyName)_copy"/>
+    <Copy SourceFiles="@(_ModAssetsFolderContents)"
+			  DestinationFolder="$(CelesteRootPath)/Mods/$(AssemblyName)_copy/%(RecursiveDir)"
+			  SkipUnchangedFiles="true"/>
+    <Message Text="$(AssemblyName) -> $(CelesteRootPath)/Mods/$(AssemblyName)_copy/$(AssemblyName).dll" Importance="high"/>
+  </Target>
+
+  <Target Name="CheckCelestePaths" BeforeTargets="PreBuildEvent">
+    <Message Text="Checking celeste root path..."/>
+    <Error Condition="!Exists('$(CelesteRootPath)/Celeste.exe') And !Exists('$(CelesteRootPath)/Celeste')"
+         Text="Celeste not found. Please check your CelesteRootPath property."
+         Code="SMT01"/>
+    <Error Condition="!Exists('$(CelesteRootPath)/Celeste.Mod.mm.dll')" Text="Everest not installed." Code="SMT02"/>
+    <Error Condition="Exists('$(CelesteRootPath)/Celeste.exe.config')"
+           Code="SMT03" Text="Legacy versions of Everest are not supported. Please update your Everest to 4465+."/>
+  </Target>
+
+  <Target Name="CleanRemoteFolder" BeforeTargets="Clean" Condition="$(ModAssetsCopyType) == 'copy'">
+    <Error Condition="'$(ModAssetsFolderName)' == ''" Text="ModAssetsFolderName is not set." Code="SMT04"/>
+
+    <ItemGroup>
+      <_FilesToDelete Include="$(ModAssetsFolderName)/Code/**" />
+      <_FilesToDelete Include="$(CelesteRootPath)/Mods/$(AssemblyName)_copy/Code/**" />
+    </ItemGroup>
+    
+    <Delete Files="@(_FilesToDelete)" />
+  </Target>
+
+  <Target Name="CleanInplaceFolder" BeforeTargets="Clean" Condition="$(ModAssetsCopyType) == 'link'">
+    <Error Condition="'$(ModAssetsFolderName)' == ''" Text="ModAssetsFolderName is not set." Code="SMT04"/>
+
+    <ItemGroup>
+      <_FilesToDelete Include="$(ModAssetsFolderName)/Code/**" />
+    </ItemGroup>
+
+    <Delete Files="@(_FilesToDelete)" />
+  </Target>
+
+  <ItemGroup>
+    <Reference Include="@(CelesteModReference->'%(Identity)')">
+      <HintPath>$(CelesteRootPath)/Mods/Cache/%(Identity).%(Identity).dll</HintPath>
+      <HintPath Condition="'%(AssemblyName)' != ''">$(CelesteRootPath)/Mods/Cache/%(Identity).%(AssemblyName).dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

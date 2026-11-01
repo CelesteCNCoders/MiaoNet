@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="CelesteMod.props" />
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <CelesteRootPath>C:/Program Files (x86)/Steam/steamapps/common/Celeste</CelesteRootPath>
+    <RootNamespace>Celeste.Mod.MiaoNetShootGame</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseCelesteAnalyzer>false</UseCelesteAnalyzer>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      直接对着仓库里的 MiaoNet.Client 编译(和 MiaoNetCelesteNetShim 一样): 装在 Mods/Cache 里的
+      那份 MiaoNet.MiaoNet.dll 是上次启动游戏时缓存的构建, API 一改它就对不上了。
+      Private=false 是为了别把 MiaoNet.dll 复制进本 mod 的 ModFolder/Code —— 运行时它由 everest.yaml
+      里的依赖从 MiaoNet 自己的目录加载。
+    -->
+    <ProjectReference Include="..\..\MiaoNet\source\MiaoNet.Client\MiaoNet.Client.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+
+    <None Include="CelesteMod.props">
+      <Visible>false</Visible>
+    </None>
+    <None Include="CelesteMod.targets">
+      <Visible>false</Visible>
+    </None>
+  </ItemGroup>
+
+  <Import Project="CelesteMod.targets" />
+</Project>

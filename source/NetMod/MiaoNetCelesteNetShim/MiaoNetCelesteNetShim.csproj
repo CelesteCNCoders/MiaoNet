@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="CelesteMod.props" />
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <CelesteRootPath>C:/Program Files (x86)/Steam/steamapps/common/Celeste</CelesteRootPath>
+    <RootNamespace>Celeste.Mod.MiaoNetCelesteNetShim</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- This project packs the mod; it is not part of it. The mod's code is CelesteNet.Client's, and the
+         yaml declares no assembly for this name, so nothing needs an assembly of this project's own: no
+         source is compiled and the empty build product is not copied out, which keeps it out of bin/ and
+         therefore out of ModFolder/Code. -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <SkipCopyBuildProduct>true</SkipCopyBuildProduct>
+    <!-- Without this the empty assembly's .pdb still lands in bin/ and is staged into Code/. -->
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <!-- The compatibility assemblies live in subfolders but are separate projects,
+       so their sources must not be compiled into this assembly as well. -->
+  <ItemGroup>
+    <Compile Remove="CelesteNet.Client/**" />
+    <Compile Remove="CelesteNet.Shared/**" />
+    <None Remove="CelesteNet.Client/**" />
+    <None Remove="CelesteNet.Shared/**" />
+  </ItemGroup>
+
+  <!-- The compatibility assemblies keep the original CelesteNet assembly identities and are
+       copied next to this mod's DLL, because Everest resolves a referenced assembly by
+       literal file name inside the providing mod's own directory. -->
+  <ItemGroup>
+    <ProjectReference Include="CelesteNet.Client\CelesteNet.Client.csproj" />
+    <ProjectReference Include="CelesteNet.Shared\CelesteNet.Shared.csproj" />
+    <ProjectReference Include="..\MiaoNet\source\MiaoNet.Client\MiaoNet.Client.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="CelesteMod.props">
+      <Visible>false</Visible>
+    </None>
+    <None Include="CelesteMod.targets">
+      <Visible>false</Visible>
+    </None>
+  </ItemGroup>
+
+  <Import Project="CelesteMod.targets" />
+</Project>

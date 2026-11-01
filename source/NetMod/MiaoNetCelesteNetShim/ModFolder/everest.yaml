@@ -1,0 +1,15 @@
+- Name: MiaoNetCelesteNetShim
+  Version: 0.2.0
+  Dependencies:
+    - Name: EverestCore
+      Version: 1.5577.0
+    - Name: MiaoNet
+      Version: 0.5.0
+- Name: CelesteNet.Client
+  Version: 2.3.1
+  DLL: Code/CelesteNet.Client.dll
+  Dependencies:
+    - Name: EverestCore
+      Version: 1.5577.0
+    - Name: MiaoNet
+      Version: 0.5.0
