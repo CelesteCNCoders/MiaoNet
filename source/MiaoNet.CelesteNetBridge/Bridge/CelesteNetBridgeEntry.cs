@@ -73,9 +73,14 @@ public static class CelesteNetBridgeEntry {
     /// that connection would leave the game with two clients pointing at two different servers.
     /// </summary>
     public static bool IsCelesteNetPointedAtTheBridge() => ResolveTarget(out string host, out int port)
-        && host is "localhost" or "127.0.0.1"
+        && IsLoopbackHost(host)
         && port == LocalPort
         && LocalPort != 0;
+
+    /// <summary>Whether a host name in <c>ServerOverride</c> means this machine.</summary>
+    private static bool IsLoopbackHost(string host)
+        => string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Splits CelesteNet's <c>ServerOverride</c>. CelesteNet's own "connect locally" button writes just
@@ -89,7 +94,7 @@ public static class CelesteNetBridgeEntry {
         if (string.IsNullOrWhiteSpace(raw))
             return false;
 
-        string target = raw.Trim().ToLowerInvariant();
+        string target = raw.Trim();
         int separator = target.LastIndexOf(':');
         if (separator <= 0) {
             host = target;
