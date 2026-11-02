@@ -15,8 +15,10 @@ public sealed class CelesteNetFakeServerOptions {
     /// <summary>
     /// Per-session identity. Each client must get a distinct id, otherwise every client thinks it is
     /// player 1 and treats the other player's frames as its own. Defaults to <see cref="PlayerId"/>.
+    /// Return null when the identity is not known yet: the connection is then dropped rather than
+    /// served under a made-up id, because duplicate ids silently corrupt every id keyed mod.
     /// </summary>
-    public Func<(uint Id, string Name)>? IdentityProvider { get; init; }
+    public Func<(uint Id, string Name)?>? IdentityProvider { get; init; }
 
     /// <summary>The client joins this channel; without one it never reports a map.</summary>
     public string ChannelName { get; init; } = "main";

@@ -14,6 +14,7 @@ public sealed class CelesteNetFakeServer : IDisposable {
     private TcpListener? listener;
     private Task? acceptTask;
     private int disposed;
+    private bool warnedAboutMissingIdentity;
 
     public CelesteNetFakeServer(CelesteNetFakeServerOptions? options = null) {
         this.options = options ?? new CelesteNetFakeServerOptions();
@@ -84,9 +85,21 @@ public sealed class CelesteNetFakeServer : IDisposable {
                 return;
             }
 
-            (uint Id, string Name) identity = options.IdentityProvider?.Invoke()
-                ?? (options.PlayerId, options.PlayerName);
-            var session = new CelesteNetFakeSession(client, options, identity.Id, identity.Name);
+            uint id;
+            string name;
+            if (options.IdentityProvider is { } provider) {
+                if (provider() is not { } identity) {
+                    DropWithoutIdentity(client);
+                    continue;
+                }
+
+                (id, name) = identity;
+            } else {
+                (id, name) = (options.PlayerId, options.PlayerName);
+            }
+
+            warnedAboutMissingIdentity = false;
+            var session = new CelesteNetFakeSession(client, options, id, name);
             Log($"client connected from {client.Client.RemoteEndPoint}");
 
             try {
@@ -96,6 +109,23 @@ public sealed class CelesteNetFakeServer : IDisposable {
             }
 
             session.Start();
+        }
+    }
+
+    /// <summary>
+    /// A connection that arrives before MiaoNet knows who the player is cannot be served: the client
+    /// would be given a made-up id, and two players sharing an id silently break every mod that keys
+    /// data by player id. Drop it instead and let the client retry once the session exists.
+    /// </summary>
+    private void DropWithoutIdentity(TcpClient client) {
+        if (!warnedAboutMissingIdentity) {
+            warnedAboutMissingIdentity = true;
+            Log("no MiaoNet identity yet; dropping CelesteNet connections until it is known");
+        }
+
+        try {
+            client.Close();
+        } catch (Exception) {
         }
     }
 

@@ -123,4 +123,50 @@ public class CelesteNetFakeServerTests {
 
         Assert.IsTrue(await closed.Task.WaitAsync(TimeSpan.FromSeconds(5)));
     }
+
+    [TestMethod]
+    public async Task DropsConnectionsThatArriveBeforeAnIdentityIsKnown() {
+        int sessions = 0;
+        using CelesteNetFakeServer server = new(new CelesteNetFakeServerOptions {
+            Port = 0,
+            KeepAliveInterval = TimeSpan.FromMilliseconds(100),
+            IdentityProvider = () => null,
+        });
+        server.SessionStarted += _ => Interlocked.Increment(ref sessions);
+        server.Start();
+
+        using TcpClient client = new();
+        await client.ConnectAsync(IPAddress.Loopback, server.Port);
+        client.ReceiveTimeout = 5000;
+
+        int read;
+        try {
+            read = client.GetStream().Read(new byte[1], 0, 1);
+        } catch (IOException) {
+            read = 0; // a reset counts as a drop too
+        }
+
+        Assert.AreEqual(0, read, "the connection must be closed instead of served under a made-up id");
+        Assert.AreEqual(0, sessions, "no session may start when there is no identity to give it");
+    }
+
+    [TestMethod]
+    public async Task UsesTheIdentityProviderForThePlayerInfoItSends() {
+        using CelesteNetFakeServer server = new(new CelesteNetFakeServerOptions {
+            Port = 0,
+            KeepAliveInterval = TimeSpan.FromMilliseconds(100),
+            IdentityProvider = () => (7u, "Zed"),
+        });
+        server.Start();
+
+        using CelesteNetTestClient client = new(server.Port);
+        await client.HandshakeAsync();
+
+        for (int i = 0; i < 2; i++)
+            await client.ReceiveAsync();
+        byte[] playerInfo = await client.ReceiveAsync();
+
+        Assert.AreEqual("playerInfo", CelesteNetTypeReader.TryReadTypeId(playerInfo));
+        CollectionAssert.AreEqual(CelesteNetDataTypes.PlayerInfo(7, "Zed"), playerInfo);
+    }
 }

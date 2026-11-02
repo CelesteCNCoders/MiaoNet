@@ -456,14 +456,13 @@ public static class CelesteNetBridgeEntry {
     /// <summary>
     /// The CelesteNet identity this client should use. Reusing the MiaoNet player id keeps both
     /// sides' references consistent, and gives every player a distinct id.
+    /// Null while there is no MiaoNet session yet: the fake server drops the connection in that case
+    /// rather than handing out an id that every other player also has.
     /// </summary>
-    private static (uint Id, string Name) LocalIdentity() {
+    private static (uint Id, string Name)? LocalIdentity() {
         ClientState? state = MiaoNetModule.Instance?.MiaoNetContext?.ClientState;
         OnlinePlayer? self = state?.Self;
-        if (self is not null)
-            return ((uint)self.ID, self.Info.Name);
-
-        return (1, "Player");
+        return self is null ? null : ((uint)self.ID, self.Info.Name);
     }
 
     /// <summary>
