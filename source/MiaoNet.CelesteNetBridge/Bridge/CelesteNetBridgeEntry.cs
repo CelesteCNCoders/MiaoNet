@@ -72,7 +72,11 @@ public static class CelesteNetBridgeEntry {
     /// the only address that is allowed: anything else is the player using CelesteNet's own menu, and
     /// that connection would leave the game with two clients pointing at two different servers.
     /// </summary>
-    public static bool IsCelesteNetPointedAtTheBridge() => ResolveTarget(out string host, out int port)
+    /// <summary>
+    /// Whether CelesteNet is currently pointed at this bridge. Read by <c>MiaoNetModule</c> through
+    /// reflection, so it stays a property: that is the shape the client looks up.
+    /// </summary>
+    public static bool IsCelesteNetPointedAtTheBridge => ResolveTarget(out string host, out int port)
         && IsLoopbackHost(host)
         && port == LocalPort
         && LocalPort != 0;
@@ -242,7 +246,7 @@ public static class CelesteNetBridgeEntry {
     /// it instead of dialing a loopback port nobody listens on any more.
     /// </summary>
     private static void ResetRedirect() {
-        if (IsCelesteNetPointedAtTheBridge())
+        if (IsCelesteNetPointedAtTheBridge)
             CelesteNetClientModule.Settings.ServerOverride = "";
     }
 

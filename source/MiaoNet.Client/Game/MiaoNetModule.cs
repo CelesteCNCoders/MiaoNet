@@ -196,7 +196,11 @@ public sealed class MiaoNetModule : EverestModule
             );
             if (celesNetBridgeSetEnabled is null || celesNetBridgeInitialized is null || celesNetBridgeTargetsBridge is null)
             {
-                Logger.Warn(LT.MiaoNet, "CelesteNet bridge assembly has no entry point");
+                Logger.Log(
+                    LogLevel.Error, LT.MiaoNet,
+                    "CelesteNet bridge entry point is incomplete: CelesteNetBridgeEntry needs public statics " +
+                    "SetEnabled(bool), Initialized and IsCelesteNetPointedAtTheBridge"
+                );
                 return false;
             }
 

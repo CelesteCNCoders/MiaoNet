@@ -44,7 +44,7 @@ internal sealed class CelesteNetConnectionGuard {
     }
 
     private static void OnStart(Action<CelesteNetClientModule> orig, CelesteNetClientModule self) {
-        if (!CelesteNetBridgeEntry.Initialized || CelesteNetBridgeEntry.IsCelesteNetPointedAtTheBridge()) {
+        if (!CelesteNetBridgeEntry.Initialized || CelesteNetBridgeEntry.IsCelesteNetPointedAtTheBridge) {
             orig(self);
             return;
         }
