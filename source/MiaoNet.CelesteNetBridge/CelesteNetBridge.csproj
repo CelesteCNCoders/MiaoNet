@@ -26,6 +26,8 @@
 
     <!-- Suppression hooks detour the real CelesteNet client (installed as a normal mod). -->
     <CelesteModReference Include="CelesteNet.Client" />
+    <!-- DataContext, to tell CelesteNet's own DataTypes from a mod's when deciding what to relay. -->
+    <CelesteModReference Include="CelesteNet.Client" AssemblyName="CelesteNet.Shared" />
 
     <None Include="CelesteMod*" Visible="false" />
   </ItemGroup>

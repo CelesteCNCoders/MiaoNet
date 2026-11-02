@@ -29,16 +29,6 @@ public static class CelesteNetBridgeEntry {
     /// <summary>Bumped whenever the packet layout below changes.</summary>
     private const ushort ProtocolVersion = 1;
 
-    /// <summary>
-    /// Frames that belong to one connection and must never be relayed: the handshake, the startup
-    /// sequence, heartbeats, and the DataContext registration tables. Everything else is treated as
-    /// third-party data and relayed verbatim.
-    /// </summary>
-    private static readonly HashSet<string> connectionLocalTypes = [
-        "keepAlive", "tickRate", "ready", "channelList", "channelMove", "playerInfo",
-        "disconnectReason", "filterList", "stringMap", "slimMap", "session", "sessionRequest",
-    ];
-
     private static readonly List<CelesteNetFakeSession> sessions = [];
 
     /// <summary>Type ids already relayed per session, for a log that names each kind once.</summary>
@@ -388,7 +378,7 @@ public static class CelesteNetBridgeEntry {
 
     /// <summary>The local real client sent something: hand third-party payloads to MiaoNet.</summary>
     private static void OnLocalFrame(CelesteNetFakeSession session, CelesteNetFrame frame) {
-        if (frame.TypeId is null || connectionLocalTypes.Contains(frame.TypeId))
+        if (frame.TypeId is not { } typeId || !CelesteNetRelayFilter.IsRelayable(typeId, DeclaringSourceOf(typeId)))
             return;
 
         if (netMod is null || !MiaoNetNetMods.IsConnected)
@@ -399,16 +389,29 @@ public static class CelesteNetBridgeEntry {
 
             bool first;
             lock (sessions)
-                first = relayedTypes.TryGetValue(session, out HashSet<string>? seen) && seen.Add(frame.TypeId);
+                first = relayedTypes.TryGetValue(session, out HashSet<string>? seen) && seen.Add(typeId);
             if (first) {
                 Logger.Log(
                     LogLevel.Verbose, "cnet-bridge",
-                    $"relay {frame.TypeId} ({frame.Payload.Length} B)"
+                    $"relay {typeId} ({frame.Payload.Length} B)"
                 );
             }
         } catch (Exception e) {
             Logger.Log(LogLevel.Warn, "cnet-bridge", "send failed: " + e.GetType().Name + ": " + e.Message);
         }
+    }
+
+    /// <summary>
+    /// Which assembly declares the type the frame belongs to, as the local client knows it. Reading it from
+    /// the client's own DataContext is what makes the bridge survive a CelesteNet update that adds a type:
+    /// anything new that ships inside CelesteNet is treated as connection state without being listed here.
+    /// </summary>
+    private static string? DeclaringSourceOf(string typeId) {
+        Celeste.Mod.CelesteNet.DataContext? data = CelesteNetClientModule.Instance?.Context?.Client?.Data;
+        if (data is null || !data.IDToDataType.TryGetValue(typeId, out Type? type))
+            return null;
+
+        return data.DataTypeToSource.TryGetValue(type, out string? source) ? source : null;
     }
 
     /// <summary>Another player's payload arrived: push it into the local real client.</summary>
