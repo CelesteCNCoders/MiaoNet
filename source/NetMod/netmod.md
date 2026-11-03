@@ -6,7 +6,7 @@ NetMod 是 MiaoNet 为第三方 Mod 提供的通用数据传输通道扩展层. 
 
 蔚蓝社区中有许多联机玩法 Mod (如 Co-op Helper) 原生基于 CelesteNet 的数据接口开发. MiaoNet 若要支持这些 Mod, 必须能够承载它们自定义的数据同步消息. 但 MiaoNet 原有的内建包表在 `MiaoNet.Shared/AssemblyInfo.cs` 中静态编译, 受 C# `[assembly: PacketRegistry]` 特性限制, 一个程序集只能声明一张静态包表. 如果每次为了支持一个外部 Mod 都在核心包表里增加专用协议包, 不仅每次集成都需要修改核心代码并强迫全员发版, 还会使核心网络与特定第三方业务深度耦合.
 
-NetMod 的解决方式是将核心网络抽象为通用的哑管道 (Dumb Pipe). 核心只负责按目标路由搬运不透明的数据字节 (Payload), 完全不介入具体的业务数据结构解析. 无论是项目中已有的 Co-op Helper 的兼容层 (如同目录下的 `MiaoNetCelesteNetShim`), 还是未来玩家自制的联机小游戏 (如同目录下的 `NetModSamples/ShootGame/`), 都可以直接挂载在这条通道上.
+NetMod 的解决方式是将核心网络抽象为通用的哑管道 (Dumb Pipe). 核心只负责按目标路由搬运不透明的数据字节 (Payload), 完全不介入具体的业务数据结构解析. 无论是仓库中自带的示例 (如同目录下的 NetModSamples/ShootGame/), 还是未来玩家自制的联机小游戏, 都可以直接挂载在这条通道上. (尽管我**不建议**你这么做. 正如项目 README.md 所说, MiaoNet 仍然不稳定, 随时可能会进行破坏性更改. 如您有自制小游戏的需求, 基于 CelesteNet 开发, 通过 NetMod 让其在 MiaoNet 上自动适配也许会是更好的选择)
 
 ## 双层 ID 机制
 
