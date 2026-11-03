@@ -6,4 +6,5 @@ internal class SR
     public const string PlayerNotFound = "Player with id {0} is not found.";
     public const string AtlasCategoryNotFound = "Atlas of category not found.";
     public const string FrameNotFound = "Could not find frame {0}.";
+    public const string NetModsChangedException = "The set of net-mods changed, so the session had to be closed.";
 }

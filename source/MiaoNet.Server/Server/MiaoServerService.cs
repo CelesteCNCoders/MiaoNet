@@ -125,6 +125,9 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
             // create the connection
             MiaoClientConnection newConnection = connectionFactory(connection, newPlayer, this);
 
+            // TODO add it to ctor?
+            newConnection.SetNetMods(handshakeResult.HandshakeData.NetMods);
+
             // send the new player initial data
             PlayerInfo clientPlayerInfo = newConnection.Player.Info;
 
@@ -356,17 +359,17 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
     private static Task BroadcastToScopeExceptAsync(
         IContextualPacket packet,
         IPlayerScope scope,
-        int excludedPlayerId,
+        int excludedPlayerID,
         PacketEnvelope envelope = default
-    ) => BroadcastToAsync(envelope, packet, scope.Players, c => c.ID != excludedPlayerId);
+    ) => BroadcastToAsync(envelope, packet, scope.Players, c => c.ID != excludedPlayerID);
 
     private static Task BroadcastToScopeExceptAsync(
         IContextualPacket packet,
         IPlayerScope scope,
-        int excludedPlayerId,
+        int excludedPlayerID,
         Predicate<MiaoClientConnection> predicate,
         PacketEnvelope envelope = default
-    ) => BroadcastToAsync(envelope, packet, scope.Players, c => c.ID != excludedPlayerId && predicate(c));
+    ) => BroadcastToAsync(envelope, packet, scope.Players, c => c.ID != excludedPlayerID && predicate(c));
 
     public Task BroadcastAsync(IContextualPacket packet, PacketEnvelope envelope = default)
         => BroadcastToScopeAsync(packet, serverState, envelope);
@@ -375,6 +378,12 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
     public async ValueTask HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, IContextualPacket packet)
     {
+        if (packet is PacketNetMod netMod)
+        {
+            await ForwardNetModPacketAsync(connection, envelope, netMod);
+            return;
+        }
+
         if (envelope.IsResponse)
         {
             var handler = connection.TakeResponseHandler(envelope.RequestID);

@@ -2,37 +2,15 @@ namespace MiaoNet.Shared;
 
 public sealed class HandshakeData : IRefBinarySerializable<HandshakeData>
 {
-    public sealed class NetMod : IRefBinarySerializable<NetMod>
-    {
-        public Version Version { get; set; }
-
-        public string Name { get; set; }
-
-        public NetMod(Version version, string name)
-        {
-            Version = version;
-            Name = name;
-        }
-
-        public void Serialize(ref RefBinaryWriter writer)
-        {
-            writer.Write(Version);
-            writer.Write(Name);
-        }
-
-        public static NetMod Deserialize(ref RefBinaryReader reader)
-            => new(reader.ReadVersion(), reader.ReadString());
-    }
-
     public LanguageCode LanguageCode { get; }
 
     public bool IsAuthorize { get; }
 
     public byte[] AuthenticationData { get; }
 
-    public IReadOnlyList<NetMod> NetMods { get; }
+    public IReadOnlyList<NetModInfo> NetMods { get; }
 
-    public HandshakeData(LanguageCode languageCode, bool isAuthorize, byte[] authenticationData, IReadOnlyList<NetMod> netMods)
+    public HandshakeData(LanguageCode languageCode, bool isAuthorize, byte[] authenticationData, IReadOnlyList<NetModInfo> netMods)
     {
         LanguageCode = languageCode;
         IsAuthorize = isAuthorize;
@@ -55,7 +33,7 @@ public sealed class HandshakeData : IRefBinarySerializable<HandshakeData>
         bool isAuthorize = reader.ReadBoolean();
         ushort authDataLength = reader.ReadUInt16();
         byte[] authData = reader.ReadSpan(authDataLength).ToArray();
-        NetMod[] netMods = reader.ReadArray<NetMod>();
+        NetModInfo[] netMods = reader.ReadArray<NetModInfo>();
         return new HandshakeData(LanguageCode, isAuthorize, authData, netMods);
     }
 }

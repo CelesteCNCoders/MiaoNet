@@ -6,14 +6,6 @@ namespace MiaoNet.Shared;
 
 public static class RefBinaryReaderExtensions
 {
-    public static Version ReadVersion(this ref RefBinaryReader reader)
-    {
-        ushort major = reader.ReadUInt16();
-        ushort minor = reader.ReadUInt16();
-        ushort build = reader.ReadUInt16();
-        return new Version(major, minor, build);
-    }
-
     public static string ReadString(this ref RefBinaryReader reader, Encoding encoding)
     {
         ushort length = reader.ReadUInt16();

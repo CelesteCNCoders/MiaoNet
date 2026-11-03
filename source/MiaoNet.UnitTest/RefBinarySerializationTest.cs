@@ -123,24 +123,6 @@ public class RefBinaryReaderWriterTests
     }
 
     [TestMethod]
-    public void TestVersion()
-    {
-        ByteArrayBufferWriter buffer = new();
-        var writer = new RefBinaryWriter(buffer);
-
-        var version = new Version(1, 2, 3);
-        writer.Write(version);
-
-        writer.Flush();
-        var reader = new RefBinaryReader(buffer.WrittenSpan);
-
-        var readVersion = reader.ReadVersion();
-        Assert.AreEqual(version.Major, readVersion.Major);
-        Assert.AreEqual(version.Minor, readVersion.Minor);
-        Assert.AreEqual(version.Build, readVersion.Build);
-    }
-
-    [TestMethod]
     public void TestString()
     {
         ByteArrayBufferWriter buffer = new();

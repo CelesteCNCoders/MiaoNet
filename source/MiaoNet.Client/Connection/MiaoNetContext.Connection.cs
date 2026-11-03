@@ -24,6 +24,7 @@ partial class MiaoNetContext
         internal bool ShowAvatar { get; }
         internal string TargetServer { get; }
         internal int TargetPort { get; }
+        internal NetModInfo[] NetMods { get; }
         internal CancellationToken Token => cancellation.Token;
         internal PooledStringManager PooledStringManager { get; } = new(KnownPooledStrings.All);
 #if USE_CELEMIAO_AUTH
@@ -34,12 +35,13 @@ partial class MiaoNetContext
 
         PooledStringManager IPacketSerializationContext.PooledStringManager => PooledStringManager;
 
-        internal ConnectionOperation(long generation, bool showAvatar, string targetServer, int targetPort)
+        internal ConnectionOperation(long generation, bool showAvatar, string targetServer, int targetPort, NetModInfo[] netMods)
         {
             Generation = generation;
             ShowAvatar = showAvatar;
             TargetServer = targetServer;
             TargetPort = targetPort;
+            NetMods = netMods;
         }
 
 #if USE_CELEMIAO_AUTH
@@ -49,8 +51,9 @@ partial class MiaoNetContext
             string targetServer,
             int targetPort,
             string? authenticationCode,
-            byte[]? tokenData
-        ) : this(generation, showAvatar, targetServer, targetPort)
+            byte[]? tokenData,
+            NetModInfo[] netMods
+        ) : this(generation, showAvatar, targetServer, targetPort, netMods)
         {
             AuthenticationCode = authenticationCode;
             TokenData = tokenData;
@@ -155,7 +158,7 @@ partial class MiaoNetContext
                 : new DnsEndPoint(host, Port);
 
             LanguageCode langCode = GameLanguage.GetLanguageCode(Dialog.Language.Id);
-            HandshakeData.NetMod[] netMods = [];
+            NetModInfo[] netMods = operation.NetMods;
 
             HandshakeData handshakeData;
 
