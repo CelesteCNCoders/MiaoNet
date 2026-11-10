@@ -159,7 +159,7 @@ public sealed class InputBox
                 string content = separatorExists ? selected.Content : selected.Content + selected.Separator;
                 if (Text.Length - selected.Remove + content.Length > MaxTextLength)
                     content = content[..(MaxTextLength - Text.Length + selected.Remove)];
-                bool keepMenuClosed = selected.CloseMenu || !buffer.TextAfterCaret.All(char.IsWhiteSpace);
+                bool keepMenuClosed = selected.ShouldCloseMenu || !buffer.TextAfterCaret.All(char.IsWhiteSpace);
                 if (keepMenuClosed)
                     SetSuppressCompletions();
                 buffer.DoCompletion(selected.Remove, content);
