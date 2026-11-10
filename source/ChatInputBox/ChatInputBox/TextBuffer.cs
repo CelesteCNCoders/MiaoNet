@@ -77,11 +77,25 @@ public sealed class TextBuffer
         return false;
     }
 
-    public void DoCompletion(int remove, string text)
+    public void DoCompletion(int remove, string text, char separator, int maxTextLength)
     {
-        string newText = string.Concat(Text.AsSpan(0, CaretPosition - remove), text, Text.AsSpan(CaretPosition));
-        Text = newText;
-        SetCaretPositionAndClamp(CaretPosition - remove + text.Length);
+        int start = CaretPosition - remove;
+        string afterCaret = TextAfterCaret;
+
+        // Reuse the separator already after the caret instead of inserting a duplicate one.
+        bool sameSeparator = afterCaret.Length > 0 && afterCaret[0] == separator;
+        bool whitespaceSeparator = afterCaret.Length > 0 &&
+            char.IsWhiteSpace(separator) && char.IsWhiteSpace(afterCaret[0]);
+        bool separatorExists = sameSeparator || whitespaceSeparator;
+
+        string inserted = separatorExists ? text : text + separator;
+        int available = maxTextLength - (Text.Length - remove);
+        if (inserted.Length > available)
+            inserted = inserted[..Math.Max(0, available)];
+
+        Text = string.Concat(Text.AsSpan(0, start), inserted, afterCaret);
+        // Land the caret past the separator, as if the user had typed it.
+        SetCaretPositionAndClamp(start + inserted.Length + (separatorExists ? 1 : 0));
     }
 
     public void Clear()

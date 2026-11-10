@@ -150,26 +150,10 @@ public sealed class InputBox
             if (completions is not null && (completions.Count == 1 || selectedCompletionIndex != -1))
             {
                 Completion selected = completions[selectedCompletionIndex == -1 ? 0 : selectedCompletionIndex];
-                bool caretAtEnd = buffer.TextAfterCaret.Length == 0;
-                bool sameSeparator = !caretAtEnd && buffer.TextAfterCaret[0] == selected.Separator;
-                bool whitespaceSeparator = !caretAtEnd &&
-                    char.IsWhiteSpace(selected.Separator) &&
-                    char.IsWhiteSpace(buffer.TextAfterCaret[0]);
-                bool separatorExists = sameSeparator || whitespaceSeparator;
-                string content = separatorExists ? selected.Content : selected.Content + selected.Separator;
-                if (Text.Length - selected.Remove + content.Length > MaxTextLength)
-                    content = content[..(MaxTextLength - Text.Length + selected.Remove)];
                 bool keepMenuClosed = selected.ShouldCloseMenu || !buffer.TextAfterCaret.All(char.IsWhiteSpace);
                 if (keepMenuClosed)
                     SetSuppressCompletions();
-                buffer.DoCompletion(selected.Remove, content);
-                if (separatorExists)
-                {
-                    // buffer.DoCompletion consumes suppression, so we suppress once more
-                    if (keepMenuClosed)
-                        SetSuppressCompletions();
-                    buffer.MoveCaretForward();
-                }
+                buffer.DoCompletion(selected.Remove, selected.Content, selected.Separator, MaxTextLength);
             }
         }
 
