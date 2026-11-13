@@ -158,7 +158,7 @@ partial class MiaoNetCommand
             new MiaoNetCommand(
                 name: "channel",
                 aliases: [ "join" ],
-                segments: [CommandSegmentType.Channel],
+                segments: [CommandSegmentType.ChannelOrNew],
                 captureRestSegments: true,
                 onExecute: new ExecuteHandler(Channel)
             )

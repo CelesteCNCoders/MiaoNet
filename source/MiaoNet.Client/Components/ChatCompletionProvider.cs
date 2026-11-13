@@ -119,6 +119,7 @@ public sealed class ChatCompletionProvider : ICompletionProvider
         case CommandSegmentType.PlayerSameMap:
             return GetPlayerNameCompletions(CommandSegmentResolver.ResolvePlayers(state, segmentType.ToPlayerScope()), part);
         case CommandSegmentType.Channel:
+        case CommandSegmentType.ChannelOrNew:
             return from c in CommandSegmentResolver.ResolveChannels(state)
                    let name = c.Info.Name
                    where name.Contains(part, sc)

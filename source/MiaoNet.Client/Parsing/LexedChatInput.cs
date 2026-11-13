@@ -2,6 +2,7 @@ namespace Celeste.Mod.MiaoNet;
 
 /// <summary>
 /// The result of lexing chat input: the flat token stream plus the resolved command structure.
+/// Shared by the completion provider and the input highlighter.
 /// </summary>
 public sealed class LexedChatInput
 {
