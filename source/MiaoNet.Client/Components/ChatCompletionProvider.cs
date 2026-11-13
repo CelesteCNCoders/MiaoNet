@@ -93,7 +93,7 @@ public sealed class ChatCompletionProvider : ICompletionProvider
         bool endsWithSpace = input.Length > 0 && char.IsWhiteSpace(input[^1]);
 
         if (lexed.NameEnd == input.Length)
-            return GetCommandNameCompletions(parser, input[1..lexed.NameEnd]);
+            return CommandNameCompletion.Complete(parser.Commands, input[1..lexed.NameEnd]);
 
         if (lexed.Command is null)
             return null;
@@ -124,7 +124,7 @@ public sealed class ChatCompletionProvider : ICompletionProvider
                    where name.Contains(part, sc)
                    select new Completion(name, name, remove);
         case CommandSegmentType.CommandName:
-            return GetCommandNameCompletions(parser, part);
+            return CommandNameCompletion.Complete(parser.Commands, part);
         case CommandSegmentType.ChatChannelType:
             return from n in ChatChannelMatcher.Names
                    where n.Contains(part, sc)
@@ -133,12 +133,6 @@ public sealed class ChatCompletionProvider : ICompletionProvider
             return null;
         }
     }
-
-    private static IEnumerable<Completion>? GetCommandNameCompletions(CommandParser parser, string commandName)
-        => from cmd in parser.Commands
-           where cmd.Name.Contains(commandName, sc)
-           || cmd.Aliases?.Any(a => a.Contains(commandName, sc)) == true
-           select new Completion(cmd.Name, cmd.Name, commandName.Length);
 
     private static IEnumerable<Completion>? GetPlayerNameCompletions(IEnumerable<OnlinePlayer> players, string part)
         => from p in players

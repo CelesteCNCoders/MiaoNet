@@ -18,6 +18,9 @@
 
   <ItemGroup>
     <Compile Include="..\MiaoNet.Client\Parsing\CommandParser.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\MiaoNet.Client\Parsing\CommandNameCompletion.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\ChatInputBox\ChatInputBox\Completion.cs" LinkBase="0-Shared/ChatInputBox" />
+    <Compile Include="..\ChatInputBox\ChatInputBox\TextBuffer.cs" LinkBase="0-Shared/ChatInputBox" />
     <Compile Include="..\MiaoNet.Client\Parsing\CommandArgumentSplitter.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Parsing\CommandStructureResolver.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Parsing\CommandArgumentInfo.cs" LinkBase="0-Shared/Command" />
