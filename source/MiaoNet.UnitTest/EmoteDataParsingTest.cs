@@ -144,4 +144,16 @@ public class EmoteDataParsingTest
         Assert.IsTrue(success);
         Assert.AreEqual("strawberry", emote.Prefix);
     }
+
+    [TestMethod]
+    public void TryParse_AnyWhitespaceSeparatesParts()
+    {
+        var success = EmoteData.TryParse("p24:theo/yolo\t03\n02\u00A001 !", out var emote);
+
+        Assert.IsTrue(success);
+        Assert.AreEqual(24, emote.Fps);
+        Assert.AreEqual("theo/yolo", emote.Prefix);
+        CollectionAssert.AreEqual(new[] { "03", "02", "01" }, emote.Frames.ToList());
+        Assert.IsFalse(emote.Loop);
+    }
 }
