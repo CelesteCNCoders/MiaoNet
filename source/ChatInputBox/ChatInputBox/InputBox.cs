@@ -150,11 +150,10 @@ public sealed class InputBox
             if (completions is not null && (completions.Count == 1 || selectedCompletionIndex != -1))
             {
                 Completion selected = completions[selectedCompletionIndex == -1 ? 0 : selectedCompletionIndex];
-                string content = selected.Content;
-                if (Text.Length - selected.Remove + content.Length > MaxTextLength)
-                    content = content[..(MaxTextLength - Text.Length + selected.Remove)];
-                SetSuppressCompletions();
-                buffer.DoCompletion(selected.Remove, content);
+                bool keepMenuClosed = selected.ShouldCloseMenu || !buffer.TextAfterCaret.All(char.IsWhiteSpace);
+                if (keepMenuClosed)
+                    SetSuppressCompletions();
+                buffer.DoCompletion(selected.Remove, selected.Content, selected.Separator, MaxTextLength);
             }
         }
 
