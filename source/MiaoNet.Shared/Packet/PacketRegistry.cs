@@ -11,7 +11,7 @@ public static class PacketRegistry
     public const byte MaxPacketCount = byte.MaxValue;
 
     private static readonly FrozenDictionary<byte, RefBinaryPacketReadHandler> idToReader;
-    private static readonly FrozenDictionary<Type, byte> typeToId;
+    private static readonly FrozenDictionary<Type, byte> typeToID;
 
     static PacketRegistry()
     {
@@ -25,26 +25,12 @@ public static class PacketRegistry
         List<(byte id, Type type, RefBinaryPacketReadHandler reader)> list =
             infoAttr.Types.Select((type, id) =>
             {
-                var interfaceType = typeof(IContextualPacket<>).MakeGenericType(type);
-                if (!type.IsAssignableTo(interfaceType))
-                    throw new InvalidOperationException(SR.TypeMustAtLeaseImplContextualPacket);
-
-                var map = type.GetInterfaceMap(
-                    typeof(IContextualRefBinarySerializable<,>)
-                        .MakeGenericType(type, typeof(IPacketSerializationContext))
-                );
-                var readerIndex = Array.FindIndex(
-                    map.InterfaceMethods,
-                    m => m.Name is nameof(IContextualPacket<>.Deserialize)
-                );
-                SafeGuard.Assert(readerIndex is 0 or 1);
-
-                var reader = map.TargetMethods[readerIndex].CreateDelegate<RefBinaryPacketReadHandler>();
+                RefBinaryPacketReadHandler reader = PacketReaderFactory.CreateFor(type);
                 return ((byte)(id + 1), type, reader); // 0 reserved
             }).ToList();
 
         idToReader = list.ToFrozenDictionary(t => t.id, t => t.reader);
-        typeToId = list.ToFrozenDictionary(t => t.type, t => t.id);
+        typeToID = list.ToFrozenDictionary(t => t.type, t => t.id);
     }
 
     public static RefBinaryPacketReadHandler GetPacketReader(byte id)
@@ -56,8 +42,11 @@ public static class PacketRegistry
 
     public static byte GetPacketID(IContextualPacket packet)
     {
-        if (!typeToId.TryGetValue(packet.GetType(), out byte id))
-            throw new KeyNotFoundException(string.Format(CultureInfo.InvariantCulture, SR.TypeIsNotRegisteredAsAPacket, packet.GetType().FullName));
-        return id;
+        if (typeToID.TryGetValue(packet.GetType(), out byte id))
+            return id;
+
+        throw new KeyNotFoundException(string.Format(
+            CultureInfo.InvariantCulture, SR.TypeIsNotRegisteredAsAPacket, packet.GetType().FullName
+        ));
     }
 }

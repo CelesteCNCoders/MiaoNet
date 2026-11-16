@@ -30,7 +30,7 @@ public sealed class MiaoClientConnectionTests
         );
 
         await timeoutCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
-        Assert.IsNull(connection.TakeResponseHandler(FirstRequestId));
+        Assert.IsNull(connection.TakeResponseHandler(FirstRequestID));
     }
 
     [TestMethod]
@@ -56,7 +56,7 @@ public sealed class MiaoClientConnectionTests
             }
         );
 
-        var handler = connection.TakeResponseHandler(FirstRequestId);
+        var handler = connection.TakeResponseHandler(FirstRequestID);
         Assert.IsNotNull(handler);
         await handler(new PacketPong());
         await Task.Delay(150);
@@ -93,7 +93,56 @@ public sealed class MiaoClientConnectionTests
         cancellation.Cancel();
     }
 
-    private const int FirstRequestId = 1;
+    [TestMethod]
+    public void NetModIDOfADeclarationIsFoundByNameAndProtocolVersion()
+    {
+        var connection = CreateConnection();
+        connection.SetNetMods([
+            new NetModInfo("miao.test.a", 4),
+            new NetModInfo("miao.test.b", 2)
+        ]);
+
+        Assert.IsTrue(connection.TryGetNetModID(new NetModInfo("miao.test.a", 4), out byte index));
+        Assert.AreEqual(0, index);
+
+        Assert.IsTrue(connection.TryGetNetModID(new NetModInfo("miao.test.b", 2), out index));
+        Assert.AreEqual(1, index);
+    }
+
+    [TestMethod]
+    public void NetModIDOfAnotherProtocolVersionOrNameIsNotFound()
+    {
+        var connection = CreateConnection();
+        Assert.IsFalse(connection.TryGetNetModID(
+            new NetModInfo("miao.test.a", 1), out _
+        ), "A connection that declared nothing has no index to give.");
+
+        connection.SetNetMods([new NetModInfo("miao.test.a", 1)]);
+
+        Assert.IsFalse(connection.TryGetNetModID(new NetModInfo("miao.test.a", 2), out _));
+        Assert.IsFalse(connection.TryGetNetModID(new NetModInfo("miao.test.other", 1), out _));
+    }
+
+    [TestMethod]
+    public void ADeclarationThatCannotBeIndexedIsRejected()
+    {
+        var connection = CreateConnection();
+
+        // An index is one byte wide, so a declaration longer than that cannot be addressed.
+        NetModInfo[] tooMany = new NetModInfo[NetModInfo.MaxNetMods + 1];
+        for (int i = 0; i < tooMany.Length; i++)
+            tooMany[i] = new NetModInfo($"miao.test.{i}", 1);
+
+        Assert.ThrowsExactly<InvalidDataException>(() => connection.SetNetMods(tooMany));
+
+        Assert.ThrowsExactly<InvalidDataException>(() => connection.SetNetMods([
+            new NetModInfo(string.Empty, 1)
+        ]));
+
+        Assert.IsEmpty(connection.NetMods);
+    }
+
+    private const int FirstRequestID = 1;
 
     private static MiaoClientConnection CreateConnection()
     {

@@ -1,0 +1,9 @@
+- Name: MiaoNetShootGame
+  Version: 0.1.0
+  DLL: Code/MiaoNetShootGame.dll
+  Dependencies:
+    - Name: EverestCore
+      Version: 1.6088.0
+    # MiaoNet 的 net-mod API. 版本写的是当前 MiaoNet 的版本号, 与已安装的 MiaoNet 保持一致。
+    - Name: MiaoNet
+      Version: 0.5.0-dev

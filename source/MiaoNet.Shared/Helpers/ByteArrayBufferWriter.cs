@@ -30,7 +30,7 @@ public sealed class ByteArrayBufferWriter : IBufferWriter<byte>
     /// <inheritdoc/>
     public void Advance(int count)
     {
-        if ((uint)count > (uint)FreeCapacity)
+        if (count < 0 || count > FreeCapacity)
             throw new ArgumentOutOfRangeException(nameof(count));
         written += count;
     }

@@ -16,7 +16,7 @@ using MiaoNet.Shared;
 
 namespace MiaoNet.ClientShared;
 
-public sealed partial class MiaoServerConnection : IDisposable
+public sealed partial class MiaoServerConnection : IDisposable, INetModTransport
 {
     private static readonly ArrayPool<byte> pool = ArrayPool<byte>.Shared;
 
@@ -258,6 +258,9 @@ public sealed partial class MiaoServerConnection : IDisposable
         sendSemaphore.Release();
         return count;
     }
+
+    void INetModTransport.Send(byte netModID, byte localID, PacketRoute route, IContextualPacket packet)
+        => QueuePacket(default, PacketNetMod.FromPacket(netModID, localID, route, packet));
 
     private async Task SendPacketAsync(EnvelopedPacket packet, IPacketSerializationContext context, CancellationToken token)
     {

@@ -45,5 +45,8 @@ using MiaoNet.Shared;
     typeof(PacketPlayerChannelMovedResponse),
     typeof(PacketPlayerChannelMovedNotification),
     typeof(PacketChannelCreated),
-    typeof(PacketPlayerChannelMoveFailed)
+    typeof(PacketPlayerChannelMoveFailed),
+
+    typeof(PacketNetMod),
+    typeof(PacketNetModDelivery),
 ])]

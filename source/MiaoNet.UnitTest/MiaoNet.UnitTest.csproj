@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -24,6 +24,8 @@
     <Compile Include="..\MiaoNet.Client\Misc\PFormat.cs" LinkBase="0-Shared" />
     <Compile Include="..\MiaoNet.ClientShared\ConnectionLifecycleCoordinator.cs" LinkBase="0-Shared" />
     <Compile Include="..\MiaoNet.ClientShared\BestEffortCleanup.cs" LinkBase="0-Shared" />
+    <Compile Include="..\MiaoNet.ClientShared\Packet\*.cs" LinkBase="0-Shared/Packet" />
+    <Compile Include="..\MiaoNet.ClientShared\NetMod\*.cs" LinkBase="0-Shared/NetMod" />
     <Compile Include="..\MiaoNet.Shared\SafeGuard.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\ChatInputBox\ChatInputBox\ChatText*.cs" LinkBase="0-Shared/ChatInputBox" />
   </ItemGroup>

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Reflection;
 using FMOD.Studio;
 using MiaoNet.Shared;
 using Microsoft.Xna.Framework.Graphics;
@@ -25,6 +26,8 @@ public sealed class MiaoNetModule : EverestModule
     private static readonly DetourConfig RootBeforeAllConfig = new("MiaoNet.BeforeAll", before: ["*"]);
 
     public MiaoNetContext MiaoNetContext => miaoNetContext ??= new();
+
+    public MiaoNetContext? MiaoNetContextOptional => miaoNetContext;
 
     // TODO this is ugly
     public static Vector2? NextPlayerSpawnPosition { get; set; }
@@ -379,8 +382,8 @@ public sealed class MiaoNetModule : EverestModule
         if (!seenOverworld)
         {
             seenOverworld = true;
-            EverestModule? cnet = Everest.Modules.FirstOrDefault(m => m.Metadata.Name == "CelesteNet.Client");
-            EverestModule? mnet = Everest.Modules.FirstOrDefault(m => m.Metadata.Name == "Miao.CelesteNet.Client");
+            EverestModule? cnet = FindConflictingModule("CelesteNet.Client");
+            EverestModule? mnet = FindConflictingModule("Miao.CelesteNet.Client");
             if (cnet is not null || mnet is not null)
             {
                 var u = self.GetUI<OuiConflict>();
@@ -396,6 +399,16 @@ public sealed class MiaoNetModule : EverestModule
                 self.Add(entity);
             }
         }
+
+        static EverestModule? FindConflictingModule(string name)
+           => Everest.Modules.FirstOrDefault(module => module.Metadata.Name == name && !IsFor(module, name));
+
+        static bool IsFor(EverestModule module, string name)
+           => module.GetType().Assembly
+               .GetCustomAttributes<AssemblyMetadataAttribute>()
+               .Any(attribute =>
+                   attribute.Key == "MiaoNetCompatShim"
+                   && string.Equals(attribute.Value, name, StringComparison.Ordinal));
     }
 
     private static void Level_OnExit(Level level, LevelExit exit, LevelExit.Mode mode, Session session, HiresSnow snow)

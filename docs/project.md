@@ -8,6 +8,7 @@
 - `MiaoNet.Shared`: 共享项目, 包含 Client 以及 Server 共有的部分(例如包的结构定义)
 - `MiaoNet.UnitTest`: 一些单元测试(虽然现在没什么东西能测的), 引用了 `MiaoNet.Server` 项目,
 在一些客户端独有的但可(或者需要)单元测试的时候会单独引用一些源文件过来, 例如目前的客户端侧的指令.
+- `NetMod`: MiaoNet 的第三方数据通道. 这是为了兼容 Co-op Helper 而设计的一个扩展层, 可以让 mod 自己声明自己的包类型, 在不需要 MiaoNet 知道这些包是什么意思的情况下通过玩家已经建立的 MiaoNet 连接收发这些包. 详见 [`source/NetMod/netmod.md`](../source/NetMod/netmod.md).
 
 ## 构建
 

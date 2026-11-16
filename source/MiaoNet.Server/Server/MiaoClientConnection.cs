@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 namespace MiaoNet.Server;
 
 [DebuggerDisplay("ID = {ID}, Player = {Player}")]
-public sealed class MiaoClientConnection : IPacketSerializationContext
+public sealed partial class MiaoClientConnection : IPacketSerializationContext
 {
     public const int TcpBufferSize = 2048;
     public const int MaxPendingRequests = 64;
