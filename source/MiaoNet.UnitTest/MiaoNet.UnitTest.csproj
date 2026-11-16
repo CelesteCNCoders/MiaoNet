@@ -17,8 +17,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\MiaoNet.Client\Command\CommandParser.cs" LinkBase="0-Shared/Command" />
-    <Compile Include="..\MiaoNet.Client\Command\CommandSegmentType.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\MiaoNet.Client\Parsing\CommandParser.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\MiaoNet.Client\Parsing\CommandSegmentType.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Command\MiaoNetCommand.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Misc\SR.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Misc\PFormat.cs" LinkBase="0-Shared" />
