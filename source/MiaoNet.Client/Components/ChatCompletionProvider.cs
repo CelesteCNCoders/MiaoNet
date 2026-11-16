@@ -66,7 +66,7 @@ public sealed class ChatCompletionProvider : ICompletionProvider
         {
             for (int i = input.Length - 1; i >= 0; i--)
             {
-                if (input[i] == '@' && (i == 0 || char.IsWhiteSpace(input[i - 1])))
+                if (input[i] == '@')
                     return i;
             }
             return -1;
