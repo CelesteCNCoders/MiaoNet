@@ -23,6 +23,7 @@
     <Compile Include="..\MiaoNet.Client\Parsing\CommandArgumentInfo.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Parsing\ChatInputToken.cs" LinkBase="0-Shared/ChatInput" />
     <Compile Include="..\MiaoNet.Client\Parsing\LexedChatInput.cs" LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\Parsing\ChatLexer.cs" LinkBase="0-Shared/ChatInput" />
     <Compile Include="..\MiaoNet.Client\Parsing\CommandSegmentType.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Command\MiaoNetCommand.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Misc\SR.cs" LinkBase="0-Shared/Command" />
