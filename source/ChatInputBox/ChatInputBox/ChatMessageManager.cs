@@ -1,5 +1,3 @@
-using AsmResolver.DotNet.Builder;
-
 namespace Celeste.Mod.ChatInputBox;
 
 public class ChatMessageManager

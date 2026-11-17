@@ -17,8 +17,27 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\MiaoNet.Client\Command\CommandParser.cs" LinkBase="0-Shared/Command" />
-    <Compile Include="..\MiaoNet.Client\Command\CommandSegmentType.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\MiaoNet.Client\Parsing\CommandParser.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\MiaoNet.Client\Parsing\CommandNameCompletion.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\MiaoNet.Client\Parsing\PlayerScope.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\ChatInputBox\ChatInputBox\Completion.cs" LinkBase="0-Shared/ChatInputBox" />
+    <Compile Include="..\ChatInputBox\ChatInputBox\TextBuffer.cs" LinkBase="0-Shared/ChatInputBox" />
+    <Compile Include="..\MiaoNet.Client\Parsing\CommandArgumentSplitter.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\MiaoNet.Client\Parsing\CommandStructureResolver.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\MiaoNet.Client\Parsing\CommandArgumentInfo.cs" LinkBase="0-Shared/Command" />
+    <Compile Include="..\MiaoNet.Client\Parsing\ChatInputToken.cs" LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\Parsing\LexedChatInput.cs" LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\Parsing\ChatLexer.cs" LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\Parsing\MentionBoundary.cs" LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\Data\ChatMentionParser.cs" LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\ChatInput\ChatInputValidity.cs" LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\ChatInput\IChatInputState.cs" LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\ChatInput\IChatInputValidityContext.cs" LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\ChatInput\ChatInputHighlighter.cs" LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\ChatInput\ChatInputHighlightColors.cs" LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\ChatInputBox\ChatInputBox\ColoredTextRange.cs" LinkBase="0-Shared/ChatInputBox" />
+    <Compile Include="..\MiaoNet.Client\Components\MiaoNetChatInputValidityContext.cs" LinkBase="0-Shared/ChatInput" />
+    <Compile Include="..\MiaoNet.Client\Parsing\CommandSegmentType.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Command\MiaoNetCommand.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Misc\SR.cs" LinkBase="0-Shared/Command" />
     <Compile Include="..\MiaoNet.Client\Misc\PFormat.cs" LinkBase="0-Shared" />

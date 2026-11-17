@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.InteropServices;
 using Microsoft.Xna.Framework.Input;
 
 namespace Celeste.Mod.ChatInputBox;
@@ -8,11 +7,15 @@ public sealed class InputBox
 {
     public const float CaretBlinkInterval = 0.5f;
 
-    private readonly IScalelessTextRenderer textRenderer;
+    private readonly ILiteralTextRenderer textRenderer;
     private readonly ICompletionProvider completionProvider;
+    private readonly IChatInputHighlighter? highlighter;
 
     private readonly TextBuffer buffer;
     private List<Completion>? completions;
+
+    // With no runs the literal renderer draws every glyph in white, so this stays allocation-free.
+    private static readonly IReadOnlyList<ColoredTextRange> PlainSpans = [];
 
     private bool showCaret = true;
     private float caretTimer = CaretBlinkInterval;
@@ -52,10 +55,11 @@ public sealed class InputBox
         downButton.SetRepeat(0.4f, 0.05f);
     }
 
-    public InputBox(IScalelessTextRenderer textRenderer, ICompletionProvider completionProvider)
+    public InputBox(ILiteralTextRenderer textRenderer, ICompletionProvider completionProvider, IChatInputHighlighter? highlighter = null)
     {
         this.textRenderer = textRenderer;
         this.completionProvider = completionProvider;
+        this.highlighter = highlighter;
 
         buffer = new();
         buffer.TextOrCaretChanged += OnTextOrCaretChanged;
@@ -230,6 +234,9 @@ public sealed class InputBox
         suppressCompletions = true;
     }
 
+    // Only LF starts a new line, matching MiaoNetFont's literal layout.
+    private const char LineBreak = '\n';
+
     public void Render()
     {
         const float Margin = 16f;
@@ -238,7 +245,11 @@ public sealed class InputBox
         Vector2 baseLoc = new Vector2(Margin, Engine.Height - Margin);
         Vector2 textBaseLoc = baseLoc + new Vector2(Padding, -Padding);
 
-        float height = textRenderer.LineHeight + 2 * Padding;
+        // Lay the input out exactly once per frame; measuring and every draw below reuse it.
+        ILiteralTextLayout layout = textRenderer.LayoutLiteral(buffer.Text);
+        int lineCount = layout.LineCount;
+        float lineHeight = textRenderer.LineHeight;
+        float height = lineCount * lineHeight + 2 * Padding;
         Draw.Rect(
             position: baseLoc - Vector2.UnitY * height,
             width: Engine.Width - 2 * Margin,
@@ -246,33 +257,58 @@ public sealed class InputBox
             color: Color.Black * (0x7f / 255f)
         );
 
-        Vector2 pos = textBaseLoc;
-        Vector2 sizeBeforeCaret = textRenderer.Measure(buffer.TextBeforeCaret);
-        Vector2 sizeAfterCaret = textRenderer.Measure(buffer.TextAfterCaret);
-        textRenderer.Draw(buffer.TextBeforeCaret, pos, justify: new Vector2(0f, 1f), color: Color.White);
-        pos.X += sizeBeforeCaret.X;
+        IReadOnlyList<ColoredTextRange> spans = highlighter?.Highlight(buffer.Text, buffer.CaretPosition)
+            ?? PlainSpans;
+
+        // Anchor the last line to the bottom of the box, so extra lines grow upward.
+        float literalY = textBaseLoc.Y - lineCount * lineHeight;
+        Vector2 LineOrigin(int line) => new(textBaseLoc.X, literalY + line * lineHeight);
+
+        int caretLine = 0;
+        int caretLineStart = 0;
+        for (int i = 0; i < buffer.CaretPosition; i++)
+            if (buffer.Text[i] == LineBreak)
+            {
+                caretLine++;
+                caretLineStart = i + 1;
+            }
+
+        float caretInlineWidth = layout.MeasurePrefix(caretLineStart, buffer.CaretPosition);
+        float caretLineTop = literalY + caretLine * lineHeight;
+        float caretWidth = caretInlineWidth;
 
         Vector2 sizeImeEditing = Vector2.Zero;
         if (imeEditingText is not null)
         {
-            sizeImeEditing = textRenderer.Measure(imeEditingText);
-            textRenderer.Draw(imeEditingText, pos, justify: new Vector2(0f, 1f), color: Color.Gray);
-            pos.X += sizeImeEditing.X;
+            layout.Draw(LineOrigin(0), 0, buffer.CaretPosition, 0f, spans);
+
+            ILiteralTextLayout imeLayout = textRenderer.LayoutLiteral(imeEditingText);
+            sizeImeEditing = imeLayout.Size;
+            Vector2 imePos = new Vector2(textBaseLoc.X + caretInlineWidth, caretLineTop);
+            imeLayout.Draw(imePos, 0, imeEditingText.Length, 0f, Color.Gray);
+            caretWidth += imeLayout.MeasurePrefix(
+                0, Math.Min(imeEditingStart, imeEditingText.Length));
+
+            int nextBreak = buffer.Text.IndexOf(LineBreak, buffer.CaretPosition);
+            int lineEnd = nextBreak < 0 ? buffer.Text.Length : nextBreak;
+            layout.Draw(
+                LineOrigin(caretLine), buffer.CaretPosition, lineEnd,
+                sizeImeEditing.X, spans
+            );
+            if (nextBreak >= 0)
+                layout.Draw(
+                    LineOrigin(caretLine + 1), nextBreak + 1, buffer.Text.Length, 0f, spans
+                );
         }
-        textRenderer.Draw(buffer.TextAfterCaret, pos, justify: new Vector2(0f, 1f), color: Color.White);
-        pos.X += sizeAfterCaret.X;
+        else
+        {
+            layout.Draw(LineOrigin(0), 0, buffer.Text.Length, 0f, spans);
+        }
 
         if (showCaret)
         {
-            float width = sizeBeforeCaret.X;
-            if (imeEditingText is not null)
-            {
-                Vector2 sizeBeforeImeStart = textRenderer.Measure(imeEditingText.Substring(0, Math.Min(imeEditingStart, imeEditingText.Length)));
-                width += sizeBeforeImeStart.X;
-            }
-
-            Vector2 fromLoc = textBaseLoc + new Vector2(width, 0f);
-            Vector2 toLoc = fromLoc - new Vector2(0f, textRenderer.LineHeight);
+            Vector2 fromLoc = new Vector2(textBaseLoc.X + caretWidth, caretLineTop + lineHeight);
+            Vector2 toLoc = fromLoc - new Vector2(0f, lineHeight);
 
             Draw.Line(fromLoc, toLoc, Color.White, 2f);
         }
@@ -282,12 +318,12 @@ public sealed class InputBox
             float xScale = view.X / Engine.Width;
             float yScale = view.Y / Engine.Height;
             Vector2 viewPos = new Vector2(Engine.Viewport.X, Engine.Viewport.Y) +
-                new Vector2((textBaseLoc.X + sizeBeforeCaret.X) * xScale, (baseLoc.Y - height) * yScale);
+                new Vector2((textBaseLoc.X + caretInlineWidth) * xScale, caretLineTop * yScale);
             Rectangle finalRect = new Rectangle(
                 (int)viewPos.X,
                 (int)viewPos.Y,
                 Math.Max(1, (int)(sizeImeEditing.X * xScale)),
-                (int)(height * yScale)
+                (int)(lineHeight * yScale)
             );
             // Known issue: with only a few pinyin letters typed, the candidate window covers
             // the input row, and it only avoids it once more input arrives. A plain SDL2-only
@@ -298,7 +334,7 @@ public sealed class InputBox
         if (HasCompletions)
         {
             const float CompletionsPadding = 4f;
-            Vector2 cBaseLoc = textBaseLoc + new Vector2(sizeBeforeCaret.X, -textRenderer.LineHeight - Padding);
+            Vector2 cBaseLoc = new Vector2(textBaseLoc.X + caretWidth, caretLineTop - Padding);
             Vector2 cTextBaseLoc = cBaseLoc + new Vector2(CompletionsPadding, -CompletionsPadding);
             float width = 0f;
             float totalHeight = textRenderer.LineHeight * completions.Count;

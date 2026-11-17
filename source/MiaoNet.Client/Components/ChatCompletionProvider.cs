@@ -1,5 +1,3 @@
-using System.Buffers;
-using System.Text;
 using Celeste.Mod.ChatInputBox;
 using MiaoNet.Shared;
 
@@ -23,38 +21,29 @@ public sealed class ChatCompletionProvider : ICompletionProvider
         if (context.ClientState is null)
             return null;
 
-        string emojiApplied = Emoji.Apply(input);
-
-        IEnumerable<Completion>? completions;
-
-        completions = GetEmojiCompletions(emojiApplied);
+        // Command arguments complete from the raw input: Emoji.Apply would mangle a typed value
+        // that looks like ":emoji:" (e.g. a player named ":glad:glad:glad:") and hide its candidates.
+        IEnumerable<Completion>? completions = GetCommandCompletions(input);
         if (completions is not null)
             return completions;
 
-        completions = GetMentionCompletions(emojiApplied);
-        if (completions is not null)
-            return completions;
+        // A "@..." word completes players, and may at the same time be an emoji context (a
+        // following ":"), in which case both are offered with players first.
+        IEnumerable<Completion>? mentions = GetMentionCompletions(input);
+        IEnumerable<Completion>? emojis = GetEmojiCompletions(Emoji.Apply(input));
 
-        completions = GetCommandCompletions(emojiApplied);
-        if (completions is not null)
-            return completions;
-
-        return null;
+        if (mentions is not null && emojis is not null)
+            return mentions.Concat(emojis);
+        return mentions ?? emojis;
     }
 
     private IEnumerable<Completion>? GetMentionCompletions(string input)
     {
-        int atIndex = FindLastMentionAtIndex(input);
+        int atIndex = FindMentionStartAtEnd(input);
         if (atIndex == -1)
             return null;
 
         string partial = input[(atIndex + 1)..];
-        for (int i = 0; i < partial.Length; i++)
-        {
-            if (char.IsWhiteSpace(partial[i]))
-                return null;
-        }
-
         int remove = partial.Length;
         var state = context.ClientState!;
         return from p in state.AllPlayers
@@ -62,14 +51,19 @@ public sealed class ChatCompletionProvider : ICompletionProvider
                where name.Contains(partial, sc)
                select new Completion(name, name, remove);
 
-        static int FindLastMentionAtIndex(string input)
+        int FindMentionStartAtEnd(string text)
         {
-            for (int i = input.Length - 1; i >= 0; i--)
+            int start = -1;
+            foreach (ChatInputToken token in ChatLexer.Lex(text, parser.Commands, static _ => false).Tokens)
             {
-                if (input[i] == '@' && (i == 0 || char.IsWhiteSpace(input[i - 1])))
-                    return i;
+                if (token.Type == ChatInputTokenType.Mention && token.End == text.Length)
+                    start = token.Start;
             }
-            return -1;
+
+            // A bare '@' is not a token yet, but it already starts the word being typed.
+            if (start < 0 && text.Length > 0 && MentionBoundary.IsMentionStart(text, text.Length - 1))
+                return text.Length - 1;
+            return start;
         }
     }
 
@@ -95,62 +89,55 @@ public sealed class ChatCompletionProvider : ICompletionProvider
         if (!input.StartsWith('/'))
             return null;
 
-        // this impl is ugly but it just works
-        bool endsWithSpace = input.EndsWith(' ');
-        CommandParser.ParseResult result = parser.Parse(input, out string commandName, out MiaoNetCommand? matchedCommand, out var segments);
+        LexedChatInput lexed = ChatLexer.Lex(input, parser.Commands, static _ => false);
+        bool endsWithSpace = input.Length > 0 && char.IsWhiteSpace(input[^1]);
 
-        if (!endsWithSpace && segments is null or { Count: 0 })
-            return GetCommandNameCompletions(parser, commandName);
+        if (lexed.NameEnd == input.Length)
+            return CommandNameCompletion.Complete(parser.Commands, input[1..lexed.NameEnd]);
 
-        if (matchedCommand is not null)
+        if (lexed.Command is null)
+            return null;
+
+        int index = endsWithSpace ? lexed.Arguments.Count : lexed.Arguments.Count - 1;
+        if (index < 0)
+            return null;
+        int remove = endsWithSpace ? 0 : lexed.Arguments[index].Length;
+
+        if (index >= lexed.Command.Segments.Count)
+            return []; // an argument beyond the declared segments: no completion
+
+        CommandSegmentType segmentType = lexed.Command.Segments[index];
+        string part = endsWithSpace
+            ? string.Empty
+            : input[lexed.Arguments[index].Start..lexed.Arguments[index].End];
+        var state = context.ClientState!;
+
+        switch (segmentType)
         {
-            int curSegCount = segments!.Count;
-            int ind = curSegCount - 1;
-            if (endsWithSpace)
-                ind++;
-            if (ind < matchedCommand.Segments.Count)
-            {
-                var segType = matchedCommand.Segments[ind];
-                string part = ind >= segments.Count ? string.Empty : segments[ind];
-                int remove = part.Length;
-                var state = context.ClientState!;
-                switch (segType)
-                {
-                case CommandSegmentType.Player:
-                    return GetPlayerNameCompletions(state.Players.Select(p => p.Value), part);
-                case CommandSegmentType.PlayerSameChannel:
-                    return GetPlayerNameCompletions(state.SelfChannel.Players, part);
-                case CommandSegmentType.PlayerSameMap:
-                    return GetPlayerNameCompletions(state.SelfChannel.Players.Where(p => p.ShouldSyncFrom(state.Self)), part);
-                case CommandSegmentType.Channel:
-                    return from pair in state.Channels
-                           let c = pair.Value
-                           where c.ID != ChannelInfo.PrivateChannelVirtualID && !c.IsPrivate
-                           let name = c.Info.Name
-                           where name.Contains(part, sc)
-                           select new Completion(name, name, remove);
-                case CommandSegmentType.CommandName:
-                    return GetCommandNameCompletions(parser, part);
-                case CommandSegmentType.ChatChannelType:
-                    return from n in ChatChannelMatcher.Names
-                           where n.Contains(part, sc)
-                           select new Completion(n, n, remove);
-                }
-            }
+        case CommandSegmentType.Player:
+        case CommandSegmentType.PlayerSameChannel:
+        case CommandSegmentType.PlayerSameMap:
+            return GetPlayerNameCompletions(CommandSegmentResolver.ResolvePlayers(state, segmentType.ToPlayerScope()), part);
+        case CommandSegmentType.Channel:
+        case CommandSegmentType.ChannelOrNew:
+            return from c in CommandSegmentResolver.ResolveChannels(state)
+                   let name = c.Info.Name
+                   where name.Contains(part, sc)
+                   select new Completion(name, name, remove);
+        case CommandSegmentType.CommandName:
+            return CommandNameCompletion.Complete(parser.Commands, part);
+        case CommandSegmentType.ChatChannelType:
+            return from n in ChatChannelMatcher.Names
+                   where n.Contains(part, sc)
+                   select new Completion(n, n, remove);
+        default:
+            return null;
         }
-
-        return null;
-
-        static IEnumerable<Completion>? GetCommandNameCompletions(CommandParser parser, string commandName)
-            => from cmd in parser.Commands
-               where cmd.Name.Contains(commandName, sc)
-               || cmd.Aliases?.Any(a => a.Contains(commandName, sc)) == true
-               select new Completion(cmd.Name, cmd.Name, commandName.Length);
-
-        static IEnumerable<Completion>? GetPlayerNameCompletions(IEnumerable<OnlinePlayer> players, string part)
-            => from p in players
-               let i = p.Info
-               where i.Name.Contains(part, sc)
-               select new Completion(i.Name, i.DisplayName, part.Length);
     }
+
+    private static IEnumerable<Completion>? GetPlayerNameCompletions(IEnumerable<OnlinePlayer> players, string part)
+        => from p in players
+           let i = p.Info
+           where i.Name.Contains(part, sc)
+           select new Completion(i.Name, i.DisplayName, part.Length);
 }

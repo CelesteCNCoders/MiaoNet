@@ -45,7 +45,7 @@ public readonly struct EmoteData : IRefBinarySerializable<EmoteData>
         if (text.Length == 0)
             goto Failed;
 
-        ArraySegment<string> splitParts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        ArraySegment<string> splitParts = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
 
         ReadOnlySpan<char> part1 = splitParts[0].AsSpan();
         char cateChar = part1[0];

@@ -24,7 +24,7 @@ partial class MiaoNetCommand
             new MiaoNetCommand(
                 name: "help-command",
                 aliases: [ "??", "？？", "hc" ],
-                segments: [CommandSegmentType.Text],
+                segments: [CommandSegmentType.CommandName],
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(HelpCommand)
             ),
@@ -158,7 +158,7 @@ partial class MiaoNetCommand
             new MiaoNetCommand(
                 name: "channel",
                 aliases: [ "join" ],
-                segments: [CommandSegmentType.Channel],
+                segments: [CommandSegmentType.ChannelOrNew],
                 captureRestSegments: true,
                 onExecute: new ExecuteHandler(Channel)
             )
