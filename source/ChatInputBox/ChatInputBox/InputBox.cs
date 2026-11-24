@@ -41,6 +41,10 @@ public sealed class InputBox
 
     public int MaxTextLength { get; set; } = 64;
 
+    public string? SendTargetLabel { get; set; }
+
+    public Color SendTargetColor { get; set; } = Color.White;
+
     static InputBox()
     {
         leftButton = new(new Binding() { Keyboard = [Keys.Left] }, Input.Gamepad, 0f, 0.4f);
@@ -283,6 +287,15 @@ public sealed class InputBox
         );
 
         Vector2 pos = textBaseLoc;
+        float prefixWidth = 0f;
+        if (!string.IsNullOrEmpty(SendTargetLabel))
+        {
+            prefixWidth = textRenderer.Measure(SendTargetLabel).X;
+            textRenderer.Draw(SendTargetLabel, pos, justify: new Vector2(0f, 1f), color: SendTargetColor);
+            pos.X += prefixWidth;
+        }
+        Vector2 inputStartLoc = textBaseLoc + new Vector2(prefixWidth, 0f);
+
         Vector2 sizeBeforeCaret = textRenderer.Measure(buffer.TextBeforeCaret);
         Vector2 sizeAfterCaret = textRenderer.Measure(buffer.TextAfterCaret);
         textRenderer.Draw(buffer.TextBeforeCaret, pos, justify: new Vector2(0f, 1f), color: Color.White);
@@ -307,7 +320,7 @@ public sealed class InputBox
                 width += sizeBeforeImeStart.X;
             }
 
-            Vector2 fromLoc = textBaseLoc + new Vector2(width, 0f);
+            Vector2 fromLoc = inputStartLoc + new Vector2(width, 0f);
             Vector2 toLoc = fromLoc - new Vector2(0f, textRenderer.LineHeight);
 
             Draw.Line(fromLoc, toLoc, Color.White, 2f);
@@ -318,7 +331,7 @@ public sealed class InputBox
             float xScale = view.X / Engine.Width;
             float yScale = view.Y / Engine.Height;
             Vector2 viewPos = new Vector2(Engine.Viewport.X, Engine.Viewport.Y) +
-                new Vector2((textBaseLoc.X + sizeBeforeCaret.X) * xScale, (baseLoc.Y - height) * yScale);
+                new Vector2((inputStartLoc.X + sizeBeforeCaret.X) * xScale, (baseLoc.Y - height) * yScale);
             Rectangle finalRect = new Rectangle(
                 (int)viewPos.X,
                 (int)viewPos.Y,
@@ -334,7 +347,7 @@ public sealed class InputBox
         if (HasCompletions)
         {
             const float CompletionsPadding = 4f;
-            Vector2 cBaseLoc = textBaseLoc + new Vector2(sizeBeforeCaret.X, -textRenderer.LineHeight - Padding);
+            Vector2 cBaseLoc = inputStartLoc + new Vector2(sizeBeforeCaret.X, -textRenderer.LineHeight - Padding);
             Vector2 cTextBaseLoc = cBaseLoc + new Vector2(CompletionsPadding, -CompletionsPadding);
             float width = 0f;
             float totalHeight = textRenderer.LineHeight * completions.Count;

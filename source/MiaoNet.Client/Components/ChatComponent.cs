@@ -50,7 +50,10 @@ public sealed partial class ChatComponent : MiaoNetComponent
     private readonly List<string> inputHistory;
     private int historyIndex;
     private int? selectedSendChannelID;
+    private int? temporarySendChannelID;
     private int? focusedTabIndex;
+
+    private int? CurrentSendChannelID => temporarySendChannelID ?? selectedSendChannelID ?? context.ClientState?.GetDefaultSendableChatChannelID();
 
     public bool Active => active;
 
@@ -165,9 +168,49 @@ public sealed partial class ChatComponent : MiaoNetComponent
             && channel.CanSend)
         {
             selectedSendChannelID = channel.ID;
-            return;
         }
-        selectedSendChannelID = state.GetDefaultSendableChatChannelID();
+        else
+        {
+            selectedSendChannelID = state.GetDefaultSendableChatChannelID();
+        }
+        UpdateSendTargetIndicator();
+    }
+
+    private void CycleTemporarySendChannel()
+    {
+        var state = context.ClientState;
+        if (state is null)
+            return;
+
+        var sendable = state.ChatChannels.Where(c => c.CanSend).ToList();
+        if (sendable.Count == 0)
+            return;
+
+        int? current = CurrentSendChannelID;
+        int idx = current is int id ? sendable.FindIndex(c => c.ID == id) : -1;
+        int nextIdx = (idx + 1) % sendable.Count;
+        temporarySendChannelID = sendable[nextIdx].ID;
+        UpdateSendTargetIndicator();
+    }
+
+    private void UpdateSendTargetIndicator()
+    {
+        if (context.ClientState is { } state
+            && CurrentSendChannelID is int id
+            && state.TryGetChatChannel(id, out var channel))
+        {
+            // Hide the prefix for the default unprefixed channel (Global/Public) when already viewing
+            // the Global aggregate tab or that channel's own tab; keep it visible when overriding from another tab.
+            bool hidePrefix = string.IsNullOrEmpty(channel.Prefix)
+                && (chatMessageBox.ActiveTabIndex < 0 || chatMessageBox.ActiveChannelId == channel.ID);
+            inputBox.SendTargetLabel = hidePrefix ? null : $"[{channel.DisplayName}] ";
+            inputBox.SendTargetColor = channel.Color;
+        }
+        else
+        {
+            inputBox.SendTargetLabel = null;
+            inputBox.SendTargetColor = Color.White;
+        }
     }
 
     public override void Update()
@@ -250,13 +293,19 @@ public sealed partial class ChatComponent : MiaoNetComponent
                 if (MInput.Keyboard.Pressed(Keys.Left))
                 {
                     chatMessageBox.CycleTabForward();
+                    temporarySendChannelID = null;
                     SyncChatChannelWithTab();
                 }
                 else if (MInput.Keyboard.Pressed(Keys.Right))
                 {
                     chatMessageBox.CycleTabBackward();
+                    temporarySendChannelID = null;
                     SyncChatChannelWithTab();
                 }
+            }
+            else if (MInput.Keyboard.Pressed(Keys.Tab) && inputBox.Text.Length == 0 && !inputBox.HasCompletions)
+            {
+                CycleTemporarySendChannel();
             }
 
 
@@ -311,13 +360,14 @@ public sealed partial class ChatComponent : MiaoNetComponent
             && channel.CanSend)
         {
             selectedSendChannelID = channelID;
+            temporarySendChannelID = null;
+            UpdateSendTargetIndicator();
         }
     }
 
     public void SendChat(string text)
     {
-        int? channelID = selectedSendChannelID ?? context.ClientState?.GetDefaultSendableChatChannelID();
-        if (channelID is int id)
+        if (CurrentSendChannelID is int id)
             context.QueuePacket(new PacketSendChatMessage(id, text));
     }
 
@@ -441,6 +491,8 @@ public sealed partial class ChatComponent : MiaoNetComponent
             chatMessageBox.AddChannel(channel.ID, channel.DisplayName, enabledInGlobal);
         }
         selectedSendChannelID = state.GetDefaultSendableChatChannelID();
+        temporarySendChannelID = null;
+        UpdateSendTargetIndicator();
     }
 
     // TODO TODO TODO we need a clean up method
@@ -452,6 +504,8 @@ public sealed partial class ChatComponent : MiaoNetComponent
         inputHistory.Clear();
         historyIndex = 0;
         selectedSendChannelID = null;
+        temporarySendChannelID = null;
+        UpdateSendTargetIndicator();
     }
 
     private void ChatMessageBoxSetup()
@@ -464,6 +518,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     {
         active = true;
         historyIndex = inputHistory.Count;
+        UpdateSendTargetIndicator();
         inputBox.Activate();
         chatMessageBox.Activate();
         previousCommandsEnabled = Engine.Commands.Enabled;
@@ -484,6 +539,8 @@ public sealed partial class ChatComponent : MiaoNetComponent
     {
         active = false;
         ExitTabFocusMode();
+        temporarySendChannelID = null;
+        SyncChatChannelWithTab();
         inputBox.Deactivate();
         lastInput = string.Empty;
         chatMessageBox.Deactivate();
