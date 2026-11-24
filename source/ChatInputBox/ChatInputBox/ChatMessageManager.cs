@@ -1,34 +1,27 @@
-using AsmResolver.DotNet.Builder;
-
 namespace Celeste.Mod.ChatInputBox;
+
+public sealed class ChatChannelTab
+{
+    public int Id { get; }
+
+    public string Title { get; }
+
+    public bool EnabledInGlobal { get; set; }
+
+    public ChatChannelTab(int id, string title, bool enabledInGlobal = true)
+    {
+        Id = id;
+        Title = title;
+        EnabledInGlobal = enabledInGlobal;
+    }
+}
 
 public class ChatMessageManager
 {
-
-    private class ChatTab
-    {
-        public string Name { get; }
-        public List<ChatItem> ChatLog { get; }
-
-        public ChatTab(string name)
-        {
-            Name = name;
-            ChatLog = new();
-        }
-
-        public void AddChatMessage(ChatItem chatMessageViewItem)
-        {
-            ChatLog.Add(chatMessageViewItem);
-        }
-
-        public void CleanUp()
-        {
-            ChatLog.Clear();
-        }
-    }
+    private readonly record struct ChatLogEntry(ChatItem Item, int? ChannelId);
 
     // the line a fold key currently folds into
-    private class FoldEntry
+    private sealed class FoldEntry
     {
         public ChatItem Item { get; set; }
         public DateTime FirstTime { get; }
@@ -42,56 +35,74 @@ public class ChatMessageManager
         }
     }
 
-    private int activeTabIndex;
-    public readonly List<ChatItem> chatLog;
-    private List<ChatTab> tab { get; }
+    private int activeTabIndex = -1;
+    private readonly List<ChatLogEntry> entries = new();
+    private readonly List<ChatChannelTab> channels = new();
+    private readonly Dictionary<int, ChatChannelTab> channelsById = new();
     private readonly Dictionary<string, FoldEntry> foldEntries = new();
+
+    private int revision;
+    private int allViewRevision = -1;
+    private readonly List<ChatItem> allViewCache = new();
+    private int globalViewRevision = -1;
+    private readonly List<ChatItem> globalViewCache = new();
+    private int activeViewRevision = -1;
+    private int activeViewCachedTabIndex = int.MinValue;
+    private readonly List<ChatItem> activeViewCache = new();
+
     public int ActiveTabIndex => activeTabIndex;
-    public List<ChatItem> ActiveChatLog => activeTabIndex < 0 ? ChatLog : tab[activeTabIndex].ChatLog;
-    public string? ActiveTabName => activeTabIndex < 0 ? null : tab[activeTabIndex].Name;
-    public List<ChatItem> ChatLog => chatLog;
-    public List<string> TabNameList => tab.Select(t => t.Name).ToList();
+
+    public int? ActiveChannelId => activeTabIndex < 0 ? null : channels[activeTabIndex].Id;
+
+    public string? ActiveTabName => activeTabIndex < 0 ? null : channels[activeTabIndex].Title;
+
+    public IReadOnlyList<ChatChannelTab> Channels => channels;
+
+    public List<ChatItem> AllChatLog => GetAllView();
+
+    public List<ChatItem> GlobalChatLog => GetGlobalView();
+
+    public List<ChatItem> ActiveChatLog => activeTabIndex < 0 ? GetGlobalView() : GetActiveChannelView();
 
     // messages sharing a fold key within this window (compared on message timestamps) fold together
     public double FoldWindowSeconds { get; set; } = 10f;
 
-    public ChatMessageManager()
+    public void AddChannel(int id, string title, bool enabledInGlobal = true)
     {
-        chatLog = new();
-        tab = new();
-        activeTabIndex = -1;
-    }
-
-    private ChatTab GetOrAddTab(string name)
-    {
-        var targetTabIdx = tab.FindIndex(t => t.Name == name);
-        if (targetTabIdx < 0)
+        if (channelsById.TryGetValue(id, out var existing))
         {
-            tab.Add(new ChatTab(name));
-            targetTabIdx = tab.Count - 1;
+            existing.EnabledInGlobal = enabledInGlobal;
+            revision++;
+            return;
         }
-        return tab[targetTabIdx];
+
+        var tab = new ChatChannelTab(id, title, enabledInGlobal);
+        channels.Add(tab);
+        channelsById[id] = tab;
+        revision++;
     }
 
-    public void AddTab(string name)
+    public bool ToggleChannelInGlobal(int channelIndex)
     {
-        tab.Add(new ChatTab(name));
+        if (channelIndex < 0 || channelIndex >= channels.Count)
+            return false;
+
+        var channel = channels[channelIndex];
+        channel.EnabledInGlobal = !channel.EnabledInGlobal;
+        revision++;
+        return channel.EnabledInGlobal;
     }
 
-    public void RemoveTab(string name)
+    public void SetChannelEnabledInGlobal(int channelId, bool enabled)
     {
-        var targetTabIdx = tab.FindIndex(t => t.Name == name);
-        if (targetTabIdx < 0)
+        if (!channelsById.TryGetValue(channelId, out var channel))
             return;
 
-        bool removingActiveTab = targetTabIdx == activeTabIndex;
-        tab.RemoveAt(targetTabIdx);
+        if (channel.EnabledInGlobal == enabled)
+            return;
 
-        if (removingActiveTab)
-            activeTabIndex = tab.Count == 0 ? -1 : Math.Min(activeTabIndex, tab.Count - 1);
-
-        else if (targetTabIdx < activeTabIndex)
-            activeTabIndex--;
+        channel.EnabledInGlobal = enabled;
+        revision++;
     }
 
     public void CycleTabForward()
@@ -102,71 +113,118 @@ public class ChatMessageManager
 
     public void CycleTab(int offset)
     {
-        activeTabIndex = ((activeTabIndex + offset + 1) + (tab.Count + 1)) % (tab.Count + 1) - 1;
+        int totalTabs = channels.Count + 1;
+        activeTabIndex = (((activeTabIndex + 1 + offset) % totalTabs) + totalTabs) % totalTabs - 1;
     }
 
-    public void SetActiveTab(string name)
+    public void SetActiveTabIndex(int index)
     {
-        var targetTabIndex = tab.FindIndex(t => t.Name == name);
-        if (targetTabIndex < 0) return;
-        activeTabIndex = targetTabIndex;
+        if (index < -1 || index >= channels.Count)
+            return;
+        activeTabIndex = index;
     }
 
-    // Add to all Tabs while tabName == null (For Local Announcement）
-    // With a foldKey, a repeat within FoldWindowSeconds does not append a new line:
-    // the old line is removed from every log and foldedText is appended at the bottom
-    // as a fresh message with a bumped RepeatCount.
-    public void AddChatMessage(ChatItem message, DateTime dateTime, string? tabName,
-        string? foldKey = null, ChatText? foldedText = null)
+    // Add to all tabs when channelId == null (system/announcement/private/local messages).
+    // With a foldKey, a repeat within FoldWindowSeconds replaces the old line at the bottom
+    // with foldedText and a bumped RepeatCount.
+    public void AddChatMessage(
+        ChatItem message,
+        DateTime dateTime,
+        int? channelId,
+        string? foldKey = null,
+        ChatText? foldedText = null
+    )
     {
         if (foldKey is null || foldedText is null)
         {
-            AppendToLogs(message, tabName);
+            AppendEntry(message, channelId);
             return;
         }
 
         if (foldEntries.TryGetValue(foldKey, out var entry)
             && (dateTime - entry.LastTime).TotalSeconds <= FoldWindowSeconds)
         {
-            RemoveFromLogs(entry.Item);
+            RemoveEntry(entry.Item);
             var folded = new ChatItem(entry.FirstTime, foldedText)
             {
                 RepeatCount = entry.Item.RepeatCount + 1
             };
-            AppendToLogs(folded, tabName);
+            AppendEntry(folded, channelId);
             entry.Item = folded;
             entry.LastTime = dateTime;
             return;
         }
 
-        AppendToLogs(message, tabName);
+        AppendEntry(message, channelId);
         PruneFoldEntries(dateTime);
         foldEntries[foldKey] = new FoldEntry(message, dateTime);
     }
 
-    private void AppendToLogs(ChatItem message, string? tabName)
+    private void AppendEntry(ChatItem message, int? channelId)
     {
-        chatLog.Add(message);
-        if (tabName == null)
-        {
-            foreach (var chatTab in this.tab)
-            {
-                chatTab.AddChatMessage(message);
-            }
-
-            return;
-        }
-        var tab = GetOrAddTab(tabName);
-        tab.AddChatMessage(message);
+        entries.Add(new ChatLogEntry(message, channelId));
+        revision++;
     }
 
-    private void RemoveFromLogs(ChatItem item)
+    private void RemoveEntry(ChatItem item)
     {
-        chatLog.Remove(item);
-        foreach (var chatTab in tab)
+        for (int i = entries.Count - 1; i >= 0; i--)
         {
-            chatTab.ChatLog.Remove(item);
+            if (ReferenceEquals(entries[i].Item, item))
+            {
+                entries.RemoveAt(i);
+                revision++;
+                return;
+            }
         }
+    }
+
+    private List<ChatItem> GetAllView()
+    {
+        if (allViewRevision != revision)
+        {
+            allViewCache.Clear();
+            foreach (var entry in entries)
+                allViewCache.Add(entry.Item);
+            allViewRevision = revision;
+        }
+        return allViewCache;
+    }
+
+    private List<ChatItem> GetGlobalView()
+    {
+        if (globalViewRevision != revision)
+        {
+            globalViewCache.Clear();
+            foreach (var entry in entries)
+            {
+                if (entry.ChannelId is null
+                    || !channelsById.TryGetValue(entry.ChannelId.Value, out var channel)
+                    || channel.EnabledInGlobal)
+                {
+                    globalViewCache.Add(entry.Item);
+                }
+            }
+            globalViewRevision = revision;
+        }
+        return globalViewCache;
+    }
+
+    private List<ChatItem> GetActiveChannelView()
+    {
+        if (activeViewRevision != revision || activeViewCachedTabIndex != activeTabIndex)
+        {
+            activeViewCache.Clear();
+            int targetChannelId = channels[activeTabIndex].Id;
+            foreach (var entry in entries)
+            {
+                if (entry.ChannelId is null || entry.ChannelId.Value == targetChannelId)
+                    activeViewCache.Add(entry.Item);
+            }
+            activeViewRevision = revision;
+            activeViewCachedTabIndex = activeTabIndex;
+        }
+        return activeViewCache;
     }
 
     // keep fold entries from growing without bound in a long session
@@ -190,19 +248,18 @@ public class ChatMessageManager
 
     public void CleanUp()
     {
-        chatLog.Clear();
-        tab.Clear();
+        entries.Clear();
+        channels.Clear();
+        channelsById.Clear();
         foldEntries.Clear();
         activeTabIndex = -1;
+        revision++;
     }
 
     public void CleanHistory()
     {
-        chatLog.Clear();
+        entries.Clear();
         foldEntries.Clear();
-        foreach (var chatTab in tab)
-        {
-            chatTab.CleanUp();
-        }
+        revision++;
     }
 }

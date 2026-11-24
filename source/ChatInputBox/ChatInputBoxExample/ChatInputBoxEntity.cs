@@ -88,14 +88,18 @@ public sealed class ChatInputBoxEntity : Entity
             @"\cUpdate available: v2.4.1 → v2.5.0.\r Download now?",
             @"\sYou have 1 pending invitation.\r Accept or decline."
         ];
+        msgBox.ChatTabListView.InitialTabTitle = "Global";
+        msgBox.AddChannel(0, "Public");
+        msgBox.AddChannel(1, "Channel");
+        msgBox.AddChannel(2, "Map");
         foreach (var msg in randomMsgs)
         {
-            msgBox.AddChatMessage(DateTime.Now, ChatText.Create(msg, Color.White), "Global");
+            msgBox.AddChatMessage(DateTime.Now, ChatText.Create(msg, Color.White), 0);
         }
 
-        msgBox.AddChatMessage(DateTime.Now, ChatText.Create("This is a global text", Color.White), "Global");
-        msgBox.AddChatMessage(DateTime.Now, ChatText.Create("This is a channel text", Color.Yellow), "Channel");
-        msgBox.AddChatMessage(DateTime.Now, ChatText.Create("This is a map text", Color.Green), "Map");
+        msgBox.AddChatMessage(DateTime.Now, ChatText.Create("This is a global text", Color.White), 0);
+        msgBox.AddChatMessage(DateTime.Now, ChatText.Create("This is a channel text", Color.Yellow), 1);
+        msgBox.AddChatMessage(DateTime.Now, ChatText.Create("This is a map text", Color.Green), 2);
     }
 
     public void Activate()
@@ -123,7 +127,7 @@ public sealed class ChatInputBoxEntity : Entity
 
             if (MInput.Keyboard.Pressed(Keys.Enter))
             {
-                msgBox.AddChatMessage(DateTime.Now, ChatText.Create(inputBox.Text, Color.White), msgBox.ActiveTabName ?? "Global");
+                msgBox.AddChatMessage(DateTime.Now, ChatText.Create(inputBox.Text, Color.White), msgBox.ActiveChannelId ?? 0);
                 Deactivate();
                 MInput.VirtualInputs.ForEach(i => (i as VirtualButton)?.ConsumePress());
             }

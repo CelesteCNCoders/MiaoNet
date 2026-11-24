@@ -50,6 +50,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     private readonly List<string> inputHistory;
     private int historyIndex;
     private int? selectedSendChannelID;
+    private int? focusedTabIndex;
 
     public bool Active => active;
 
@@ -137,21 +138,14 @@ public sealed partial class ChatComponent : MiaoNetComponent
         ReceivedChatMessage received = chatMessageFactory.CreateReceived(player, packet);
         if (received.Text is not null)
         {
-            string? tabName = null;
-            if (packet.Type == ChatMessageType.Channel
-                && packet.ChatChannelID is int channelID
-                && context.ClientState is not null
-                && context.ClientState.TryGetChatChannel(channelID, out var channel))
-            {
-                tabName = channel.DisplayName;
-            }
+            int? channelID = packet.Type == ChatMessageType.Channel ? packet.ChatChannelID : null;
 
             string? foldKey = null;
             ChatText? foldedText = null;
             if (MiaoNetModule.Settings.MessageFolding)
                 (foldKey, foldedText) = chatMessageFactory.CreateFoldInfo(player, packet, received.Content);
 
-            chatMessageBox.AddChatMessage(packet.DateTime, received.Text, tabName, foldKey, foldedText);
+            chatMessageBox.AddChatMessage(packet.DateTime, received.Text, channelID, foldKey, foldedText);
         }
         else
             Logger.Warn(LT.MiaoNet, $"Received a null chat message for type {packet.Type}, content: {packet.Content}.");
@@ -166,20 +160,12 @@ public sealed partial class ChatComponent : MiaoNetComponent
         if (state is null)
             return;
 
-        string? activeTabName = chatMessageBox.ActiveTabName;
-        if (activeTabName is not null)
+        if (chatMessageBox.ActiveChannelId is int channelID
+            && state.TryGetChatChannel(channelID, out var channel)
+            && channel.CanSend)
         {
-            foreach (var c in state.ChatChannels)
-            {
-                if (c.DisplayName == activeTabName)
-                {
-                    if (c.CanSend)
-                        selectedSendChannelID = c.ID;
-                    else
-                        selectedSendChannelID = state.GetDefaultSendableChatChannelID();
-                    return;
-                }
-            }
+            selectedSendChannelID = channel.ID;
+            return;
         }
         selectedSendChannelID = state.GetDefaultSendableChatChannelID();
     }
@@ -211,6 +197,21 @@ public sealed partial class ChatComponent : MiaoNetComponent
         else
         {
             Engine.Scene.Paused = true;
+
+            if (focusedTabIndex is not null)
+            {
+                UpdateTabFocusMode(settings);
+                chatMessageBox.Update();
+                return;
+            }
+
+            if (settings.ChatTabFocusButton.Pressed)
+            {
+                settings.ChatTabFocusButton.ConsumePress();
+                EnterTabFocusMode();
+                chatMessageBox.Update();
+                return;
+            }
 
             if (MInput.Keyboard.Pressed(Keys.Escape))
             {
@@ -360,11 +361,85 @@ public sealed partial class ChatComponent : MiaoNetComponent
         }
     }
 
+    private void EnterTabFocusMode()
+    {
+        int defaultFocus = chatMessageBox.ActiveTabIndex >= 0
+            ? chatMessageBox.ActiveTabIndex
+            : (chatMessageBox.Channels.Count > 0 ? 0 : -1);
+        focusedTabIndex = defaultFocus;
+        chatMessageBox.ChatTabListView.FocusedTabIndex = defaultFocus;
+        inputBox.SetInputPaused(true);
+    }
+
+    private void ExitTabFocusMode()
+    {
+        focusedTabIndex = null;
+        chatMessageBox.ChatTabListView.FocusedTabIndex = null;
+        inputBox.SetInputPaused(false);
+    }
+
+    private void UpdateTabFocusMode(MiaoNetModuleSettings settings)
+    {
+        if (MInput.Keyboard.Pressed(Keys.Escape) || settings.ChatTabFocusButton.Pressed)
+        {
+            settings.ChatTabFocusButton.ConsumePress();
+            MInputHack.ConsumeAllInputs();
+            ExitTabFocusMode();
+            return;
+        }
+
+        int totalTabs = chatMessageBox.Channels.Count + 1;
+        int current = focusedTabIndex!.Value;
+
+        if (MInput.Keyboard.Pressed(Keys.Left) || Input.MenuLeft.Pressed)
+        {
+            Input.MenuLeft.ConsumePress();
+            current = (((current + 1 - 1) % totalTabs) + totalTabs) % totalTabs - 1;
+            focusedTabIndex = current;
+            chatMessageBox.ChatTabListView.FocusedTabIndex = current;
+        }
+        else if (MInput.Keyboard.Pressed(Keys.Right) || Input.MenuRight.Pressed)
+        {
+            Input.MenuRight.ConsumePress();
+            current = (((current + 1 + 1) % totalTabs) + totalTabs) % totalTabs - 1;
+            focusedTabIndex = current;
+            chatMessageBox.ChatTabListView.FocusedTabIndex = current;
+        }
+        else if (Input.MenuConfirm.Pressed)
+        {
+            Input.MenuConfirm.ConsumePress();
+            if (current >= 0)
+            {
+                bool enabled = chatMessageBox.ToggleChannelInGlobal(current);
+                if (context.ClientState is { } state
+                    && current < chatMessageBox.Channels.Count
+                    && state.TryGetChatChannel(chatMessageBox.Channels[current].Id, out var channel))
+                {
+                    settings.ChatChannelGlobalFilters[channel.Key] = enabled;
+                    MiaoNetModule.Instance.SaveSettings();
+                }
+                Audio.Play(enabled ? SFX.ui_main_button_toggle_on : SFX.ui_main_button_toggle_off);
+            }
+            else
+            {
+                chatMessageBox.SetActiveTabIndex(-1);
+                SyncChatChannelWithTab();
+                Audio.Play(SFX.ui_main_button_select);
+            }
+        }
+    }
+
     private void Context_ClientInitialized(ClientState state)
     {
         ChatMessageBoxSetup();
+        var filters = MiaoNetModule.Settings.ChatChannelGlobalFilters;
         foreach (var channel in state.ChatChannels)
-            chatMessageBox.AddTab(channel.DisplayName);
+        {
+            bool enabledInGlobal = filters.TryGetValue(channel.Key, out bool saved)
+                ? saved
+                : channel.DefaultVisibleInGlobal;
+            chatMessageBox.AddChannel(channel.ID, channel.DisplayName, enabledInGlobal);
+        }
         selectedSendChannelID = state.GetDefaultSendableChatChannelID();
     }
 
@@ -408,6 +483,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     private void Deactivate()
     {
         active = false;
+        ExitTabFocusMode();
         inputBox.Deactivate();
         lastInput = string.Empty;
         chatMessageBox.Deactivate();

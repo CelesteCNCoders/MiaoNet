@@ -21,9 +21,9 @@ public sealed class ChatMessageListView
     private List<ChatItem> chatLog => active || NewMessagesShowing == NewMessageShowingMode.WithTab
         ? chatMessageManager.ActiveChatLog
         : NewMessagesShowing == NewMessageShowingMode.ShowAll
-            ? fullChatLog
+            ? chatMessageManager.GlobalChatLog
             : [];
-    private List<ChatItem> fullChatLog => chatMessageManager.ChatLog;
+    private List<ChatItem> fullChatLog => chatMessageManager.AllChatLog;
 
 
     public float BackgroundOpacity { get; set; } = 0.5f;

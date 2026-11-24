@@ -107,6 +107,7 @@ miaonet_options_new_messages_showing_mode_hideall= 全不显示
 
 miaonet_options_button_chat= 打开聊天栏
 miaonet_options_button_chat_command= 输入指令
+miaonet_options_button_chat_tab_focus= 切换聊天频道开关光标
 miaonet_options_button_player_list= 打开玩家列表
 miaonet_options_button_create_fireworks= 生成烟花
 miaonet_options_button_player_list_scroll_up= 向上滚动玩家列表
@@ -253,7 +254,7 @@ miaonet_rb= ]
 miaonet_chat_whisper_sent= {+ miaonet_lb}私聊 (0){+ miaonet_rb} (1)
 miaonet_chat_whisper_received= {+ miaonet_lb}私聊{+ miaonet_rb} (0)
 
-miaonet_initial_chat_tab_name= 全部
+miaonet_initial_chat_tab_name= 综合
 
 miaonet_oui_conflict_title= MiaoNet Mod 冲突
 miaonet_oui_conflict_description= 

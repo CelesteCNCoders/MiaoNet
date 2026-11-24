@@ -112,6 +112,7 @@ miaonet_options_new_messages_showing_mode_hideall= Hide All
 
 miaonet_options_button_chat= Open Chat
 miaonet_options_button_chat_command= Input Commands
+miaonet_options_button_chat_tab_focus= Focus Chat Channel Toggles
 miaonet_options_button_player_list= Open Player List
 miaonet_options_button_create_fireworks= Create Fireworks
 miaonet_options_button_player_list_scroll_up= Scroll Up Player List
@@ -258,7 +259,7 @@ miaonet_rb= ]
 miaonet_chat_whisper_sent= {+ miaonet_lb}whisper to (0){+ miaonet_rb} (1)
 miaonet_chat_whisper_received= {+ miaonet_lb}whisper{+ miaonet_rb} (0)
 
-miaonet_initial_chat_tab_name= All
+miaonet_initial_chat_tab_name= Global
 
 miaonet_oui_conflict_title= MiaoNet Mod Conflict
 miaonet_oui_conflict_description=

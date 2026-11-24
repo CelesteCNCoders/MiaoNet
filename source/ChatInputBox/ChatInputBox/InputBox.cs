@@ -29,8 +29,12 @@ public sealed class InputBox
     private int selectedCompletionIndex = -1;
 
     private bool suppressCompletions;
+    private bool active;
+    private bool inputPaused;
 
     public string Text => buffer.Text;
+
+    public bool InputPaused => inputPaused;
 
     [MemberNotNullWhen(true, nameof(completions))]
     public bool HasCompletions => completions is { Count: > 0 };
@@ -76,16 +80,45 @@ public sealed class InputBox
 
     public void Activate()
     {
+        if (active)
+            return;
+        active = true;
+        inputPaused = false;
         TextInput.OnInput += OnCharInput;
         TextInputEXT.TextEditing += TextInputEXT_TextEditing;
     }
 
     public void Deactivate()
     {
-        TextInput.OnInput -= OnCharInput;
-        TextInputEXT.TextEditing -= TextInputEXT_TextEditing;
+        if (active && !inputPaused)
+        {
+            TextInput.OnInput -= OnCharInput;
+            TextInputEXT.TextEditing -= TextInputEXT_TextEditing;
+        }
+        active = false;
+        inputPaused = false;
         buffer.Clear();
         selectedCompletionIndex = -1;
+    }
+
+    public void SetInputPaused(bool paused)
+    {
+        if (!active || inputPaused == paused)
+            return;
+
+        inputPaused = paused;
+        if (paused)
+        {
+            TextInput.OnInput -= OnCharInput;
+            TextInputEXT.TextEditing -= TextInputEXT_TextEditing;
+            imeEditingText = null;
+        }
+        else
+        {
+            TextInput.OnInput += OnCharInput;
+            TextInputEXT.TextEditing += TextInputEXT_TextEditing;
+            SetAlwaysShowCaretTimer();
+        }
     }
 
     public void SetText(string text)
@@ -96,6 +129,9 @@ public sealed class InputBox
 
     public void Update()
     {
+        if (inputPaused)
+            return;
+
         if (!MInput.Keyboard.CurrentState.IsKeyDown(Keys.LeftShift) &&
             !MInput.Keyboard.CurrentState.IsKeyDown(Keys.RightShift) &&
             rightButton.Pressed)
@@ -262,7 +298,7 @@ public sealed class InputBox
         textRenderer.Draw(buffer.TextAfterCaret, pos, justify: new Vector2(0f, 1f), color: Color.White);
         pos.X += sizeAfterCaret.X;
 
-        if (showCaret)
+        if (showCaret && !inputPaused)
         {
             float width = sizeBeforeCaret.X;
             if (imeEditingText is not null)

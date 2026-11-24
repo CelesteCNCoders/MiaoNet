@@ -240,6 +240,12 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
         }
     } = NewMessageShowingMode.ShowAll;
 
+    public Dictionary<string, bool> ChatChannelGlobalFilters
+    {
+        get => field ??= [];
+        set;
+    } = [];
+
     #endregion
 
     #region Button Bindings
@@ -247,6 +253,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     public ButtonBinding ChatButton { get; set; }
 
     public ButtonBinding ChatCommandButton { get; set; }
+
+    public ButtonBinding ChatTabFocusButton { get; set; }
 
     public ButtonBinding PlayerListButton { get; set; }
 
@@ -288,6 +296,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     [MemberNotNull(
         nameof(ChatButton),
         nameof(ChatCommandButton),
+        nameof(ChatTabFocusButton),
         nameof(PlayerListButton),
         nameof(EmoteButtons),
         nameof(CreateFireworksButton),
@@ -299,6 +308,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     {
         ChatButton = new(0, Keys.T);
         ChatCommandButton = new(0, 0);
+        ChatTabFocusButton = new(0, Keys.F2);
         PlayerListButton = new(0, Keys.Tab);
         List<ButtonBinding> bindings = new();
         for (int i = 0; i < Emotes.Count; i++)
@@ -328,7 +338,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     public IEnumerable<ButtonBinding> GetButtonBindings()
     {
         return [
-            ChatButton, ChatCommandButton, PlayerListButton,
+            ChatButton, ChatCommandButton, ChatTabFocusButton, PlayerListButton,
             .. EmoteButtons,
             CreateFireworksButton,
             PlayerListScrollUp, PlayerListScrollDown,
