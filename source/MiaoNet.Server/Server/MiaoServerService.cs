@@ -37,6 +37,8 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
 
     private readonly ReaderWriterLockSlim stateLock;
     private readonly ServerState serverState;
+    private readonly IReadOnlyList<ServerChatChannel> chatChannels;
+    private readonly Dictionary<int, ServerChatChannel> chatChannelsById;
 
     public ServerState ServerState => serverState;
 
@@ -60,6 +62,8 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
     {
         stateLock = new();
         serverState = new();
+        chatChannels = ServerChatChannel.CreateDefaultChannels();
+        chatChannelsById = chatChannels.ToDictionary(c => c.ID);
 
         PacketHandlerRegister register = new();
         RegisterPacketHandlers(register);
@@ -155,11 +159,13 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                     );
 
                 var strings = announcementsMonitor.CurrentValue[handshakeResult.HandshakeData.LanguageCode];
+                var chatChannelInfos = chatChannels.Select(c => c.ToInfo(strings)).ToList();
                 PacketClientInitial packetClientInitial = new PacketClientInitial(
                     newPlayer.Channel.ID,
                     newPlayer.ID,
                     clientPlayerInfo,
                     channels.ToList(),
+                    chatChannelInfos,
                     playerInfos.ToList(),
                     new(strings.PlayerJoined, strings.PlayerLeft),
                     strings.PlayerJoinMessage

@@ -9,6 +9,8 @@ public sealed class ClientState
 {
     private readonly Dictionary<int, OnlinePlayer> players;
     private readonly Dictionary<int, OnlineChannel> channels;
+    private readonly List<ChatChannelInfo> chatChannels;
+    private readonly Dictionary<int, ChatChannelInfo> chatChannelsById;
 
     public IReadOnlyDictionary<int, OnlinePlayer> Players => players;
 
@@ -25,6 +27,8 @@ public sealed class ClientState
 
     public IReadOnlyDictionary<int, OnlineChannel> Channels => channels;
 
+    public IReadOnlyList<ChatChannelInfo> ChatChannels => chatChannels;
+
     public OnlinePlayer Self { get; private set; }
 
     public OnlineChannel SelfChannel => Self.Channel;
@@ -37,6 +41,10 @@ public sealed class ClientState
     {
         players = new();
         channels = new();
+        chatChannels = [.. clientInitial.ChatChannels];
+        chatChannelsById = new(chatChannels.Count);
+        foreach (var chatChannel in chatChannels)
+            chatChannelsById[chatChannel.ID] = chatChannel;
 
         channels.Add(
             ChannelInfo.PrivateChannelVirtualID,
@@ -51,6 +59,36 @@ public sealed class ClientState
             p.Location = player.Location;
         }
         Self = new(channels[clientInitial.ChannelID], clientInitial.PlayerID, clientInitial.SelfPlayerInfo, PlayerGlobalFlags.None);
+    }
+
+    public bool TryGetChatChannel(int id, out ChatChannelInfo channel)
+        => chatChannelsById.TryGetValue(id, out channel);
+
+    public bool TryGetSendableChatChannel(string query, out ChatChannelInfo channel)
+    {
+        foreach (var c in chatChannels)
+        {
+            if (!c.CanSend)
+                continue;
+            if (c.Key.Equals(query, StringComparison.OrdinalIgnoreCase)
+                || c.DisplayName.Equals(query, StringComparison.OrdinalIgnoreCase))
+            {
+                channel = c;
+                return true;
+            }
+        }
+        channel = default;
+        return false;
+    }
+
+    public int? GetDefaultSendableChatChannelID()
+    {
+        foreach (var c in chatChannels)
+        {
+            if (c.CanSend)
+                return c.ID;
+        }
+        return null;
     }
 
     public OnlinePlayer OnNewPlayerJoined(int channelID, int playerID, PlayerInfo playerInfo, PlayerGlobalFlags globalFlags)
