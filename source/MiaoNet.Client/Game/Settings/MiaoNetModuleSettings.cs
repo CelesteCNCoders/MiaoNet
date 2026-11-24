@@ -240,9 +240,6 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
         }
     } = NewMessageShowingMode.ShowAll;
 
-    [YamlIgnore]
-    public ChatChannel ChatChannel { get; set; } = ChatChannel.Global;
-
     #endregion
 
     #region Button Bindings

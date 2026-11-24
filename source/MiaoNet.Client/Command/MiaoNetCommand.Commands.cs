@@ -119,28 +119,6 @@ partial class MiaoNetCommand
                 captureRestSegments: false,
                 onExecute: new ExecuteHandler(Unwatch)
             ),
-            // TODO: SLAY THESE *CHAT* STUFFS
-            new MiaoNetCommand(
-                name: "map-chat",
-                aliases: [ "mc" ],
-                segments: [CommandSegmentType.Text],
-                captureRestSegments: true,
-                onExecute: new ExecuteHandler(MapChat)
-            ),
-            new MiaoNetCommand(
-                name: "channel-chat",
-                aliases: [ "cc" ],
-                segments: [CommandSegmentType.Text],
-                captureRestSegments: true,
-                onExecute: new ExecuteHandler(ChannelChat)
-            ),
-            new MiaoNetCommand(
-                name: "global-chat",
-                aliases: [ "gc" ],
-                segments: [CommandSegmentType.Text],
-                captureRestSegments: true,
-                onExecute: new ExecuteHandler(GlobalChat)
-            ),
             new MiaoNetCommand(
                 name: "chat",
                 aliases: [ "c" ],
@@ -178,8 +156,11 @@ partial class MiaoNetCommand
 
     private static string? Say(Context context)
     {
+        if (MiaoNetModule.Settings.LiveMode)
+            return Dialog.Get("miaonet_chat_disabled");
+
         string content = context.Segments[0].Replace(@"\", @"\\", StringComparison.Ordinal);
-        SendChat(context, MiaoNetModule.Settings.ChatChannel, content);
+        context.MiaoNetContext.ChatComponent.SendChat(content);
         return null;
     }
 
@@ -605,37 +586,15 @@ partial class MiaoNetCommand
     private static string? ChatType(Context context)
     {
         string name = context.Segments[0];
-        var settings = MiaoNetModule.Settings;
-        ChatChannel type = ChatChannelMatcher.Match(name);
-        if (type != (ChatChannel)(-1))
+        var state = context.MiaoNetContext.ClientState;
+        if (state is not null && state.TryGetSendableChatChannel(name, out var channel))
         {
-            settings.ChatChannel = type;
-            string msg = PFormat.Format(Dialog.Get("miaonet_commands_chat_chat_channel_switched"), type);
+            context.MiaoNetContext.ChatComponent.SetSendChannel(channel.ID);
+            string msg = PFormat.Format(Dialog.Get("miaonet_commands_chat_chat_channel_switched"), channel.DisplayName);
             context.AddLocalChat(MiaoNetChatText.CreateCommandTip(msg));
+            return null;
         }
-        else
-        {
-            return PFormat.Format(Dialog.Get("miaonet_commands_chat_chat_channel_type_not_found"), name);
-        }
-        return null;
-    }
-
-    private static string? GlobalChat(Context context)
-        => SendChat(context, ChatChannel.Global, context.Segments[0]);
-
-    private static string? ChannelChat(Context context)
-        => SendChat(context, ChatChannel.Channel, context.Segments[0]);
-
-    private static string? MapChat(Context context)
-        => SendChat(context, ChatChannel.Map, context.Segments[0]);
-
-    private static string? SendChat(Context context, ChatChannel chatChannel, string content)
-    {
-        if (MiaoNetModule.Settings.LiveMode)
-            return Dialog.Get("miaonet_chat_disabled");
-
-        context.QueuePacket(new PacketSendChatMessage(chatChannel, content));
-        return null;
+        return PFormat.Format(Dialog.Get("miaonet_commands_chat_chat_channel_type_not_found"), name);
     }
 
     private static string? Channel(Context context)

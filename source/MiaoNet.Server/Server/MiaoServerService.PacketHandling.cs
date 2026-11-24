@@ -330,38 +330,46 @@ public sealed partial class MiaoServerService
 
     private async Task HandlePacketAsync(MiaoClientConnection connection, PacketEnvelope envelope, PacketSendChatMessage packet)
     {
-        logger.LogInformation(AppEvents.GameChat, "[{channel}] {player}: {msg}", packet.ChatChannel, connection.Player.Info, packet.Content);
         if (packet.Content.Length > 64)
         {
             logger.LogWarning(AppEvents.GameChat, "{player} sent an oversized chat message.", connection.Player.Info);
             await connection.DisconnectAsync(DisconnectReason.Kicked, "Chat too long.");
             return;
         }
-        ChatMessageType type = packet.ChatChannel switch
+        if (!chatChannelsById.TryGetValue(packet.ChatChannelID, out var chatChannel) || !chatChannel.CanSend)
         {
-            ChatChannel.Global => ChatMessageType.Chat,
-            ChatChannel.Channel => ChatMessageType.ChannelChat,
-            ChatChannel.Map => ChatMessageType.MapChat,
-            _ => ChatMessageType.Chat
-        };
-        var toSend = new PacketChatMessage(DateTime.UtcNow, type, connection.Player.ID, packet.Content);
-        switch (type)
+            logger.LogWarning(
+                AppEvents.GameChat,
+                "{player} attempted to send chat to unavailable or read-only channel {channelId}.",
+                connection.Player.Info,
+                packet.ChatChannelID
+            );
+            return;
+        }
+
+        logger.LogInformation(AppEvents.GameChat, "[{channel}] {player}: {msg}", chatChannel.Key, connection.Player.Info, packet.Content);
+        var toSend = new PacketChatMessage(
+            DateTime.UtcNow,
+            ChatMessageType.Channel,
+            chatChannel.ID,
+            connection.Player.ID,
+            packet.Content
+        );
+        switch (chatChannel.Scope)
         {
-        case ChatMessageType.Chat:
+        case ChatChannelScope.Global:
             await BroadcastToScopeAsync(toSend, serverState);
             break;
-        case ChatMessageType.ChannelChat:
+        case ChatChannelScope.PlayerChannel:
             await BroadcastToScopeAsync(toSend, connection.Player.Channel);
             break;
-        case ChatMessageType.MapChat:
+        case ChatChannelScope.PlayerMap:
             await BroadcastToScopeAsync(
                 toSend,
                 connection.Player.Channel,
                 c => c.Player.Location.Map == connection.Player.Location.Map
             );
             break;
-        default:
-            goto case ChatMessageType.Chat;
         }
     }
 
@@ -500,7 +508,7 @@ public sealed partial class MiaoServerService
              );
 
             await target.QueuePacketAsync(
-                new PacketChatMessage(DateTime.UtcNow, ChatMessageType.PrivateMessage, connection.ID, request.Content)
+                new PacketChatMessage(DateTime.UtcNow, ChatMessageType.PrivateMessage, null, connection.ID, request.Content)
             );
             await connection.ResponseAsync(envelope, new PacketSendPrivateChatMessageResponse(DateTime.UtcNow, PacketSendPrivateChatMessageResponse.SendResult.Success));
         }

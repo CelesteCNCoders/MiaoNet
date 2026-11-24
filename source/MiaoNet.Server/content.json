@@ -3,12 +3,24 @@
     "SChinese": {
       "PlayerJoined": "[Server] 欢迎 (0) 来到蔚蓝 MiaoNet！",
       "PlayerLeft": "[Server] Cya，(0)！",
-      "PlayerJoinMessage": "[Server] 欢迎来到 MiaoNet dev 服务器\n[Server] 按下 T 打开聊天\n[Server] 使用 /help 获取所有指令帮助"
+      "PlayerJoinMessage": "[Server] 欢迎来到 MiaoNet dev 服务器\n[Server] 按下 T 打开聊天\n[Server] 使用 /help 获取所有指令帮助",
+      "ChatChannels": {
+        "public": { "Name": "全局", "Prefix": "" },
+        "channel": { "Name": "频道", "Prefix": "[频道聊天]" },
+        "map": { "Name": "地图", "Prefix": "[地图聊天]" },
+        "achievements": { "Name": "成就", "Prefix": "" }
+      }
     },
     "English": {
       "PlayerJoined": "[Server] Welcome (0) to MiaoNet!",
       "PlayerLeft": "[Server] Cya, (0)!",
-      "PlayerJoinMessage": "[Server] Welcome to MiaoNet dev server\n[Server] Press T to chat\n[Server] Use /help to get all command help"
+      "PlayerJoinMessage": "[Server] Welcome to MiaoNet dev server\n[Server] Press T to chat\n[Server] Use /help to get all command help",
+      "ChatChannels": {
+        "public": { "Name": "Public", "Prefix": "" },
+        "channel": { "Name": "Channel", "Prefix": "[Channel Chat]" },
+        "map": { "Name": "Map", "Prefix": "[Map Chat]" },
+        "achievements": { "Name": "Achievements", "Prefix": "" }
+      }
     }
   }
 }
