@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Celeste.Mod.ChatInputBox;
 using MiaoNet.Shared;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
 namespace Celeste.Mod.MiaoNet;
@@ -29,6 +30,12 @@ public sealed partial class ChatComponent : MiaoNetComponent
             );
         }
     }
+
+    private static readonly RasterizerState ChatClipRasterizer = new()
+    {
+        CullMode = CullMode.None,
+        ScissorTestEnable = true
+    };
 
     // I hate these "previous" things
     private bool previousCommandsEnabled = false;
@@ -68,6 +75,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         chatMessageFactory = new(context);
         inputBox = new InputBox(textRenderer, new ChatCompletionProvider(context, cmdParser));
         chatMessageBox = new(textRenderer);
+        chatMessageBox.ChatMessageListView.RenderClipped = RenderChatClipped;
         ChatMessageBoxSetup();
 
         context.ClientInitialized += Context_ClientInitialized;
@@ -553,6 +561,47 @@ public sealed partial class ChatComponent : MiaoNetComponent
             level.AllowHudHide = previousAllowHudHide;
         }
         context.HasComponentFocus = false;
+    }
+
+    private static void RenderChatClipped(Rectangle bounds, Action render)
+    {
+        var device = Engine.Graphics.GraphicsDevice;
+        var topLeft = Vector2.Transform(new Vector2(bounds.Left, bounds.Top), Engine.ScreenMatrix);
+        var bottomRight = Vector2.Transform(new Vector2(bounds.Right, bounds.Bottom), Engine.ScreenMatrix);
+        var clip = Rectangle.Intersect(
+            device.Viewport.Bounds,
+            new Rectangle(
+                (int)topLeft.X,
+                (int)topLeft.Y,
+                Math.Max(0, (int)(bottomRight.X - topLeft.X)),
+                Math.Max(0, (int)(bottomRight.Y - topLeft.Y))
+            )
+        );
+        if (clip.Width == 0 || clip.Height == 0)
+            return;
+
+        MiaoNetContext.EndRender();
+        var previous = device.ScissorRectangle;
+        device.ScissorRectangle = clip;
+        Draw.SpriteBatch.Begin(
+            SpriteSortMode.Deferred,
+            BlendState.AlphaBlend,
+            SamplerState.LinearClamp,
+            DepthStencilState.None,
+            ChatClipRasterizer,
+            null,
+            Engine.ScreenMatrix
+        );
+        try
+        {
+            render();
+        }
+        finally
+        {
+            Draw.SpriteBatch.End();
+            device.ScissorRectangle = previous;
+            MiaoNetContext.BeginRender();
+        }
     }
 
     public override void Render()

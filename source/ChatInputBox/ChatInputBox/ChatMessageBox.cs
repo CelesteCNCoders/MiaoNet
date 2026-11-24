@@ -32,6 +32,9 @@ public class ChatMessageBox
     public void AddChatMessage(ChatText message, int? channelId = null)
         => chatMessageManager.AddChatMessage(new(message), default, channelId);
 
+    public void AddChatItem(ChatItem item, DateTime dateTime, int? channelId = null)
+        => chatMessageManager.AddChatMessage(item, dateTime, channelId);
+
     // foldedText is the line to show once folded, without the counter itself
     public void AddChatMessage(
         DateTime dateTime,
