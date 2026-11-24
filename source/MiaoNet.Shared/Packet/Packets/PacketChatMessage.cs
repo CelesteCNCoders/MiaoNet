@@ -2,9 +2,7 @@ namespace MiaoNet.Shared;
 
 public enum ChatMessageType : byte
 {
-    Chat,
-    MapChat,
-    ChannelChat,
+    Channel,
     PrivateMessage,
     Server,
     ServerChat
@@ -16,16 +14,27 @@ public sealed class PacketChatMessage : IContextlessPacket<PacketChatMessage>
 
     public ChatMessageType Type { get; }
 
+    public int? ChatChannelID { get; }
+
     public int? SourcePlayer { get; }
 
     public string Content { get; }
 
-    public PacketChatMessage(DateTime dateTime, ChatMessageType type, int? sourcePlayer, string content)
+    public PacketChatMessage(
+        DateTime dateTime,
+        ChatMessageType type,
+        int? chatChannelID,
+        int? sourcePlayer,
+        string content
+    )
     {
-        if (type is not ChatMessageType.Server)
+        if (type is ChatMessageType.Channel)
+            SafeGuard.Assert(chatChannelID is not null);
+        if (type is ChatMessageType.PrivateMessage)
             SafeGuard.Assert(sourcePlayer is not null);
         DateTime = dateTime;
         Type = type;
+        ChatChannelID = chatChannelID;
         SourcePlayer = sourcePlayer;
         Content = content;
     }
@@ -35,6 +44,7 @@ public sealed class PacketChatMessage : IContextlessPacket<PacketChatMessage>
             reader.ReadDateTime(),
             (ChatMessageType)reader.ReadByte(),
             reader.ReadBoolean() ? reader.Read7BitEncodedInt() : null,
+            reader.ReadBoolean() ? reader.Read7BitEncodedInt() : null,
             reader.ReadString()
         );
 
@@ -42,6 +52,15 @@ public sealed class PacketChatMessage : IContextlessPacket<PacketChatMessage>
     {
         writer.Write(DateTime);
         writer.Write((byte)Type);
+        if (ChatChannelID.HasValue)
+        {
+            writer.Write(true);
+            writer.Write7BitEncodedInt(ChatChannelID.Value);
+        }
+        else
+        {
+            writer.Write(false);
+        }
         if (SourcePlayer.HasValue)
         {
             writer.Write(true);
@@ -57,24 +76,24 @@ public sealed class PacketChatMessage : IContextlessPacket<PacketChatMessage>
 
 public sealed class PacketSendChatMessage : IContextlessPacket<PacketSendChatMessage>
 {
-    public ChatChannel ChatChannel { get; }
+    public int ChatChannelID { get; }
 
     public string Content { get; }
 
-    public PacketSendChatMessage(ChatChannel chatChannel, string content)
+    public PacketSendChatMessage(int chatChannelID, string content)
     {
-        ChatChannel = chatChannel;
+        ChatChannelID = chatChannelID;
         Content = content;
     }
 
     public void Serialize(ref RefBinaryWriter writer)
     {
-        writer.Write((byte)ChatChannel);
+        writer.Write7BitEncodedInt(ChatChannelID);
         writer.Write(Content);
     }
 
     public static PacketSendChatMessage Deserialize(ref RefBinaryReader reader)
-        => new((ChatChannel)reader.ReadByte(), reader.ReadString());
+        => new(reader.Read7BitEncodedInt(), reader.ReadString());
 }
 
 public sealed class PacketSendPrivateChatMessage :

@@ -8,8 +8,6 @@ namespace Celeste.Mod.MiaoNet;
 public sealed class ChatMessageFactory
 {
     private static readonly Color ColorChatContent = Color.White;
-    private static readonly Color ColorMapChat = Color.Cyan;
-    private static readonly Color ColorChannelChat = Color.LightGray;
     private static readonly Color ColorPrivateChat = Color.LightGray;
     private static readonly Color ColorPrivateChatReceived = Color.DarkGray;
     private static readonly Color ColorMention = Color.Gold;
@@ -33,9 +31,7 @@ public sealed class ChatMessageFactory
 
         ChatText? text = packet.Type switch
         {
-            ChatMessageType.Chat => CreatePublicChat(sender!, segments),
-            ChatMessageType.ChannelChat => CreateChannelChat(sender!, segments),
-            ChatMessageType.MapChat => CreateMapChat(sender!, segments),
+            ChatMessageType.Channel => CreateChannelMessage(packet.ChatChannelID, sender, segments),
             ChatMessageType.PrivateMessage => CreatePrivateChat(sender!, segments),
             _ => null
         };
@@ -50,57 +46,62 @@ public sealed class ChatMessageFactory
     }
 
     // The key and the line to show once folded, for player messages only.
-    // Public chats drop the sender name since messages from different senders fold together,
+    // Channel chats drop the sender name since messages from different senders fold together,
     // while private messages fold per sender so their prefix and name stay accurate.
     public (string? Key, ChatText? FoldedText) CreateFoldInfo(OnlinePlayer? sender, PacketChatMessage packet, ImmutableArray<ChatTextSegment> content)
     {
-        return packet.Type switch
+        if (packet.Type == ChatMessageType.Channel && packet.ChatChannelID is int channelID)
         {
-            ChatMessageType.Chat => (
-                $"chat:{packet.Content}",
-                new ChatText(content)),
-            ChatMessageType.ChannelChat => (
-                $"channel:{packet.Content}",
-                CreateFoldedTypedChat(ColorChannelChat, "miaonet_chat_channel_chat", content)),
-            ChatMessageType.MapChat => (
-                $"map:{packet.Content}",
-                CreateFoldedTypedChat(ColorMapChat, "miaonet_chat_map_chat", content)),
-            ChatMessageType.PrivateMessage => (
-                $"pm:{packet.SourcePlayer}:{packet.Content}",
-                CreatePrivateChat(sender!, content)),
-            _ => (null, null),
-        };
+            ChatText foldedText = context.ClientState is not null
+                && context.ClientState.TryGetChatChannel(channelID, out var channel)
+                && !string.IsNullOrEmpty(channel.Prefix)
+                ? CreatePrefixedContent(channel.Color, channel.Prefix, content)
+                : new ChatText(content);
+            return (string.Create(CultureInfo.InvariantCulture, $"ch:{channelID}:{packet.Content}"), foldedText);
+        }
+
+        if (packet.Type == ChatMessageType.PrivateMessage)
+        {
+            return (
+                string.Create(CultureInfo.InvariantCulture, $"pm:{packet.SourcePlayer}:{packet.Content}"),
+                CreatePrivateChat(sender!, content)
+            );
+        }
+
+        return (null, null);
     }
 
-    private static ChatText CreateFoldedTypedChat(Color prefixColor, string prefixDialogId, ImmutableArray<ChatTextSegment> content)
-        => new ChatText([
-            new(prefixColor, Dialog.Clean(prefixDialogId)),
-            new(ColorChatContent, " "),
-            ..content
-        ]);
+    private ChatText CreateChannelMessage(int? chatChannelID, OnlinePlayer? sender, ImmutableArray<ChatTextSegment> content)
+    {
+        string prefix = string.Empty;
+        Color prefixColor = ColorChatContent;
+        if (chatChannelID is int id
+            && context.ClientState is not null
+            && context.ClientState.TryGetChatChannel(id, out var channel))
+        {
+            prefix = channel.Prefix;
+            prefixColor = channel.Color;
+        }
 
-    private ChatText CreatePublicChat(OnlinePlayer sender, ImmutableArray<ChatTextSegment> content)
-        => new ChatText([
-            new(sender.Info.Color, sender.GetDisplayName(true, context.ShowAvatar)),
-            new(ColorChatContent, ": "),
-            ..content
-        ]);
+        var builder = ImmutableArray.CreateBuilder<ChatTextSegment>(content.Length + 4);
+        if (!string.IsNullOrEmpty(prefix))
+        {
+            builder.Add(new ChatTextSegment(prefixColor, prefix));
+            builder.Add(new ChatTextSegment(ColorChatContent, " "));
+        }
+        if (sender is not null)
+        {
+            builder.Add(new ChatTextSegment(sender.Info.Color, sender.GetDisplayName(true, context.ShowAvatar)));
+            builder.Add(new ChatTextSegment(ColorChatContent, ": "));
+        }
+        builder.AddRange(content);
+        return new ChatText(builder.ToImmutable());
+    }
 
-    private ChatText CreateMapChat(OnlinePlayer sender, ImmutableArray<ChatTextSegment> content)
+    private static ChatText CreatePrefixedContent(Color prefixColor, string prefix, ImmutableArray<ChatTextSegment> content)
         => new ChatText([
-            new(ColorMapChat, Dialog.Clean("miaonet_chat_map_chat")),
+            new(prefixColor, prefix),
             new(ColorChatContent, " "),
-            new(sender.Info.Color, sender.GetDisplayName(true, context.ShowAvatar)),
-            new(ColorChatContent, ": "),
-            ..content
-        ]);
-
-    private ChatText CreateChannelChat(OnlinePlayer sender, ImmutableArray<ChatTextSegment> content)
-        => new ChatText([
-            new(ColorChannelChat, Dialog.Clean("miaonet_chat_channel_chat")),
-            new(ColorChatContent, " "),
-            new(sender.Info.Color, sender.GetDisplayName(true, context.ShowAvatar)),
-            new(ColorChatContent, ": "),
             ..content
         ]);
 

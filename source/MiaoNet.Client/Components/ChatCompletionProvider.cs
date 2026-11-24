@@ -132,9 +132,10 @@ public sealed class ChatCompletionProvider : ICompletionProvider
                 case CommandSegmentType.CommandName:
                     return GetCommandNameCompletions(parser, part);
                 case CommandSegmentType.ChatChannelType:
-                    return from n in ChatChannelMatcher.Names
-                           where n.Contains(part, sc)
-                           select new Completion(n, n, remove);
+                    return from c in state.ChatChannels
+                           where c.CanSend
+                           where c.Key.Contains(part, sc) || c.DisplayName.Contains(part, sc)
+                           select new Completion(c.Key, $"{c.Key} ({c.DisplayName})", remove);
                 }
             }
         }

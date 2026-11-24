@@ -31,6 +31,22 @@ public sealed class ChatChannelSerializationTests
     }
 
     [TestMethod]
+    public void PacketChatMessageSupportsChannelAndExternalNullSender()
+    {
+        var timestamp = new DateTime(2026, 11, 24, 12, 0, 0, DateTimeKind.Utc);
+        var original = new PacketChatMessage(timestamp, ChatMessageType.Channel, chatChannelID: 5, sourcePlayer: null, content: "hello from mc");
+
+        byte[] bytes = RefBinarySerialization.Serialize(original);
+        var restored = RefBinarySerialization.Deserialize<PacketChatMessage>(bytes);
+
+        Assert.AreEqual(timestamp, restored.DateTime);
+        Assert.AreEqual(ChatMessageType.Channel, restored.Type);
+        Assert.AreEqual(5, restored.ChatChannelID);
+        Assert.IsNull(restored.SourcePlayer);
+        Assert.AreEqual("hello from mc", restored.Content);
+    }
+
+    [TestMethod]
     public void PacketClientInitialRoundTripsChatChannels()
     {
         ChatChannelInfo[] chatChannels =
