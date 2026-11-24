@@ -220,9 +220,9 @@ miaonet_commands_channel_description= Join or create a channel.
 miaonet_commands_channel_s0_name= Name
 miaonet_commands_channel_s0_description= The name of channel to join or create.
 miaonet_commands_channel_invalid_channel_name= Invalid channel name "(0)": channel names cannot contain whitespace or control characters
-miaonet_commands_chat_description= Set default chat channel type.
-miaonet_commands_chat_s0_name= Type
-miaonet_commands_chat_s0_description= Chat channel type (global/g channel/c map/m).
+miaonet_commands_chat_description= Set the default chat channel to send messages to.
+miaonet_commands_chat_s0_name= Channel
+miaonet_commands_chat_s0_description= Key or name of a sendable chat channel.
 
 miaonet_commands_teleport_notice=
 	By default, using the Teleport command saves your current progress and switches to a temporary save file.
@@ -257,13 +257,8 @@ miaonet_lb= [
 miaonet_rb= ]
 miaonet_chat_whisper_sent= {+ miaonet_lb}whisper to (0){+ miaonet_rb} (1)
 miaonet_chat_whisper_received= {+ miaonet_lb}whisper{+ miaonet_rb} (0)
-miaonet_chat_map_chat= {+ miaonet_lb}Map Chat{+ miaonet_rb}
-miaonet_chat_channel_chat= {+ miaonet_lb}Channel Chat{+ miaonet_rb}
 
 miaonet_initial_chat_tab_name= All
-miaonet_chat_channel_name_global= Global
-miaonet_chat_channel_name_channel= Channel
-miaonet_chat_channel_name_map= Map
 
 miaonet_oui_conflict_title= MiaoNet Mod Conflict
 miaonet_oui_conflict_description=

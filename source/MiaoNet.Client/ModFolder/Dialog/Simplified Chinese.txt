@@ -215,9 +215,9 @@ miaonet_commands_channel_description= 加入或创建一个频道。
 miaonet_commands_channel_s0_name= 频道名称
 miaonet_commands_channel_s0_description= 要加入或创建的频道名称。
 miaonet_commands_channel_invalid_channel_name= 无效的频道名称 "(0)"：频道名称不能包含空白字符或控制字符
-miaonet_commands_chat_description= 设置默认聊天频道类型。
-miaonet_commands_chat_s0_name= 类型
-miaonet_commands_chat_s0_description= 聊天频道类型（全局：global/g，频道：channel/c，地图: map/m）。
+miaonet_commands_chat_description= 设置默认发送的聊天频道。
+miaonet_commands_chat_s0_name= 频道
+miaonet_commands_chat_s0_description= 可发送的聊天频道标识或名称。
 
 miaonet_commands_teleport_notice= 
 	使用传送指令默认会保存你的当前游戏进度并将存档切换至一个临时存档。
@@ -252,13 +252,8 @@ miaonet_lb= [
 miaonet_rb= ]
 miaonet_chat_whisper_sent= {+ miaonet_lb}私聊 (0){+ miaonet_rb} (1)
 miaonet_chat_whisper_received= {+ miaonet_lb}私聊{+ miaonet_rb} (0)
-miaonet_chat_map_chat= {+ miaonet_lb}地图聊天{+ miaonet_rb}
-miaonet_chat_channel_chat= {+ miaonet_lb}频道聊天{+ miaonet_rb}
 
 miaonet_initial_chat_tab_name= 全部
-miaonet_chat_channel_name_global= 公屏
-miaonet_chat_channel_name_channel= 频道
-miaonet_chat_channel_name_map= 地图
 
 miaonet_oui_conflict_title= MiaoNet Mod 冲突
 miaonet_oui_conflict_description= 
