@@ -223,15 +223,6 @@ miaonet_commands_channel_invalid_channel_name= Invalid channel name "(0)": chann
 miaonet_commands_chat_description= Set default chat channel type.
 miaonet_commands_chat_s0_name= Type
 miaonet_commands_chat_s0_description= Chat channel type (global/g channel/c map/m).
-miaonet_commands_global_chat_description= Send a global chat.
-miaonet_commands_global_chat_s0_name= Text
-miaonet_commands_global_chat_s0_description= Chat message.
-miaonet_commands_channel_chat_description= Send a channel chat.
-miaonet_commands_channel_chat_s0_name= Text
-miaonet_commands_channel_chat_s0_description= Chat message.
-miaonet_commands_map_chat_description= Send a map chat.
-miaonet_commands_map_chat_s0_name= Text
-miaonet_commands_map_chat_s0_description= Chat message.
 
 miaonet_commands_teleport_notice=
 	By default, using the Teleport command saves your current progress and switches to a temporary save file.
