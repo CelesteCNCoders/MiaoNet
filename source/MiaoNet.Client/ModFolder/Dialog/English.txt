@@ -36,6 +36,7 @@ miaonet_options_chat_ui_scale= Chat UI Scale
 miaonet_options_chat_message_padding= Chat Message Padding Height
 miaonet_options_chat_background_opacity= Chat Background Opacity
 miaonet_options_chat_text_opacity= Chat Text Opacity
+miaonet_options_clear_card_opacity= Clear Card Opacity
 miaonet_options_chat_display_duration= Chat Display Duration
 miaonet_options_idle_chat_height= Chat Height
 miaonet_options_active_chat_height= Active Chat Height
@@ -113,6 +114,7 @@ miaonet_options_new_messages_showing_mode_hideall= Hide All
 miaonet_options_button_chat= Open Chat
 miaonet_options_button_chat_command= Input Commands
 miaonet_options_button_chat_tab_focus= Focus Chat Channel Toggles
+miaonet_options_button_share_clear= Share Clear Card on End Screen
 miaonet_options_button_player_list= Open Player List
 miaonet_options_button_create_fireworks= Create Fireworks
 miaonet_options_button_player_list_scroll_up= Scroll Up Player List
@@ -182,6 +184,7 @@ miaonet_command_help_title= == MiaoNet Command Help ((0)) ==
 miaonet_command_help_not_found= Command "(0)" not found
 
 miaonet_commands_help_description= Show help messages of all commands.
+miaonet_commands_shareclear_description= Share your latest level clear card to the Achievements channel.
 miaonet_commands_help_command_description= Show help message of a command.
 miaonet_commands_help_command_s0_name= Text
 miaonet_commands_help_command_s0_description= Command name.
@@ -275,3 +278,14 @@ miaonet_oui_conflict_continue_description= Warning: This may cause unexpected be
 
 miaonet_interactions_off_on_collecting_golden= Player interactions disabled due to picking up a golden berry.
 miaonet_group_photo_mode_off_on_map_change= Group photo mode disabled due to location changing.
+
+miaonet_clear_title= Level Clear
+miaonet_clear_deaths= (0) deaths
+miaonet_clear_fullclear_stamp= Full Clear
+miaonet_clear_golden_stamp= Golden
+miaonet_clear_not_connected= Not connected to a server.
+miaonet_clear_no_record= No clear record available to share on this save.
+miaonet_clear_already_shared= This clear has already been shared.
+miaonet_clear_cooldown= Please wait before sharing another clear.
+miaonet_clear_endscreen_prompt= Share Clear Card
+miaonet_clear_endscreen_shared= Clear Card Shared

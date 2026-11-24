@@ -13,6 +13,7 @@ public sealed partial class MiaoServerService
         r.Register<PacketPlayerLocationChanged>(HandlePacketAsync);
         r.Register<PacketPlayerChannelMove>(HandlePacketAsync);
         r.Register<PacketSendChatMessage>(HandlePacketAsync);
+        r.Register<PacketShareLevelClear>(HandlePacketAsync);
         r.Register<PacketEmote>(HandlePacketAsync);
         r.Register<PacketEmoteText>(HandlePacketAsync);
         r.Register<PacketPlayerLiveState>(HandlePacketAsync);

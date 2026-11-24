@@ -50,6 +50,8 @@ public sealed class MiaoClientConnection : IPacketSerializationContext
 
     public ServerPlayer Player { get; }
 
+    internal LevelClearShareLimiter LevelClearShareLimiter { get; } = new();
+
     public PooledStringManager PooledStringManager { get; }
 
     private readonly Channel<EnvelopedPacket> sendChannel;

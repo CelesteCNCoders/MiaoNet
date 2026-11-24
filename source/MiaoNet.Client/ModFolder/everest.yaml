@@ -1,5 +1,5 @@
 - Name: MiaoNet
-  Version: 0.5.0-dev
+  Version: 0.6.0-dev
   DLL: Code/MiaoNet.dll
   Dependencies:
     - Name: EverestCore
@@ -11,3 +11,5 @@
       Version: 3.27.15
     - Name: CelesteEmojis
       Version: 2.2.0
+    - Name: CollabUtils2
+      Version: 1.0.0

@@ -112,8 +112,9 @@ public sealed partial class MiaoNetContext : IPacketSerializationContext
         var chat = ChatComponent = new ChatComponent(this);
         var dm = new DebugMapComponent(this);
         var em = EmoteComponent = new EmoteComponent(this);
-        components = [main, pl, chat, dm, em];
-        renderableComponents = [dm, chat, pl];
+        var endScreen = new LevelClearEndScreenComponent(this);
+        components = [main, pl, chat, dm, em, endScreen];
+        renderableComponents = [dm, endScreen, chat, pl];
 
         StatusComponent = new(this);
         PacketHandlerRegister r = new();

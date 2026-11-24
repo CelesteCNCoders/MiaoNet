@@ -94,6 +94,12 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
         set { field = value; NotifySettingsChanged(SettingsCategory.VisualsUI); }
     } = 10;
 
+    public int ClearCardOpacity
+    {
+        get;
+        set { field = Math.Clamp(value, 1, 10); NotifySettingsChanged(SettingsCategory.VisualsUI); }
+    } = 8;
+
     public int ChatDisplayDuration
     {
         get;
@@ -178,6 +184,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 
     [YamlIgnore] public float ChatTextOpacityValue => ChatTextOpacity / 10f;
 
+    [YamlIgnore] public float ClearCardOpacityValue => ClearCardOpacity / 10f;
+
     [YamlIgnore] public float IdleChatHeightValue => IdleChatHeight / 10f;
 
     [YamlIgnore] public float ActiveChatHeightValue => ActiveChatHeight / 10f;
@@ -256,6 +264,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 
     public ButtonBinding ChatTabFocusButton { get; set; }
 
+    public ButtonBinding ShareClearButton { get; set; }
+
     public ButtonBinding PlayerListButton { get; set; }
 
     // emote 配置允许玩家手改 yaml, 所以反序列化后可能出现 null 之类的
@@ -283,6 +293,8 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
 
     public bool TippedTeleport { get; set; }
 
+    public bool AutoEnabledCollabEndScreen { get; set; }
+
     [YamlIgnore] public bool GroupPhotoMode { get; set; }
 
     #endregion
@@ -297,6 +309,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
         nameof(ChatButton),
         nameof(ChatCommandButton),
         nameof(ChatTabFocusButton),
+        nameof(ShareClearButton),
         nameof(PlayerListButton),
         nameof(EmoteButtons),
         nameof(CreateFireworksButton),
@@ -309,6 +322,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
         ChatButton = new(0, Keys.T);
         ChatCommandButton = new(0, 0);
         ChatTabFocusButton = new(0, Keys.F2);
+        ShareClearButton = new(0, Keys.F3);
         PlayerListButton = new(0, Keys.Tab);
         List<ButtonBinding> bindings = new();
         for (int i = 0; i < Emotes.Count; i++)
@@ -338,7 +352,7 @@ public sealed class MiaoNetModuleSettings : EverestModuleSettings,
     public IEnumerable<ButtonBinding> GetButtonBindings()
     {
         return [
-            ChatButton, ChatCommandButton, ChatTabFocusButton, PlayerListButton,
+            ChatButton, ChatCommandButton, ChatTabFocusButton, ShareClearButton, PlayerListButton,
             .. EmoteButtons,
             CreateFireworksButton,
             PlayerListScrollUp, PlayerListScrollDown,

@@ -191,6 +191,11 @@ public static class MenuMiaoNetOptions
         uiSubMenu.Add(item);
 
         item = new TextMenuExt.IntSlider(
+            Dialog.Get("miaonet_options_clear_card_opacity"), 1, 10, settings.ClearCardOpacity
+        ).Change(v => settings.ClearCardOpacity = v);
+        uiSubMenu.Add(item);
+
+        item = new TextMenuExt.IntSlider(
             Dialog.Get("miaonet_options_chat_display_duration"), 1, 12, settings.ChatDisplayDuration
         ).Change(v => settings.ChatDisplayDuration = v);
         uiSubMenu.Add(item);
@@ -499,6 +504,7 @@ public static class MenuMiaoNetOptions
             AddMapForceLabel(Dialog.Get("miaonet_options_button_chat"), settings.ChatButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_chat_command"), settings.ChatCommandButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_chat_tab_focus"), settings.ChatTabFocusButton.Binding);
+            AddMapForceLabel(Dialog.Get("miaonet_options_button_share_clear"), settings.ShareClearButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list"), settings.PlayerListButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_create_fireworks"), settings.CreateFireworksButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list_scroll_up"), settings.PlayerListScrollUp.Binding);
@@ -576,6 +582,7 @@ public static class MenuMiaoNetOptions
             AddMapForceLabel(Dialog.Get("miaonet_options_button_chat"), settings.ChatButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_chat_command"), settings.ChatCommandButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_chat_tab_focus"), settings.ChatTabFocusButton.Binding);
+            AddMapForceLabel(Dialog.Get("miaonet_options_button_share_clear"), settings.ShareClearButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list"), settings.PlayerListButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_create_fireworks"), settings.CreateFireworksButton.Binding);
             AddMapForceLabel(Dialog.Get("miaonet_options_button_player_list_scroll_up"), settings.PlayerListScrollUp.Binding);

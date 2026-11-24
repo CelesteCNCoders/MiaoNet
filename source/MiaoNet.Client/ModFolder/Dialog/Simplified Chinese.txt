@@ -35,6 +35,7 @@ miaonet_options_chat_ui_scale= 聊天界面大小
 miaonet_options_chat_message_padding= 聊天消息间隔高度
 miaonet_options_chat_background_opacity= 聊天背景不透明度
 miaonet_options_chat_text_opacity= 聊天文本不透明度
+miaonet_options_clear_card_opacity= 通关卡片不透明度
 miaonet_options_chat_display_duration= 聊天显示时间
 miaonet_options_idle_chat_height= 聊天高度
 miaonet_options_active_chat_height= 聚焦聊天高度
@@ -108,6 +109,7 @@ miaonet_options_new_messages_showing_mode_hideall= 全不显示
 miaonet_options_button_chat= 打开聊天栏
 miaonet_options_button_chat_command= 输入指令
 miaonet_options_button_chat_tab_focus= 切换聊天频道开关光标
+miaonet_options_button_share_clear= 结算界面分享通关卡片
 miaonet_options_button_player_list= 打开玩家列表
 miaonet_options_button_create_fireworks= 生成烟花
 miaonet_options_button_player_list_scroll_up= 向上滚动玩家列表
@@ -177,6 +179,7 @@ miaonet_command_help_title= == MiaoNet 指令帮助 ((0)) ==
 miaonet_command_help_not_found= 未找到指令 "(0)"
 
 miaonet_commands_help_description= 展示所有指令的帮助信息。
+miaonet_commands_shareclear_description= 分享最近一次通关成绩卡片到成就频道。
 miaonet_commands_help_command_description= 展示指令的帮助信息。
 miaonet_commands_help_command_s0_name= 文本
 miaonet_commands_help_command_s0_description= 指令名称。
@@ -270,3 +273,14 @@ miaonet_oui_conflict_continue_description= 警告：这可能发生非预期的�
 
 miaonet_interactions_off_on_collecting_golden= 玩家交互已因捡起金草莓而关闭。
 miaonet_group_photo_mode_off_on_map_change= 合影模式已因位置变化而关闭。
+
+miaonet_clear_title= 通关记录
+miaonet_clear_deaths= (0) 死
+miaonet_clear_fullclear_stamp= 全收集
+miaonet_clear_golden_stamp= 金草莓
+miaonet_clear_not_connected= 尚未连接到服务器。
+miaonet_clear_no_record= 当前存档没有可分享的通关记录。
+miaonet_clear_already_shared= 本次通关记录已经分享过了。
+miaonet_clear_cooldown= 通关分享冷却中，请稍后再试。
+miaonet_clear_endscreen_prompt= 分享通关卡片
+miaonet_clear_endscreen_shared= 已分享通关卡片
