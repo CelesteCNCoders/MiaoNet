@@ -81,16 +81,6 @@ public sealed class ClientState
         return false;
     }
 
-    public int? GetDefaultSendableChatChannelID()
-    {
-        foreach (var c in chatChannels)
-        {
-            if (c.CanSend)
-                return c.ID;
-        }
-        return null;
-    }
-
     public OnlinePlayer OnNewPlayerJoined(int channelID, int playerID, PlayerInfo playerInfo, PlayerGlobalFlags globalFlags)
         => AddNewPlayer(channelID, playerID, playerInfo, globalFlags);
 

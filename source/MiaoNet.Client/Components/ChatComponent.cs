@@ -166,22 +166,32 @@ public sealed partial class ChatComponent : MiaoNetComponent
         if (state is null)
             return;
 
-        string? activeTabName = chatMessageBox.ActiveTabName;
-        if (activeTabName is not null)
+        // ChatMessageBox currently identifies tabs by their display name.
+        if (chatMessageBox.ActiveTabName is string tabName)
         {
-            foreach (var c in state.ChatChannels)
+            foreach (var channel in state.ChatChannels)
             {
-                if (c.DisplayName == activeTabName)
+                if (channel.DisplayName != tabName)
+                    continue;
+                if (channel.CanSend)
                 {
-                    if (c.CanSend)
-                        selectedSendChannelID = c.ID;
-                    else
-                        selectedSendChannelID = state.GetDefaultSendableChatChannelID();
+                    selectedSendChannelID = channel.ID;
                     return;
                 }
+                break;
             }
         }
-        selectedSendChannelID = state.GetDefaultSendableChatChannelID();
+        selectedSendChannelID = GetFirstSendableChatChannelID(state);
+    }
+
+    private static int? GetFirstSendableChatChannelID(ClientState state)
+    {
+        foreach (var channel in state.ChatChannels)
+        {
+            if (channel.CanSend)
+                return channel.ID;
+        }
+        return null;
     }
 
     public override void Update()
@@ -315,8 +325,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
     public void SendChat(string text)
     {
-        int? channelID = selectedSendChannelID ?? context.ClientState?.GetDefaultSendableChatChannelID();
-        if (channelID is int id)
+        if (selectedSendChannelID is int id)
             context.QueuePacket(new PacketSendChatMessage(id, text));
     }
 
@@ -365,7 +374,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         ChatMessageBoxSetup();
         foreach (var channel in state.ChatChannels)
             chatMessageBox.AddTab(channel.DisplayName);
-        selectedSendChannelID = state.GetDefaultSendableChatChannelID();
+        selectedSendChannelID = GetFirstSendableChatChannelID(state);
     }
 
     // TODO TODO TODO we need a clean up method
