@@ -65,7 +65,7 @@ public sealed class ServerChatChannel
             "public",
             ChatChannelScope.Global,
             Color.White,
-            ChatChannelFlags.CanSend | ChatChannelFlags.DefaultVisibleInGlobal,
+            ChatChannelFlags.CanSend,
             "Public",
             string.Empty
         ),
@@ -74,7 +74,7 @@ public sealed class ServerChatChannel
             "channel",
             ChatChannelScope.PlayerChannel,
             new Color(211, 211, 211),
-            ChatChannelFlags.CanSend | ChatChannelFlags.DefaultVisibleInGlobal,
+            ChatChannelFlags.CanSend,
             "Channel",
             "[Channel Chat]"
         ),
@@ -83,7 +83,7 @@ public sealed class ServerChatChannel
             "map",
             ChatChannelScope.PlayerMap,
             new Color(0, 255, 255),
-            ChatChannelFlags.CanSend | ChatChannelFlags.DefaultVisibleInGlobal,
+            ChatChannelFlags.CanSend,
             "Map",
             "[Map Chat]"
         )

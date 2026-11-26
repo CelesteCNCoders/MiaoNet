@@ -4,8 +4,7 @@ namespace MiaoNet.Shared;
 public enum ChatChannelFlags : byte
 {
     None = 0,
-    CanSend = 1 << 0,
-    DefaultVisibleInGlobal = 1 << 1
+    CanSend = 1 << 0
 }
 
 public readonly struct ChatChannelInfo : IRefBinarySerializable<ChatChannelInfo>
@@ -23,8 +22,6 @@ public readonly struct ChatChannelInfo : IRefBinarySerializable<ChatChannelInfo>
     public ChatChannelFlags Flags { get; }
 
     public bool CanSend => Flags.HasFlag(ChatChannelFlags.CanSend);
-
-    public bool DefaultVisibleInGlobal => Flags.HasFlag(ChatChannelFlags.DefaultVisibleInGlobal);
 
     public ChatChannelInfo(
         int id,

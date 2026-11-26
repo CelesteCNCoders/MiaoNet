@@ -14,7 +14,7 @@ public sealed class ChatChannelSerializationTests
             displayName: "Announcements",
             prefix: "[Ann]",
             color: new Color(255, 215, 0),
-            flags: ChatChannelFlags.DefaultVisibleInGlobal
+            flags: ChatChannelFlags.None
         );
 
         byte[] bytes = RefBinarySerialization.Serialize(original);
@@ -27,7 +27,6 @@ public sealed class ChatChannelSerializationTests
         Assert.AreEqual(original.Color.PackedValue, restored.Color.PackedValue);
         Assert.AreEqual(original.Flags, restored.Flags);
         Assert.IsFalse(restored.CanSend);
-        Assert.IsTrue(restored.DefaultVisibleInGlobal);
     }
 
     [TestMethod]
@@ -51,8 +50,8 @@ public sealed class ChatChannelSerializationTests
     {
         ChatChannelInfo[] chatChannels =
         [
-            new(0, "public", "Public", string.Empty, Color.White, ChatChannelFlags.CanSend | ChatChannelFlags.DefaultVisibleInGlobal),
-            new(3, "announcements", "Announcements", string.Empty, new Color(255, 215, 0), ChatChannelFlags.DefaultVisibleInGlobal)
+            new(0, "public", "Public", string.Empty, Color.White, ChatChannelFlags.CanSend),
+            new(3, "announcements", "Announcements", string.Empty, new Color(255, 215, 0), ChatChannelFlags.None)
         ];
         var original = new PacketClientInitial(
             channelID: 0,
