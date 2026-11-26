@@ -76,6 +76,8 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
 
     public IReadOnlyCollection<Channel> Channels { get; }
 
+    public IReadOnlyCollection<ChatChannelInfo> ChatChannels { get; }
+
     public IReadOnlyCollection<Player> Players { get; }
 
     public PlayerPresenceMessage PlayerPresenceMessage { get; }
@@ -86,6 +88,7 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
         int channelID, int playerID,
         PlayerInfo selfPlayerInfo,
         IReadOnlyCollection<Channel> channels,
+        IReadOnlyCollection<ChatChannelInfo> chatChannels,
         IReadOnlyCollection<Player> players,
         PlayerPresenceMessage playerPresenceMessage,
         string joinMessage
@@ -95,6 +98,7 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
         PlayerID = playerID;
         SelfPlayerInfo = selfPlayerInfo;
         Channels = channels;
+        ChatChannels = chatChannels;
         Players = players;
         PlayerPresenceMessage = playerPresenceMessage;
         JoinMessage = joinMessage;
@@ -105,6 +109,7 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
             reader.Read7BitEncodedInt(), reader.Read7BitEncodedInt(),
             reader.Read<PlayerInfo>(),
             reader.ReadArray<Channel>(),
+            reader.ReadArray<ChatChannelInfo>(),
             reader.ReadArray<Player>(),
             reader.Read<PlayerPresenceMessage>(),
             reader.ReadString()
@@ -116,6 +121,7 @@ public sealed class PacketClientInitial : IContextlessPacket<PacketClientInitial
         writer.Write7BitEncodedInt(PlayerID);
         writer.Write(SelfPlayerInfo);
         writer.Write(Channels);
+        writer.Write(ChatChannels);
         writer.Write(Players);
         writer.Write(PlayerPresenceMessage);
         writer.Write(JoinMessage);

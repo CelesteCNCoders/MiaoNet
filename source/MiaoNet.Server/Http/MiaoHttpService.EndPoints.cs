@@ -94,7 +94,7 @@ public partial class MiaoHttpService
             return;
         }
 
-        await miaoServerService.BroadcastAsync(new PacketChatMessage(DateTime.UtcNow, ChatMessageType.Server, null, message));
+        await miaoServerService.BroadcastAsync(new PacketChatMessage(DateTime.UtcNow, ChatMessageType.Server, null, null, message));
 
         context.Response.StatusCode = (int)HttpStatusCode.NoContent;
     }

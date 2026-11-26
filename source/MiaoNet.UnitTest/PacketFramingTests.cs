@@ -21,6 +21,7 @@ public sealed class PacketFramingTests
             playerID: 2,
             new PlayerInfo(3, largeName, largePrefix, string.Empty, Color.White),
             Array.Empty<PacketClientInitial.Channel>(),
+            Array.Empty<ChatChannelInfo>(),
             Array.Empty<PacketClientInitial.Player>(),
             new PlayerPresenceMessage(string.Empty, string.Empty),
             string.Empty

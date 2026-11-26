@@ -49,6 +49,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
     private string lastInput = string.Empty;
     private readonly List<string> inputHistory;
     private int historyIndex;
+    private int? selectedSendChannelID;
 
     public bool Active => active;
 
@@ -65,6 +66,7 @@ public sealed partial class ChatComponent : MiaoNetComponent
         chatMessageBox = new(textRenderer);
         ChatMessageBoxSetup();
 
+        context.ClientInitialized += Context_ClientInitialized;
         context.ChatMessageReceived += Context_ChatMessageReceived;
         context.PlayerJoined += Context_PlayerJoined;
         context.PlayerLeft += Context_PlayerLeft;
@@ -135,15 +137,14 @@ public sealed partial class ChatComponent : MiaoNetComponent
         ReceivedChatMessage received = chatMessageFactory.CreateReceived(player, packet);
         if (received.Text is not null)
         {
-            // Route to appropriate tab based on message type
-            ChatChannel? chatChannel = packet.Type switch
+            string? tabName = null;
+            if (packet.Type == ChatMessageType.Channel
+                && packet.ChatChannelID is int channelID
+                && context.ClientState is not null
+                && context.ClientState.TryGetChatChannel(channelID, out var channel))
             {
-                ChatMessageType.Chat => ChatChannel.Global,
-                ChatMessageType.ChannelChat => ChatChannel.Channel,
-                ChatMessageType.MapChat => ChatChannel.Map,
-                _ => null
-            };
-            string? tabName = ChatChannelMatcher.GetLocalizedName(chatChannel);
+                tabName = channel.DisplayName;
+            }
 
             string? foldKey = null;
             ChatText? foldedText = null;
@@ -161,12 +162,36 @@ public sealed partial class ChatComponent : MiaoNetComponent
 
     private void SyncChatChannelWithTab()
     {
-        var chatTabName = chatMessageBox.ActiveTabName ?? ChatChannelMatcher.GetLocalizedName(ChatChannel.Global);
-        var chatChannel = ChatChannelMatcher.MatchLocalized(chatTabName!);
-        if (chatChannel != (ChatChannel)(-1))
+        var state = context.ClientState;
+        if (state is null)
+            return;
+
+        // ChatMessageBox currently identifies tabs by their display name.
+        if (chatMessageBox.ActiveTabName is string tabName)
         {
-            MiaoNetModule.Settings.ChatChannel = chatChannel;
+            foreach (var channel in state.ChatChannels)
+            {
+                if (channel.DisplayName != tabName)
+                    continue;
+                if (channel.CanSend)
+                {
+                    selectedSendChannelID = channel.ID;
+                    return;
+                }
+                break;
+            }
         }
+        selectedSendChannelID = GetFirstSendableChatChannelID(state);
+    }
+
+    private static int? GetFirstSendableChatChannelID(ClientState state)
+    {
+        foreach (var channel in state.ChatChannels)
+        {
+            if (channel.CanSend)
+                return channel.ID;
+        }
+        return null;
     }
 
     public override void Update()
@@ -288,8 +313,21 @@ public sealed partial class ChatComponent : MiaoNetComponent
         chatMessageBox.Update();
     }
 
+    public void SetSendChannel(int channelID)
+    {
+        if (context.ClientState is not null
+            && context.ClientState.TryGetChatChannel(channelID, out var channel)
+            && channel.CanSend)
+        {
+            selectedSendChannelID = channelID;
+        }
+    }
+
     public void SendChat(string text)
-        => context.QueuePacket(new PacketSendChatMessage(MiaoNetModule.Settings.ChatChannel, text));
+    {
+        if (selectedSendChannelID is int id)
+            context.QueuePacket(new PacketSendChatMessage(id, text));
+    }
 
     public void AddLocalChat(ChatText message)
         => chatMessageBox.AddChatMessage(message);
@@ -331,6 +369,14 @@ public sealed partial class ChatComponent : MiaoNetComponent
         }
     }
 
+    private void Context_ClientInitialized(ClientState state)
+    {
+        ChatMessageBoxSetup();
+        foreach (var channel in state.ChatChannels)
+            chatMessageBox.AddTab(channel.DisplayName);
+        selectedSendChannelID = GetFirstSendableChatChannelID(state);
+    }
+
     // TODO TODO TODO we need a clean up method
     public override void OnDisconnected()
     {
@@ -339,19 +385,13 @@ public sealed partial class ChatComponent : MiaoNetComponent
         ChatMessageBoxSetup();
         inputHistory.Clear();
         historyIndex = 0;
+        selectedSendChannelID = null;
     }
 
     private void ChatMessageBoxSetup()
     {
         chatMessageBox.CleanUp();
         chatMessageBox.ChatTabListView.InitialTabTitle = Dialog.Get("miaonet_initial_chat_tab_name");
-        foreach (ChatChannel type in Enum.GetValues(typeof(ChatChannel)))
-        {
-            string? localizedTabName = ChatChannelMatcher.GetLocalizedName(type);
-            if (localizedTabName == null)
-                throw new UnreachableException();
-            chatMessageBox.AddTab(localizedTabName);
-        }
     }
 
     private void Activate()

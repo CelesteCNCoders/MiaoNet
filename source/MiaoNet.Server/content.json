@@ -10,5 +10,17 @@
       "PlayerLeft": "[Server] Cya, (0)!",
       "PlayerJoinMessage": "[Server] Welcome to MiaoNet dev server\n[Server] Press T to chat\n[Server] Use /help to get all command help"
     }
+  },
+  "ChatChannels": {
+    "SChinese": {
+      "public": { "Name": "全局", "Prefix": "" },
+      "channel": { "Name": "频道", "Prefix": "[频道聊天]" },
+      "map": { "Name": "地图", "Prefix": "[地图聊天]" }
+    },
+    "English": {
+      "public": { "Name": "Public", "Prefix": "" },
+      "channel": { "Name": "Channel", "Prefix": "[Channel Chat]" },
+      "map": { "Name": "Map", "Prefix": "[Map Chat]" }
+    }
   }
 }

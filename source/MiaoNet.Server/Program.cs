@@ -115,6 +115,8 @@ public static partial class Program
             )
             .ValidateOnStart();
 
+        builder.Services.Configure<ChatChannelOptions>(builder.Configuration.GetSection("ChatChannels"));
+
         builder.Services.AddHostedService<MiaoHttpService>();
 
         using (IHost host = builder.Build())
