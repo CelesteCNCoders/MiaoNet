@@ -24,6 +24,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
     private readonly MiaoClientConnectionFactory connectionFactory;
     private readonly MiaoServerOptions options;
     private readonly IOptionsMonitor<AnnouncementsOptions> announcementsMonitor;
+    private readonly IOptionsMonitor<ChatChannelOptions> chatChannelOptions;
     private readonly IDisposable? announcementsChangeSubscription;
     private readonly IMiaoAuthenticator authenticator;
     private readonly MiaoMetricsService miaoMetricsService;
@@ -54,6 +55,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         ILogger<MiaoServerService> logger,
         IOptions<MiaoServerOptions> options,
         IOptionsMonitor<AnnouncementsOptions> announcementsMonitor,
+        IOptionsMonitor<ChatChannelOptions> chatChannelOptions,
         NetworkListenerFactory networkListenerFactory,
         MiaoClientConnectionFactory connectionFactory,
         IMiaoAuthenticator authenticator,
@@ -74,6 +76,7 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
         this.authenticator = authenticator;
         this.options = options.Value;
         this.announcementsMonitor = announcementsMonitor;
+        this.chatChannelOptions = chatChannelOptions;
         announcementsChangeSubscription = announcementsMonitor.OnChange(
             (_, _) => logger.LogInformation(AppEvents.Server, "Announcements options reloaded.")
         );
@@ -158,8 +161,10 @@ public sealed partial class MiaoServerService : BackgroundService, IMiaoServerSe
                         sameChannel ? p.GlobalFlags : PlayerGlobalFlags.None
                     );
 
-                var strings = announcementsMonitor.CurrentValue[handshakeResult.HandshakeData.LanguageCode];
-                var chatChannelInfos = chatChannels.Select(c => c.ToInfo(strings)).ToList();
+                var language = handshakeResult.HandshakeData.LanguageCode;
+                var strings = announcementsMonitor.CurrentValue[language];
+                var channelStrings = chatChannelOptions.CurrentValue[language];
+                var chatChannelInfos = chatChannels.Select(c => c.ToInfo(channelStrings)).ToList();
                 PacketClientInitial packetClientInitial = new PacketClientInitial(
                     newPlayer.Channel.ID,
                     newPlayer.ID,

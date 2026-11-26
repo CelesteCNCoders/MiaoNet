@@ -51,11 +51,10 @@ public sealed class ServerChatChannel
         DefaultPrefix = defaultPrefix;
     }
 
-    public ChatChannelInfo ToInfo(AnnouncementsStrings strings)
+    public ChatChannelInfo ToInfo(IReadOnlyDictionary<string, ChatChannelStrings> strings)
     {
-        if (strings.ChatChannels is not null && strings.ChatChannels.TryGetValue(Key, out var localized))
-            return new(ID, Key, localized.Name, localized.Prefix, Color, Flags);
-        return new(ID, Key, DefaultName, DefaultPrefix, Color, Flags);
+        strings.TryGetValue(Key, out var localized);
+        return new(ID, Key, localized?.Name ?? DefaultName, localized?.Prefix ?? DefaultPrefix, Color, Flags);
     }
 
     public static IReadOnlyList<ServerChatChannel> CreateDefaultChannels() =>
